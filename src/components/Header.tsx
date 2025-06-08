@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { Monitor, Star } from 'lucide-react';
+import { Star } from 'lucide-react';
 
 export const Header = () => {
   return (
@@ -14,7 +13,11 @@ export const Header = () => {
       
       <div className="relative container mx-auto px-4 py-12">
         <div className="flex items-center justify-center mb-8">
-          <Monitor className="h-12 w-12 text-blue-400 mr-4" />
+          <img 
+            src="/lovable-uploads/012bbdab-1222-48ae-aa4b-d7bb3c3aa632.png" 
+            alt="Hero TV Mounting Logo" 
+            className="h-12 w-12 mr-4"
+          />
           <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
             Hero TV Mounting
           </h1>
