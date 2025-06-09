@@ -37,13 +37,10 @@ export const BlogSection = () => {
         
         <div className="space-y-8">
           {proTips.map((tip) => (
-            <div 
-              key={tip.id} 
-              className="bg-slate-800/50 backdrop-blur-sm rounded-xl overflow-hidden border border-slate-700"
-            >
-              <div className="grid grid-cols-1 lg:grid-cols-2 min-h-[400px]">
-                {/* Video Section - Left Side */}
-                <div className="relative bg-slate-900">
+            <div key={tip.id} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Video Card */}
+              <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl overflow-hidden border border-slate-700 h-[400px]">
+                <div className="relative h-full bg-slate-900">
                   <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 to-purple-600/20" />
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="bg-white/20 backdrop-blur-sm rounded-full p-8 hover:scale-110 transition-transform duration-300 cursor-pointer">
@@ -59,16 +56,16 @@ export const BlogSection = () => {
                     <div className="text-white text-sm opacity-75">Watch Expert Tips</div>
                   </div>
                 </div>
-                
-                {/* Content Section - Right Side */}
-                <div className="p-8 flex flex-col justify-center">
-                  <h3 className="text-2xl md:text-3xl font-bold text-white mb-6">
-                    {tip.title}
-                  </h3>
-                  <p className="text-lg text-slate-300 leading-relaxed">
-                    {tip.content}
-                  </p>
-                </div>
+              </div>
+              
+              {/* Text Card */}
+              <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700 p-8 flex flex-col justify-center h-[400px]">
+                <h3 className="text-2xl md:text-3xl font-bold text-white mb-6">
+                  {tip.title}
+                </h3>
+                <p className="text-lg text-slate-300 leading-relaxed">
+                  {tip.content}
+                </p>
               </div>
             </div>
           ))}
