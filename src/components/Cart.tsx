@@ -31,7 +31,8 @@ export const Cart: React.FC<CartProps> = ({ items, total, onCheckout, onRemoveIt
                   <div className="text-xs text-slate-500">
                     {item.options.over65 && 'Over 65", '}
                     {item.options.frameMount && 'Frame Mount, '}
-                    {item.options.extraTvs > 0 && `+${item.options.extraTvs} TVs, `}
+                    {item.options.numberOfTvs > 1 && `${item.options.numberOfTvs} TVs, `}
+                    {item.options.wallType === 'stone-brick-tile' && 'Stone/Brick/Tile, '}
                     {item.options.cableConcealment !== 'none' && item.options.cableConcealment}
                   </div>
                 )}

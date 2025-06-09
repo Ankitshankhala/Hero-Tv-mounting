@@ -15,8 +15,9 @@ export interface CartItem {
   options?: {
     over65: boolean;
     frameMount: boolean;
-    extraTvs: number;
+    numberOfTvs: number;
     cableConcealment: string;
+    wallType: string;
   };
 }
 
