@@ -1,6 +1,8 @@
 
 import React from 'react';
 import { Star } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 
 export const ReviewsSection = () => {
   const reviews = [
@@ -10,8 +12,7 @@ export const ReviewsSection = () => {
       rating: 5,
       name: "Sarah M.",
       city: "Austin, TX",
-      image: "/lovable-uploads/4f2b0612-e53a-4743-9241-89f3d0c96f3f.png",
-      imageLeft: true
+      image: "/lovable-uploads/4f2b0612-e53a-4743-9241-89f3d0c96f3f.png"
     },
     {
       id: 2,
@@ -19,8 +20,7 @@ export const ReviewsSection = () => {
       rating: 5,
       name: "Mike R.",
       city: "Dallas, TX",
-      image: "/lovable-uploads/9b5c911a-cfc6-4311-94bb-902ce479c279.png",
-      imageLeft: false
+      image: "/lovable-uploads/9b5c911a-cfc6-4311-94bb-902ce479c279.png"
     },
     {
       id: 3,
@@ -28,8 +28,23 @@ export const ReviewsSection = () => {
       rating: 5,
       name: "Jennifer L.",
       city: "Houston, TX",
-      image: "/lovable-uploads/1cdefbf0-13c5-4f66-bb5c-761861d66f74.png",
-      imageLeft: true
+      image: "/lovable-uploads/1cdefbf0-13c5-4f66-bb5c-761861d66f74.png"
+    },
+    {
+      id: 4,
+      quote: "The team arrived on time and completed the installation quickly. Our 65\" TV looks amazing on the wall and the cable management is flawless. Will definitely use them again!",
+      rating: 5,
+      name: "David K.",
+      city: "San Antonio, TX",
+      image: "/lovable-uploads/4f2b0612-e53a-4743-9241-89f3d0c96f3f.png"
+    },
+    {
+      id: 5,
+      quote: "Excellent customer service from start to finish. They explained everything clearly and the final result exceeded our expectations. The TV mounting looks professional and secure.",
+      rating: 5,
+      name: "Lisa P.",
+      city: "Fort Worth, TX",
+      image: "/lovable-uploads/9b5c911a-cfc6-4311-94bb-902ce479c279.png"
     }
   ];
 
@@ -45,43 +60,94 @@ export const ReviewsSection = () => {
           </p>
         </div>
         
-        <div className="space-y-16">
-          {reviews.map((review) => (
-            <div 
-              key={review.id} 
-              className={`grid grid-cols-1 lg:grid-cols-2 gap-8 items-center`}
-            >
-              <div className={`${review.imageLeft ? 'lg:order-1' : 'lg:order-2'}`}>
-                <div className="relative rounded-xl overflow-hidden">
-                  <img 
-                    src={review.image} 
-                    alt={`Customer ${review.name} installation`}
-                    className="w-full h-64 lg:h-80 object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent" />
-                </div>
-              </div>
-              
-              <div className={`${review.imageLeft ? 'lg:order-2' : 'lg:order-1'}`}>
-                <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-8 border border-slate-700">
-                  <div className="flex items-center mb-4">
-                    {[...Array(review.rating)].map((_, i) => (
-                      <Star key={i} className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-                    ))}
+        {/* Desktop: Vertical scroll of cards */}
+        <div className="hidden md:block">
+          <ScrollArea className="h-[600px] w-full">
+            <div className="space-y-6 pr-4">
+              {reviews.map((review) => (
+                <div 
+                  key={review.id} 
+                  className="bg-slate-800/50 backdrop-blur-sm rounded-xl overflow-hidden border border-slate-700"
+                >
+                  <div className="grid grid-cols-2 h-64">
+                    {/* Image Section */}
+                    <div className="relative">
+                      <img 
+                        src={review.image} 
+                        alt={`Customer ${review.name} installation`}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent" />
+                    </div>
+                    
+                    {/* Text Section */}
+                    <div className="p-6 flex flex-col justify-center">
+                      <div className="flex items-center mb-4">
+                        {[...Array(review.rating)].map((_, i) => (
+                          <Star key={i} className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+                        ))}
+                      </div>
+                      
+                      <ScrollArea className="flex-1 mb-4">
+                        <blockquote className="text-lg text-white leading-relaxed pr-4">
+                          "{review.quote}"
+                        </blockquote>
+                      </ScrollArea>
+                      
+                      <div className="text-slate-300">
+                        <div className="font-semibold">{review.name}</div>
+                        <div className="text-sm">{review.city}</div>
+                      </div>
+                    </div>
                   </div>
-                  
-                  <blockquote className="text-lg text-white mb-6 leading-relaxed">
-                    "{review.quote}"
-                  </blockquote>
-                  
-                  <div className="text-slate-300">
-                    <div className="font-semibold">{review.name}</div>
-                    <div className="text-sm">{review.city}</div>
-                  </div>
                 </div>
-              </div>
+              ))}
             </div>
-          ))}
+          </ScrollArea>
+        </div>
+
+        {/* Mobile: Touch slider */}
+        <div className="md:hidden">
+          <Carousel className="w-full">
+            <CarouselContent>
+              {reviews.map((review) => (
+                <CarouselItem key={review.id}>
+                  <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl overflow-hidden border border-slate-700">
+                    {/* Mobile: Stack image on top, text below */}
+                    <div className="relative h-48">
+                      <img 
+                        src={review.image} 
+                        alt={`Customer ${review.name} installation`}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent" />
+                    </div>
+                    
+                    <div className="p-6">
+                      <div className="flex items-center mb-4">
+                        {[...Array(review.rating)].map((_, i) => (
+                          <Star key={i} className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+                        ))}
+                      </div>
+                      
+                      <ScrollArea className="h-32 mb-4">
+                        <blockquote className="text-base text-white leading-relaxed pr-4">
+                          "{review.quote}"
+                        </blockquote>
+                      </ScrollArea>
+                      
+                      <div className="text-slate-300">
+                        <div className="font-semibold">{review.name}</div>
+                        <div className="text-sm">{review.city}</div>
+                      </div>
+                    </div>
+                  </div>
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <CarouselPrevious className="left-2" />
+            <CarouselNext className="right-2" />
+          </Carousel>
         </div>
       </div>
     </section>
