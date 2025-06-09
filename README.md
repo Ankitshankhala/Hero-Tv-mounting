@@ -1,4 +1,5 @@
-# Hero Mount Mastery
+
+# Hero TV Mounting
 
 A sleek, modern TV Mounting Service Website — built for speed, convenience, and customer trust. This site allows users to select mounting services, add-ons, dynamically view pricing, and proceed to booking — all from a single-page interface.
 
@@ -19,7 +20,7 @@ A sleek, modern TV Mounting Service Website — built for speed, convenience, an
 
 ## 📂 Folder Structure
 
-hero-mount-mastery/
+hero-tv-mounting/
 ├── public/ # Static files
 ├── src/ # Source code
 │ ├── components/ # Reusable UI components
