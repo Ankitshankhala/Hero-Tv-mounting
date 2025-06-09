@@ -1,137 +1,139 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Plus, Minus } from 'lucide-react';
 import { CartItem } from '@/pages/Index';
 
 interface TvMountingModalProps {
   onClose: () => void;
-  onAddToCart: (item: CartItem) => void;
+  onSubmit: (item: CartItem) => void;
 }
 
-export const TvMountingModal: React.FC<TvMountingModalProps> = ({ onClose, onAddToCart }) => {
-  const [over65, setOver65] = useState(false);
-  const [frameMount, setFrameMount] = useState(false);
+export const TvMountingModal: React.FC<TvMountingModalProps> = ({ onClose, onSubmit }) => {
   const [extraTvs, setExtraTvs] = useState(0);
-  const [cableConcealment, setCableConcealment] = useState('none');
+  const [stoneWork, setStoneWork] = useState(false);
 
-  const basePrice = 100;
-  const over65Price = 25;
-  const frameMountPrice = 25;
-  const extraTvPrice = 65;
+  const basePrice = 100; // Base price includes 1 TV
+  const stoneWorkPrice = 50;
 
-  const calculatePrice = () => {
+  const calculateExtraTvPrice = (count: number) => {
+    if (count === 1) return 90;
+    if (count === 2) return 75;
+    if (count >= 3) return 60;
+    return 0;
+  };
+
+  const calculateTotalPrice = () => {
     let total = basePrice;
-    if (over65) total += over65Price;
-    if (frameMount) total += frameMountPrice;
-    total += extraTvs * extraTvPrice;
+    
+    // Add extra TV costs
+    for (let i = 1; i <= extraTvs; i++) {
+      total += calculateExtraTvPrice(i);
+    }
+    
+    // Add stone work if selected
+    if (stoneWork) total += stoneWorkPrice;
+    
     return total;
   };
 
-  const handleAddToCart = () => {
-    onAddToCart({
+  const handleSubmit = () => {
+    onSubmit({
       id: 'tv-mounting',
-      name: 'TV Mounting',
-      price: calculatePrice(),
+      name: 'TV Mounting Service',
+      price: calculateTotalPrice(),
       quantity: 1,
       options: {
-        over65,
-        frameMount,
         extraTvs,
-        cableConcealment
+        stoneWork
       }
     });
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-900 rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-slate-700">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-2xl font-bold text-white">TV Mounting Options</h3>
+            <h3 className="text-2xl font-bold text-gray-900">TV Mounting Service</h3>
             <button 
               onClick={onClose}
-              className="text-slate-400 hover:text-white p-2 rounded-full hover:bg-slate-800"
+              className="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100"
             >
               <X className="h-5 w-5" />
             </button>
           </div>
           
           <div className="space-y-6">
-            <div>
-              <label className="flex items-center space-x-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={over65}
-                  onChange={(e) => setOver65(e.target.checked)}
-                  className="w-5 h-5 text-blue-600 bg-slate-800 border-slate-600 rounded focus:ring-blue-500 focus:ring-2"
-                />
-                <span className="text-white flex-1">Over 65" TV</span>
-                <span className="text-blue-400 font-semibold">+${over65Price}</span>
-              </label>
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <div className="text-sm text-blue-600 font-medium mb-1">Base Service Includes:</div>
+              <div className="text-gray-700">1 TV Mounting - $100</div>
             </div>
             
             <div>
-              <label className="flex items-center space-x-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={frameMount}
-                  onChange={(e) => setFrameMount(e.target.checked)}
-                  className="w-5 h-5 text-blue-600 bg-slate-800 border-slate-600 rounded focus:ring-blue-500 focus:ring-2"
-                />
-                <span className="text-white flex-1">Frame Mount</span>
-                <span className="text-blue-400 font-semibold">+${frameMountPrice}</span>
-              </label>
-            </div>
-            
-            <div>
-              <label className="block text-white mb-3">Extra TVs (max 3)</label>
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={() => setExtraTvs(Math.max(0, extraTvs - 1))}
-                  className="bg-slate-800 hover:bg-slate-700 text-white p-2 rounded-full"
-                  disabled={extraTvs === 0}
-                >
-                  <Minus className="h-4 w-4" />
-                </button>
-                <span className="text-white font-semibold w-8 text-center">{extraTvs}</span>
-                <button
-                  onClick={() => setExtraTvs(Math.min(3, extraTvs + 1))}
-                  className="bg-slate-800 hover:bg-slate-700 text-white p-2 rounded-full"
-                  disabled={extraTvs === 3}
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
-                <span className="text-blue-400 font-semibold">+${extraTvs * extraTvPrice}</span>
+              <label className="block text-gray-700 font-medium mb-3">Additional TVs</label>
+              <div className="flex items-center justify-between bg-gray-50 p-4 rounded-lg">
+                <div className="flex items-center space-x-4">
+                  <button
+                    onClick={() => setExtraTvs(Math.max(0, extraTvs - 1))}
+                    className="bg-white hover:bg-gray-100 border border-gray-300 text-gray-700 p-2 rounded-full"
+                    disabled={extraTvs === 0}
+                  >
+                    <Minus className="h-4 w-4" />
+                  </button>
+                  <span className="text-lg font-semibold w-8 text-center">{extraTvs}</span>
+                  <button
+                    onClick={() => setExtraTvs(extraTvs + 1)}
+                    className="bg-white hover:bg-gray-100 border border-gray-300 text-gray-700 p-2 rounded-full"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
+                {extraTvs > 0 && (
+                  <div className="text-right">
+                    <div className="text-sm text-gray-600">
+                      ${calculateExtraTvPrice(extraTvs)} each
+                    </div>
+                    <div className="font-semibold text-blue-600">
+                      +${Array.from({length: extraTvs}, (_, i) => calculateExtraTvPrice(i + 1)).reduce((a, b) => a + b, 0)}
+                    </div>
+                  </div>
+                )}
               </div>
+              {extraTvs > 0 && (
+                <div className="mt-2 text-sm text-gray-600">
+                  Pricing: 1st extra TV $90, 2nd $75, 3rd+ $60 each
+                </div>
+              )}
             </div>
             
             <div>
-              <label className="block text-white mb-3">Cable Concealment Type</label>
+              <label className="block text-gray-700 font-medium mb-3">Surface Type</label>
               <select
-                value={cableConcealment}
-                onChange={(e) => setCableConcealment(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-600 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                value={stoneWork ? 'stone' : 'standard'}
+                onChange={(e) => setStoneWork(e.target.value === 'stone')}
+                className="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="none">No Concealment</option>
-                <option value="surface">Surface Mount</option>
-                <option value="in-wall">In-Wall</option>
-                <option value="fire-safe">Fire Safe</option>
+                <option value="standard">Standard Wall (Drywall)</option>
+                <option value="stone">Stone/Brick/Tile (+$50)</option>
               </select>
             </div>
             
-            <div className="bg-slate-800 rounded-lg p-4">
-              <div className="flex justify-between items-center text-lg font-bold text-white">
-                <span>Total Price:</span>
-                <span className="text-blue-400">${calculatePrice()}</span>
+            <div className="bg-gray-900 text-white rounded-lg p-4">
+              <div className="flex justify-between items-center">
+                <span className="text-lg font-semibold">Total Price:</span>
+                <span className="text-2xl font-bold">${calculateTotalPrice()}</span>
+              </div>
+              <div className="text-sm text-gray-300 mt-1">
+                {1 + extraTvs} TV{1 + extraTvs > 1 ? 's' : ''} total
               </div>
             </div>
             
             <button
-              onClick={handleAddToCart}
+              onClick={handleSubmit}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
             >
-              Add to Cart
+              Book Service
             </button>
           </div>
         </div>
