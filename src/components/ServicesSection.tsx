@@ -95,7 +95,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ onAddToCart })
       {isTvMountingModalOpen && (
         <TvMountingModal
           onClose={() => setIsTvMountingModalOpen(false)}
-          onAddToCart={onAddToCart}
+          onSubmit={onAddToCart}
         />
       )}
     </section>
