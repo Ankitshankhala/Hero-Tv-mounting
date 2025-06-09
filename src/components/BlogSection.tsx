@@ -1,29 +1,28 @@
 
 import React from 'react';
-import { Play } from 'lucide-react';
 
 export const BlogSection = () => {
-  const blogPosts = [
+  const proTips = [
     {
       id: 1,
-      title: "TV Height and Position",
-      content: "Learn the optimal height and viewing angles for your TV installation. Proper positioning ensures comfortable viewing and reduces neck strain.",
-      videoId: "dQw4w9WgXcQ", // Placeholder YouTube video ID
-      imageLeft: true
+      title: "Optimal TV Height and Viewing Angles",
+      content: "Proper TV mounting height is crucial for comfortable viewing and neck health. The center of your TV screen should be at eye level when seated. For most living rooms, this means mounting the TV 42-48 inches from the floor to the center of the screen. Consider the viewing distance - your TV should be 1.5 to 2.5 times the screen size away from your seating. Tilt brackets can help achieve the perfect viewing angle, especially for TVs mounted higher than ideal. Professional TV mounting ensures optimal positioning for your specific room layout and furniture arrangement.",
+      videoId: "dQw4w9WgXcQ",
+      keywords: "TV mounting height, viewing angles, professional TV installation, optimal positioning"
     },
     {
       id: 2,
-      title: "About Our Mounts",
-      content: "Discover the different types of TV mounts we use and why quality hardware makes all the difference for safety and durability.",
-      videoId: "dQw4w9WgXcQ", // Placeholder YouTube video ID
-      imageLeft: false
+      title: "TV Mount Types and Wall Compatibility",
+      content: "Choosing the right TV mount depends on your wall type and viewing needs. Fixed mounts provide the most stability and are perfect for drywall installations. Full-motion mounts offer maximum flexibility, allowing you to tilt, swivel, and extend your TV for optimal viewing from different angles. Tilting mounts are ideal for TVs mounted above eye level. Wall compatibility is essential - drywall requires proper stud mounting, while brick, stone, and tile walls need specialized anchors and drilling techniques. Professional installers assess your wall type and recommend the best mounting solution for safety and longevity.",
+      videoId: "dQw4w9WgXcQ",
+      keywords: "TV mount types, wall mounting, full motion mounts, professional installation, wall compatibility"
     },
     {
       id: 3,
-      title: "Crush the Wires",
-      content: "See how we completely hide cables for a clean, professional look that transforms your living space into a modern entertainment center.",
-      videoId: "dQw4w9WgXcQ", // Placeholder YouTube video ID
-      imageLeft: true
+      title: "Cable Management and Wire Concealment",
+      content: "Clean cable management transforms your entertainment space from cluttered to professional. In-wall cable concealment provides the cleanest look by running cables through the wall cavity between studs. Surface-mount cable covers offer a quick solution for rentals or when in-wall isn't possible. Proper cable routing prevents signal interference and maintains optimal performance for your devices. Professional installers can relocate power outlets behind your TV for a completely wireless appearance. Fire-rated cable management ensures safety compliance while maintaining that sleek, modern aesthetic you want in your living space.",
+      videoId: "dQw4w9WgXcQ",
+      keywords: "cable management, wire concealment, in-wall cables, professional cable hiding, clean installation"
     }
   ];
 
@@ -32,42 +31,51 @@ export const BlogSection = () => {
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-            Learn More
+            Pro Tips for TV Mounting
           </h2>
           <p className="text-xl text-slate-300 max-w-2xl mx-auto">
-            Expert tips and insights from our professional installers
+            Expert insights and professional advice from our certified installers
           </p>
         </div>
         
-        <div className="space-y-16">
-          {blogPosts.map((post) => (
+        <div className="space-y-8">
+          {proTips.map((tip) => (
             <div 
-              key={post.id} 
-              className={`grid grid-cols-1 lg:grid-cols-2 gap-8 items-center ${
-                post.imageLeft ? '' : 'lg:grid-cols-2'
-              }`}
+              key={tip.id} 
+              className="bg-slate-800/50 backdrop-blur-sm rounded-xl overflow-hidden border border-slate-700"
             >
-              <div className={`${post.imageLeft ? 'lg:order-1' : 'lg:order-2'}`}>
-                <div className="relative bg-slate-800 rounded-xl overflow-hidden aspect-video group cursor-pointer">
+              <div className="grid grid-cols-1 lg:grid-cols-2 min-h-[400px]">
+                {/* Video Section - Left Side */}
+                <div className="relative bg-slate-900">
                   <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 to-purple-600/20" />
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="bg-white/20 backdrop-blur-sm rounded-full p-6 group-hover:scale-110 transition-transform duration-300">
-                      <Play className="h-12 w-12 text-white fill-white" />
+                    <div className="bg-white/20 backdrop-blur-sm rounded-full p-8 hover:scale-110 transition-transform duration-300 cursor-pointer">
+                      <svg 
+                        className="h-16 w-16 text-white fill-white" 
+                        viewBox="0 0 24 24"
+                      >
+                        <path d="M8 5v14l11-7z"/>
+                      </svg>
                     </div>
                   </div>
                   <div className="absolute bottom-4 left-4 right-4">
-                    <div className="text-white text-sm opacity-75">Watch Video</div>
+                    <div className="text-white text-sm opacity-75">Watch Expert Tips</div>
                   </div>
                 </div>
-              </div>
-              
-              <div className={`${post.imageLeft ? 'lg:order-2' : 'lg:order-1'}`}>
-                <h3 className="text-2xl md:text-3xl font-bold text-white mb-4">
-                  {post.title}
-                </h3>
-                <p className="text-lg text-slate-300 leading-relaxed">
-                  {post.content}
-                </p>
+                
+                {/* Content Section - Right Side */}
+                <div className="p-8 flex flex-col justify-center">
+                  <h3 className="text-2xl md:text-3xl font-bold text-white mb-6">
+                    {tip.title}
+                  </h3>
+                  <p className="text-lg text-slate-300 leading-relaxed mb-6">
+                    {tip.content}
+                  </p>
+                  <div className="text-sm text-slate-400 border-t border-slate-600 pt-4">
+                    <span className="font-semibold">Keywords: </span>
+                    {tip.keywords}
+                  </div>
+                </div>
               </div>
             </div>
           ))}

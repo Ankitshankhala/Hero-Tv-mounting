@@ -2,8 +2,8 @@
 import React, { useState } from 'react';
 import { Header } from '@/components/Header';
 import { ServicesSection } from '@/components/ServicesSection';
-import { BlogSection } from '@/components/BlogSection';
 import { ReviewsSection } from '@/components/ReviewsSection';
+import { BlogSection } from '@/components/BlogSection';
 import { Cart } from '@/components/Cart';
 import { CheckoutModal } from '@/components/CheckoutModal';
 
@@ -53,8 +53,8 @@ const Index = () => {
       
       <main className="relative">
         <ServicesSection onAddToCart={addToCart} />
-        <BlogSection />
         <ReviewsSection />
+        <BlogSection />
         
         {cart.length > 0 && (
           <Cart 
