@@ -15,9 +15,23 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ onAddToCart })
     {
       id: 'tv-mounting',
       name: 'TV Mounting',
-      price: 100,
+      price: 90,
       image: '/lovable-uploads/36bcb39b-be12-4c6c-b316-613711e99f29.png',
       description: 'Professional TV wall mounting with perfect positioning'
+    },
+    {
+      id: 'full-motion-mount',
+      name: 'Full Motion Mount',
+      price: 80,
+      image: '/lovable-uploads/1cdefbf0-13c5-4f66-bb5c-761861d66f74.png',
+      description: 'Articulating mount for maximum flexibility'
+    },
+    {
+      id: 'flat-mount',
+      name: 'Flat Mount',
+      price: 50,
+      image: '/lovable-uploads/36bcb39b-be12-4c6c-b316-613711e99f29.png',
+      description: 'Low-profile flat wall mount'
     },
     {
       id: 'cover-cables',
@@ -29,30 +43,37 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ onAddToCart })
     {
       id: 'simple-concealment',
       name: 'Simple Cable Concealment',
-      price: 40,
+      price: 50,
       image: '/lovable-uploads/cf56b4f9-cc16-4662-ba09-6186268ae1a0.png',
       description: 'Basic in-wall cable concealment'
     },
     {
       id: 'fire-safe-concealment',
-      name: 'Fire Safe Concealment',
-      price: 80,
+      name: 'Fire Safe Cable Concealment',
+      price: 100,
       image: '/lovable-uploads/9b4cf239-a12b-4275-9ca2-a4abafb59c40.png',
       description: 'Fire-rated in-wall cable concealment system'
     },
     {
-      id: 'move-outlet',
-      name: 'Move Outlet',
-      price: 160,
-      image: '/lovable-uploads/a5b8dff7-04c1-4590-a491-0d8a7f9d004c.png',
-      description: 'Relocate electrical outlet behind TV'
+      id: 'general-mounting',
+      name: 'General Mounting',
+      price: 75,
+      image: '/lovable-uploads/36bcb39b-be12-4c6c-b316-613711e99f29.png',
+      description: 'General mounting services per hour'
     },
     {
-      id: 'full-motion-mount',
-      name: 'Full Motion Mount',
-      price: 80,
-      image: '/lovable-uploads/1cdefbf0-13c5-4f66-bb5c-761861d66f74.png',
-      description: 'Articulating mount for maximum flexibility'
+      id: 'furniture-assembly',
+      name: 'Furniture Assembly',
+      price: 50,
+      image: '/lovable-uploads/36bcb39b-be12-4c6c-b316-613711e99f29.png',
+      description: 'Professional furniture assembly per hour'
+    },
+    {
+      id: 'hire-second-technician',
+      name: 'Hire Second Technician',
+      price: 65,
+      image: '/lovable-uploads/36bcb39b-be12-4c6c-b316-613711e99f29.png',
+      description: 'Additional technician for complex installations'
     }
   ];
 
