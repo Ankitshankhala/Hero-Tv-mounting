@@ -1,10 +1,11 @@
 
 import React, { useState } from 'react';
 import { Header } from '@/components/Header';
-import { HeroSection } from '@/components/HeroSection';
+import { ServicesSection } from '@/components/ServicesSection';
+import { BlogSection } from '@/components/BlogSection';
 import { ReviewsSection } from '@/components/ReviewsSection';
-import { ProTipsSection } from '@/components/ProTipsSection';
-import { TvMountingModal } from '@/components/TvMountingModal';
+import { Cart } from '@/components/Cart';
+import { CheckoutModal } from '@/components/CheckoutModal';
 
 export interface CartItem {
   id: string;
@@ -12,32 +13,62 @@ export interface CartItem {
   price: number;
   quantity: number;
   options?: {
+    over65: boolean;
+    frameMount: boolean;
     extraTvs: number;
-    stoneWork: boolean;
+    cableConcealment: string;
   };
 }
 
 const Index = () => {
-  const [isTvMountingModalOpen, setIsTvMountingModalOpen] = useState(false);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
 
-  const handleBooking = (bookingData: CartItem) => {
-    console.log('Booking submitted:', bookingData);
-    // Handle booking submission here
+  const addToCart = (item: CartItem) => {
+    setCart(prev => {
+      const existing = prev.find(i => i.id === item.id);
+      if (existing) {
+        return prev.map(i => 
+          i.id === item.id 
+            ? { ...i, quantity: i.quantity + item.quantity, options: item.options || i.options }
+            : i
+        );
+      }
+      return [...prev, item];
+    });
+  };
+
+  const removeFromCart = (id: string) => {
+    setCart(prev => prev.filter(item => item.id !== id));
+  };
+
+  const getTotalPrice = () => {
+    return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <Header />
       
-      <main>
-        <HeroSection onOpenModal={() => setIsTvMountingModalOpen(true)} />
+      <main className="relative">
+        <ServicesSection onAddToCart={addToCart} />
+        <BlogSection />
         <ReviewsSection />
-        <ProTipsSection />
         
-        {isTvMountingModalOpen && (
-          <TvMountingModal
-            onClose={() => setIsTvMountingModalOpen(false)}
-            onSubmit={handleBooking}
+        {cart.length > 0 && (
+          <Cart 
+            items={cart}
+            total={getTotalPrice()}
+            onCheckout={() => setIsCheckoutOpen(true)}
+            onRemoveItem={removeFromCart}
+          />
+        )}
+        
+        {isCheckoutOpen && (
+          <CheckoutModal
+            cart={cart}
+            total={getTotalPrice()}
+            onClose={() => setIsCheckoutOpen(false)}
           />
         )}
       </main>

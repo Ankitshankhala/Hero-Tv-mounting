@@ -29,8 +29,10 @@ export const Cart: React.FC<CartProps> = ({ items, total, onCheckout, onRemoveIt
                 </div>
                 {item.options && (
                   <div className="text-xs text-slate-500">
+                    {item.options.over65 && 'Over 65", '}
+                    {item.options.frameMount && 'Frame Mount, '}
                     {item.options.extraTvs > 0 && `+${item.options.extraTvs} TVs, `}
-                    {item.options.stoneWork && 'Stone/Brick/Tile, '}
+                    {item.options.cableConcealment !== 'none' && item.options.cableConcealment}
                   </div>
                 )}
               </div>
