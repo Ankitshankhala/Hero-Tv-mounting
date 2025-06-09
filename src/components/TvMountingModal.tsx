@@ -11,19 +11,45 @@ interface TvMountingModalProps {
 export const TvMountingModal: React.FC<TvMountingModalProps> = ({ onClose, onAddToCart }) => {
   const [over65, setOver65] = useState(false);
   const [frameMount, setFrameMount] = useState(false);
-  const [extraTvs, setExtraTvs] = useState(0);
+  const [numberOfTvs, setNumberOfTvs] = useState(1); // Start with 1 TV already included
   const [cableConcealment, setCableConcealment] = useState('none');
+  const [wallType, setWallType] = useState('standard');
 
-  const basePrice = 100;
+  const basePrice = 90; // Includes 1 TV
   const over65Price = 25;
   const frameMountPrice = 25;
-  const extraTvPrice = 65;
+  const stoneBrickTilePrice = 50;
+
+  const calculateTvPrice = () => {
+    if (numberOfTvs === 1) return basePrice; // Base price includes 1 TV
+    
+    let totalTvPrice = basePrice; // First TV is included in base price
+    
+    // Calculate additional TVs pricing
+    const additionalTvs = numberOfTvs - 1;
+    
+    if (additionalTvs >= 1 && additionalTvs <= 1) {
+      // +1 TV = $90
+      totalTvPrice += 90;
+    } else if (additionalTvs === 2) {
+      // +2 TVs = $75 each
+      totalTvPrice += 90; // First additional TV
+      totalTvPrice += 75; // Second additional TV
+    } else if (additionalTvs >= 3) {
+      // +3+ TVs = $60 each
+      totalTvPrice += 90; // First additional TV
+      totalTvPrice += 75; // Second additional TV
+      totalTvPrice += (additionalTvs - 2) * 60; // Remaining TVs at $60 each
+    }
+    
+    return totalTvPrice;
+  };
 
   const calculatePrice = () => {
-    let total = basePrice;
+    let total = calculateTvPrice();
     if (over65) total += over65Price;
     if (frameMount) total += frameMountPrice;
-    total += extraTvs * extraTvPrice;
+    if (wallType === 'stone-brick-tile') total += stoneBrickTilePrice;
     return total;
   };
 
@@ -36,8 +62,9 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ onClose, onAdd
       options: {
         over65,
         frameMount,
-        extraTvs,
-        cableConcealment
+        numberOfTvs,
+        cableConcealment,
+        wallType
       }
     });
     onClose();
@@ -85,25 +112,44 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ onClose, onAdd
             </div>
             
             <div>
-              <label className="block text-white mb-3">Extra TVs (max 3)</label>
+              <label className="block text-white mb-3">Number of TVs (1st TV included)</label>
               <div className="flex items-center space-x-4">
                 <button
-                  onClick={() => setExtraTvs(Math.max(0, extraTvs - 1))}
+                  onClick={() => setNumberOfTvs(Math.max(1, numberOfTvs - 1))}
                   className="bg-slate-800 hover:bg-slate-700 text-white p-2 rounded-full"
-                  disabled={extraTvs === 0}
+                  disabled={numberOfTvs === 1}
                 >
                   <Minus className="h-4 w-4" />
                 </button>
-                <span className="text-white font-semibold w-8 text-center">{extraTvs}</span>
+                <span className="text-white font-semibold w-8 text-center">{numberOfTvs}</span>
                 <button
-                  onClick={() => setExtraTvs(Math.min(3, extraTvs + 1))}
+                  onClick={() => setNumberOfTvs(Math.min(10, numberOfTvs + 1))}
                   className="bg-slate-800 hover:bg-slate-700 text-white p-2 rounded-full"
-                  disabled={extraTvs === 3}
+                  disabled={numberOfTvs === 10}
                 >
                   <Plus className="h-4 w-4" />
                 </button>
-                <span className="text-blue-400 font-semibold">+${extraTvs * extraTvPrice}</span>
+                <span className="text-blue-400 font-semibold">
+                  {numberOfTvs === 1 ? 'Included' : `+$${calculateTvPrice() - basePrice}`}
+                </span>
               </div>
+              {numberOfTvs > 1 && (
+                <div className="text-sm text-slate-400 mt-2">
+                  Pricing: +1 TV = $90, +2 TVs = $75 each, +3+ TVs = $60 each
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-white mb-3">Wall Type</label>
+              <select
+                value={wallType}
+                onChange={(e) => setWallType(e.target.value)}
+                className="w-full bg-slate-800 border border-slate-600 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="standard">Standard Wall</option>
+                <option value="stone-brick-tile">Stone, Brick, Tile (+$50)</option>
+              </select>
             </div>
             
             <div>
