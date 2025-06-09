@@ -12,7 +12,6 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ onClose, onAdd
   const [over65, setOver65] = useState(false);
   const [frameMount, setFrameMount] = useState(false);
   const [numberOfTvs, setNumberOfTvs] = useState(1); // Start with 1 TV already included
-  const [cableConcealment, setCableConcealment] = useState('none');
   const [wallType, setWallType] = useState('standard');
 
   const basePrice = 90; // Includes 1 TV
@@ -63,7 +62,7 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ onClose, onAdd
         over65,
         frameMount,
         numberOfTvs,
-        cableConcealment,
+        cableConcealment: 'none',
         wallType
       }
     });
@@ -149,20 +148,6 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ onClose, onAdd
               >
                 <option value="standard">Standard Wall</option>
                 <option value="stone-brick-tile">Stone, Brick, Tile (+$50)</option>
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-white mb-3">Cable Concealment Type</label>
-              <select
-                value={cableConcealment}
-                onChange={(e) => setCableConcealment(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-600 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="none">No Concealment</option>
-                <option value="surface">Surface Mount</option>
-                <option value="in-wall">In-Wall</option>
-                <option value="fire-safe">Fire Safe</option>
               </select>
             </div>
             
