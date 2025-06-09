@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { ServiceCard } from './ServiceCard';
 import { TvMountingModal } from './TvMountingModal';
@@ -15,63 +16,63 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ onAddToCart })
       id: 'tv-mounting',
       name: 'TV Mounting',
       price: 90,
-      image: '/lovable-uploads/7eae6461-3b30-4c8e-9e15-43cff058631d.png',
+      image: '/lovable-uploads/d6a6d8ff-7ee8-45a6-bd82-6aa3aab9844a.png',
       description: 'Professional TV wall mounting with perfect positioning'
     },
     {
       id: 'full-motion-mount',
       name: 'Full Motion Mount',
       price: 80,
-      image: '/lovable-uploads/c24ffe52-556a-4c14-a753-e929c7b1af9a.png',
+      image: '/lovable-uploads/77f65da7-38bc-4d01-afdd-bb998049c77b.png',
       description: 'Articulating mount for maximum flexibility'
     },
     {
       id: 'flat-mount',
       name: 'Flat Mount',
       price: 50,
-      image: '/lovable-uploads/4a49b814-b16a-4daf-aa91-3a52fcbb5fae.png',
+      image: '/lovable-uploads/3c8ed729-7438-43d2-88ad-328ac45775e1.png',
       description: 'Low-profile flat wall mount'
     },
     {
       id: 'cover-cables',
       name: 'Cover Cables',
       price: 20,
-      image: '/lovable-uploads/2ca84624-6945-44f1-8cf1-e35c574b9a1f.png',
+      image: '/lovable-uploads/71fa4731-cb99-42cb-bfd0-29236a1bc91a.png',
       description: 'Clean cable management with decorative covers'
     },
     {
       id: 'simple-concealment',
       name: 'Simple Cable Concealment',
       price: 50,
-      image: '/lovable-uploads/6a45733b-ecff-4228-9898-90361762b328.png',
+      image: '/lovable-uploads/cf7c3439-4e6f-4b1c-82d9-2c3ba4b900f5.png',
       description: 'Basic in-wall cable concealment'
     },
     {
       id: 'fire-safe-concealment',
       name: 'Fire Safe Cable Concealment',
       price: 100,
-      image: '/lovable-uploads/32f3fe0e-ce27-4c46-9b87-5c158de79eb9.png',
+      image: '/lovable-uploads/71fa4731-cb99-42cb-bfd0-29236a1bc91a.png',
       description: 'Fire-rated in-wall cable concealment system'
     },
     {
       id: 'general-mounting',
       name: 'General Mounting',
       price: 75,
-      image: '/lovable-uploads/ebfd43c9-5c9d-4d15-b395-a22f44063cb6.png',
+      image: '/lovable-uploads/6889f051-f5b1-4f2a-a093-a09693378bd4.png',
       description: 'General mounting services per hour'
     },
     {
       id: 'furniture-assembly',
       name: 'Furniture Assembly',
       price: 50,
-      image: '/lovable-uploads/b682bcce-b109-42e7-b564-c7ef23dc87a5.png',
+      image: '/lovable-uploads/d6a6d8ff-7ee8-45a6-bd82-6aa3aab9844a.png',
       description: 'Professional furniture assembly per hour'
     },
     {
       id: 'hire-second-technician',
       name: 'Hire Second Technician',
       price: 65,
-      image: '/lovable-uploads/f35a81e7-8c1d-4ea5-99e9-93fb7b08d6e5.png',
+      image: '/lovable-uploads/9ffb6618-666e-44a7-a41b-bb031fd291b9.png',
       description: 'Additional technician for complex installations'
     }
   ];
