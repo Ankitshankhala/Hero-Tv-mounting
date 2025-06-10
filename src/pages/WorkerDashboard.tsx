@@ -1,64 +1,83 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Calendar, MapPin, Clock, Phone, User, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/utils/supabaseClient';
+import { useToast } from '@/hooks/use-toast';
 
 const WorkerDashboard = () => {
-  const [selectedStatus, setSelectedStatus] = useState('');
+  const [jobs, setJobs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const { user, profile } = useAuth();
+  const { toast } = useToast();
 
-  const workerJobs = [
-    {
-      id: 'BK001',
-      customer: 'John Smith',
-      customerPhone: '(555) 123-4567',
-      service: 'TV Mounting + Hide Cables',
-      status: 'confirmed',
-      date: '2024-12-15',
-      time: '10:00 AM',
-      address: '123 Main St, Downtown',
-      duration: '1hr 30min',
-      price: 149,
-      specialInstructions: 'Please call when arriving, apartment buzzer is broken'
-    },
-    {
-      id: 'BK004',
-      customer: 'Emily Wilson',
-      customerPhone: '(555) 987-6543',
-      service: 'Furniture Assembly',
-      status: 'in_progress',
-      date: '2024-12-14',
-      time: '2:00 PM',
-      address: '456 Oak Ave, North Side',
-      duration: '1hr',
-      price: 89,
-      specialInstructions: null
-    },
-    {
-      id: 'BK007',
-      customer: 'Mike Davis',
-      customerPhone: '(555) 555-7890',
-      service: 'TV Mounting',
-      status: 'confirmed',
-      date: '2024-12-16',
-      time: '11:00 AM',
-      address: '789 Pine St, West End',
-      duration: '1hr 15min',
-      price: 99,
-      specialInstructions: null
+  useEffect(() => {
+    if (user && profile?.role === 'worker') {
+      fetchWorkerJobs();
     }
-  ];
+  }, [user, profile]);
 
-  const updateJobStatus = (jobId: string, newStatus: string) => {
-    console.log(`Updating job ${jobId} to ${newStatus}`);
-    // TODO: Integrate with Supabase
+  const fetchWorkerJobs = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('bookings')
+        .select(`
+          *,
+          customer:users!customer_id(name, phone)
+        `)
+        .eq('worker_id', user.id)
+        .order('scheduled_at', { ascending: true });
+
+      if (error) throw error;
+      setJobs(data || []);
+    } catch (error) {
+      console.error('Error fetching worker jobs:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load your jobs",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateJobStatus = async (jobId: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .update({ status: newStatus })
+        .eq('id', jobId);
+
+      if (error) throw error;
+
+      // Update local state
+      setJobs(jobs.map(job => 
+        job.id === jobId ? { ...job, status: newStatus } : job
+      ));
+
+      toast({
+        title: "Success",
+        description: `Job status updated to ${newStatus}`,
+      });
+    } catch (error) {
+      console.error('Error updating job status:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update job status",
+        variant: "destructive",
+      });
+    }
   };
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
+      pending: { label: 'Pending', variant: 'secondary' as const },
       confirmed: { label: 'Confirmed', variant: 'default' as const },
       'in_progress': { label: 'In Progress', variant: 'secondary' as const },
       completed: { label: 'Completed', variant: 'outline' as const },
@@ -69,8 +88,71 @@ const WorkerDashboard = () => {
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
-  const todaysJobs = workerJobs.filter(job => job.date === '2024-12-14');
-  const upcomingJobs = workerJobs.filter(job => job.date > '2024-12-14');
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString();
+  };
+
+  const formatTime = (dateString: string) => {
+    return new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const formatDuration = (minutes: number) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (hours > 0) {
+      return `${hours}hr ${mins > 0 ? `${mins}min` : ''}`;
+    }
+    return `${mins}min`;
+  };
+
+  const getServicesDisplay = (services: any) => {
+    if (Array.isArray(services)) {
+      return services.map(s => s.name).join(', ');
+    }
+    return 'Service details';
+  };
+
+  const callCustomer = (phone: string) => {
+    window.open(`tel:${phone}`, '_self');
+  };
+
+  const getDirections = (address: string) => {
+    const encodedAddress = encodeURIComponent(address);
+    window.open(`https://maps.google.com/?q=${encodedAddress}`, '_blank');
+  };
+
+  if (!user || profile?.role !== 'worker') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+        <Card className="bg-slate-800 border-slate-700 p-8">
+          <div className="text-center text-white">
+            <h2 className="text-xl font-bold mb-2">Access Denied</h2>
+            <p className="text-slate-300">This dashboard is only available to workers.</p>
+            <Link to="/" className="inline-block mt-4">
+              <Button variant="outline">Return Home</Button>
+            </Link>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  const today = new Date().toDateString();
+  const todaysJobs = jobs.filter(job => new Date(job.scheduled_at).toDateString() === today);
+  const upcomingJobs = jobs.filter(job => new Date(job.scheduled_at) > new Date());
+  const completedJobs = jobs.filter(job => job.status === 'completed');
+  const todaysEarnings = todaysJobs.reduce((sum, job) => sum + job.total_price, 0);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-white">Loading your jobs...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
@@ -86,7 +168,7 @@ const WorkerDashboard = () => {
               </Link>
               <div>
                 <h1 className="text-2xl font-bold text-white">Worker Dashboard</h1>
-                <p className="text-slate-300">Alex Thompson</p>
+                <p className="text-slate-300">{profile?.name || 'Worker'}</p>
               </div>
             </div>
             <div className="text-right">
@@ -135,9 +217,7 @@ const WorkerDashboard = () => {
                 </div>
                 <div>
                   <p className="text-slate-400">Completed</p>
-                  <p className="text-2xl font-bold text-white">
-                    {workerJobs.filter(j => j.status === 'completed').length}
-                  </p>
+                  <p className="text-2xl font-bold text-white">{completedJobs.length}</p>
                 </div>
               </div>
             </CardContent>
@@ -151,9 +231,7 @@ const WorkerDashboard = () => {
                 </div>
                 <div>
                   <p className="text-slate-400">Today's Earnings</p>
-                  <p className="text-2xl font-bold text-white">
-                    ${todaysJobs.reduce((sum, job) => sum + job.price, 0)}
-                  </p>
+                  <p className="text-2xl font-bold text-white">${todaysEarnings}</p>
                 </div>
               </div>
             </CardContent>
@@ -165,77 +243,94 @@ const WorkerDashboard = () => {
             <CardTitle className="text-white">My Jobs</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {workerJobs.map((job) => (
-                <Card key={job.id} className="bg-slate-700 border-slate-600">
-                  <CardContent className="p-6">
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <h3 className="text-lg font-semibold text-white">{job.customer}</h3>
-                        <p className="text-slate-400">Job #{job.id} • {job.service}</p>
+            {jobs.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-slate-400">No jobs assigned yet</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {jobs.map((job) => (
+                  <Card key={job.id} className="bg-slate-700 border-slate-600">
+                    <CardContent className="p-6">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <h3 className="text-lg font-semibold text-white">
+                            {job.customer?.name || 'Customer'}
+                          </h3>
+                          <p className="text-slate-400">Job #{job.id.slice(0, 8)} • {getServicesDisplay(job.services)}</p>
+                        </div>
+                        <div className="text-right">
+                          {getStatusBadge(job.status)}
+                          <p className="text-xl font-bold text-white mt-1">${job.total_price}</p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        {getStatusBadge(job.status)}
-                        <p className="text-xl font-bold text-white mt-1">${job.price}</p>
-                      </div>
-                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                      <div className="flex items-center space-x-2 text-slate-300">
-                        <Calendar className="h-4 w-4" />
-                        <span>{job.date} at {job.time}</span>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div className="flex items-center space-x-2 text-slate-300">
+                          <Calendar className="h-4 w-4" />
+                          <span>{formatDate(job.scheduled_at)} at {formatTime(job.scheduled_at)}</span>
+                        </div>
+                        <div className="flex items-center space-x-2 text-slate-300">
+                          <Clock className="h-4 w-4" />
+                          <span>{formatDuration(job.total_duration_minutes)}</span>
+                        </div>
+                        <div className="flex items-center space-x-2 text-slate-300">
+                          <Phone className="h-4 w-4" />
+                          <span>{job.customer?.phone || 'No phone'}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center space-x-2 text-slate-300">
-                        <Clock className="h-4 w-4" />
-                        <span>{job.duration}</span>
-                      </div>
-                      <div className="flex items-center space-x-2 text-slate-300">
-                        <Phone className="h-4 w-4" />
-                        <span>{job.customerPhone}</span>
-                      </div>
-                    </div>
 
-                    <div className="flex items-start space-x-2 mb-4 text-slate-300">
-                      <MapPin className="h-4 w-4 mt-0.5" />
-                      <span>{job.address}</span>
-                    </div>
+                      <div className="flex items-start space-x-2 mb-4 text-slate-300">
+                        <MapPin className="h-4 w-4 mt-0.5" />
+                        <span>{job.customer_address}</span>
+                      </div>
 
-                    {job.specialInstructions && (
-                      <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-3 mb-4">
-                        <p className="text-yellow-200 text-sm">
-                          <strong>Special Instructions:</strong> {job.specialInstructions}
-                        </p>
-                      </div>
-                    )}
+                      {job.special_instructions && (
+                        <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-3 mb-4">
+                          <p className="text-yellow-200 text-sm">
+                            <strong>Special Instructions:</strong> {job.special_instructions}
+                          </p>
+                        </div>
+                      )}
 
-                    <div className="flex items-center justify-between pt-4 border-t border-slate-600">
-                      <div className="flex space-x-2">
-                        <Button size="sm" variant="outline">
-                          Call Customer
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          Get Directions
-                        </Button>
+                      <div className="flex items-center justify-between pt-4 border-t border-slate-600">
+                        <div className="flex space-x-2">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => callCustomer(job.customer?.phone)}
+                            disabled={!job.customer?.phone}
+                          >
+                            Call Customer
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => getDirections(job.customer_address)}
+                          >
+                            Get Directions
+                          </Button>
+                        </div>
+                        
+                        <div className="flex items-center space-x-2">
+                          <span className="text-slate-400 text-sm">Update Status:</span>
+                          <Select onValueChange={(value) => updateJobStatus(job.id, value)}>
+                            <SelectTrigger className="w-40 bg-slate-600 border-slate-500">
+                              <SelectValue placeholder="Update status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="confirmed">Confirmed</SelectItem>
+                              <SelectItem value="in_progress">In Progress</SelectItem>
+                              <SelectItem value="completed">Completed</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
-                      
-                      <div className="flex items-center space-x-2">
-                        <span className="text-slate-400 text-sm">Update Status:</span>
-                        <Select onValueChange={(value) => updateJobStatus(job.id, value)}>
-                          <SelectTrigger className="w-40 bg-slate-600 border-slate-500">
-                            <SelectValue placeholder="Update status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="confirmed">Confirmed</SelectItem>
-                            <SelectItem value="in_progress">In Progress</SelectItem>
-                            <SelectItem value="completed">Completed</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
