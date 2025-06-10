@@ -5,9 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Users, Phone, Mail, MapPin } from 'lucide-react';
+import { CustomerHistoryModal } from './CustomerHistoryModal';
 
 export const CustomersManager = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
 
   const customers = [
     {
@@ -42,83 +45,106 @@ export const CustomersManager = () => {
     },
   ];
 
-  return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Users className="h-5 w-5" />
-            <span>Customer Management</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-6">
-            <Input
-              placeholder="Search customers..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-md"
-            />
-          </div>
+  const handleViewHistory = (customer: any) => {
+    setSelectedCustomer(customer);
+    setShowHistoryModal(true);
+  };
 
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Customer ID</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Contact</TableHead>
-                  <TableHead>Address</TableHead>
-                  <TableHead>Total Bookings</TableHead>
-                  <TableHead>Total Spent</TableHead>
-                  <TableHead>Last Booking</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {customers.map((customer) => (
-                  <TableRow key={customer.id}>
-                    <TableCell className="font-medium">{customer.id}</TableCell>
-                    <TableCell>
-                      <div className="font-medium">{customer.name}</div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-1">
-                        <div className="flex items-center space-x-2 text-sm">
-                          <Mail className="h-3 w-3" />
-                          <span>{customer.email}</span>
-                        </div>
-                        <div className="flex items-center space-x-2 text-sm">
-                          <Phone className="h-3 w-3" />
-                          <span>{customer.phone}</span>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2 text-sm">
-                        <MapPin className="h-3 w-3" />
-                        <span>{customer.address}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm">
-                        {customer.totalBookings}
-                      </span>
-                    </TableCell>
-                    <TableCell className="font-medium">{customer.totalSpent}</TableCell>
-                    <TableCell>{customer.lastBooking}</TableCell>
-                    <TableCell>
-                      <Button variant="outline" size="sm">
-                        View History
-                      </Button>
-                    </TableCell>
+  const handleCloseHistoryModal = () => {
+    setSelectedCustomer(null);
+    setShowHistoryModal(false);
+  };
+
+  return (
+    <>
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Users className="h-5 w-5" />
+              <span>Customer Management</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="mb-6">
+              <Input
+                placeholder="Search customers..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-md"
+              />
+            </div>
+
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Customer ID</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Contact</TableHead>
+                    <TableHead>Address</TableHead>
+                    <TableHead>Total Bookings</TableHead>
+                    <TableHead>Total Spent</TableHead>
+                    <TableHead>Last Booking</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+                </TableHeader>
+                <TableBody>
+                  {customers.map((customer) => (
+                    <TableRow key={customer.id}>
+                      <TableCell className="font-medium">{customer.id}</TableCell>
+                      <TableCell>
+                        <div className="font-medium">{customer.name}</div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <div className="flex items-center space-x-2 text-sm">
+                            <Mail className="h-3 w-3" />
+                            <span>{customer.email}</span>
+                          </div>
+                          <div className="flex items-center space-x-2 text-sm">
+                            <Phone className="h-3 w-3" />
+                            <span>{customer.phone}</span>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2 text-sm">
+                          <MapPin className="h-3 w-3" />
+                          <span>{customer.address}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm">
+                          {customer.totalBookings}
+                        </span>
+                      </TableCell>
+                      <TableCell className="font-medium">{customer.totalSpent}</TableCell>
+                      <TableCell>{customer.lastBooking}</TableCell>
+                      <TableCell>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleViewHistory(customer)}
+                        >
+                          View History
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Customer History Modal */}
+      <CustomerHistoryModal
+        customer={selectedCustomer}
+        isOpen={showHistoryModal}
+        onClose={handleCloseHistoryModal}
+      />
+    </>
   );
 };

@@ -22,7 +22,7 @@ export const BookingsManager = () => {
   const { isCalendarConnected: calendarConnected } = useBookingCalendarSync();
 
   // Use our custom hook for booking management
-  const { bookings, loading, handleBookingUpdate } = useBookingManager(isCalendarConnected);
+  const { bookings, loading, handleBookingUpdate, fetchBookings } = useBookingManager(isCalendarConnected);
 
   // Set up real-time subscriptions for admin
   const { isConnected } = useRealtimeBookings({
@@ -111,7 +111,10 @@ export const BookingsManager = () => {
             onRegionChange={setFilterRegion}
           />
 
-          <BookingTable bookings={filteredBookings} />
+          <BookingTable 
+            bookings={filteredBookings} 
+            onBookingUpdate={fetchBookings}
+          />
         </CardContent>
       </Card>
 
