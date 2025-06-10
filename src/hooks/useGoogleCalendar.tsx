@@ -154,7 +154,7 @@ export const useGoogleCalendar = () => {
       const tokenClient = window.google.accounts.oauth2.initTokenClient({
         client_id: credentials.clientId,
         scope: 'https://www.googleapis.com/auth/calendar',
-        callback: (response: TokenResponse) => {
+        callback: (response: { access_token: string; error?: string; error_description?: string }) => {
           if (response.error) {
             console.error('OAuth error:', response.error);
             throw new Error(`OAuth failed: ${response.error}`);
