@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,12 +6,30 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Star, Image, Edit, Trash2, Eye } from 'lucide-react';
+import { ReviewModal } from './ReviewModal';
+import { useToast } from '@/hooks/use-toast';
+
+interface Review {
+  id: string;
+  customer: string;
+  booking: string;
+  rating: number;
+  title: string;
+  comment: string;
+  status: 'approved' | 'pending' | 'rejected';
+  hasImages: boolean;
+  date: string;
+  worker: string;
+}
 
 export const ReviewsManager = () => {
+  const { toast } = useToast();
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [selectedReview, setSelectedReview] = useState<Review | null>(null);
 
-  const reviews = [
+  const [reviews, setReviews] = useState<Review[]>([
     {
       id: 'REV001',
       customer: 'John Smith',
@@ -49,7 +66,41 @@ export const ReviewsManager = () => {
       date: '2024-01-13',
       worker: 'David Lee'
     },
-  ];
+  ]);
+
+  const handleViewReview = (review: Review) => {
+    setSelectedReview(review);
+    setShowModal(true);
+  };
+
+  const handleEditReview = (review: Review) => {
+    setSelectedReview(review);
+    setShowModal(true);
+  };
+
+  const handleDeleteReview = (reviewId: string) => {
+    if (window.confirm('Are you sure you want to delete this review?')) {
+      setReviews(prev => prev.filter(review => review.id !== reviewId));
+      toast({
+        title: "Success",
+        description: "Review deleted successfully",
+      });
+    }
+  };
+
+  const handleSaveReview = (updatedReview: Review) => {
+    setReviews(prev => prev.map(review => 
+      review.id === updatedReview.id ? updatedReview : review
+    ));
+  };
+
+  const filteredReviews = reviews.filter(review => {
+    const matchesSearch = review.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         review.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         review.comment.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = filterStatus === 'all' || review.status === filterStatus;
+    return matchesSearch && matchesStatus;
+  });
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
@@ -96,7 +147,7 @@ export const ReviewsManager = () => {
             <div className="flex items-center space-x-2">
               <span className="text-sm text-gray-600">Total Reviews</span>
             </div>
-            <div className="text-2xl font-bold text-gray-900 mt-2">347</div>
+            <div className="text-2xl font-bold text-gray-900 mt-2">{reviews.length}</div>
             <div className="text-sm text-green-600">+23 this month</div>
           </CardContent>
         </Card>
@@ -105,7 +156,7 @@ export const ReviewsManager = () => {
             <div className="flex items-center space-x-2">
               <span className="text-sm text-gray-600">Pending Approval</span>
             </div>
-            <div className="text-2xl font-bold text-gray-900 mt-2">12</div>
+            <div className="text-2xl font-bold text-gray-900 mt-2">{reviews.filter(r => r.status === 'pending').length}</div>
             <div className="text-sm text-orange-600">Needs attention</div>
           </CardContent>
         </Card>
@@ -115,7 +166,7 @@ export const ReviewsManager = () => {
               <Image className="h-4 w-4 text-blue-600" />
               <span className="text-sm text-gray-600">With Images</span>
             </div>
-            <div className="text-2xl font-bold text-gray-900 mt-2">89</div>
+            <div className="text-2xl font-bold text-gray-900 mt-2">{reviews.filter(r => r.hasImages).length}</div>
             <div className="text-sm text-gray-600">25.6% of reviews</div>
           </CardContent>
         </Card>
@@ -167,7 +218,7 @@ export const ReviewsManager = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {reviews.map((review) => (
+                {filteredReviews.map((review) => (
                   <TableRow key={review.id}>
                     <TableCell className="font-medium">{review.id}</TableCell>
                     <TableCell>{review.customer}</TableCell>
@@ -196,13 +247,28 @@ export const ReviewsManager = () => {
                     <TableCell>{review.date}</TableCell>
                     <TableCell>
                       <div className="flex space-x-1">
-                        <Button variant="outline" size="sm">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleViewReview(review)}
+                          title="View"
+                        >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button variant="outline" size="sm">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleEditReview(review)}
+                          title="Edit Status"
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="outline" size="sm">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleDeleteReview(review.id)}
+                          title="Delete"
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -214,6 +280,13 @@ export const ReviewsManager = () => {
           </div>
         </CardContent>
       </Card>
+
+      <ReviewModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        onSave={handleSaveReview}
+        review={selectedReview}
+      />
     </div>
   );
 };

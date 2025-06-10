@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,11 +5,29 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { FileText, Edit, Trash2, Eye, Video, Plus } from 'lucide-react';
+import { BlogPostModal } from './BlogPostModal';
+import { useToast } from '@/hooks/use-toast';
+
+interface BlogPost {
+  id: string;
+  title: string;
+  category: string;
+  author: string;
+  status: 'published' | 'draft' | 'scheduled';
+  views: number;
+  hasVideo: boolean;
+  publishDate: string | null;
+  lastModified: string;
+  content?: string;
+}
 
 export const BlogManager = () => {
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
 
-  const blogPosts = [
+  const [blogPosts, setBlogPosts] = useState<BlogPost[]>([
     {
       id: 'POST001',
       title: 'How to Choose the Perfect TV Wall Mount',
@@ -20,7 +37,8 @@ export const BlogManager = () => {
       views: 1247,
       hasVideo: true,
       publishDate: '2024-01-10',
-      lastModified: '2024-01-12'
+      lastModified: '2024-01-12',
+      content: 'Content for choosing the perfect TV wall mount...'
     },
     {
       id: 'POST002',
@@ -31,7 +49,8 @@ export const BlogManager = () => {
       views: 0,
       hasVideo: false,
       publishDate: null,
-      lastModified: '2024-01-14'
+      lastModified: '2024-01-14',
+      content: 'Content for cable management guide...'
     },
     {
       id: 'POST003',
@@ -42,7 +61,8 @@ export const BlogManager = () => {
       views: 892,
       hasVideo: true,
       publishDate: '2024-01-08',
-      lastModified: '2024-01-08'
+      lastModified: '2024-01-08',
+      content: 'Content for TV heights guide...'
     },
     {
       id: 'POST004',
@@ -53,9 +73,62 @@ export const BlogManager = () => {
       views: 634,
       hasVideo: false,
       publishDate: '2024-01-05',
-      lastModified: '2024-01-06'
+      lastModified: '2024-01-06',
+      content: 'Content for wall types guide...'
     },
-  ];
+  ]);
+
+  const handleCreatePost = () => {
+    setSelectedPost(null);
+    setShowModal(true);
+  };
+
+  const handleEditPost = (post: BlogPost) => {
+    setSelectedPost(post);
+    setShowModal(true);
+  };
+
+  const handleDeletePost = (postId: string) => {
+    if (window.confirm('Are you sure you want to delete this blog post?')) {
+      setBlogPosts(prev => prev.filter(post => post.id !== postId));
+      toast({
+        title: "Success",
+        description: "Blog post deleted successfully",
+      });
+    }
+  };
+
+  const handleSavePost = (postData: any) => {
+    if (selectedPost) {
+      // Update existing post
+      setBlogPosts(prev => prev.map(post => 
+        post.id === selectedPost.id 
+          ? { 
+              ...post, 
+              ...postData, 
+              lastModified: new Date().toISOString().split('T')[0],
+              publishDate: postData.status === 'published' ? (postData.publishDate || new Date().toISOString().split('T')[0]) : null
+            }
+          : post
+      ));
+    } else {
+      // Create new post
+      const newPost: BlogPost = {
+        id: `POST${String(blogPosts.length + 1).padStart(3, '0')}`,
+        author: 'Admin',
+        views: 0,
+        lastModified: new Date().toISOString().split('T')[0],
+        publishDate: postData.status === 'published' ? (postData.publishDate || new Date().toISOString().split('T')[0]) : null,
+        ...postData,
+      };
+      setBlogPosts(prev => [...prev, newPost]);
+    }
+  };
+
+  const filteredPosts = blogPosts.filter(post =>
+    post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    post.category.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
@@ -77,7 +150,7 @@ export const BlogManager = () => {
               <FileText className="h-4 w-4 text-blue-600" />
               <span className="text-sm text-gray-600">Total Posts</span>
             </div>
-            <div className="text-2xl font-bold text-gray-900 mt-2">24</div>
+            <div className="text-2xl font-bold text-gray-900 mt-2">{blogPosts.length}</div>
             <div className="text-sm text-green-600">+3 this month</div>
           </CardContent>
         </Card>
@@ -127,7 +200,7 @@ export const BlogManager = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="flex-1"
             />
-            <Button className="bg-green-600 hover:bg-green-700">
+            <Button onClick={handleCreatePost} className="bg-green-600 hover:bg-green-700">
               <Plus className="h-4 w-4 mr-2" />
               New Post
             </Button>
@@ -150,7 +223,7 @@ export const BlogManager = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {blogPosts.map((post) => (
+                {filteredPosts.map((post) => (
                   <TableRow key={post.id}>
                     <TableCell className="font-medium">{post.id}</TableCell>
                     <TableCell className="max-w-xs">
@@ -183,13 +256,23 @@ export const BlogManager = () => {
                     <TableCell>{post.lastModified}</TableCell>
                     <TableCell>
                       <div className="flex space-x-1">
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" title="View">
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button variant="outline" size="sm">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => handleEditPost(post)}
+                          title="Edit"
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="outline" size="sm">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleDeletePost(post.id)}
+                          title="Delete"
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -201,6 +284,13 @@ export const BlogManager = () => {
           </div>
         </CardContent>
       </Card>
+
+      <BlogPostModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        onSave={handleSavePost}
+        post={selectedPost}
+      />
     </div>
   );
 };
