@@ -190,9 +190,21 @@ export const useGoogleCalendar = () => {
         throw new Error('Event start and end times are required');
       }
 
+      // Validate date format
+      const startDate = new Date(event.start.dateTime);
+      const endDate = new Date(event.end.dateTime);
+      
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        throw new Error('Invalid date format provided');
+      }
+
+      if (startDate >= endDate) {
+        throw new Error('Event end time must be after start time');
+      }
+
       // Check if user is still authenticated
       const authInstance = window.gapi.auth2.getAuthInstance();
-      if (!authInstance?.isSignedIn?.get()) {
+      if (!authInstance?.isSignedIn()) {
         setIsConnected(false);
         throw new Error('Google Calendar session expired. Please reconnect');
       }
@@ -221,6 +233,8 @@ export const useGoogleCalendar = () => {
           errorMessage = "Insufficient permissions to create calendar events";
         } else if (error.message.includes('quota')) {
           errorMessage = "Google Calendar API quota exceeded. Please try again later";
+        } else if (error.message.includes('invalid')) {
+          errorMessage = error.message;
         } else {
           errorMessage = error.message;
         }
@@ -250,9 +264,18 @@ export const useGoogleCalendar = () => {
         throw new Error('Event ID is required for updating');
       }
 
+      // Validate event data
+      if (!event.summary?.trim()) {
+        throw new Error('Event title is required');
+      }
+
+      if (!event.start?.dateTime || !event.end?.dateTime) {
+        throw new Error('Event start and end times are required');
+      }
+
       // Check if user is still authenticated
       const authInstance = window.gapi.auth2.getAuthInstance();
-      if (!authInstance?.isSignedIn?.get()) {
+      if (!authInstance?.isSignedIn()) {
         setIsConnected(false);
         throw new Error('Google Calendar session expired. Please reconnect');
       }
@@ -313,7 +336,7 @@ export const useGoogleCalendar = () => {
 
       // Check if user is still authenticated
       const authInstance = window.gapi.auth2.getAuthInstance();
-      if (!authInstance?.isSignedIn?.get()) {
+      if (!authInstance?.isSignedIn()) {
         setIsConnected(false);
         throw new Error('Google Calendar session expired. Please reconnect');
       }
