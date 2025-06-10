@@ -21,7 +21,18 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
+    // Use the correct Stripe secret key name from the secrets
+    const stripeSecretKey = Deno.env.get('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') ?? '';
+    
+    if (!stripeSecretKey) {
+      console.error('Stripe secret key not found');
+      return new Response(
+        JSON.stringify({ error: 'Stripe configuration error' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+
+    const stripe = new Stripe(stripeSecretKey, {
       apiVersion: '2023-10-16',
     });
 
@@ -53,6 +64,7 @@ serve(async (req) => {
       .single();
 
     if (bookingError || !booking) {
+      console.error('Booking creation error:', bookingError);
       return new Response(
         JSON.stringify({ error: bookingError?.message || 'Failed to create booking' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
