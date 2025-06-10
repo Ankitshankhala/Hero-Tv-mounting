@@ -11,6 +11,7 @@ export interface Service {
   duration_minutes: number;
   is_active: boolean;
   created_at: string;
+  image_url: string | null;
 }
 
 export const useServicesData = () => {
@@ -46,6 +47,7 @@ export const useServicesData = () => {
     description: string;
     base_price: number;
     duration_minutes: number;
+    image_url?: string | null;
   }) => {
     try {
       const { data, error } = await supabase
@@ -78,6 +80,7 @@ export const useServicesData = () => {
     description: string;
     base_price: number;
     duration_minutes: number;
+    image_url?: string | null;
   }) => {
     try {
       const { data, error } = await supabase

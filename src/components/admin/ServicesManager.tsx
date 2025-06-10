@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Settings, Edit, Trash2, Plus, Clock, DollarSign } from 'lucide-react';
+import { Settings, Edit, Trash2, Plus, Clock, DollarSign, Image } from 'lucide-react';
 import { ServiceModal } from './ServiceModal';
 import { DeleteServiceModal } from './DeleteServiceModal';
 import { useServicesData, Service } from '@/hooks/useServicesData';
@@ -42,6 +42,7 @@ export const ServicesManager = () => {
     description: string;
     base_price: number;
     duration_minutes: number;
+    image_url?: string | null;
   }) => {
     if (selectedService) {
       await updateService(selectedService.id, formData);
@@ -118,6 +119,7 @@ export const ServicesManager = () => {
             <Table>
               <TableHeader>
                 <TableRow className="bg-gray-50 hover:bg-gray-50">
+                  <TableHead className="font-semibold">Image</TableHead>
                   <TableHead className="font-semibold">Service Name</TableHead>
                   <TableHead className="font-semibold">Description</TableHead>
                   <TableHead className="font-semibold">Price</TableHead>
@@ -128,7 +130,7 @@ export const ServicesManager = () => {
               <TableBody>
                 {filteredServices.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                       {searchTerm ? 'No services found matching your search.' : 'No services available. Add your first service to get started.'}
                     </TableCell>
                   </TableRow>
@@ -138,6 +140,19 @@ export const ServicesManager = () => {
                       key={service.id} 
                       className="hover:bg-blue-50 transition-colors duration-200"
                     >
+                      <TableCell>
+                        {service.image_url ? (
+                          <img
+                            src={service.image_url}
+                            alt={service.name}
+                            className="w-16 h-16 object-cover rounded-lg border border-gray-200"
+                          />
+                        ) : (
+                          <div className="w-16 h-16 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
+                            <Image className="h-6 w-6 text-gray-400" />
+                          </div>
+                        )}
+                      </TableCell>
                       <TableCell className="font-medium text-gray-900">
                         {service.name}
                       </TableCell>

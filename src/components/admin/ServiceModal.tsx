@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Service } from '@/hooks/useServicesData';
+import { ImageUpload } from './ImageUpload';
 
 interface ServiceModalProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ interface ServiceModalProps {
     description: string;
     base_price: number;
     duration_minutes: number;
+    image_url?: string | null;
   }) => Promise<void>;
   service?: Service | null;
   title: string;
@@ -31,7 +33,8 @@ export const ServiceModal: React.FC<ServiceModalProps> = ({
     name: '',
     description: '',
     base_price: 0,
-    duration_minutes: 60
+    duration_minutes: 60,
+    image_url: null as string | null
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -41,14 +44,16 @@ export const ServiceModal: React.FC<ServiceModalProps> = ({
         name: service.name,
         description: service.description || '',
         base_price: service.base_price,
-        duration_minutes: service.duration_minutes
+        duration_minutes: service.duration_minutes,
+        image_url: service.image_url
       });
     } else {
       setFormData({
         name: '',
         description: '',
         base_price: 0,
-        duration_minutes: 60
+        duration_minutes: 60,
+        image_url: null
       });
     }
   }, [service, isOpen]);
@@ -72,9 +77,13 @@ export const ServiceModal: React.FC<ServiceModalProps> = ({
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleImageChange = (url: string | null) => {
+    setFormData(prev => ({ ...prev, image_url: url }));
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
@@ -100,6 +109,12 @@ export const ServiceModal: React.FC<ServiceModalProps> = ({
               rows={3}
             />
           </div>
+
+          <ImageUpload
+            currentImageUrl={formData.image_url}
+            onImageChange={handleImageChange}
+            disabled={isSubmitting}
+          />
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
