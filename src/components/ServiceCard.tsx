@@ -34,13 +34,14 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, onClick }) =>
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent" />
-        <div className="absolute bottom-4 left-4 right-4">
-          <h3 className="text-xl font-bold text-white mb-1">{service.name}</h3>
-          <p className="text-slate-300 text-sm">{service.description}</p>
-        </div>
       </div>
       
       <div className="p-6">
+        <div className="mb-4">
+          <h3 className="text-xl font-bold text-white mb-2">{service.name}</h3>
+          <p className="text-slate-300 text-sm">{service.description}</p>
+        </div>
+        
         <div className="flex items-center justify-between">
           <div className="text-2xl font-bold text-white transition-all duration-300">
             ${service.price}
