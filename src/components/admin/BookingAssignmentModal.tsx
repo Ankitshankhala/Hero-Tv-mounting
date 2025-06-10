@@ -47,23 +47,30 @@ export const BookingAssignmentModal: React.FC<BookingAssignmentModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      fetchData();
+      fetchRealData();
     }
   }, [isOpen]);
 
-  const fetchData = async () => {
+  const fetchRealData = async () => {
     setFetchingData(true);
     try {
-      // Fetch workers
+      console.log('Fetching workers and bookings from database...');
+      
+      // Fetch active workers
       const { data: workersData, error: workersError } = await supabase
         .from('users')
         .select('id, name, email, phone, region')
         .eq('role', 'worker')
         .eq('is_active', true);
 
-      if (workersError) throw workersError;
+      if (workersError) {
+        console.error('Error fetching workers:', workersError);
+        throw workersError;
+      }
 
-      // Fetch unassigned bookings
+      console.log('Fetched workers:', workersData);
+
+      // Fetch unassigned pending bookings
       const { data: bookingsData, error: bookingsError } = await supabase
         .from('bookings')
         .select(`
@@ -79,15 +86,20 @@ export const BookingAssignmentModal: React.FC<BookingAssignmentModalProps> = ({
         .eq('status', 'pending')
         .order('scheduled_at', { ascending: true });
 
-      if (bookingsError) throw bookingsError;
+      if (bookingsError) {
+        console.error('Error fetching bookings:', bookingsError);
+        throw bookingsError;
+      }
+
+      console.log('Fetched unassigned bookings:', bookingsData);
 
       setWorkers(workersData || []);
       setBookings(bookingsData || []);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('Error fetching real data:', error);
       toast({
         title: "Error",
-        description: "Failed to fetch workers and bookings",
+        description: "Failed to fetch workers and bookings from database",
         variant: "destructive",
       });
     } finally {
@@ -107,6 +119,8 @@ export const BookingAssignmentModal: React.FC<BookingAssignmentModalProps> = ({
 
     setLoading(true);
     try {
+      console.log('Assigning worker', selectedWorkerId, 'to booking', selectedBookingId);
+      
       const { error } = await supabase
         .from('bookings')
         .update({ 
@@ -116,22 +130,28 @@ export const BookingAssignmentModal: React.FC<BookingAssignmentModalProps> = ({
         })
         .eq('id', selectedBookingId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Assignment error:', error);
+        throw error;
+      }
 
+      console.log('Worker assigned successfully');
+      
       toast({
         title: "Success",
-        description: "Worker assigned successfully",
+        description: "Worker assigned successfully to booking",
       });
 
-      // Reset form and close
+      // Reset form and refresh data
       setSelectedWorkerId('');
       setSelectedBookingId('');
+      await fetchRealData(); // Refresh the data
       onClose();
     } catch (error) {
       console.error('Error assigning worker:', error);
       toast({
         title: "Error",
-        description: "Failed to assign worker",
+        description: "Failed to assign worker to booking",
         variant: "destructive",
       });
     } finally {
@@ -158,6 +178,7 @@ export const BookingAssignmentModal: React.FC<BookingAssignmentModalProps> = ({
           {fetchingData ? (
             <div className="flex items-center justify-center p-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <span className="ml-2">Loading data from database...</span>
             </div>
           ) : (
             <>
@@ -165,14 +186,14 @@ export const BookingAssignmentModal: React.FC<BookingAssignmentModalProps> = ({
                 <Label htmlFor="booking">Select Booking</Label>
                 <Select value={selectedBookingId} onValueChange={setSelectedBookingId}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Choose a booking to assign" />
+                    <SelectValue placeholder="Choose an unassigned booking" />
                   </SelectTrigger>
                   <SelectContent>
                     {bookings.map((booking) => (
                       <SelectItem key={booking.id} value={booking.id}>
                         <div className="flex flex-col">
                           <span className="font-medium">
-                            {booking.customer?.name} - ${booking.total_price}
+                            {booking.customer?.name || 'Unknown Customer'} - ${booking.total_price}
                           </span>
                           <span className="text-sm text-gray-500">
                             {new Date(booking.scheduled_at).toLocaleDateString()} at{' '}
@@ -187,7 +208,7 @@ export const BookingAssignmentModal: React.FC<BookingAssignmentModalProps> = ({
                   </SelectContent>
                 </Select>
                 {bookings.length === 0 && (
-                  <p className="text-sm text-gray-500">No unassigned bookings available</p>
+                  <p className="text-sm text-gray-500">No unassigned pending bookings found</p>
                 )}
               </div>
 
@@ -195,7 +216,7 @@ export const BookingAssignmentModal: React.FC<BookingAssignmentModalProps> = ({
                 <Label htmlFor="worker">Select Worker</Label>
                 <Select value={selectedWorkerId} onValueChange={setSelectedWorkerId}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Choose a worker" />
+                    <SelectValue placeholder="Choose an active worker" />
                   </SelectTrigger>
                   <SelectContent>
                     {workers.map((worker) => (
@@ -212,7 +233,7 @@ export const BookingAssignmentModal: React.FC<BookingAssignmentModalProps> = ({
                   </SelectContent>
                 </Select>
                 {workers.length === 0 && (
-                  <p className="text-sm text-gray-500">No active workers available</p>
+                  <p className="text-sm text-gray-500">No active workers found</p>
                 )}
               </div>
 
@@ -222,7 +243,7 @@ export const BookingAssignmentModal: React.FC<BookingAssignmentModalProps> = ({
                 </Button>
                 <Button 
                   onClick={handleAssign} 
-                  disabled={loading || !selectedWorkerId || !selectedBookingId}
+                  disabled={loading || !selectedWorkerId || !selectedBookingId || workers.length === 0 || bookings.length === 0}
                 >
                   {loading ? 'Assigning...' : 'Assign Worker'}
                 </Button>
