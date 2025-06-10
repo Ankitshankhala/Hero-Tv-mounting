@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { ServiceCard } from './ServiceCard';
 import { TvMountingModal } from './TvMountingModal';
@@ -37,7 +36,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ onAddToCart })
       id: 'cover-cables',
       name: 'Cover Cables',
       price: 20,
-      image: '/lovable-uploads/71fa4731-cb99-42cb-bfd0-29236a1bc91a.png',
+      image: '/lovable-uploads/01571029-7b6a-4df2-9c0f-1c0b120fedff.png',
       description: 'Clean cable management with decorative covers'
     },
     {
