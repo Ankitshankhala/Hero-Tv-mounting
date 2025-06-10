@@ -1,10 +1,22 @@
 
 import React from 'react';
+import { Link } from 'react-router-dom';
+import { Shield } from 'lucide-react';
 
 export const Header = () => {
   return (
     <header className="relative bg-gradient-to-r from-slate-900 to-slate-800 text-white">
       <div className="relative container mx-auto px-4 py-12">
+        <div className="absolute top-4 right-4">
+          <Link 
+            to="/admin"
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200 text-sm font-medium"
+          >
+            <Shield className="h-4 w-4" />
+            <span>Admin</span>
+          </Link>
+        </div>
+        
         <div className="flex items-center justify-center mb-8">
           <img 
             src="/lovable-uploads/012bbdab-1222-48ae-aa4b-d7bb3c3aa632.png" 
