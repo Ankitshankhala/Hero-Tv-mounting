@@ -37,7 +37,7 @@ export const TodaysJobsModal = ({ onClose }: TodaysJobsModalProps) => {
       id: 'BK003',
       time: '2:00 PM',
       customer: 'Mike Davis',
-      service: 'Sound Bar Installation',
+      service: 'Furniture Assembly',
       address: '789 Pine St, West End',
       worker: 'David Lee',
       workerPhone: '(555) 555-6666',
