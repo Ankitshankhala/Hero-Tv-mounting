@@ -12,8 +12,8 @@ interface AdminLoginProps {
 }
 
 export const AdminLogin = ({ onLogin }: AdminLoginProps) => {
-  const [email, setEmail] = useState('admin@tvmountpro.com');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const { signIn } = useAuth();
@@ -55,8 +55,8 @@ export const AdminLogin = ({ onLogin }: AdminLoginProps) => {
           <div className="mx-auto w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center mb-4">
             <Lock className="h-6 w-6 text-white" />
           </div>
-          <CardTitle className="text-2xl font-bold text-gray-900">Admin Login</CardTitle>
-          <p className="text-gray-600">Access TV Mount Pro Dashboard</p>
+          <CardTitle className="text-2xl font-bold text-gray-900">Admin Access</CardTitle>
+          <p className="text-gray-600">Administrator accounts only</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -73,7 +73,7 @@ export const AdminLogin = ({ onLogin }: AdminLoginProps) => {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="admin@tvmountpro.com"
+                  placeholder="Enter admin email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10"
@@ -81,7 +81,6 @@ export const AdminLogin = ({ onLogin }: AdminLoginProps) => {
                   disabled={loading}
                 />
               </div>
-              <p className="text-xs text-gray-500">Default: admin@tvmountpro.com</p>
             </div>
             
             <div className="space-y-2">
@@ -91,7 +90,7 @@ export const AdminLogin = ({ onLogin }: AdminLoginProps) => {
                 <Input
                   id="password"
                   type="password"
-                  placeholder="Enter your password"
+                  placeholder="Enter password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-10"
@@ -99,7 +98,6 @@ export const AdminLogin = ({ onLogin }: AdminLoginProps) => {
                   disabled={loading}
                 />
               </div>
-              <p className="text-xs text-gray-500">Default: admin123</p>
             </div>
             
             <Button 
@@ -110,6 +108,14 @@ export const AdminLogin = ({ onLogin }: AdminLoginProps) => {
               {loading ? 'Signing In...' : 'Sign In'}
             </Button>
           </form>
+          
+          <div className="mt-6 p-3 bg-gray-50 rounded-lg text-center">
+            <p className="text-sm text-gray-600">
+              Admin access is restricted to pre-authorized accounts only.
+              <br />
+              Contact your system administrator for access.
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>
