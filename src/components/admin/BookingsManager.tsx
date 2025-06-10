@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useRealtimeBookings } from '@/hooks/useRealtimeBookings';
+import { useBookingCalendarSync } from '@/hooks/useBookingCalendarSync';
 import { useToast } from '@/hooks/use-toast';
 import GoogleCalendarIntegration from '@/components/GoogleCalendarIntegration';
 import { BookingFilters } from './BookingFilters';
@@ -21,28 +21,60 @@ export const BookingsManager = () => {
   const [isCalendarConnected, setIsCalendarConnected] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
+  const { syncBookingToCalendar, isCalendarConnected: calendarConnected } = useBookingCalendarSync();
 
   // Set up real-time subscriptions for admin
   const { isConnected } = useRealtimeBookings({
     userId: user?.id,
     userRole: 'admin',
-    onBookingUpdate: (updatedBooking) => {
+    onBookingUpdate: async (updatedBooking) => {
+      console.log('Real-time booking update received:', updatedBooking);
+      
       setBookings(currentBookings => {
         const existingBookingIndex = currentBookings.findIndex(booking => booking.id === updatedBooking.id);
+        let updatedBookings = [...currentBookings];
         
         if (existingBookingIndex >= 0) {
-          // Update existing booking
-          const updatedBookings = [...currentBookings];
-          updatedBookings[existingBookingIndex] = { ...updatedBookings[existingBookingIndex], ...updatedBooking };
-          return updatedBookings;
+          const oldBooking = currentBookings[existingBookingIndex];
+          updatedBookings[existingBookingIndex] = { ...oldBooking, ...updatedBooking };
+          
+          // Handle calendar sync for real-time updates if calendar is connected
+          if (isCalendarConnected) {
+            const bookingData = updatedBookings[existingBookingIndex];
+            
+            // Determine if this is a status change that needs calendar sync
+            if (oldBooking.status !== updatedBooking.status) {
+              if (updatedBooking.status === 'cancelled') {
+                // Delete from calendar
+                await syncBookingToCalendar(bookingData, 'delete');
+              } else if (oldBooking.status === 'pending' && updatedBooking.status === 'confirmed') {
+                // Create calendar event
+                await syncBookingToCalendar(bookingData, 'create');
+              } else {
+                // Update existing calendar event
+                await syncBookingToCalendar(bookingData, 'update');
+              }
+            }
+          }
         } else {
-          // Add new booking
+          // Add new booking and sync to calendar if connected
+          updatedBookings.unshift(updatedBooking);
           fetchBookings(); // Refetch to get complete data with relations
-          return currentBookings;
+          
+          if (isCalendarConnected && updatedBooking.status !== 'cancelled') {
+            await syncBookingToCalendar(updatedBooking, 'create');
+          }
         }
+        
+        return updatedBookings;
       });
     }
   });
+
+  // Update calendar connection state
+  useEffect(() => {
+    setIsCalendarConnected(calendarConnected);
+  }, [calendarConnected]);
 
   useEffect(() => {
     fetchBookings();
@@ -123,9 +155,14 @@ export const BookingsManager = () => {
               <Calendar className="h-5 w-5" />
               <span>Bookings Management</span>
             </CardTitle>
-            {isConnected && (
-              <span className="text-sm text-green-600">● Live updates enabled</span>
-            )}
+            <div className="flex items-center space-x-4">
+              {isConnected && (
+                <span className="text-sm text-green-600">● Live updates enabled</span>
+              )}
+              {isCalendarConnected && (
+                <span className="text-sm text-blue-600">● Calendar sync active</span>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -150,3 +187,5 @@ export const BookingsManager = () => {
     </div>
   );
 };
+
+export default BookingsManager;
