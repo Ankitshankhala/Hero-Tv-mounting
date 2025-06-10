@@ -56,20 +56,20 @@ export const useGoogleCalendar = () => {
     try {
       // Load Google API script if not already loaded
       if (!window.gapi) {
-        await new Promise((resolve) => {
+        await new Promise<void>((resolve) => {
           const script = document.createElement('script');
           script.src = 'https://apis.google.com/js/api.js';
-          script.onload = resolve;
+          script.onload = () => resolve();
           document.head.appendChild(script);
         });
       }
 
       // Load Google Identity Services script
       if (!window.google) {
-        await new Promise((resolve) => {
+        await new Promise<void>((resolve) => {
           const script = document.createElement('script');
           script.src = 'https://accounts.google.com/gsi/client';
-          script.onload = resolve;
+          script.onload = () => resolve();
           document.head.appendChild(script);
         });
       }
@@ -96,8 +96,8 @@ export const useGoogleCalendar = () => {
       if (!initialized) return false;
 
       // Initialize the Google API client
-      await new Promise((resolve) => {
-        window.gapi.load('client:auth2', resolve);
+      await new Promise<void>((resolve) => {
+        window.gapi.load('client:auth2', () => resolve());
       });
 
       await window.gapi.client.init({
