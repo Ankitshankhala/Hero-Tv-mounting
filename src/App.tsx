@@ -11,6 +11,7 @@ import WorkerDashboard from "./pages/WorkerDashboard";
 import CustomerDashboard from "./pages/CustomerDashboard";
 import WorkerApplication from "./pages/WorkerApplication";
 import BookingSuccess from "./pages/BookingSuccess";
+import Book from "./pages/Book";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/book" element={<Book />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/worker-dashboard" element={<WorkerDashboard />} />
             <Route path="/customer-dashboard" element={<CustomerDashboard />} />
