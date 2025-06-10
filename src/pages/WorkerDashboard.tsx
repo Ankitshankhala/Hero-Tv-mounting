@@ -9,6 +9,9 @@ import { Button } from '@/components/ui/button';
 import WorkerDashboardHeader from '@/components/worker/WorkerDashboardHeader';
 import WorkerDashboardStats from '@/components/worker/WorkerDashboardStats';
 import WorkerJobCard from '@/components/worker/WorkerJobCard';
+import type { Database } from '@/integrations/supabase/types';
+
+type BookingStatus = Database['public']['Enums']['booking_status'];
 
 const WorkerDashboard = () => {
   const [jobs, setJobs] = useState([]);
@@ -33,7 +36,10 @@ const WorkerDashboard = () => {
         .eq('worker_id', user.id)
         .order('scheduled_at', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
       setJobs(data || []);
     } catch (error) {
       console.error('Error fetching worker jobs:', error);
@@ -47,7 +53,7 @@ const WorkerDashboard = () => {
     }
   };
 
-  const updateJobStatus = async (jobId: string, newStatus: string) => {
+  const updateJobStatus = async (jobId: string, newStatus: BookingStatus) => {
     try {
       const { error } = await supabase
         .from('bookings')
