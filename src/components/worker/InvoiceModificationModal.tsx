@@ -70,14 +70,14 @@ const InvoiceModificationModal = ({
       const originalTotal = job.total_price;
       const modifiedTotal = calculateNewTotal();
 
-      // Create invoice modification record
+      // Create invoice modification record - cast services to Json
       const { error: modError } = await supabase
         .from('invoice_modifications')
         .insert({
           booking_id: job.id,
           worker_id: job.worker_id,
-          original_services: job.services,
-          modified_services: services,
+          original_services: job.services as any,
+          modified_services: services as any,
           original_total: originalTotal,
           modified_total: modifiedTotal,
           modification_reason: reason,
