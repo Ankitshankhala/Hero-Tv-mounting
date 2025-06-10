@@ -12,8 +12,8 @@ interface AdminLoginProps {
 }
 
 export const AdminLogin = ({ onLogin }: AdminLoginProps) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('admin@tvmountpro.com');
+  const [password, setPassword] = useState('admin123');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const { signIn } = useAuth();
@@ -23,15 +23,25 @@ export const AdminLogin = ({ onLogin }: AdminLoginProps) => {
     setLoading(true);
     setError('');
 
+    console.log('Admin login attempt:', email);
+
     try {
       const { error } = await signIn(email, password);
       
       if (error) {
-        setError(error.message);
+        console.error('Login error:', error);
+        setError(error.message || 'Authentication failed');
       } else {
-        onLogin();
+        console.log('Login successful');
+        // Small delay to ensure auth state is updated
+        setTimeout(() => {
+          onLogin();
+          // Force a page reload to ensure clean state
+          window.location.reload();
+        }, 100);
       }
     } catch (err) {
+      console.error('Unexpected login error:', err);
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);
@@ -71,6 +81,7 @@ export const AdminLogin = ({ onLogin }: AdminLoginProps) => {
                   disabled={loading}
                 />
               </div>
+              <p className="text-xs text-gray-500">Default: admin@tvmountpro.com</p>
             </div>
             
             <div className="space-y-2">
@@ -88,6 +99,7 @@ export const AdminLogin = ({ onLogin }: AdminLoginProps) => {
                   disabled={loading}
                 />
               </div>
+              <p className="text-xs text-gray-500">Default: admin123</p>
             </div>
             
             <Button 

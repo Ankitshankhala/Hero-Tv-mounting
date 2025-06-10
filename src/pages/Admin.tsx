@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { DashboardStats } from '@/components/admin/DashboardStats';
@@ -16,7 +16,16 @@ import { useAuth } from '@/hooks/useAuth';
 
 const Admin = () => {
   const [activeSection, setActiveSection] = useState('dashboard');
-  const { user, isAdmin, loading } = useAuth();
+  const { user, profile, isAdmin, loading } = useAuth();
+
+  useEffect(() => {
+    console.log('Admin page auth state:', { 
+      user: user?.email, 
+      profile: profile?.role, 
+      isAdmin, 
+      loading 
+    });
+  }, [user, profile, isAdmin, loading]);
 
   if (loading) {
     return (
@@ -29,9 +38,13 @@ const Admin = () => {
     );
   }
 
-  if (!user || !isAdmin) {
+  // Show login if no user or not admin
+  if (!user || !profile || !isAdmin) {
+    console.log('Showing admin login - user:', !!user, 'profile:', !!profile, 'isAdmin:', isAdmin);
     return <AdminLogin onLogin={() => {}} />;
   }
+
+  console.log('Showing admin dashboard for:', user.email);
 
   const renderActiveSection = () => {
     switch (activeSection) {
