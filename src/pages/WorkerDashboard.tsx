@@ -1,6 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Plus } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -11,6 +13,7 @@ import WorkerCalendar from '@/components/worker/WorkerCalendar';
 import WorkerScheduleManager from '@/components/worker/WorkerScheduleManager';
 import WorkerLoginForm from '@/components/worker/WorkerLoginForm';
 import WorkerDashboardLoading from '@/components/worker/WorkerDashboardLoading';
+import CreateBookingModal from '@/components/worker/CreateBookingModal';
 import type { Database } from '@/integrations/supabase/types';
 
 type BookingStatus = Database['public']['Enums']['booking_status'];
@@ -18,6 +21,7 @@ type BookingStatus = Database['public']['Enums']['booking_status'];
 const WorkerDashboard = () => {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showCreateBooking, setShowCreateBooking] = useState(false);
   const { user, profile } = useAuth();
   const { toast } = useToast();
 
@@ -90,6 +94,15 @@ const WorkerDashboard = () => {
     fetchWorkerJobs();
   };
 
+  const handleBookingCreated = () => {
+    // Refresh the jobs list when a new booking is created
+    fetchWorkerJobs();
+    toast({
+      title: "Success",
+      description: "New booking created successfully",
+    });
+  };
+
   // Show login form if not authenticated or not a worker
   if (!user || profile?.role !== 'worker') {
     return <WorkerLoginForm />;
@@ -110,6 +123,17 @@ const WorkerDashboard = () => {
       <WorkerDashboardHeader workerName={profile?.name || 'Worker'} />
 
       <div className="container mx-auto px-4 py-8">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-white">Dashboard</h1>
+          <Button 
+            onClick={() => setShowCreateBooking(true)}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Create Booking
+          </Button>
+        </div>
+
         <WorkerDashboardStats
           todaysJobs={todaysJobs.length}
           upcomingJobs={upcomingJobs.length}
@@ -141,6 +165,13 @@ const WorkerDashboard = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {showCreateBooking && (
+        <CreateBookingModal
+          onClose={() => setShowCreateBooking(false)}
+          onBookingCreated={handleBookingCreated}
+        />
+      )}
     </div>
   );
 };
