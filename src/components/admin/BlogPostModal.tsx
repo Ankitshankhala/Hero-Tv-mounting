@@ -13,7 +13,7 @@ interface BlogPost {
   id?: string;
   title: string;
   category: string;
-  content: string;
+  content?: string;
   status: 'published' | 'draft' | 'scheduled';
   hasVideo: boolean;
   publishDate?: string;
@@ -105,7 +105,7 @@ export const BlogPostModal = ({ isOpen, onClose, onSave, post }: BlogPostModalPr
             <Label htmlFor="content">Content *</Label>
             <Textarea
               id="content"
-              value={formData.content}
+              value={formData.content || ''}
               onChange={(e) => setFormData({ ...formData, content: e.target.value })}
               placeholder="Enter blog post content"
               className="min-h-[200px]"
