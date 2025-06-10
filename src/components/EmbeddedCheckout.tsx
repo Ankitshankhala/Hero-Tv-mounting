@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
-import { X, MapPin, Clock, User, Mail, Phone, CreditCard } from 'lucide-react';
+import { X, MapPin, Clock, User, Mail, Phone, CreditCard, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { StripeCardElement } from '@/components/StripeCardElement';
@@ -35,6 +35,7 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
   const [cardElement, setCardElement] = useState<any>(null);
   const [cardError, setCardError] = useState<string>('');
   const [stripeReady, setStripeReady] = useState(false);
+  const [stripeError, setStripeError] = useState<string>('');
   const { toast } = useToast();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -71,6 +72,7 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
 
     console.log('Moving to payment step');
     setPaymentStep('payment');
+    setStripeError(''); // Clear any previous errors
   };
 
   const handleStripeReady = (stripeInstance: any, elements: any, cardElementInstance: any) => {
@@ -78,16 +80,35 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
     setStripe(stripeInstance);
     setCardElement(cardElementInstance);
     setStripeReady(true);
+    setStripeError(''); // Clear any errors when Stripe is ready
   };
 
   const handleCardError = (error: string) => {
     setCardError(error);
+    if (error) {
+      setStripeError(error);
+    }
+  };
+
+  const retryStripeInitialization = () => {
+    setStripeError('');
+    setStripeReady(false);
+    setStripe(null);
+    setCardElement(null);
+    // Force re-render of StripeCardElement by toggling paymentStep
+    setPaymentStep('details');
+    setTimeout(() => setPaymentStep('payment'), 100);
   };
 
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    console.log('Payment submit triggered', { stripe: !!stripe, cardElement: !!cardElement, stripeReady });
+    console.log('Payment submit triggered', { 
+      stripe: !!stripe, 
+      cardElement: !!cardElement, 
+      stripeReady,
+      isProcessing
+    });
     
     if (!stripe || !cardElement || !stripeReady) {
       toast({
@@ -122,9 +143,9 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
         longitude: null
       };
 
-      // Create payment intent with timeout
+      // Create payment intent with shorter timeout
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Request timeout')), 30000)
+        setTimeout(() => reject(new Error('Request timeout - please try again')), 15000)
       );
 
       const paymentPromise = supabase.functions.invoke('create-payment-intent', {
@@ -156,7 +177,7 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
       });
 
       const confirmTimeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Payment confirmation timeout')), 30000)
+        setTimeout(() => reject(new Error('Payment confirmation timeout - please try again')), 15000)
       );
 
       const { error: confirmError } = await Promise.race([confirmPromise, confirmTimeoutPromise]) as any;
@@ -387,15 +408,28 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
                   <span>Payment Method</span>
                 </Label>
                 <Card className="p-4">
-                  <StripeCardElement
-                    onReady={handleStripeReady}
-                    onError={handleCardError}
-                  />
-                  {cardError && (
-                    <div className="text-red-500 text-sm mt-2">{cardError}</div>
+                  {stripeError ? (
+                    <div className="text-center py-4 space-y-3">
+                      <div className="text-red-500 text-sm">{stripeError}</div>
+                      <Button
+                        type="button"
+                        onClick={retryStripeInitialization}
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center space-x-2"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                        <span>Retry Payment Form</span>
+                      </Button>
+                    </div>
+                  ) : (
+                    <StripeCardElement
+                      onReady={handleStripeReady}
+                      onError={handleCardError}
+                    />
                   )}
-                  {!stripeReady && (
-                    <div className="text-gray-500 text-sm mt-2">Loading payment form...</div>
+                  {cardError && !stripeError && (
+                    <div className="text-red-500 text-sm mt-2">{cardError}</div>
                   )}
                 </Card>
               </div>
@@ -412,10 +446,17 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
                 </Button>
                 <Button
                   type="submit"
-                  disabled={isProcessing || !stripeReady}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                  disabled={isProcessing || !stripeReady || !!stripeError}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
                 >
-                  {isProcessing ? 'Processing...' : `Pay $${total.toFixed(2)}`}
+                  {isProcessing ? (
+                    <div className="flex items-center space-x-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Processing...</span>
+                    </div>
+                  ) : (
+                    `Pay $${total.toFixed(2)}`
+                  )}
                 </Button>
               </div>
             </form>
