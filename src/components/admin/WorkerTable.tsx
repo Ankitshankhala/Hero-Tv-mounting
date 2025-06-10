@@ -141,49 +141,64 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
 
       {/* Calendar Modal */}
       <Dialog open={showCalendar} onOpenChange={setShowCalendar}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto bg-white">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="text-slate-900 text-xl">
               {selectedWorker?.name}'s Calendar & Schedule
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-6">
-            <WorkerCalendar />
-            <WorkerScheduleManager onScheduleUpdate={onWorkerUpdate} />
+          <div className="space-y-6 p-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Calendar Section */}
+              <div className="bg-white border border-gray-200 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-slate-900 mb-4">Jobs Calendar</h3>
+                <div className="bg-white">
+                  <WorkerCalendar />
+                </div>
+              </div>
+              
+              {/* Schedule Manager Section */}
+              <div className="bg-white border border-gray-200 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-slate-900 mb-4">Availability Schedule</h3>
+                <div className="bg-white">
+                  <WorkerScheduleManager onScheduleUpdate={onWorkerUpdate} />
+                </div>
+              </div>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
 
       {/* Edit Worker Modal */}
       <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl bg-white">
           <DialogHeader>
-            <DialogTitle>Edit Worker: {selectedWorker?.name}</DialogTitle>
+            <DialogTitle className="text-slate-900">Edit Worker: {selectedWorker?.name}</DialogTitle>
           </DialogHeader>
           <div className="p-4">
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Name</label>
-                  <div className="p-2 bg-gray-50 rounded border text-sm">
+                  <label className="block text-sm font-medium mb-1 text-slate-900">Name</label>
+                  <div className="p-2 bg-gray-50 rounded border text-sm text-slate-900">
                     {selectedWorker?.name}
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Email</label>
-                  <div className="p-2 bg-gray-50 rounded border text-sm">
+                  <label className="block text-sm font-medium mb-1 text-slate-900">Email</label>
+                  <div className="p-2 bg-gray-50 rounded border text-sm text-slate-900">
                     {selectedWorker?.email}
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Phone</label>
-                  <div className="p-2 bg-gray-50 rounded border text-sm">
+                  <label className="block text-sm font-medium mb-1 text-slate-900">Phone</label>
+                  <div className="p-2 bg-gray-50 rounded border text-sm text-slate-900">
                     {selectedWorker?.phone || 'Not provided'}
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Location</label>
-                  <div className="p-2 bg-gray-50 rounded border text-sm">
+                  <label className="block text-sm font-medium mb-1 text-slate-900">Location</label>
+                  <div className="p-2 bg-gray-50 rounded border text-sm text-slate-900">
                     {selectedWorker?.city}, {selectedWorker?.region}
                   </div>
                 </div>

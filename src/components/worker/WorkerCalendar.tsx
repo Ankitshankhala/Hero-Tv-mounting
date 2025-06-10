@@ -97,35 +97,35 @@ const WorkerCalendar = ({ onDateSelect }: WorkerCalendarProps) => {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <Card className="bg-slate-800 border-slate-700">
+      <Card className="bg-white border-gray-200">
         <CardHeader>
-          <CardTitle className="text-white">Calendar</CardTitle>
+          <CardTitle className="text-slate-900">Calendar</CardTitle>
         </CardHeader>
         <CardContent className="p-4">
-          <div className="bg-white rounded-lg p-4">
+          <div className="bg-white rounded-lg">
             <Calendar
               mode="single"
               selected={selectedDate}
               onSelect={handleDateSelect}
-              className="w-full"
+              className="w-full border-0"
               classNames={{
                 months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
                 month: "space-y-4",
                 caption: "flex justify-center pt-1 relative items-center text-slate-900",
                 caption_label: "text-sm font-medium text-slate-900",
                 nav: "space-x-1 flex items-center",
-                nav_button: "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 text-slate-900 border border-slate-300 rounded",
+                nav_button: "h-7 w-7 bg-white p-0 opacity-70 hover:opacity-100 text-slate-900 border border-slate-300 rounded hover:bg-slate-100",
                 nav_button_previous: "absolute left-1",
                 nav_button_next: "absolute right-1",
                 table: "w-full border-collapse space-y-1",
                 head_row: "flex",
-                head_cell: "text-slate-500 rounded-md w-9 font-normal text-[0.8rem]",
+                head_cell: "text-slate-600 rounded-md w-9 font-normal text-[0.8rem]",
                 row: "flex w-full mt-2",
                 cell: "h-9 w-9 text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
                 day: "h-9 w-9 p-0 font-normal text-slate-900 hover:bg-slate-100 rounded-md",
                 day_range_end: "day-range-end",
-                day_selected: "bg-slate-900 text-white hover:bg-slate-900 hover:text-white focus:bg-slate-900 focus:text-white",
-                day_today: "bg-slate-100 text-slate-900 font-semibold",
+                day_selected: "bg-blue-600 text-white hover:bg-blue-600 hover:text-white focus:bg-blue-600 focus:text-white",
+                day_today: "bg-slate-200 text-slate-900 font-semibold",
                 day_outside: "text-slate-400 opacity-50",
                 day_disabled: "text-slate-400 opacity-50",
                 day_range_middle: "aria-selected:bg-slate-100 aria-selected:text-slate-900",
@@ -136,38 +136,38 @@ const WorkerCalendar = ({ onDateSelect }: WorkerCalendarProps) => {
         </CardContent>
       </Card>
 
-      <Card className="bg-slate-800 border-slate-700">
+      <Card className="bg-white border-gray-200">
         <CardHeader>
-          <CardTitle className="text-white">
+          <CardTitle className="text-slate-900">
             Jobs for {selectedDate.toLocaleDateString()}
           </CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
-              <p className="mt-2 text-slate-400">Loading jobs...</p>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-2 text-slate-600">Loading jobs...</p>
             </div>
           ) : jobs.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-slate-400">No jobs scheduled for this date</p>
+              <p className="text-slate-600">No jobs scheduled for this date</p>
             </div>
           ) : (
             <div className="space-y-4">
               {jobs.map((job) => (
-                <div key={job.id} className="bg-slate-700 rounded-lg p-4 border border-slate-600">
+                <div key={job.id} className="bg-slate-50 rounded-lg p-4 border border-slate-200">
                   <div className="flex justify-between items-start mb-2">
                     <div>
-                      <h4 className="font-semibold text-white">{job.customer?.name || 'Customer'}</h4>
-                      <p className="text-sm text-slate-300">Job #{job.id.slice(0, 8)}</p>
+                      <h4 className="font-semibold text-slate-900">{job.customer?.name || 'Customer'}</h4>
+                      <p className="text-sm text-slate-600">Job #{job.id.slice(0, 8)}</p>
                     </div>
                     <div className="text-right">
                       {getStatusBadge(job.status)}
-                      <p className="text-sm font-bold text-white mt-1">${job.total_price}</p>
+                      <p className="text-sm font-bold text-slate-900 mt-1">${job.total_price}</p>
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-1 gap-2 text-sm text-slate-300">
+                  <div className="grid grid-cols-1 gap-2 text-sm text-slate-600">
                     <div className="flex items-center space-x-2">
                       <Clock className="h-4 w-4" />
                       <span>{formatTime(job.scheduled_at)} • {formatDuration(job.total_duration_minutes)}</span>
@@ -185,7 +185,7 @@ const WorkerCalendar = ({ onDateSelect }: WorkerCalendarProps) => {
                   </div>
 
                   {job.special_instructions && (
-                    <div className="mt-2 p-2 bg-yellow-900/20 border border-yellow-700 rounded text-yellow-200 text-sm">
+                    <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-yellow-800 text-sm">
                       <strong>Instructions:</strong> {job.special_instructions}
                     </div>
                   )}
