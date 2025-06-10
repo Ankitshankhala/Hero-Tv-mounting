@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -155,43 +156,43 @@ const WorkerScheduleManager = ({ onScheduleUpdate }: WorkerScheduleManagerProps)
 
   return (
     <div className="w-full max-w-7xl mx-auto">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Calendar Card */}
         <Card className="w-full">
           <CardHeader className="bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-t-lg">
             <CardTitle className="text-lg font-semibold text-center">Set Your Availability</CardTitle>
             <p className="text-sm text-purple-100 text-center">Select a date to manage your schedule</p>
           </CardHeader>
-          <CardContent className="p-6 flex justify-center">
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={(date) => date && setSelectedDate(date)}
-              className="w-full max-w-sm mx-auto"
-              classNames={{
-                months: "flex flex-col space-y-4",
-                month: "space-y-4 w-full",
-                caption: "flex justify-center pt-1 relative items-center text-foreground",
-                caption_label: "text-sm font-medium text-foreground",
-                nav: "space-x-1 flex items-center",
-                nav_button: "h-7 w-7 bg-background p-0 opacity-70 hover:opacity-100 text-foreground border border-border rounded hover:bg-accent",
-                nav_button_previous: "absolute left-1",
-                nav_button_next: "absolute right-1",
-                table: "w-full border-collapse space-y-1",
-                head_row: "flex w-full",
-                head_cell: "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem] flex-1 text-center",
-                row: "flex w-full mt-2",
-                cell: "h-9 w-9 text-center text-sm p-0 relative focus-within:relative focus-within:z-20 flex-1",
-                day: "h-9 w-9 p-0 font-normal text-foreground hover:bg-accent rounded-md transition-colors mx-auto",
-                day_range_end: "day-range-end",
-                day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-                day_today: "bg-accent text-accent-foreground font-semibold",
-                day_outside: "text-muted-foreground opacity-50",
-                day_disabled: "text-muted-foreground opacity-50",
-                day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
-                day_hidden: "invisible",
-              }}
-            />
+          <CardContent className="p-4">
+            <div className="flex justify-center w-full">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={(date) => date && setSelectedDate(date)}
+                className="w-full"
+                classNames={{
+                  months: "flex flex-col space-y-4 w-full",
+                  month: "space-y-4 w-full",
+                  caption: "flex justify-center pt-1 relative items-center",
+                  caption_label: "text-sm font-medium",
+                  nav: "space-x-1 flex items-center",
+                  nav_button: "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 border rounded",
+                  nav_button_previous: "absolute left-1",
+                  nav_button_next: "absolute right-1",
+                  table: "w-full border-collapse",
+                  head_row: "flex w-full",
+                  head_cell: "text-muted-foreground rounded-md w-full font-normal text-[0.8rem] flex-1 text-center p-0",
+                  row: "flex w-full mt-1",
+                  cell: "text-center text-sm p-0 relative flex-1 h-9 w-9",
+                  day: "h-9 w-9 p-0 font-normal hover:bg-accent rounded-md transition-colors mx-auto flex items-center justify-center",
+                  day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground",
+                  day_today: "bg-accent text-accent-foreground font-semibold",
+                  day_outside: "text-muted-foreground opacity-50",
+                  day_disabled: "text-muted-foreground opacity-50",
+                  day_hidden: "invisible",
+                }}
+              />
+            </div>
           </CardContent>
         </Card>
 
