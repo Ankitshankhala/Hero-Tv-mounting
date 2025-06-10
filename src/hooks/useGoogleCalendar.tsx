@@ -1,6 +1,7 @@
 
 import { useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface CalendarEvent {
   id?: string;
@@ -21,6 +22,35 @@ export const useGoogleCalendar = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+
+  const getGoogleCredentials = useCallback(async () => {
+    try {
+      const { data: apiKeyData, error: apiKeyError } = await supabase.functions.invoke('get-secret', {
+        body: { name: 'GOOGLE_API_KEY' }
+      });
+
+      const { data: clientIdData, error: clientIdError } = await supabase.functions.invoke('get-secret', {
+        body: { name: 'GOOGLE_CLIENT_ID' }
+      });
+
+      if (apiKeyError || clientIdError) {
+        throw new Error('Failed to fetch Google credentials');
+      }
+
+      return {
+        apiKey: apiKeyData?.value,
+        clientId: clientIdData?.value
+      };
+    } catch (error) {
+      console.error('Error fetching Google credentials:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch Google credentials",
+        variant: "destructive",
+      });
+      return null;
+    }
+  }, [toast]);
 
   const initializeGoogleCalendar = useCallback(async () => {
     try {
@@ -59,6 +89,9 @@ export const useGoogleCalendar = () => {
   const connectToGoogleCalendar = useCallback(async () => {
     setIsLoading(true);
     try {
+      const credentials = await getGoogleCredentials();
+      if (!credentials) return false;
+
       const initialized = await initializeGoogleCalendar();
       if (!initialized) return false;
 
@@ -68,8 +101,8 @@ export const useGoogleCalendar = () => {
       });
 
       await window.gapi.client.init({
-        apiKey: 'YOUR_GOOGLE_API_KEY', // This should be set in environment variables
-        clientId: 'YOUR_GOOGLE_CLIENT_ID', // This should be set in environment variables
+        apiKey: credentials.apiKey,
+        clientId: credentials.clientId,
         discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
         scope: 'https://www.googleapis.com/auth/calendar'
       });
@@ -90,14 +123,14 @@ export const useGoogleCalendar = () => {
       console.error('Error connecting to Google Calendar:', error);
       toast({
         title: "Error",
-        description: "Failed to connect to Google Calendar",
+        description: "Failed to connect to Google Calendar. Please check your credentials.",
         variant: "destructive",
       });
       return false;
     } finally {
       setIsLoading(false);
     }
-  }, [initializeGoogleCalendar, toast]);
+  }, [getGoogleCredentials, initializeGoogleCalendar, toast]);
 
   const createCalendarEvent = useCallback(async (event: CalendarEvent) => {
     if (!isConnected) {
