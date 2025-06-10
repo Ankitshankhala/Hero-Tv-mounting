@@ -97,77 +97,75 @@ const WorkerCalendar = ({ onDateSelect }: WorkerCalendarProps) => {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <Card className="bg-white border-gray-200">
-        <CardHeader>
-          <CardTitle className="text-slate-900">Calendar</CardTitle>
-        </CardHeader>
-        <CardContent className="p-4">
-          <div className="bg-white rounded-lg">
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={handleDateSelect}
-              className="w-full border-0"
-              classNames={{
-                months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-                month: "space-y-4",
-                caption: "flex justify-center pt-1 relative items-center text-slate-900",
-                caption_label: "text-sm font-medium text-slate-900",
-                nav: "space-x-1 flex items-center",
-                nav_button: "h-7 w-7 bg-white p-0 opacity-70 hover:opacity-100 text-slate-900 border border-slate-300 rounded hover:bg-slate-100",
-                nav_button_previous: "absolute left-1",
-                nav_button_next: "absolute right-1",
-                table: "w-full border-collapse space-y-1",
-                head_row: "flex",
-                head_cell: "text-slate-600 rounded-md w-9 font-normal text-[0.8rem]",
-                row: "flex w-full mt-2",
-                cell: "h-9 w-9 text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
-                day: "h-9 w-9 p-0 font-normal text-slate-900 hover:bg-slate-100 rounded-md",
-                day_range_end: "day-range-end",
-                day_selected: "bg-blue-600 text-white hover:bg-blue-600 hover:text-white focus:bg-blue-600 focus:text-white",
-                day_today: "bg-slate-200 text-slate-900 font-semibold",
-                day_outside: "text-slate-400 opacity-50",
-                day_disabled: "text-slate-400 opacity-50",
-                day_range_middle: "aria-selected:bg-slate-100 aria-selected:text-slate-900",
-                day_hidden: "invisible",
-              }}
-            />
-          </div>
-        </CardContent>
-      </Card>
+      <div className="bg-card border border-border rounded-lg shadow-sm">
+        <div className="p-4 border-b border-border">
+          <h3 className="text-lg font-semibold text-card-foreground">Calendar</h3>
+        </div>
+        <div className="p-4">
+          <Calendar
+            mode="single"
+            selected={selectedDate}
+            onSelect={handleDateSelect}
+            className="w-full border-0"
+            classNames={{
+              months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+              month: "space-y-4",
+              caption: "flex justify-center pt-1 relative items-center text-foreground",
+              caption_label: "text-sm font-medium text-foreground",
+              nav: "space-x-1 flex items-center",
+              nav_button: "h-7 w-7 bg-background p-0 opacity-70 hover:opacity-100 text-foreground border border-border rounded hover:bg-accent",
+              nav_button_previous: "absolute left-1",
+              nav_button_next: "absolute right-1",
+              table: "w-full border-collapse space-y-1",
+              head_row: "flex",
+              head_cell: "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
+              row: "flex w-full mt-2",
+              cell: "h-9 w-9 text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
+              day: "h-9 w-9 p-0 font-normal text-foreground hover:bg-accent rounded-md",
+              day_range_end: "day-range-end",
+              day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+              day_today: "bg-accent text-accent-foreground font-semibold",
+              day_outside: "text-muted-foreground opacity-50",
+              day_disabled: "text-muted-foreground opacity-50",
+              day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
+              day_hidden: "invisible",
+            }}
+          />
+        </div>
+      </div>
 
-      <Card className="bg-white border-gray-200">
-        <CardHeader>
-          <CardTitle className="text-slate-900">
+      <div className="bg-card border border-border rounded-lg shadow-sm">
+        <div className="p-4 border-b border-border">
+          <h3 className="text-lg font-semibold text-card-foreground">
             Jobs for {selectedDate.toLocaleDateString()}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+          </h3>
+        </div>
+        <div className="p-4">
           {loading ? (
             <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-2 text-slate-600">Loading jobs...</p>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+              <p className="mt-2 text-muted-foreground">Loading jobs...</p>
             </div>
           ) : jobs.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-slate-600">No jobs scheduled for this date</p>
+              <p className="text-muted-foreground">No jobs scheduled for this date</p>
             </div>
           ) : (
             <div className="space-y-4">
               {jobs.map((job) => (
-                <div key={job.id} className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                <div key={job.id} className="bg-accent/50 rounded-lg p-4 border border-border">
                   <div className="flex justify-between items-start mb-2">
                     <div>
-                      <h4 className="font-semibold text-slate-900">{job.customer?.name || 'Customer'}</h4>
-                      <p className="text-sm text-slate-600">Job #{job.id.slice(0, 8)}</p>
+                      <h4 className="font-semibold text-foreground">{job.customer?.name || 'Customer'}</h4>
+                      <p className="text-sm text-muted-foreground">Job #{job.id.slice(0, 8)}</p>
                     </div>
                     <div className="text-right">
                       {getStatusBadge(job.status)}
-                      <p className="text-sm font-bold text-slate-900 mt-1">${job.total_price}</p>
+                      <p className="text-sm font-bold text-foreground mt-1">${job.total_price}</p>
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-1 gap-2 text-sm text-slate-600">
+                  <div className="grid grid-cols-1 gap-2 text-sm text-muted-foreground">
                     <div className="flex items-center space-x-2">
                       <Clock className="h-4 w-4" />
                       <span>{formatTime(job.scheduled_at)} • {formatDuration(job.total_duration_minutes)}</span>
@@ -193,8 +191,8 @@ const WorkerCalendar = ({ onDateSelect }: WorkerCalendarProps) => {
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 };

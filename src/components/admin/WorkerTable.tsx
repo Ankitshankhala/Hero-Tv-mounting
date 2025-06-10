@@ -141,27 +141,37 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
 
       {/* Calendar Modal */}
       <Dialog open={showCalendar} onOpenChange={setShowCalendar}>
-        <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto bg-white">
-          <DialogHeader>
-            <DialogTitle className="text-slate-900 text-xl">
+        <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto bg-background">
+          <DialogHeader className="pb-4 border-b">
+            <DialogTitle className="text-foreground text-xl font-semibold">
               {selectedWorker?.name}'s Calendar & Schedule
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-6 p-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="space-y-6 p-6">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
               {/* Calendar Section */}
-              <div className="bg-white border border-gray-200 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-slate-900 mb-4">Jobs Calendar</h3>
-                <div className="bg-white">
-                  <WorkerCalendar />
+              <div className="space-y-4">
+                <div className="bg-card border border-border rounded-lg shadow-sm">
+                  <div className="p-4 border-b border-border">
+                    <h3 className="text-lg font-semibold text-card-foreground">Jobs Calendar</h3>
+                    <p className="text-sm text-muted-foreground">View scheduled jobs and appointments</p>
+                  </div>
+                  <div className="p-4">
+                    <WorkerCalendar />
+                  </div>
                 </div>
               </div>
               
               {/* Schedule Manager Section */}
-              <div className="bg-white border border-gray-200 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-slate-900 mb-4">Availability Schedule</h3>
-                <div className="bg-white">
-                  <WorkerScheduleManager onScheduleUpdate={onWorkerUpdate} />
+              <div className="space-y-4">
+                <div className="bg-card border border-border rounded-lg shadow-sm">
+                  <div className="p-4 border-b border-border">
+                    <h3 className="text-lg font-semibold text-card-foreground">Availability Schedule</h3>
+                    <p className="text-sm text-muted-foreground">Manage working hours and availability</p>
+                  </div>
+                  <div className="p-4">
+                    <WorkerScheduleManager onScheduleUpdate={onWorkerUpdate} />
+                  </div>
                 </div>
               </div>
             </div>
@@ -171,39 +181,39 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
 
       {/* Edit Worker Modal */}
       <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
-        <DialogContent className="max-w-2xl bg-white">
+        <DialogContent className="max-w-2xl bg-background">
           <DialogHeader>
-            <DialogTitle className="text-slate-900">Edit Worker: {selectedWorker?.name}</DialogTitle>
+            <DialogTitle className="text-foreground">Edit Worker: {selectedWorker?.name}</DialogTitle>
           </DialogHeader>
           <div className="p-4">
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1 text-slate-900">Name</label>
-                  <div className="p-2 bg-gray-50 rounded border text-sm text-slate-900">
+                  <label className="block text-sm font-medium mb-1 text-foreground">Name</label>
+                  <div className="p-2 bg-muted rounded border text-sm text-foreground">
                     {selectedWorker?.name}
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1 text-slate-900">Email</label>
-                  <div className="p-2 bg-gray-50 rounded border text-sm text-slate-900">
+                  <label className="block text-sm font-medium mb-1 text-foreground">Email</label>
+                  <div className="p-2 bg-muted rounded border text-sm text-foreground">
                     {selectedWorker?.email}
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1 text-slate-900">Phone</label>
-                  <div className="p-2 bg-gray-50 rounded border text-sm text-slate-900">
+                  <label className="block text-sm font-medium mb-1 text-foreground">Phone</label>
+                  <div className="p-2 bg-muted rounded border text-sm text-foreground">
                     {selectedWorker?.phone || 'Not provided'}
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1 text-slate-900">Location</label>
-                  <div className="p-2 bg-gray-50 rounded border text-sm text-slate-900">
+                  <label className="block text-sm font-medium mb-1 text-foreground">Location</label>
+                  <div className="p-2 bg-muted rounded border text-sm text-foreground">
                     {selectedWorker?.city}, {selectedWorker?.region}
                   </div>
                 </div>
               </div>
-              <div className="text-sm text-gray-600 mt-4">
+              <div className="text-sm text-muted-foreground mt-4">
                 <p><strong>Note:</strong> Worker profile editing is currently view-only. Contact system administrator for changes.</p>
               </div>
               <div className="flex justify-end pt-4">
