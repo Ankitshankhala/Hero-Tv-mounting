@@ -74,6 +74,7 @@ export const AddWorkerModal = ({ onClose, onWorkerAdded }: AddWorkerModalProps) 
             phone: formData.phone,
             city: formData.city,
             region: formData.region,
+            zipcode: formData.zipcode,
             role: 'worker',
           });
 

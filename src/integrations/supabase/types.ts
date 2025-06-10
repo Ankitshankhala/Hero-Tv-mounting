@@ -12,6 +12,7 @@ export type Database = {
       bookings: {
         Row: {
           cancellation_fee: number | null
+          cancelled_by_worker: boolean | null
           created_at: string | null
           customer_address: string
           customer_id: string | null
@@ -25,10 +26,13 @@ export type Database = {
           total_duration_minutes: number
           total_price: number
           updated_at: string | null
+          worker_cancellation_reason: string | null
+          worker_cancelled_at: string | null
           worker_id: string | null
         }
         Insert: {
           cancellation_fee?: number | null
+          cancelled_by_worker?: boolean | null
           created_at?: string | null
           customer_address: string
           customer_id?: string | null
@@ -42,10 +46,13 @@ export type Database = {
           total_duration_minutes: number
           total_price: number
           updated_at?: string | null
+          worker_cancellation_reason?: string | null
+          worker_cancelled_at?: string | null
           worker_id?: string | null
         }
         Update: {
           cancellation_fee?: number | null
+          cancelled_by_worker?: boolean | null
           created_at?: string | null
           customer_address?: string
           customer_id?: string | null
@@ -59,6 +66,8 @@ export type Database = {
           total_duration_minutes?: number
           total_price?: number
           updated_at?: string | null
+          worker_cancellation_reason?: string | null
+          worker_cancelled_at?: string | null
           worker_id?: string | null
         }
         Relationships: [
@@ -314,6 +323,7 @@ export type Database = {
           region: string | null
           role: Database["public"]["Enums"]["user_role"]
           updated_at: string | null
+          zipcode: string | null
         }
         Insert: {
           city?: string | null
@@ -326,6 +336,7 @@ export type Database = {
           region?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string | null
+          zipcode?: string | null
         }
         Update: {
           city?: string | null
@@ -338,6 +349,7 @@ export type Database = {
           region?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string | null
+          zipcode?: string | null
         }
         Relationships: []
       }
@@ -387,6 +399,13 @@ export type Database = {
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      handle_worker_cancellation: {
+        Args: { p_booking_id: string; p_cancellation_reason?: string }
+        Returns: {
+          reassigned_worker_id: string
+          success: boolean
+        }[]
       }
     }
     Enums: {
