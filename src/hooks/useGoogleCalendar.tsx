@@ -1,5 +1,4 @@
-
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -21,7 +20,40 @@ interface CalendarEvent {
 export const useGoogleCalendar = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [configurationError, setConfigurationError] = useState<string | null>(null);
   const { toast } = useToast();
+
+  // Check configuration on mount
+  useEffect(() => {
+    checkConfiguration();
+  }, []);
+
+  const checkConfiguration = useCallback(async () => {
+    try {
+      const credentials = await getGoogleCredentials();
+      if (!credentials) {
+        setConfigurationError('Google API credentials not configured');
+        return false;
+      }
+
+      // Check if current domain is authorized
+      const currentDomain = window.location.origin;
+      const isLocalhost = currentDomain.includes('localhost') || currentDomain.includes('127.0.0.1');
+      const isLovablePreview = currentDomain.includes('lovable.app') || currentDomain.includes('lovableproject.com');
+      
+      if (!isLocalhost && !isLovablePreview) {
+        setConfigurationError(`Domain ${currentDomain} may not be authorized in Google Cloud Console`);
+        return false;
+      }
+
+      setConfigurationError(null);
+      return true;
+    } catch (error) {
+      console.error('Configuration check failed:', error);
+      setConfigurationError('Failed to check Google API configuration');
+      return false;
+    }
+  }, []);
 
   const getGoogleCredentials = useCallback(async () => {
     try {
@@ -45,7 +77,7 @@ export const useGoogleCalendar = () => {
       }
 
       if (!apiKeyResponse.data?.value || !clientIdResponse.data?.value) {
-        throw new Error('Google credentials are not properly configured');
+        throw new Error('Google credentials are not properly configured in Supabase secrets');
       }
 
       return {
@@ -54,17 +86,18 @@ export const useGoogleCalendar = () => {
       };
     } catch (error) {
       console.error('Error fetching Google credentials:', error);
-      toast({
-        title: "Configuration Error",
-        description: error instanceof Error ? error.message : "Failed to fetch Google credentials",
-        variant: "destructive",
-      });
       return null;
     }
-  }, [toast]);
+  }, []);
 
   const initializeGoogleCalendar = useCallback(async () => {
     try {
+      // Check configuration first
+      const isConfigured = await checkConfiguration();
+      if (!isConfigured) {
+        throw new Error(configurationError || 'Google Calendar is not properly configured');
+      }
+
       // Load Google API script if not already loaded
       if (!window.gapi) {
         await new Promise<void>((resolve, reject) => {
@@ -90,21 +123,16 @@ export const useGoogleCalendar = () => {
       return true;
     } catch (error) {
       console.error('Error initializing Google Calendar:', error);
-      toast({
-        title: "Initialization Error",
-        description: error instanceof Error ? error.message : "Failed to initialize Google Calendar",
-        variant: "destructive",
-      });
-      return false;
+      throw error;
     }
-  }, [toast]);
+  }, [checkConfiguration, configurationError]);
 
   const connectToGoogleCalendar = useCallback(async () => {
     setIsLoading(true);
     try {
       const credentials = await getGoogleCredentials();
       if (!credentials) {
-        throw new Error('Unable to retrieve Google credentials');
+        throw new Error('Google API credentials are not configured. Please set GOOGLE_API_KEY and GOOGLE_CLIENT_ID in Supabase secrets.');
       }
 
       const initialized = await initializeGoogleCalendar();
@@ -140,6 +168,7 @@ export const useGoogleCalendar = () => {
       }
 
       setIsConnected(true);
+      setConfigurationError(null);
       toast({
         title: "Success",
         description: "Connected to Google Calendar",
@@ -150,10 +179,14 @@ export const useGoogleCalendar = () => {
       
       let errorMessage = "Failed to connect to Google Calendar";
       if (error instanceof Error) {
-        if (error.message.includes('popup_blocked')) {
+        if (error.message.includes('idpiframe_initialization_failed')) {
+          errorMessage = `Domain authorization required. Please add ${window.location.origin} to your Google Cloud Console OAuth settings.`;
+        } else if (error.message.includes('popup_blocked')) {
           errorMessage = "Please allow popups for Google sign-in to work";
         } else if (error.message.includes('access_denied')) {
           errorMessage = "Google Calendar access was denied. Please try again and grant permissions";
+        } else if (error.message.includes('credentials')) {
+          errorMessage = error.message;
         } else {
           errorMessage = error.message;
         }
@@ -168,7 +201,7 @@ export const useGoogleCalendar = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [getGoogleCredentials, initializeGoogleCalendar, toast]);
+  }, [getGoogleCredentials, initializeGoogleCalendar, toast, checkConfiguration]);
 
   const createCalendarEvent = useCallback(async (event: CalendarEvent) => {
     if (!isConnected) {
@@ -403,6 +436,7 @@ export const useGoogleCalendar = () => {
   return {
     isConnected,
     isLoading,
+    configurationError,
     connectToGoogleCalendar,
     createCalendarEvent,
     updateCalendarEvent,
