@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -155,113 +154,120 @@ const WorkerScheduleManager = ({ onScheduleUpdate }: WorkerScheduleManagerProps)
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <Card className="shadow-lg border-0 bg-white">
-        <CardHeader className="bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-t-lg">
-          <CardTitle className="text-lg font-semibold">Set Your Availability</CardTitle>
-        </CardHeader>
-        <CardContent className="p-6 bg-white">
-          <Calendar
-            mode="single"
-            selected={selectedDate}
-            onSelect={(date) => date && setSelectedDate(date)}
-            className="w-full border-0 bg-white"
-            classNames={{
-              months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-              month: "space-y-4",
-              caption: "flex justify-center pt-1 relative items-center text-gray-900",
-              caption_label: "text-sm font-medium text-gray-900",
-              nav: "space-x-1 flex items-center",
-              nav_button: "h-7 w-7 bg-white p-0 opacity-70 hover:opacity-100 text-gray-700 border border-gray-200 rounded hover:bg-gray-50",
-              nav_button_previous: "absolute left-1",
-              nav_button_next: "absolute right-1",
-              table: "w-full border-collapse space-y-1",
-              head_row: "flex",
-              head_cell: "text-gray-600 rounded-md w-9 font-normal text-[0.8rem]",
-              row: "flex w-full mt-2",
-              cell: "h-9 w-9 text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
-              day: "h-9 w-9 p-0 font-normal text-gray-900 hover:bg-purple-50 rounded-md transition-colors",
-              day_range_end: "day-range-end",
-              day_selected: "bg-purple-600 text-white hover:bg-purple-700 hover:text-white focus:bg-purple-600 focus:text-white",
-              day_today: "bg-purple-100 text-purple-900 font-semibold",
-              day_outside: "text-gray-400 opacity-50",
-              day_disabled: "text-gray-400 opacity-50",
-              day_range_middle: "aria-selected:bg-purple-50 aria-selected:text-purple-900",
-              day_hidden: "invisible",
-            }}
-          />
-        </CardContent>
-      </Card>
-
-      <Card className="shadow-lg border-0 bg-white">
-        <CardHeader className="bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-t-lg">
-          <div className="flex justify-between items-center">
-            <CardTitle className="text-lg font-semibold">
-              Schedule for {selectedDate.toLocaleDateString()}
-            </CardTitle>
-            <Button 
-              onClick={() => {
-                resetForm();
-                setEditingSchedule(null);
-                setShowAddModal(true);
+    <div className="w-full max-w-7xl mx-auto">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        {/* Calendar Card */}
+        <Card className="w-full">
+          <CardHeader className="bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-t-lg">
+            <CardTitle className="text-lg font-semibold text-center">Set Your Availability</CardTitle>
+            <p className="text-sm text-purple-100 text-center">Select a date to manage your schedule</p>
+          </CardHeader>
+          <CardContent className="p-6 flex justify-center">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={(date) => date && setSelectedDate(date)}
+              className="w-full max-w-sm mx-auto"
+              classNames={{
+                months: "flex flex-col space-y-4",
+                month: "space-y-4 w-full",
+                caption: "flex justify-center pt-1 relative items-center text-foreground",
+                caption_label: "text-sm font-medium text-foreground",
+                nav: "space-x-1 flex items-center",
+                nav_button: "h-7 w-7 bg-background p-0 opacity-70 hover:opacity-100 text-foreground border border-border rounded hover:bg-accent",
+                nav_button_previous: "absolute left-1",
+                nav_button_next: "absolute right-1",
+                table: "w-full border-collapse space-y-1",
+                head_row: "flex w-full",
+                head_cell: "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem] flex-1 text-center",
+                row: "flex w-full mt-2",
+                cell: "h-9 w-9 text-center text-sm p-0 relative focus-within:relative focus-within:z-20 flex-1",
+                day: "h-9 w-9 p-0 font-normal text-foreground hover:bg-accent rounded-md transition-colors mx-auto",
+                day_range_end: "day-range-end",
+                day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+                day_today: "bg-accent text-accent-foreground font-semibold",
+                day_outside: "text-muted-foreground opacity-50",
+                day_disabled: "text-muted-foreground opacity-50",
+                day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
+                day_hidden: "invisible",
               }}
-              className="bg-white text-orange-700 hover:bg-orange-50 border-0"
-              size="sm"
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              Add Time Slot
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="p-6 bg-white">
-          {schedules.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-gray-600">No schedule set for this date</p>
+            />
+          </CardContent>
+        </Card>
+
+        {/* Schedule Card */}
+        <Card className="w-full">
+          <CardHeader className="bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-t-lg">
+            <div className="flex justify-between items-center">
+              <div className="text-center flex-1">
+                <CardTitle className="text-lg font-semibold">
+                  Schedule for {selectedDate.toLocaleDateString()}
+                </CardTitle>
+              </div>
+              <Button 
+                onClick={() => {
+                  resetForm();
+                  setEditingSchedule(null);
+                  setShowAddModal(true);
+                }}
+                className="bg-white text-orange-700 hover:bg-orange-50 border-0 ml-4"
+                size="sm"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Add Time Slot
+              </Button>
             </div>
-          ) : (
-            <div className="space-y-3">
-              {schedules.map((schedule) => (
-                <div key={schedule.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:shadow-md transition-shadow">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <div className="flex items-center space-x-2 mb-2">
-                        <Clock className="h-4 w-4 text-blue-600" />
-                        <span className="text-gray-900 font-medium">
-                          {formatTime(schedule.start_time)} - {formatTime(schedule.end_time)}
-                        </span>
-                        <Badge variant={schedule.is_available ? 'default' : 'secondary'}>
-                          {schedule.is_available ? 'Available' : 'Unavailable'}
-                        </Badge>
+          </CardHeader>
+          <CardContent className="p-6">
+            {schedules.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">No schedule set for this date</p>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {schedules.map((schedule) => (
+                  <div key={schedule.id} className="bg-card rounded-lg p-4 border border-border hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <Clock className="h-4 w-4 text-blue-600" />
+                          <span className="text-card-foreground font-medium">
+                            {formatTime(schedule.start_time)} - {formatTime(schedule.end_time)}
+                          </span>
+                          <Badge variant={schedule.is_available ? 'default' : 'secondary'}>
+                            {schedule.is_available ? 'Available' : 'Unavailable'}
+                          </Badge>
+                        </div>
+                        {schedule.notes && (
+                          <p className="text-muted-foreground text-sm">{schedule.notes}</p>
+                        )}
                       </div>
-                      {schedule.notes && (
-                        <p className="text-gray-600 text-sm">{schedule.notes}</p>
-                      )}
-                    </div>
-                    <div className="flex space-x-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openEditModal(schedule)}
-                        className="text-blue-600 border-blue-600 hover:bg-blue-50"
-                      >
-                        <Edit className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleDeleteSchedule(schedule.id)}
-                        className="text-red-600 border-red-600 hover:bg-red-50"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
+                      <div className="flex space-x-2 ml-4">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openEditModal(schedule)}
+                          className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                        >
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDeleteSchedule(schedule.id)}
+                          className="text-red-600 border-red-600 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
         <DialogContent className="bg-white border-gray-200">
