@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,10 +18,18 @@ interface CalendarEvent {
   location?: string;
 }
 
+declare global {
+  interface Window {
+    google?: any;
+    gapi?: any;
+  }
+}
+
 export const useGoogleCalendar = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [configurationError, setConfigurationError] = useState<string | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Check configuration on mount
@@ -90,15 +99,25 @@ export const useGoogleCalendar = () => {
     }
   }, []);
 
-  const initializeGoogleCalendar = useCallback(async () => {
+  const initializeGoogleServices = useCallback(async () => {
     try {
-      // Check configuration first
-      const isConfigured = await checkConfiguration();
-      if (!isConfigured) {
-        throw new Error(configurationError || 'Google Calendar is not properly configured');
+      const credentials = await getGoogleCredentials();
+      if (!credentials) {
+        throw new Error('Google credentials not available');
       }
 
-      // Load Google API script if not already loaded
+      // Load Google Identity Services script
+      if (!window.google) {
+        await new Promise<void>((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'https://accounts.google.com/gsi/client';
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error('Failed to load Google Identity Services'));
+          document.head.appendChild(script);
+        });
+      }
+
+      // Load Google API script for calendar API calls
       if (!window.gapi) {
         await new Promise<void>((resolve, reject) => {
           const script = document.createElement('script');
@@ -109,79 +128,67 @@ export const useGoogleCalendar = () => {
         });
       }
 
-      // Load Google Identity Services script
-      if (!window.google) {
-        await new Promise<void>((resolve, reject) => {
-          const script = document.createElement('script');
-          script.src = 'https://accounts.google.com/gsi/client';
-          script.onload = () => resolve();
-          script.onerror = () => reject(new Error('Failed to load Google Identity Services script'));
-          document.head.appendChild(script);
+      // Initialize Google API client
+      await new Promise<void>((resolve, reject) => {
+        window.gapi.load('client', async () => {
+          try {
+            await window.gapi.client.init({
+              apiKey: credentials.apiKey,
+              discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest']
+            });
+            resolve();
+          } catch (error) {
+            reject(error);
+          }
         });
-      }
+      });
 
-      return true;
+      return credentials;
     } catch (error) {
-      console.error('Error initializing Google Calendar:', error);
+      console.error('Error initializing Google services:', error);
       throw error;
     }
-  }, [checkConfiguration, configurationError]);
+  }, [getGoogleCredentials]);
 
   const connectToGoogleCalendar = useCallback(async () => {
     setIsLoading(true);
     try {
-      const credentials = await getGoogleCredentials();
+      const credentials = await initializeGoogleServices();
       if (!credentials) {
-        throw new Error('Google API credentials are not configured. Please set GOOGLE_API_KEY and GOOGLE_CLIENT_ID in Supabase secrets.');
+        throw new Error('Failed to initialize Google services');
       }
 
-      const initialized = await initializeGoogleCalendar();
-      if (!initialized) {
-        throw new Error('Failed to initialize Google Calendar APIs');
-      }
-
-      // Initialize the Google API client
-      await new Promise<void>((resolve, reject) => {
-        try {
-          window.gapi.load('client:auth2', () => resolve());
-        } catch (error) {
-          reject(new Error('Failed to load Google API client'));
-        }
+      // Use Google Identity Services for OAuth
+      const tokenClient = window.google.accounts.oauth2.initTokenClient({
+        client_id: credentials.clientId,
+        scope: 'https://www.googleapis.com/auth/calendar',
+        callback: (response: any) => {
+          if (response.error) {
+            console.error('OAuth error:', response.error);
+            throw new Error(`OAuth failed: ${response.error}`);
+          }
+          
+          setAccessToken(response.access_token);
+          setIsConnected(true);
+          setConfigurationError(null);
+          
+          toast({
+            title: "Success",
+            description: "Connected to Google Calendar",
+          });
+        },
       });
 
-      await window.gapi.client.init({
-        apiKey: credentials.apiKey,
-        clientId: credentials.clientId,
-        discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
-        scope: 'https://www.googleapis.com/auth/calendar'
-      });
-
-      const authInstance = window.gapi.auth2.getAuthInstance();
-      if (!authInstance) {
-        throw new Error('Failed to get Google auth instance');
-      }
-
-      const user = await authInstance.signIn();
+      // Request access token
+      tokenClient.requestAccessToken({ prompt: 'consent' });
       
-      if (!user || !user.isSignedIn()) {
-        throw new Error('Google sign-in was not successful');
-      }
-
-      setIsConnected(true);
-      setConfigurationError(null);
-      toast({
-        title: "Success",
-        description: "Connected to Google Calendar",
-      });
       return true;
     } catch (error) {
       console.error('Error connecting to Google Calendar:', error);
       
       let errorMessage = "Failed to connect to Google Calendar";
       if (error instanceof Error) {
-        if (error.message.includes('idpiframe_initialization_failed')) {
-          errorMessage = `Domain authorization required. Please add ${window.location.origin} to your Google Cloud Console OAuth settings.`;
-        } else if (error.message.includes('popup_blocked')) {
+        if (error.message.includes('popup_blocked')) {
           errorMessage = "Please allow popups for Google sign-in to work";
         } else if (error.message.includes('access_denied')) {
           errorMessage = "Google Calendar access was denied. Please try again and grant permissions";
@@ -201,10 +208,27 @@ export const useGoogleCalendar = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [getGoogleCredentials, initializeGoogleCalendar, toast, checkConfiguration]);
+  }, [initializeGoogleServices, toast]);
+
+  const makeAuthorizedRequest = useCallback(async (requestFunction: () => Promise<any>) => {
+    if (!accessToken) {
+      throw new Error('No access token available');
+    }
+
+    // Set the access token for the API client
+    window.gapi.client.setToken({ access_token: accessToken });
+    
+    try {
+      return await requestFunction();
+    } catch (error) {
+      // If token expired, try to refresh
+      console.error('API request failed:', error);
+      throw error;
+    }
+  }, [accessToken]);
 
   const createCalendarEvent = useCallback(async (event: CalendarEvent) => {
-    if (!isConnected) {
+    if (!isConnected || !accessToken) {
       toast({
         title: "Not Connected",
         description: "Please connect to Google Calendar first",
@@ -235,16 +259,11 @@ export const useGoogleCalendar = () => {
         throw new Error('Event end time must be after start time');
       }
 
-      // Check if user is still authenticated
-      const authInstance = window.gapi.auth2.getAuthInstance();
-      if (!authInstance?.isSignedIn()) {
-        setIsConnected(false);
-        throw new Error('Google Calendar session expired. Please reconnect');
-      }
-
-      const response = await window.gapi.client.calendar.events.insert({
-        calendarId: 'primary',
-        resource: event
+      const response = await makeAuthorizedRequest(async () => {
+        return await window.gapi.client.calendar.events.insert({
+          calendarId: 'primary',
+          resource: event
+        });
       });
 
       if (!response.result) {
@@ -280,10 +299,10 @@ export const useGoogleCalendar = () => {
       });
       return null;
     }
-  }, [isConnected, toast]);
+  }, [isConnected, accessToken, toast, makeAuthorizedRequest]);
 
   const updateCalendarEvent = useCallback(async (eventId: string, event: CalendarEvent) => {
-    if (!isConnected) {
+    if (!isConnected || !accessToken) {
       toast({
         title: "Not Connected",
         description: "Please connect to Google Calendar first",
@@ -306,17 +325,12 @@ export const useGoogleCalendar = () => {
         throw new Error('Event start and end times are required');
       }
 
-      // Check if user is still authenticated
-      const authInstance = window.gapi.auth2.getAuthInstance();
-      if (!authInstance?.isSignedIn()) {
-        setIsConnected(false);
-        throw new Error('Google Calendar session expired. Please reconnect');
-      }
-
-      const response = await window.gapi.client.calendar.events.update({
-        calendarId: 'primary',
-        eventId: eventId,
-        resource: event
+      const response = await makeAuthorizedRequest(async () => {
+        return await window.gapi.client.calendar.events.update({
+          calendarId: 'primary',
+          eventId: eventId,
+          resource: event
+        });
       });
 
       if (!response.result) {
@@ -350,10 +364,10 @@ export const useGoogleCalendar = () => {
       });
       return null;
     }
-  }, [isConnected, toast]);
+  }, [isConnected, accessToken, toast, makeAuthorizedRequest]);
 
   const deleteCalendarEvent = useCallback(async (eventId: string) => {
-    if (!isConnected) {
+    if (!isConnected || !accessToken) {
       toast({
         title: "Not Connected",
         description: "Please connect to Google Calendar first",
@@ -367,16 +381,11 @@ export const useGoogleCalendar = () => {
         throw new Error('Event ID is required for deletion');
       }
 
-      // Check if user is still authenticated
-      const authInstance = window.gapi.auth2.getAuthInstance();
-      if (!authInstance?.isSignedIn()) {
-        setIsConnected(false);
-        throw new Error('Google Calendar session expired. Please reconnect');
-      }
-
-      await window.gapi.client.calendar.events.delete({
-        calendarId: 'primary',
-        eventId: eventId
+      await makeAuthorizedRequest(async () => {
+        return await window.gapi.client.calendar.events.delete({
+          calendarId: 'primary',
+          eventId: eventId
+        });
       });
 
       toast({
@@ -406,17 +415,18 @@ export const useGoogleCalendar = () => {
       });
       return false;
     }
-  }, [isConnected, toast]);
+  }, [isConnected, accessToken, toast, makeAuthorizedRequest]);
 
   const disconnectFromGoogleCalendar = useCallback(async () => {
     try {
-      if (window.gapi?.auth2) {
-        const authInstance = window.gapi.auth2.getAuthInstance();
-        if (authInstance) {
-          await authInstance.signOut();
-        }
+      if (accessToken && window.google?.accounts?.oauth2) {
+        // Revoke the access token
+        window.google.accounts.oauth2.revoke(accessToken);
       }
+      
       setIsConnected(false);
+      setAccessToken(null);
+      
       toast({
         title: "Success",
         description: "Disconnected from Google Calendar",
@@ -425,13 +435,15 @@ export const useGoogleCalendar = () => {
       console.error('Error disconnecting from Google Calendar:', error);
       // Even if disconnect fails, reset the local state
       setIsConnected(false);
+      setAccessToken(null);
+      
       toast({
         title: "Warning",
         description: "Local session cleared. You may need to revoke access manually in Google settings",
         variant: "destructive",
       });
     }
-  }, [toast]);
+  }, [accessToken, toast]);
 
   return {
     isConnected,
