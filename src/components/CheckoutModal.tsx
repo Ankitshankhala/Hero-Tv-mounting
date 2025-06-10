@@ -140,10 +140,18 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ cart, total, onClo
                   </div>
                 ))}
                 <div className="border-t border-slate-600 pt-3 sm:pt-2 mt-3 sm:mt-2">
-                  <div className="flex justify-between text-lg sm:text-xl font-black text-white">
+                  <div className="flex justify-between text-lg sm:text-xl font-black text-white mb-4">
                     <span>Total:</span>
                     <span className="text-blue-400">${total}</span>
                   </div>
+                  
+                  {/* Prominent CTA Button */}
+                  <button
+                    type="submit"
+                    className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-4 px-6 rounded-lg transition-all duration-200 text-lg min-h-[56px] touch-manipulation shadow-lg hover:shadow-xl transform hover:scale-[1.02] flex items-center justify-center space-x-2"
+                  >
+                    <span>Book Now - ${total}</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -159,13 +167,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ cart, total, onClo
                 </div>
               </div>
             </div>
-            
-            <button
-              type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 sm:py-4 px-6 rounded-lg transition-colors duration-200 text-lg min-h-[56px] touch-manipulation"
-            >
-              Complete Order - ${total}
-            </button>
           </form>
         </div>
       </div>
