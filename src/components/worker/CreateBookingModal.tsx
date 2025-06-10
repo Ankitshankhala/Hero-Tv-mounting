@@ -10,6 +10,7 @@ import { X, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import type { Database } from '@/integrations/supabase/types';
 
 interface CreateBookingModalProps {
   onClose: () => void;
@@ -27,6 +28,8 @@ interface ServiceSelection {
   service: Service;
   quantity: number;
 }
+
+type BookingStatus = Database['public']['Enums']['booking_status'];
 
 export const CreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingModalProps) => {
   const [formData, setFormData] = useState({
@@ -114,16 +117,16 @@ export const CreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingM
           name: formData.customerName,
           email: formData.customerEmail,
           phone: formData.customerPhone,
-          role: 'customer'
+          role: 'customer' as Database['public']['Enums']['user_role']
         })
         .select()
         .single();
 
       if (customerError) throw customerError;
 
-      // Create booking
+      // Create booking with proper typing
       const scheduledAt = new Date(`${formData.date}T${formData.time}`);
-      const bookingData = {
+      const bookingData: Database['public']['Tables']['bookings']['Insert'] = {
         customer_id: customerData.id,
         worker_id: user?.id,
         scheduled_at: scheduledAt.toISOString(),
@@ -137,7 +140,7 @@ export const CreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingM
         })),
         total_price: calculateTotal(),
         total_duration_minutes: calculateDuration(),
-        status: 'confirmed'
+        status: 'confirmed' as BookingStatus
       };
 
       const { error: bookingError } = await supabase
