@@ -1,6 +1,6 @@
 
 import React, { useEffect, useRef, useState } from 'react';
-import { loadStripe } from '@stripe/stripe-js';
+import { loadStripe, Stripe } from '@stripe/stripe-js';
 import { STRIPE_PUBLISHABLE_KEY } from '@/lib/stripe';
 
 interface StripeCardElementProps {
@@ -25,12 +25,12 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
         console.log('Starting Stripe initialization...');
         
         // Create a timeout promise that rejects after 10 seconds
-        const timeoutPromise = new Promise((_, reject) => {
+        const timeoutPromise = new Promise<never>((_, reject) => {
           setTimeout(() => reject(new Error('Stripe initialization timeout')), 10000);
         });
 
         // Race between loadStripe and timeout
-        const stripe = await Promise.race([
+        const stripe: Stripe | null = await Promise.race([
           loadStripe(STRIPE_PUBLISHABLE_KEY),
           timeoutPromise
         ]);
@@ -73,7 +73,7 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
 
         setIsLoading(false);
         console.log('Stripe initialization complete');
-      } catch (error) {
+      } catch (error: any) {
         console.error('Stripe initialization error:', error);
         setIsLoading(false);
         initializationRef.current = false; // Allow retry
