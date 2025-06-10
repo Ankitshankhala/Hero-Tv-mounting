@@ -135,7 +135,13 @@ export const useServicesManager = () => {
     }
   };
 
-  const addService = async (serviceData: Omit<Service, 'id'>) => {
+  const addService = async (serviceData: {
+    name: string;
+    base_price: number;
+    duration_minutes: number;
+    description: string;
+    is_active: boolean;
+  }) => {
     try {
       const { data, error } = await supabase
         .from('services')
@@ -151,15 +157,13 @@ export const useServicesManager = () => {
 
       if (error) throw error;
 
-      const newService = { ...data, image: serviceData.image };
+      const newService = { ...data, image: undefined };
       setServices(prev => [...prev, newService]);
       
       toast({
         title: "Success",
         description: "Service added successfully",
       });
-
-      return newService;
     } catch (error) {
       console.error('Error adding service:', error);
       toast({
@@ -196,8 +200,6 @@ export const useServicesManager = () => {
         title: "Success",
         description: "Service updated successfully",
       });
-
-      return data;
     } catch (error) {
       console.error('Error updating service:', error);
       toast({
