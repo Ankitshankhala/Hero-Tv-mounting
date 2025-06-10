@@ -1,12 +1,12 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Shield, LogOut } from 'lucide-react';
+import { Shield, LogOut, Briefcase } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 
 export const Header = () => {
-  const { user, signOut } = useAuth();
+  const { user, signOut, profile } = useAuth();
 
   const handleLogout = async () => {
     await signOut();
@@ -17,23 +17,58 @@ export const Header = () => {
       <div className="relative container mx-auto px-4 py-12">
         <div className="absolute top-4 right-4 flex space-x-2">
           {user ? (
-            <Button 
-              onClick={handleLogout}
-              variant="outline"
-              size="sm"
-              className="flex items-center space-x-2 text-white border-white hover:bg-white hover:text-slate-900"
-            >
-              <LogOut className="h-4 w-4" />
-              <span>Logout</span>
-            </Button>
+            <div className="flex items-center space-x-2">
+              {profile?.role === 'worker' && (
+                <Link to="/worker-dashboard">
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center space-x-2 text-white border-white hover:bg-white hover:text-slate-900"
+                  >
+                    <Briefcase className="h-4 w-4" />
+                    <span>Dashboard</span>
+                  </Button>
+                </Link>
+              )}
+              {profile?.role === 'admin' && (
+                <Link to="/admin">
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center space-x-2 text-white border-white hover:bg-white hover:text-slate-900"
+                  >
+                    <Shield className="h-4 w-4" />
+                    <span>Admin</span>
+                  </Button>
+                </Link>
+              )}
+              <Button 
+                onClick={handleLogout}
+                variant="outline"
+                size="sm"
+                className="flex items-center space-x-2 text-white border-white hover:bg-white hover:text-slate-900"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Logout</span>
+              </Button>
+            </div>
           ) : (
-            <Link 
-              to="/admin"
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200 text-sm font-medium"
-            >
-              <Shield className="h-4 w-4" />
-              <span>Admin</span>
-            </Link>
+            <div className="flex space-x-2">
+              <Link 
+                to="/worker-dashboard"
+                className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors duration-200 text-sm font-medium"
+              >
+                <Briefcase className="h-4 w-4" />
+                <span>Worker Login</span>
+              </Link>
+              <Link 
+                to="/admin"
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200 text-sm font-medium"
+              >
+                <Shield className="h-4 w-4" />
+                <span>Admin</span>
+              </Link>
+            </div>
           )}
         </div>
         

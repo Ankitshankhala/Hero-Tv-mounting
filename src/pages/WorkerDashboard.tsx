@@ -6,6 +6,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import WorkerDashboardHeader from '@/components/worker/WorkerDashboardHeader';
 import WorkerDashboardStats from '@/components/worker/WorkerDashboardStats';
 import WorkerJobCard from '@/components/worker/WorkerJobCard';
@@ -16,12 +18,16 @@ type BookingStatus = Database['public']['Enums']['booking_status'];
 const WorkerDashboard = () => {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { user, profile } = useAuth();
+  const [loginForm, setLoginForm] = useState({ email: '', password: '' });
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const { user, profile, signIn } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
     if (user && profile?.role === 'worker') {
       fetchWorkerJobs();
+    } else {
+      setLoading(false);
     }
   }, [user, profile]);
 
@@ -81,17 +87,89 @@ const WorkerDashboard = () => {
     }
   };
 
+  const handleWorkerLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoggingIn(true);
+
+    try {
+      const { error } = await signIn(loginForm.email, loginForm.password);
+      
+      if (error) {
+        toast({
+          title: "Login Failed",
+          description: error.message || "Invalid credentials",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Success",
+        description: "Logged in successfully",
+      });
+    } catch (error) {
+      console.error('Login error:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  // Show login form if not authenticated or not a worker
   if (!user || profile?.role !== 'worker') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
-        <Card className="bg-slate-800 border-slate-700 p-8">
-          <div className="text-center text-white">
-            <h2 className="text-xl font-bold mb-2">Access Denied</h2>
-            <p className="text-slate-300">This dashboard is only available to workers.</p>
-            <Link to="/" className="inline-block mt-4">
-              <Button variant="outline">Return Home</Button>
-            </Link>
-          </div>
+        <Card className="bg-slate-800 border-slate-700 p-8 w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-center text-white text-2xl">Worker Login</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {!user ? (
+              <form onSubmit={handleWorkerLogin} className="space-y-4">
+                <div>
+                  <Label htmlFor="email" className="text-white">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={loginForm.email}
+                    onChange={(e) => setLoginForm({...loginForm, email: e.target.value})}
+                    className="bg-slate-700 border-slate-600 text-white"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="password" className="text-white">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={loginForm.password}
+                    onChange={(e) => setLoginForm({...loginForm, password: e.target.value})}
+                    className="bg-slate-700 border-slate-600 text-white"
+                    required
+                  />
+                </div>
+                <Button 
+                  type="submit" 
+                  className="w-full bg-green-600 hover:bg-green-700"
+                  disabled={isLoggingIn}
+                >
+                  {isLoggingIn ? 'Logging in...' : 'Login'}
+                </Button>
+              </form>
+            ) : (
+              <div className="text-center text-white">
+                <h2 className="text-xl font-bold mb-2">Access Denied</h2>
+                <p className="text-slate-300 mb-4">This dashboard is only available to workers.</p>
+                <Link to="/" className="inline-block">
+                  <Button variant="outline">Return Home</Button>
+                </Link>
+              </div>
+            )}
+          </CardContent>
         </Card>
       </div>
     );
@@ -101,7 +179,7 @@ const WorkerDashboard = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-600 mx-auto"></div>
           <p className="mt-4 text-white">Loading your jobs...</p>
         </div>
       </div>

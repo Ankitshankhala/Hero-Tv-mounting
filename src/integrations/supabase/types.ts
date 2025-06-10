@@ -15,7 +15,9 @@ export type Database = {
           created_at: string | null
           customer_address: string
           customer_id: string | null
+          has_modifications: boolean | null
           id: string
+          pending_payment_amount: number | null
           scheduled_at: string
           services: Json
           special_instructions: string | null
@@ -30,7 +32,9 @@ export type Database = {
           created_at?: string | null
           customer_address: string
           customer_id?: string | null
+          has_modifications?: boolean | null
           id?: string
+          pending_payment_amount?: number | null
           scheduled_at: string
           services: Json
           special_instructions?: string | null
@@ -45,7 +49,9 @@ export type Database = {
           created_at?: string | null
           customer_address?: string
           customer_id?: string | null
+          has_modifications?: boolean | null
           id?: string
+          pending_payment_amount?: number | null
           scheduled_at?: string
           services?: Json
           special_instructions?: string | null
@@ -65,6 +71,60 @@ export type Database = {
           },
           {
             foreignKeyName: "bookings_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_modifications: {
+        Row: {
+          booking_id: string | null
+          created_at: string | null
+          customer_approved: boolean | null
+          id: string
+          modification_reason: string | null
+          modified_services: Json
+          modified_total: number
+          original_services: Json
+          original_total: number
+          worker_id: string | null
+        }
+        Insert: {
+          booking_id?: string | null
+          created_at?: string | null
+          customer_approved?: boolean | null
+          id?: string
+          modification_reason?: string | null
+          modified_services: Json
+          modified_total: number
+          original_services: Json
+          original_total: number
+          worker_id?: string | null
+        }
+        Update: {
+          booking_id?: string | null
+          created_at?: string | null
+          customer_approved?: boolean | null
+          id?: string
+          modification_reason?: string | null
+          modified_services?: Json
+          modified_total?: number
+          original_services?: Json
+          original_total?: number
+          worker_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_modifications_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_modifications_worker_id_fkey"
             columns: ["worker_id"]
             isOneToOne: false
             referencedRelation: "users"
