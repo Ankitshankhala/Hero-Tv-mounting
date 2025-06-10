@@ -4,18 +4,13 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Plus, UserPlus, Calendar, ArrowLeft } from 'lucide-react';
 import { CreateBookingModal } from './CreateBookingModal';
-import { AssignWorkerModal } from './AssignWorkerModal';
 import { TodaysJobsModal } from './TodaysJobsModal';
+import { BookingAssignmentModal } from './BookingAssignmentModal';
 
 export const AdminHeader = () => {
   const [showCreateBooking, setShowCreateBooking] = useState(false);
   const [showAssignWorker, setShowAssignWorker] = useState(false);
   const [showTodaysJobs, setShowTodaysJobs] = useState(false);
-
-  const handleWorkerAssignment = (bookingId: string, workerId: string) => {
-    console.log('Worker assigned:', { bookingId, workerId });
-    // Optionally refresh data or show success message
-  };
 
   return (
     <>
@@ -63,11 +58,9 @@ export const AdminHeader = () => {
         <CreateBookingModal onClose={() => setShowCreateBooking(false)} />
       )}
       {showAssignWorker && (
-        <AssignWorkerModal 
+        <BookingAssignmentModal 
           isOpen={showAssignWorker}
           onClose={() => setShowAssignWorker(false)}
-          booking={null}
-          onAssign={handleWorkerAssignment}
         />
       )}
       {showTodaysJobs && (
