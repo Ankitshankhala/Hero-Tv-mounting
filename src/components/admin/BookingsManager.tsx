@@ -44,16 +44,23 @@ export const BookingsManager = () => {
             
             // Determine if this is a status change that needs calendar sync
             if (oldBooking.status !== updatedBooking.status) {
-              if (updatedBooking.status === 'cancelled') {
-                // Delete from calendar
-                await syncBookingToCalendar(bookingData, 'delete');
-              } else if (oldBooking.status === 'pending' && updatedBooking.status === 'confirmed') {
-                // Create calendar event
-                await syncBookingToCalendar(bookingData, 'create');
-              } else {
-                // Update existing calendar event
-                await syncBookingToCalendar(bookingData, 'update');
-              }
+              // Use setTimeout to handle async operations without blocking the state update
+              setTimeout(async () => {
+                try {
+                  if (updatedBooking.status === 'cancelled') {
+                    // Delete from calendar
+                    await syncBookingToCalendar(bookingData, 'delete');
+                  } else if (oldBooking.status === 'pending' && updatedBooking.status === 'confirmed') {
+                    // Create calendar event
+                    await syncBookingToCalendar(bookingData, 'create');
+                  } else {
+                    // Update existing calendar event
+                    await syncBookingToCalendar(bookingData, 'update');
+                  }
+                } catch (error) {
+                  console.error('Error syncing calendar for real-time update:', error);
+                }
+              }, 0);
             }
           }
         } else {
@@ -62,7 +69,14 @@ export const BookingsManager = () => {
           fetchBookings(); // Refetch to get complete data with relations
           
           if (isCalendarConnected && updatedBooking.status !== 'cancelled') {
-            await syncBookingToCalendar(updatedBooking, 'create');
+            // Use setTimeout to handle async operations without blocking the state update
+            setTimeout(async () => {
+              try {
+                await syncBookingToCalendar(updatedBooking, 'create');
+              } catch (error) {
+                console.error('Error syncing new booking to calendar:', error);
+              }
+            }, 0);
           }
         }
         
