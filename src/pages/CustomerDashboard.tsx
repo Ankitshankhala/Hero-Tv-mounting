@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Calendar, MapPin, Clock, Phone, User } from 'lucide-react';
@@ -62,19 +61,32 @@ const CustomerDashboard = () => {
       if (error) throw error;
       
       // Transform data to match the expected format
-      const transformedBookings = data?.map(booking => ({
-        id: booking.id,
-        service: Array.isArray(booking.services) 
-          ? booking.services.map(s => s.name).join(', ')
-          : 'Service',
-        status: booking.status,
-        date: new Date(booking.scheduled_at).toLocaleDateString(),
-        time: new Date(booking.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        address: booking.customer_address,
-        worker: booking.worker?.name || null,
-        workerPhone: booking.worker?.phone || null,
-        totalPrice: booking.total_price
-      })) || [];
+      const transformedBookings = data?.map(booking => {
+        // Parse services JSON safely
+        let serviceNames = 'Service';
+        try {
+          const services = booking.services;
+          if (Array.isArray(services)) {
+            serviceNames = services.map(s => typeof s === 'object' && s !== null && 'name' in s ? s.name : 'Service').join(', ');
+          } else if (typeof services === 'object' && services !== null && 'name' in services) {
+            serviceNames = services.name;
+          }
+        } catch (e) {
+          console.error('Error parsing services:', e);
+        }
+
+        return {
+          id: booking.id,
+          service: serviceNames,
+          status: booking.status,
+          date: new Date(booking.scheduled_at).toLocaleDateString(),
+          time: new Date(booking.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          address: booking.customer_address,
+          worker: booking.worker?.name || null,
+          workerPhone: booking.worker?.phone || null,
+          totalPrice: booking.total_price
+        };
+      }) || [];
 
       setCustomerBookings(transformedBookings);
     } catch (error) {
