@@ -1,14 +1,13 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Wrench, Phone, MapPin, Calendar, UserPlus } from 'lucide-react';
+import { Wrench } from 'lucide-react';
 import { AddWorkerModal } from './AddWorkerModal';
 import { WorkerApplicationsManager } from './WorkerApplicationsManager';
+import { WorkerFilters } from './WorkerFilters';
+import { WorkerTable } from './WorkerTable';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import GoogleCalendarIntegration from '@/components/GoogleCalendarIntegration';
@@ -16,7 +15,6 @@ import GoogleCalendarIntegration from '@/components/GoogleCalendarIntegration';
 export const WorkersManager = () => {
   const [workers, setWorkers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
   const [showAddWorker, setShowAddWorker] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isCalendarConnected, setIsCalendarConnected] = useState(false);
@@ -52,22 +50,6 @@ export const WorkersManager = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const getAvailabilityBadge = (workerAvailability: any[]) => {
-    if (!workerAvailability || workerAvailability.length === 0) {
-      return <Badge variant="secondary">Not Set</Badge>;
-    }
-    return <Badge variant="default">Available</Badge>;
-  };
-
-  const formatAvailability = (workerAvailability: any[]) => {
-    if (!workerAvailability || workerAvailability.length === 0) {
-      return 'Not specified';
-    }
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const availableDays = workerAvailability.map(a => days[a.day_of_week]);
-    return availableDays.join(', ');
   };
 
   const filteredWorkers = workers.filter(worker => {
@@ -111,87 +93,13 @@ export const WorkersManager = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-col md:flex-row gap-4 mb-6">
-                <Input
-                  placeholder="Search workers..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="flex-1"
-                />
-                <Button 
-                  onClick={() => setShowAddWorker(true)}
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Add New Worker
-                </Button>
-              </div>
+              <WorkerFilters
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                onAddWorker={() => setShowAddWorker(true)}
+              />
 
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Contact</TableHead>
-                      <TableHead>Location</TableHead>
-                      <TableHead>Availability</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Joined</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredWorkers.map((worker) => (
-                      <TableRow key={worker.id}>
-                        <TableCell>
-                          <div className="font-medium">{worker.name}</div>
-                          <div className="text-sm text-gray-600">{worker.email}</div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center space-x-2 text-sm">
-                            <Phone className="h-3 w-3" />
-                            <span>{worker.phone || 'Not provided'}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center space-x-2 text-sm">
-                            <MapPin className="h-3 w-3" />
-                            <span>{worker.city}, {worker.region}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            {getAvailabilityBadge(worker.worker_availability)}
-                            <div className="text-xs text-gray-600 mt-1">
-                              {formatAvailability(worker.worker_availability)}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={worker.is_active ? 'default' : 'secondary'}>
-                            {worker.is_active ? 'Active' : 'Inactive'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm text-gray-600">
-                            {new Date(worker.created_at).toLocaleDateString()}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex space-x-2">
-                            <Button variant="outline" size="sm">
-                              Edit
-                            </Button>
-                            <Button variant="outline" size="sm">
-                              <Calendar className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+              <WorkerTable workers={filteredWorkers} />
             </CardContent>
           </Card>
         </TabsContent>
