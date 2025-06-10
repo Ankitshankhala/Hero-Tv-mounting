@@ -53,11 +53,8 @@ export const ReviewsSection = () => {
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-            What Our Customers Say
+            Reviews
           </h2>
-          <p className="text-xl text-slate-300 max-w-2xl mx-auto">
-            Real reviews from satisfied customers across Texas
-          </p>
         </div>
         
         {/* Desktop: Vertical scroll of cards */}
