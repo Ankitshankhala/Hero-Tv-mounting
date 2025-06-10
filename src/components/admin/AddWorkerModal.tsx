@@ -1,15 +1,15 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { X, UserPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useWorkerForm } from '@/hooks/useWorkerForm';
+import { WorkerPersonalInfoForm } from './WorkerPersonalInfoForm';
+import { WorkerLocationForm } from './WorkerLocationForm';
+import { WorkerAvailabilityForm } from './WorkerAvailabilityForm';
+import { WorkerSkillsForm } from './WorkerSkillsForm';
 
 interface AddWorkerModalProps {
   onClose: () => void;
@@ -17,38 +17,9 @@ interface AddWorkerModalProps {
 }
 
 export const AddWorkerModal = ({ onClose, onWorkerAdded }: AddWorkerModalProps) => {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    city: '',
-    region: '',
-    zipcode: '',
-    password: '',
-    availability: {
-      monday: false,
-      tuesday: false,
-      wednesday: false,
-      thursday: false,
-      friday: false,
-      saturday: false,
-      sunday: false,
-    },
-    skills: '',
-  });
+  const { formData, handleInputChange, handleAvailabilityChange } = useWorkerForm();
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleAvailabilityChange = (day: string, checked: boolean) => {
-    setFormData(prev => ({
-      ...prev,
-      availability: { ...prev.availability, [day]: checked }
-    }));
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,16 +89,6 @@ export const AddWorkerModal = ({ onClose, onWorkerAdded }: AddWorkerModalProps) 
     }
   };
 
-  const availableDays = [
-    { key: 'monday', label: 'Monday' },
-    { key: 'tuesday', label: 'Tuesday' },
-    { key: 'wednesday', label: 'Wednesday' },
-    { key: 'thursday', label: 'Thursday' },
-    { key: 'friday', label: 'Friday' },
-    { key: 'saturday', label: 'Saturday' },
-    { key: 'sunday', label: 'Sunday' },
-  ];
-
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -142,112 +103,25 @@ export const AddWorkerModal = ({ onClose, onWorkerAdded }: AddWorkerModalProps) 
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => handleInputChange('name', e.target.value)}
-                  required
-                  placeholder="John Doe"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
-                  required
-                  placeholder="john@example.com"
-                />
-              </div>
-            </div>
+            <WorkerPersonalInfoForm
+              formData={formData}
+              onInputChange={handleInputChange}
+            />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number</Label>
-                <Input
-                  id="phone"
-                  value={formData.phone}
-                  onChange={(e) => handleInputChange('phone', e.target.value)}
-                  required
-                  placeholder="(555) 123-4567"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => handleInputChange('password', e.target.value)}
-                  required
-                  placeholder="Temporary password"
-                />
-              </div>
-            </div>
+            <WorkerLocationForm
+              formData={formData}
+              onInputChange={handleInputChange}
+            />
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="city">City</Label>
-                <Input
-                  id="city"
-                  value={formData.city}
-                  onChange={(e) => handleInputChange('city', e.target.value)}
-                  required
-                  placeholder="New York"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="region">Service Region</Label>
-                <Input
-                  id="region"
-                  value={formData.region}
-                  onChange={(e) => handleInputChange('region', e.target.value)}
-                  required
-                  placeholder="Downtown, Manhattan"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="zipcode">Zipcode</Label>
-                <Input
-                  id="zipcode"
-                  value={formData.zipcode}
-                  onChange={(e) => handleInputChange('zipcode', e.target.value)}
-                  required
-                  placeholder="10001"
-                />
-              </div>
-            </div>
+            <WorkerSkillsForm
+              formData={formData}
+              onInputChange={handleInputChange}
+            />
 
-            <div className="space-y-2">
-              <Label htmlFor="skills">Skills & Notes</Label>
-              <Textarea
-                id="skills"
-                value={formData.skills}
-                onChange={(e) => handleInputChange('skills', e.target.value)}
-                placeholder="Any relevant skills or notes..."
-              />
-            </div>
-
-            <div className="space-y-4">
-              <Label>Availability</Label>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                {availableDays.map((day) => (
-                  <div key={day.key} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={day.key}
-                      checked={formData.availability[day.key as keyof typeof formData.availability]}
-                      onCheckedChange={(checked) => handleAvailabilityChange(day.key, checked as boolean)}
-                    />
-                    <Label htmlFor={day.key} className="text-sm">{day.label}</Label>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <WorkerAvailabilityForm
+              formData={formData}
+              onAvailabilityChange={handleAvailabilityChange}
+            />
 
             <div className="flex justify-end space-x-2 pt-4">
               <Button type="button" variant="outline" onClick={onClose}>
