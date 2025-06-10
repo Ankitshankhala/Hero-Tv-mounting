@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -105,30 +104,53 @@ export const useServicesManager = () => {
 
   const fetchServices = async () => {
     try {
+      console.log('Fetching services from database...');
       const { data, error } = await supabase
         .from('services')
         .select('*')
         .order('created_at', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching services:', error);
+        throw error;
+      }
 
-      // If no services in database, use default services
+      console.log('Database services:', data);
+
+      // Always show the 9 default services first, then any additional database services
       if (!data || data.length === 0) {
+        console.log('No database services found, using default services');
         setServices(defaultServices);
       } else {
-        // Map database services to include images from default services
-        const servicesWithImages = data.map(service => {
-          const defaultService = defaultServices.find(ds => ds.id === service.id || ds.name === service.name);
-          return {
-            ...service,
-            image: defaultService?.image
-          };
+        // Merge database services with default services, prioritizing default services
+        const mergedServices = [...defaultServices];
+        
+        // Add any database services that don't match default service names
+        data.forEach(dbService => {
+          const existsInDefaults = defaultServices.some(
+            defaultService => defaultService.name === dbService.name || defaultService.id === dbService.id
+          );
+          
+          if (!existsInDefaults) {
+            mergedServices.push({
+              id: dbService.id,
+              name: dbService.name,
+              base_price: dbService.base_price,
+              duration_minutes: dbService.duration_minutes,
+              description: dbService.description || '',
+              is_active: dbService.is_active,
+              image: undefined // Database services won't have images unless we add them
+            });
+          }
         });
-        setServices(servicesWithImages);
+        
+        console.log('Merged services:', mergedServices);
+        setServices(mergedServices);
       }
     } catch (error) {
       console.error('Error fetching services:', error);
-      // Fallback to default services
+      console.log('Fallback to default services due to error');
+      // Always fallback to default services if there's any error
       setServices(defaultServices);
     } finally {
       setLoading(false);
