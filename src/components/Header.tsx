@@ -23,7 +23,7 @@ export const Header = () => {
                   <Button 
                     variant="outline"
                     size="sm"
-                    className="flex items-center space-x-2 text-white border-white hover:bg-white hover:text-slate-900"
+                    className="flex items-center space-x-2 text-white border-white hover:bg-white hover:text-slate-900 transition-colors"
                   >
                     <Briefcase className="h-4 w-4" />
                     <span>Dashboard</span>
@@ -35,7 +35,7 @@ export const Header = () => {
                   <Button 
                     variant="outline"
                     size="sm"
-                    className="flex items-center space-x-2 text-white border-white hover:bg-white hover:text-slate-900"
+                    className="flex items-center space-x-2 text-white border-white hover:bg-white hover:text-slate-900 transition-colors"
                   >
                     <Shield className="h-4 w-4" />
                     <span>Admin</span>
@@ -46,7 +46,7 @@ export const Header = () => {
                 onClick={handleLogout}
                 variant="outline"
                 size="sm"
-                className="flex items-center space-x-2 text-white border-white hover:bg-white hover:text-slate-900"
+                className="flex items-center space-x-2 text-white border-white hover:bg-white hover:text-slate-900 transition-colors"
               >
                 <LogOut className="h-4 w-4" />
                 <span>Logout</span>
@@ -56,14 +56,14 @@ export const Header = () => {
             <div className="flex space-x-2">
               <Link 
                 to="/worker-dashboard"
-                className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors duration-200 text-sm font-medium"
+                className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors duration-200 text-sm font-medium text-white"
               >
                 <Briefcase className="h-4 w-4" />
                 <span>Worker Login</span>
               </Link>
               <Link 
                 to="/admin"
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200 text-sm font-medium"
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200 text-sm font-medium text-white"
               >
                 <Shield className="h-4 w-4" />
                 <span>Admin</span>
