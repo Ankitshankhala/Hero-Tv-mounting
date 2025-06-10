@@ -67,9 +67,14 @@ const CustomerDashboard = () => {
         try {
           const services = booking.services;
           if (Array.isArray(services)) {
-            serviceNames = services.map(s => typeof s === 'object' && s !== null && 'name' in s ? s.name : 'Service').join(', ');
+            serviceNames = services.map(s => {
+              if (typeof s === 'object' && s !== null && 'name' in s) {
+                return String(s.name);
+              }
+              return 'Service';
+            }).join(', ');
           } else if (typeof services === 'object' && services !== null && 'name' in services) {
-            serviceNames = services.name;
+            serviceNames = String(services.name);
           }
         } catch (e) {
           console.error('Error parsing services:', e);
