@@ -8,10 +8,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeBookings } from '@/hooks/useRealtimeBookings';
 import { useToast } from '@/hooks/use-toast';
+import GoogleCalendarIntegration from '@/components/GoogleCalendarIntegration';
+import BookingCalendarSync from '@/components/BookingCalendarSync';
 
 const CustomerDashboard = () => {
   const [customerBookings, setCustomerBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [calendarConnected, setCalendarConnected] = useState(false);
   const { user, profile } = useAuth();
   const { toast } = useToast();
 
@@ -159,6 +162,11 @@ const CustomerDashboard = () => {
           <p className="text-slate-300">Here are your recent bookings and upcoming appointments.</p>
         </div>
 
+        {/* Add Google Calendar Integration */}
+        <div className="mb-8">
+          <GoogleCalendarIntegration onConnectionChange={setCalendarConnected} />
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <Card className="bg-slate-800 border-slate-700">
             <CardContent className="p-6">
@@ -265,6 +273,17 @@ const CustomerDashboard = () => {
                             ⏳ Worker assignment pending - we'll notify you once assigned
                           </p>
                         </div>
+                      )}
+
+                      {/* Add calendar sync for each booking */}
+                      {calendarConnected && (
+                        <BookingCalendarSync
+                          booking={booking}
+                          action="create"
+                          onEventCreated={(eventId) => {
+                            console.log(`Calendar event created for booking ${booking.id}: ${eventId}`);
+                          }}
+                        />
                       )}
                     </CardContent>
                   </Card>
