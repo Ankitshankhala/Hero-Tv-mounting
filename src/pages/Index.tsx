@@ -6,6 +6,8 @@ import { ReviewsSection } from '@/components/ReviewsSection';
 import { BlogSection } from '@/components/BlogSection';
 import { Cart } from '@/components/Cart';
 import { CheckoutModal } from '@/components/CheckoutModal';
+import { Toaster } from '@/components/ui/toaster';
+import { useToast } from '@/hooks/use-toast';
 
 export interface CartItem {
   id: string;
@@ -24,23 +26,47 @@ export interface CartItem {
 const Index = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const addToCart = (item: CartItem) => {
     setCart(prev => {
       const existing = prev.find(i => i.id === item.id);
       if (existing) {
+        // Show toast for updated item
+        toast({
+          title: "Service Updated",
+          description: `${item.name} has been updated in your cart`,
+        });
+        
         return prev.map(i => 
           i.id === item.id 
             ? { ...i, quantity: i.quantity + item.quantity, options: item.options || i.options }
             : i
         );
+      } else {
+        // Show toast for new item
+        toast({
+          title: "Service Added",
+          description: `${item.name} has been added to your cart`,
+        });
+        
+        // Highlight the newly added item
+        setHighlightedItemId(item.id);
+        setTimeout(() => setHighlightedItemId(null), 2000);
+        
+        return [...prev, item];
       }
-      return [...prev, item];
     });
   };
 
   const removeFromCart = (id: string) => {
     setCart(prev => prev.filter(item => item.id !== id));
+    toast({
+      title: "Service Removed",
+      description: "Service has been removed from your cart",
+      variant: "destructive",
+    });
   };
 
   const getTotalPrice = () => {
@@ -62,6 +88,7 @@ const Index = () => {
             total={getTotalPrice()}
             onCheckout={() => setIsCheckoutOpen(true)}
             onRemoveItem={removeFromCart}
+            highlightedItemId={highlightedItemId}
           />
         )}
         
@@ -73,6 +100,8 @@ const Index = () => {
           />
         )}
       </main>
+      
+      <Toaster />
     </div>
   );
 };

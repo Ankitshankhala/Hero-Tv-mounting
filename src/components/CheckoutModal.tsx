@@ -31,8 +31,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ cart, total, onClo
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4">
-      <div className="bg-slate-900 rounded-xl w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto border border-slate-700">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4 animate-fade-in">
+      <div className="bg-slate-900 rounded-xl w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto border border-slate-700 animate-scale-in">
         <div className="p-4 sm:p-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-2xl sm:text-3xl font-black text-white">Checkout</h3>
@@ -134,21 +134,21 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ cart, total, onClo
               <h4 className="text-xl sm:text-2xl font-black text-white mb-4 uppercase tracking-wide">Order Summary</h4>
               <div className="space-y-3 sm:space-y-2">
                 {cart.map((item) => (
-                  <div key={item.id} className="flex justify-between text-slate-300 text-base">
+                  <div key={item.id} className="flex justify-between text-slate-300 text-base animate-fade-in">
                     <span className="flex-1 pr-2">{item.name} x{item.quantity}</span>
-                    <span className="font-semibold">${item.price * item.quantity}</span>
+                    <span className="font-semibold transition-all duration-300">${item.price * item.quantity}</span>
                   </div>
                 ))}
                 <div className="border-t border-slate-600 pt-3 sm:pt-2 mt-3 sm:mt-2">
                   <div className="flex justify-between text-lg sm:text-xl font-black text-white mb-4">
                     <span>Total:</span>
-                    <span className="text-blue-400">${total}</span>
+                    <span className="text-blue-400 transition-all duration-500 transform hover:scale-105">${total}</span>
                   </div>
                   
                   {/* Prominent CTA Button */}
                   <button
                     type="submit"
-                    className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-4 px-6 rounded-lg transition-all duration-200 text-lg min-h-[56px] touch-manipulation shadow-lg hover:shadow-xl transform hover:scale-[1.02] flex items-center justify-center space-x-2"
+                    className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-4 px-6 rounded-lg transition-all duration-200 text-lg min-h-[56px] touch-manipulation shadow-lg hover:shadow-xl transform hover:scale-[1.02] flex items-center justify-center space-x-2 animate-fade-in"
                   >
                     <span>Book Now - ${total}</span>
                   </button>

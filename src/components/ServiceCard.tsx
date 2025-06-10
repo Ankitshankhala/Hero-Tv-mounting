@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { Plus } from 'lucide-react';
+import React, { useState } from 'react';
+import { Plus, Check } from 'lucide-react';
 
 interface ServiceCardProps {
   service: {
@@ -14,10 +14,18 @@ interface ServiceCardProps {
 }
 
 export const ServiceCard: React.FC<ServiceCardProps> = ({ service, onClick }) => {
+  const [isClicked, setIsClicked] = useState(false);
+
+  const handleClick = () => {
+    setIsClicked(true);
+    onClick();
+    setTimeout(() => setIsClicked(false), 1000);
+  };
+
   return (
     <div 
-      className="bg-slate-900/80 backdrop-blur-sm rounded-xl overflow-hidden border border-slate-700 hover:border-blue-500 transition-all duration-300 cursor-pointer group hover:scale-105"
-      onClick={onClick}
+      className="bg-slate-900/80 backdrop-blur-sm rounded-xl overflow-hidden border border-slate-700 hover:border-blue-500 transition-all duration-300 cursor-pointer group hover:scale-105 hover:shadow-xl"
+      onClick={handleClick}
     >
       <div className="relative h-48 overflow-hidden">
         <img 
@@ -34,11 +42,15 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, onClick }) =>
       
       <div className="p-6">
         <div className="flex items-center justify-between">
-          <div className="text-2xl font-bold text-white">
+          <div className="text-2xl font-bold text-white transition-all duration-300">
             ${service.price}
           </div>
-          <button className="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full transition-colors duration-200 group-hover:scale-110">
-            <Plus className="h-5 w-5" />
+          <button className={`p-3 rounded-full transition-all duration-300 group-hover:scale-110 ${
+            isClicked 
+              ? 'bg-green-600 text-white animate-pulse' 
+              : 'bg-blue-600 hover:bg-blue-700 text-white'
+          }`}>
+            {isClicked ? <Check className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
           </button>
         </div>
       </div>
