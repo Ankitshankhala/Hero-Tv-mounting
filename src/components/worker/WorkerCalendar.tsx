@@ -101,13 +101,38 @@ const WorkerCalendar = ({ onDateSelect }: WorkerCalendarProps) => {
         <CardHeader>
           <CardTitle className="text-white">Calendar</CardTitle>
         </CardHeader>
-        <CardContent>
-          <Calendar
-            mode="single"
-            selected={selectedDate}
-            onSelect={handleDateSelect}
-            className="rounded-md border border-slate-600"
-          />
+        <CardContent className="p-4">
+          <div className="bg-white rounded-lg p-4">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={handleDateSelect}
+              className="w-full"
+              classNames={{
+                months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+                month: "space-y-4",
+                caption: "flex justify-center pt-1 relative items-center text-slate-900",
+                caption_label: "text-sm font-medium text-slate-900",
+                nav: "space-x-1 flex items-center",
+                nav_button: "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 text-slate-900 border border-slate-300 rounded",
+                nav_button_previous: "absolute left-1",
+                nav_button_next: "absolute right-1",
+                table: "w-full border-collapse space-y-1",
+                head_row: "flex",
+                head_cell: "text-slate-500 rounded-md w-9 font-normal text-[0.8rem]",
+                row: "flex w-full mt-2",
+                cell: "h-9 w-9 text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
+                day: "h-9 w-9 p-0 font-normal text-slate-900 hover:bg-slate-100 rounded-md",
+                day_range_end: "day-range-end",
+                day_selected: "bg-slate-900 text-white hover:bg-slate-900 hover:text-white focus:bg-slate-900 focus:text-white",
+                day_today: "bg-slate-100 text-slate-900 font-semibold",
+                day_outside: "text-slate-400 opacity-50",
+                day_disabled: "text-slate-400 opacity-50",
+                day_range_middle: "aria-selected:bg-slate-100 aria-selected:text-slate-900",
+                day_hidden: "invisible",
+              }}
+            />
+          </div>
         </CardContent>
       </Card>
 
