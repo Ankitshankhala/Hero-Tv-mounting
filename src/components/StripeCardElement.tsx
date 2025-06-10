@@ -60,4 +60,3 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
     />
   );
 };
-</StripeCardElement>
