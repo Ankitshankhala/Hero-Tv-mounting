@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,9 +7,11 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import WorkerDashboardHeader from '@/components/worker/WorkerDashboardHeader';
 import WorkerDashboardStats from '@/components/worker/WorkerDashboardStats';
 import WorkerJobCard from '@/components/worker/WorkerJobCard';
+import WorkerCalendar from '@/components/worker/WorkerCalendar';
 import type { Database } from '@/integrations/supabase/types';
 
 type BookingStatus = Database['public']['Enums']['booking_status'];
@@ -85,6 +86,11 @@ const WorkerDashboard = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const handleJobCancelled = () => {
+    // Refresh the jobs list when a job is cancelled
+    fetchWorkerJobs();
   };
 
   const handleWorkerLogin = async (e: React.FormEvent) => {
@@ -204,28 +210,42 @@ const WorkerDashboard = () => {
           todaysEarnings={todaysEarnings}
         />
 
-        <Card className="bg-slate-800 border-slate-700">
-          <CardHeader>
-            <CardTitle className="text-white">My Jobs</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {jobs.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-slate-400">No jobs assigned yet</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {jobs.map((job) => (
-                  <WorkerJobCard
-                    key={job.id}
-                    job={job}
-                    onStatusUpdate={updateJobStatus}
-                  />
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <Tabs defaultValue="jobs" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 bg-slate-800 border-slate-700">
+            <TabsTrigger value="jobs" className="text-white data-[state=active]:bg-slate-700">My Jobs</TabsTrigger>
+            <TabsTrigger value="calendar" className="text-white data-[state=active]:bg-slate-700">Calendar</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="jobs" className="mt-6">
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader>
+                <CardTitle className="text-white">My Jobs</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {jobs.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-slate-400">No jobs assigned yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {jobs.map((job) => (
+                      <WorkerJobCard
+                        key={job.id}
+                        job={job}
+                        onStatusUpdate={updateJobStatus}
+                        onJobCancelled={handleJobCancelled}
+                      />
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="calendar" className="mt-6">
+            <WorkerCalendar />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

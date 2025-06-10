@@ -1,19 +1,21 @@
-
 import React, { useState } from 'react';
-import { Calendar, MapPin, Clock, Phone, Edit, AlertCircle } from 'lucide-react';
+import { Calendar, MapPin, Clock, Phone, Edit, AlertCircle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import InvoiceModificationModal from './InvoiceModificationModal';
+import CancellationModal from './CancellationModal';
 
 interface WorkerJobCardProps {
   job: any;
   onStatusUpdate: (jobId: string, newStatus: string) => void;
+  onJobCancelled?: () => void;
 }
 
-const WorkerJobCard = ({ job, onStatusUpdate }: WorkerJobCardProps) => {
+const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJobCardProps) => {
   const [showModifyModal, setShowModifyModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
@@ -65,6 +67,14 @@ const WorkerJobCard = ({ job, onStatusUpdate }: WorkerJobCardProps) => {
     // Refresh the job data or trigger a re-fetch
     window.location.reload();
   };
+
+  const handleCancellationSuccess = () => {
+    if (onJobCancelled) {
+      onJobCancelled();
+    }
+  };
+
+  const canCancelJob = job.status === 'confirmed' || job.status === 'pending';
 
   return (
     <>
@@ -161,6 +171,17 @@ const WorkerJobCard = ({ job, onStatusUpdate }: WorkerJobCardProps) => {
                 <Edit className="h-4 w-4 mr-1" />
                 Modify Invoice
               </Button>
+              {canCancelJob && (
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => setShowCancelModal(true)}
+                  className="text-red-400 border-red-400 hover:bg-red-400 hover:text-white"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Cancel Job
+                </Button>
+              )}
             </div>
             
             <div className="flex items-center space-x-2">
@@ -185,6 +206,13 @@ const WorkerJobCard = ({ job, onStatusUpdate }: WorkerJobCardProps) => {
         onClose={() => setShowModifyModal(false)}
         job={job}
         onModificationCreated={handleModificationCreated}
+      />
+
+      <CancellationModal
+        isOpen={showCancelModal}
+        onClose={() => setShowCancelModal(false)}
+        job={job}
+        onCancellationSuccess={handleCancellationSuccess}
       />
     </>
   );
