@@ -1,7 +1,6 @@
 
 import React, { useEffect } from 'react';
 import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
-import { useToast } from '@/hooks/use-toast';
 
 interface BookingCalendarSyncProps {
   booking: {
@@ -25,7 +24,6 @@ const BookingCalendarSync = ({
   onEventCreated 
 }: BookingCalendarSyncProps) => {
   const { isConnected, createCalendarEvent, updateCalendarEvent, deleteCalendarEvent } = useGoogleCalendar();
-  const { toast } = useToast();
 
   useEffect(() => {
     if (!isConnected) return;
@@ -77,7 +75,9 @@ This is an automated booking from your service management system.
             break;
         }
       } catch (error) {
-        console.error('Error syncing to calendar:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Error syncing to calendar:', error);
+        }
       }
     };
 

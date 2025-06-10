@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -72,12 +73,16 @@ const WorkerDashboard = () => {
         .order('scheduled_at', { ascending: true });
 
       if (error) {
-        console.error('Supabase error:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Supabase error:', error);
+        }
         throw error;
       }
       setJobs(data || []);
     } catch (error) {
-      console.error('Error fetching worker jobs:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error fetching worker jobs:', error);
+      }
       toast({
         title: "Error",
         description: "Failed to load your jobs",
@@ -107,7 +112,9 @@ const WorkerDashboard = () => {
         description: `Job status updated to ${newStatus}`,
       });
     } catch (error) {
-      console.error('Error updating job status:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error updating job status:', error);
+      }
       toast({
         title: "Error",
         description: "Failed to update job status",
@@ -227,7 +234,9 @@ const WorkerDashboard = () => {
           }}
           action="create"
           onEventCreated={(eventId) => {
-            console.log(`Calendar event created for job ${job.id}: ${eventId}`);
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`Calendar event created for job ${job.id}: ${eventId}`);
+            }
           }}
         />
       ))}
