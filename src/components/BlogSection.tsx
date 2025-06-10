@@ -59,13 +59,15 @@ export const BlogSection = () => {
               </div>
               
               {/* Text Card */}
-              <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700 p-8 flex flex-col justify-center h-80">
-                <h3 className="text-2xl md:text-3xl font-bold text-white mb-6">
+              <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700 p-6 md:p-8 flex flex-col justify-center h-80 overflow-hidden">
+                <h3 className="text-xl md:text-2xl font-bold text-white mb-4 line-clamp-2">
                   {tip.title}
                 </h3>
-                <p className="text-lg text-slate-300 leading-relaxed">
-                  {tip.content}
-                </p>
+                <div className="flex-1 overflow-hidden">
+                  <p className="text-sm md:text-base text-slate-300 leading-relaxed line-clamp-6">
+                    {tip.content}
+                  </p>
+                </div>
               </div>
             </div>
           ))}
