@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Lock, User } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 interface AdminLoginProps {
   onLogin: () => void;
@@ -13,14 +14,27 @@ interface AdminLoginProps {
 export const AdminLogin = ({ onLogin }: AdminLoginProps) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const { signIn } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, you would authenticate with Firebase here
-    if (email === 'admin@tvmountpro.com' && password === 'admin123') {
-      onLogin();
-    } else {
-      alert('Invalid credentials. Use admin@tvmountpro.com / admin123 for demo');
+    setLoading(true);
+    setError('');
+
+    try {
+      const { error } = await signIn(email, password);
+      
+      if (error) {
+        setError(error.message);
+      } else {
+        onLogin();
+      }
+    } catch (err) {
+      setError('An unexpected error occurred');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -36,6 +50,12 @@ export const AdminLogin = ({ onLogin }: AdminLoginProps) => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                {error}
+              </div>
+            )}
+            
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <div className="relative">
@@ -48,9 +68,11 @@ export const AdminLogin = ({ onLogin }: AdminLoginProps) => {
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10"
                   required
+                  disabled={loading}
                 />
               </div>
             </div>
+            
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <div className="relative">
@@ -63,20 +85,19 @@ export const AdminLogin = ({ onLogin }: AdminLoginProps) => {
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-10"
                   required
+                  disabled={loading}
                 />
               </div>
             </div>
-            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
-              Sign In
+            
+            <Button 
+              type="submit" 
+              className="w-full bg-blue-600 hover:bg-blue-700"
+              disabled={loading}
+            >
+              {loading ? 'Signing In...' : 'Sign In'}
             </Button>
           </form>
-          <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-600">
-              <strong>Demo Credentials:</strong><br />
-              Email: admin@tvmountpro.com<br />
-              Password: admin123
-            </p>
-          </div>
         </CardContent>
       </Card>
     </div>

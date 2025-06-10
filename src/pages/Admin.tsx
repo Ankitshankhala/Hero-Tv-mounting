@@ -12,13 +12,25 @@ import { SMSLogsManager } from '@/components/admin/SMSLogsManager';
 import { ReviewsManager } from '@/components/admin/ReviewsManager';
 import { BlogManager } from '@/components/admin/BlogManager';
 import { AdminLogin } from '@/components/admin/AdminLogin';
+import { useAuth } from '@/hooks/useAuth';
 
 const Admin = () => {
   const [activeSection, setActiveSection] = useState('dashboard');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { user, isAdmin, loading } = useAuth();
 
-  if (!isAuthenticated) {
-    return <AdminLogin onLogin={() => setIsAuthenticated(true)} />;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user || !isAdmin) {
+    return <AdminLogin onLogin={() => {}} />;
   }
 
   const renderActiveSection = () => {
