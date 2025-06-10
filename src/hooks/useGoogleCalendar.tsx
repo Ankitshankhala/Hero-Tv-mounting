@@ -18,13 +18,6 @@ interface CalendarEvent {
   location?: string;
 }
 
-declare global {
-  interface Window {
-    google?: any;
-    gapi?: any;
-  }
-}
-
 export const useGoogleCalendar = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
