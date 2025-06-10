@@ -1,0 +1,2 @@
+
+export const STRIPE_PUBLISHABLE_KEY = 'pk_test_51QSob4P9zTuOIR8s5zKZQxQxYQxQxYQxQxYQxQxYQxQxYQxQxYQxQxYQxQxYQxQxYQxQxYQxQxYQxQxYQxQxYQxQxYQxQx'; // Replace with your actual publishable key

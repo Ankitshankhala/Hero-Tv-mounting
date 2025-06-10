@@ -1,14 +1,14 @@
 
-import React, { useState, useEffect } from 'react';
-import { loadStripe } from '@stripe/stripe-js';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { X, MapPin, Clock, User, Mail, Phone, CreditCard } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { StripeCardElement } from '@/components/StripeCardElement';
 import type { CartItem } from '@/pages/Index';
 
 interface EmbeddedCheckoutProps {
@@ -17,8 +17,6 @@ interface EmbeddedCheckoutProps {
   onClose: () => void;
   onSuccess: () => void;
 }
-
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCheckoutProps) => {
   const [formData, setFormData] = useState({
@@ -34,16 +32,9 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentStep, setPaymentStep] = useState<'details' | 'payment'>('details');
   const [stripe, setStripe] = useState<any>(null);
+  const [cardElement, setCardElement] = useState<any>(null);
   const [cardError, setCardError] = useState<string>('');
   const { toast } = useToast();
-
-  useEffect(() => {
-    const initializeStripe = async () => {
-      const stripeInstance = await stripePromise;
-      setStripe(stripeInstance);
-    };
-    initializeStripe();
-  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({
@@ -80,13 +71,22 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
     setPaymentStep('payment');
   };
 
+  const handleStripeReady = (stripeInstance: any, elements: any, cardElementInstance: any) => {
+    setStripe(stripeInstance);
+    setCardElement(cardElementInstance);
+  };
+
+  const handleCardError = (error: string) => {
+    setCardError(error);
+  };
+
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!stripe) {
+    if (!stripe || !cardElement) {
       toast({
         title: "Payment Error",
-        description: "Stripe is not loaded. Please try again.",
+        description: "Payment system is not ready. Please try again.",
         variant: "destructive",
       });
       return;
@@ -96,7 +96,6 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
     setCardError('');
 
     try {
-      // Create payment intent
       const scheduledAt = new Date(`${formData.date}T${formData.time}:00`).toISOString();
       
       const bookingData = {
@@ -111,6 +110,7 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
         longitude: null
       };
 
+      // Create payment intent
       const { data, error } = await supabase.functions.invoke('create-payment-intent', {
         body: {
           bookingData,
@@ -122,14 +122,9 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
       if (error) throw error;
 
       // Confirm payment with card
-      const cardElement = document.getElementById('card-element');
-      if (!cardElement) throw new Error('Card element not found');
-
       const { error: confirmError } = await stripe.confirmCardPayment(data.client_secret, {
         payment_method: {
-          card: {
-            // This would be replaced with actual Stripe Elements integration
-          },
+          card: cardElement,
           billing_details: {
             name: formData.name,
             email: formData.email,
@@ -361,12 +356,10 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
                   <span>Payment Method</span>
                 </Label>
                 <Card className="p-4">
-                  <div id="card-element" className="p-3 border rounded">
-                    {/* Stripe Elements card input would go here */}
-                    <div className="text-gray-500 text-sm">
-                      Card payment form would be integrated here with Stripe Elements
-                    </div>
-                  </div>
+                  <StripeCardElement
+                    onReady={handleStripeReady}
+                    onError={handleCardError}
+                  />
                   {cardError && (
                     <div className="text-red-500 text-sm mt-2">{cardError}</div>
                   )}
