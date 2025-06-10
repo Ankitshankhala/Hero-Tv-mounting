@@ -6,6 +6,7 @@ import { Plus } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useRealtimeBookings } from '@/hooks/useRealtimeBookings';
 import WorkerDashboardHeader from '@/components/worker/WorkerDashboardHeader';
 import WorkerDashboardStats from '@/components/worker/WorkerDashboardStats';
 import WorkerJobsTab from '@/components/worker/WorkerJobsTab';
@@ -24,6 +25,30 @@ const WorkerDashboard = () => {
   const [showCreateBooking, setShowCreateBooking] = useState(false);
   const { user, profile } = useAuth();
   const { toast } = useToast();
+
+  // Set up real-time subscriptions
+  const { isConnected } = useRealtimeBookings({
+    userId: user?.id,
+    userRole: 'worker',
+    onBookingUpdate: (updatedBooking) => {
+      setJobs(currentJobs => {
+        const existingJobIndex = currentJobs.findIndex(job => job.id === updatedBooking.id);
+        
+        if (existingJobIndex >= 0) {
+          // Update existing job
+          const updatedJobs = [...currentJobs];
+          updatedJobs[existingJobIndex] = { ...updatedJobs[existingJobIndex], ...updatedBooking };
+          return updatedJobs;
+        } else if (updatedBooking.worker_id === user?.id) {
+          // Add new job if it's assigned to this worker
+          fetchWorkerJobs(); // Refetch to get complete data with relations
+          return currentJobs;
+        }
+        
+        return currentJobs;
+      });
+    }
+  });
 
   useEffect(() => {
     if (user && profile?.role === 'worker') {
@@ -70,7 +95,7 @@ const WorkerDashboard = () => {
 
       if (error) throw error;
 
-      // Update local state
+      // Update local state immediately for responsive UI
       setJobs(jobs.map(job => 
         job.id === jobId ? { ...job, status: newStatus } : job
       ));
@@ -124,7 +149,12 @@ const WorkerDashboard = () => {
 
       <div className="container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-white">Dashboard</h1>
+          <div>
+            <h1 className="text-2xl font-bold text-white">Dashboard</h1>
+            {isConnected && (
+              <p className="text-sm text-green-400">● Live updates enabled</p>
+            )}
+          </div>
           <Button 
             onClick={() => setShowCreateBooking(true)}
             className="bg-green-600 hover:bg-green-700"

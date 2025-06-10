@@ -1,47 +1,93 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Calendar, MapPin, Clock, Phone, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { useRealtimeBookings } from '@/hooks/useRealtimeBookings';
+import { useToast } from '@/hooks/use-toast';
 
 const CustomerDashboard = () => {
-  const customerBookings = [
-    {
-      id: 'BK001',
-      service: 'TV Mounting + Hide Cables',
-      status: 'confirmed',
-      date: '2024-12-15',
-      time: '10:00 AM',
-      address: '123 Main St, Downtown',
-      worker: 'Alex Thompson',
-      workerPhone: '(555) 111-2222',
-      totalPrice: 149
-    },
-    {
-      id: 'BK002',
-      service: 'Furniture Assembly',
-      status: 'completed',
-      date: '2024-12-08',
-      time: '2:00 PM',
-      address: '123 Main St, Downtown',
-      worker: 'Maria Garcia',
-      workerPhone: '(555) 333-4444',
-      totalPrice: 89
-    },
-    {
-      id: 'BK003',
-      service: 'TV Mounting',
-      status: 'pending',
-      date: '2024-12-20',
-      time: '11:00 AM',
-      address: '123 Main St, Downtown',
-      worker: null,
-      workerPhone: null,
-      totalPrice: 99
+  const [customerBookings, setCustomerBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const { user, profile } = useAuth();
+  const { toast } = useToast();
+
+  // Set up real-time subscriptions
+  const { isConnected } = useRealtimeBookings({
+    userId: user?.id,
+    userRole: 'customer',
+    onBookingUpdate: (updatedBooking) => {
+      setCustomerBookings(currentBookings => {
+        const existingBookingIndex = currentBookings.findIndex(booking => booking.id === updatedBooking.id);
+        
+        if (existingBookingIndex >= 0) {
+          // Update existing booking
+          const updatedBookings = [...currentBookings];
+          updatedBookings[existingBookingIndex] = { ...updatedBookings[existingBookingIndex], ...updatedBooking };
+          return updatedBookings;
+        } else if (updatedBooking.customer_id === user?.id) {
+          // Add new booking if it belongs to this customer
+          fetchCustomerBookings(); // Refetch to get complete data with relations
+          return currentBookings;
+        }
+        
+        return currentBookings;
+      });
     }
-  ];
+  });
+
+  useEffect(() => {
+    if (user) {
+      fetchCustomerBookings();
+    }
+  }, [user]);
+
+  const fetchCustomerBookings = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('bookings')
+        .select(`
+          *,
+          worker:users!worker_id(name, phone)
+        `)
+        .eq('customer_id', user.id)
+        .order('scheduled_at', { ascending: false });
+
+      if (error) throw error;
+      
+      // Transform data to match the expected format
+      const transformedBookings = data?.map(booking => ({
+        id: booking.id,
+        service: Array.isArray(booking.services) 
+          ? booking.services.map(s => s.name).join(', ')
+          : 'Service',
+        status: booking.status,
+        date: new Date(booking.scheduled_at).toLocaleDateString(),
+        time: new Date(booking.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        address: booking.customer_address,
+        worker: booking.worker?.name || null,
+        workerPhone: booking.worker?.phone || null,
+        totalPrice: booking.total_price
+      })) || [];
+
+      setCustomerBookings(transformedBookings);
+    } catch (error) {
+      console.error('Error fetching customer bookings:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load your bookings",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
@@ -56,6 +102,14 @@ const CustomerDashboard = () => {
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+        <div className="text-white">Loading your bookings...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <header className="bg-slate-800/50 border-b border-slate-700">
@@ -68,7 +122,12 @@ const CustomerDashboard = () => {
                   Back to Home
                 </Button>
               </Link>
-              <h1 className="text-2xl font-bold text-white">My Dashboard</h1>
+              <div>
+                <h1 className="text-2xl font-bold text-white">My Dashboard</h1>
+                {isConnected && (
+                  <p className="text-sm text-green-400">● Live updates enabled</p>
+                )}
+              </div>
             </div>
             <Link to="/book">
               <Button>Book New Service</Button>
@@ -123,7 +182,7 @@ const CustomerDashboard = () => {
                 <div>
                   <p className="text-slate-400">Total Spent</p>
                   <p className="text-2xl font-bold text-white">
-                    ${customerBookings.reduce((sum, b) => sum + b.totalPrice, 0)}
+                    ${customerBookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0)}
                   </p>
                 </div>
               </div>
@@ -136,56 +195,65 @@ const CustomerDashboard = () => {
             <CardTitle className="text-white">My Bookings</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {customerBookings.map((booking) => (
-                <Card key={booking.id} className="bg-slate-700 border-slate-600">
-                  <CardContent className="p-6">
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <h3 className="text-lg font-semibold text-white">{booking.service}</h3>
-                        <p className="text-slate-400">Booking #{booking.id}</p>
-                      </div>
-                      <div className="text-right">
-                        {getStatusBadge(booking.status)}
-                        <p className="text-xl font-bold text-white mt-1">${booking.totalPrice}</p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                      <div className="flex items-center space-x-2 text-slate-300">
-                        <Calendar className="h-4 w-4" />
-                        <span>{booking.date} at {booking.time}</span>
-                      </div>
-                      <div className="flex items-center space-x-2 text-slate-300">
-                        <MapPin className="h-4 w-4" />
-                        <span>{booking.address}</span>
-                      </div>
-                    </div>
-
-                    {booking.worker && (
-                      <div className="flex items-center justify-between pt-4 border-t border-slate-600">
-                        <div className="flex items-center space-x-2 text-slate-300">
-                          <User className="h-4 w-4" />
-                          <span>Assigned to: <span className="text-white font-medium">{booking.worker}</span></span>
+            {customerBookings.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-slate-400">No bookings yet</p>
+                <Link to="/book">
+                  <Button className="mt-4">Book Your First Service</Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {customerBookings.map((booking) => (
+                  <Card key={booking.id} className="bg-slate-700 border-slate-600">
+                    <CardContent className="p-6">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <h3 className="text-lg font-semibold text-white">{booking.service}</h3>
+                          <p className="text-slate-400">Booking #{booking.id}</p>
                         </div>
-                        <div className="flex items-center space-x-2 text-slate-300">
-                          <Phone className="h-4 w-4" />
-                          <span>{booking.workerPhone}</span>
+                        <div className="text-right">
+                          {getStatusBadge(booking.status)}
+                          <p className="text-xl font-bold text-white mt-1">${booking.totalPrice}</p>
                         </div>
                       </div>
-                    )}
 
-                    {!booking.worker && booking.status === 'pending' && (
-                      <div className="pt-4 border-t border-slate-600">
-                        <p className="text-yellow-400 text-sm">
-                          ⏳ Worker assignment pending - we'll notify you once assigned
-                        </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div className="flex items-center space-x-2 text-slate-300">
+                          <Calendar className="h-4 w-4" />
+                          <span>{booking.date} at {booking.time}</span>
+                        </div>
+                        <div className="flex items-center space-x-2 text-slate-300">
+                          <MapPin className="h-4 w-4" />
+                          <span>{booking.address}</span>
+                        </div>
                       </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+
+                      {booking.worker && (
+                        <div className="flex items-center justify-between pt-4 border-t border-slate-600">
+                          <div className="flex items-center space-x-2 text-slate-300">
+                            <User className="h-4 w-4" />
+                            <span>Assigned to: <span className="text-white font-medium">{booking.worker}</span></span>
+                          </div>
+                          <div className="flex items-center space-x-2 text-slate-300">
+                            <Phone className="h-4 w-4" />
+                            <span>{booking.workerPhone}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {!booking.worker && booking.status === 'pending' && (
+                        <div className="pt-4 border-t border-slate-600">
+                          <p className="text-yellow-400 text-sm">
+                            ⏳ Worker assignment pending - we'll notify you once assigned
+                          </p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
