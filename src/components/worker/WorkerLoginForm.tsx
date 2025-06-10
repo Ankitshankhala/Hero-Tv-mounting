@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 const WorkerLoginForm = () => {
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const { user, signIn } = useAuth();
+  const { user, profile, loading, signIn } = useAuth();
   const { toast } = useToast();
 
   const handleWorkerLogin = async (e: React.FormEvent) => {
@@ -45,6 +45,18 @@ const WorkerLoginForm = () => {
       setIsLoggingIn(false);
     }
   };
+
+  // Show loading while authentication state is being determined
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-600 mx-auto"></div>
+          <p className="mt-4 text-white">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
@@ -85,7 +97,7 @@ const WorkerLoginForm = () => {
                 {isLoggingIn ? 'Logging in...' : 'Login'}
               </Button>
             </form>
-          ) : (
+          ) : user && profile?.role !== 'worker' ? (
             <div className="text-center text-white">
               <h2 className="text-xl font-bold mb-2">Access Denied</h2>
               <p className="text-slate-300 mb-4">This dashboard is only available to workers.</p>
@@ -93,7 +105,7 @@ const WorkerLoginForm = () => {
                 <Button variant="outline">Return Home</Button>
               </Link>
             </div>
-          )}
+          ) : null}
         </CardContent>
       </Card>
     </div>
