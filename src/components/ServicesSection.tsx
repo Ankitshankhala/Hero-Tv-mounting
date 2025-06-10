@@ -57,14 +57,14 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ onAddToCart })
       id: 'general-mounting',
       name: 'General Mounting',
       price: 75,
-      image: '/lovable-uploads/6889f051-f5b1-4f2a-a093-a09693378bd4.png',
+      image: '/lovable-uploads/4cc7c28c-dd34-4b03-82ef-6b8280bc616f.png',
       description: 'General mounting services per hour'
     },
     {
       id: 'furniture-assembly',
       name: 'Furniture Assembly',
       price: 50,
-      image: '/lovable-uploads/d6a6d8ff-7ee8-45a6-bd82-6aa3aab9844a.png',
+      image: '/lovable-uploads/15729bed-70cc-4a81-afe5-f295b900175d.png',
       description: 'Professional furniture assembly per hour'
     },
     {
