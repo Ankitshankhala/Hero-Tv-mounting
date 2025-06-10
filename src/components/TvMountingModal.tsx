@@ -28,13 +28,10 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ onClose, onAdd
     const additionalTvs = numberOfTvs - 1;
     
     if (additionalTvs === 1) {
-      // +1 TV = $90
-      totalTvPrice += 90;
-    } else if (additionalTvs === 2) {
-      // +2 TVs = $60 each
-      totalTvPrice += 60 * 2;
-    } else if (additionalTvs >= 3) {
-      // +3+ TVs = $75 each
+      // +1 TV = $60
+      totalTvPrice += 60;
+    } else if (additionalTvs >= 2) {
+      // +2+ TVs = $75 each
       totalTvPrice += 75 * additionalTvs;
     }
     
@@ -144,7 +141,7 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ onClose, onAdd
               </div>
               {numberOfTvs > 1 && (
                 <div className="text-sm text-slate-400 mt-2">
-                  Pricing: +1 TV = $90, +2 TVs = $60 each, +3+ TVs = $75 each
+                  Pricing: +1 TV = $60, +2 TVs = $75 each, +3+ TVs = $75 each
                 </div>
               )}
             </div>
