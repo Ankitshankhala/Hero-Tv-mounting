@@ -34,6 +34,7 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
   const [stripe, setStripe] = useState<any>(null);
   const [cardElement, setCardElement] = useState<any>(null);
   const [cardError, setCardError] = useState<string>('');
+  const [stripeReady, setStripeReady] = useState(false);
   const { toast } = useToast();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -68,12 +69,15 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
       return;
     }
 
+    console.log('Moving to payment step');
     setPaymentStep('payment');
   };
 
   const handleStripeReady = (stripeInstance: any, elements: any, cardElementInstance: any) => {
+    console.log('Stripe ready callback triggered');
     setStripe(stripeInstance);
     setCardElement(cardElementInstance);
+    setStripeReady(true);
   };
 
   const handleCardError = (error: string) => {
@@ -83,12 +87,19 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!stripe || !cardElement) {
+    console.log('Payment submit triggered', { stripe: !!stripe, cardElement: !!cardElement, stripeReady });
+    
+    if (!stripe || !cardElement || !stripeReady) {
       toast({
         title: "Payment Error",
-        description: "Payment system is not ready. Please try again.",
+        description: "Payment system is not ready. Please wait a moment and try again.",
         variant: "destructive",
       });
+      return;
+    }
+
+    if (isProcessing) {
+      console.log('Already processing payment, ignoring duplicate submit');
       return;
     }
 
@@ -96,6 +107,7 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
     setCardError('');
 
     try {
+      console.log('Creating payment intent...');
       const scheduledAt = new Date(`${formData.date}T${formData.time}:00`).toISOString();
       
       const bookingData = {
@@ -110,8 +122,12 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
         longitude: null
       };
 
-      // Create payment intent
-      const { data, error } = await supabase.functions.invoke('create-payment-intent', {
+      // Create payment intent with timeout
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Request timeout')), 30000)
+      );
+
+      const paymentPromise = supabase.functions.invoke('create-payment-intent', {
         body: {
           bookingData,
           customerEmail: formData.email,
@@ -119,10 +135,17 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
         }
       });
 
-      if (error) throw error;
+      const { data, error } = await Promise.race([paymentPromise, timeoutPromise]) as any;
 
-      // Confirm payment with card
-      const { error: confirmError } = await stripe.confirmCardPayment(data.client_secret, {
+      if (error) {
+        console.error('Payment intent error:', error);
+        throw error;
+      }
+
+      console.log('Payment intent created, confirming with card...');
+
+      // Confirm payment with card with timeout
+      const confirmPromise = stripe.confirmCardPayment(data.client_secret, {
         payment_method: {
           card: cardElement,
           billing_details: {
@@ -132,11 +155,19 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
         }
       });
 
+      const confirmTimeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Payment confirmation timeout')), 30000)
+      );
+
+      const { error: confirmError } = await Promise.race([confirmPromise, confirmTimeoutPromise]) as any;
+
       if (confirmError) {
+        console.error('Payment confirmation error:', confirmError);
         setCardError(confirmError.message);
         return;
       }
 
+      console.log('Payment successful');
       toast({
         title: "Payment Successful",
         description: "Your booking has been confirmed!",
@@ -144,7 +175,7 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
 
       onSuccess();
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Payment error:', error);
       toast({
         title: "Payment Error",
@@ -363,6 +394,9 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
                   {cardError && (
                     <div className="text-red-500 text-sm mt-2">{cardError}</div>
                   )}
+                  {!stripeReady && (
+                    <div className="text-gray-500 text-sm mt-2">Loading payment form...</div>
+                  )}
                 </Card>
               </div>
 
@@ -372,12 +406,13 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
                   variant="outline"
                   onClick={() => setPaymentStep('details')}
                   className="flex-1"
+                  disabled={isProcessing}
                 >
                   Back to Details
                 </Button>
                 <Button
                   type="submit"
-                  disabled={isProcessing}
+                  disabled={isProcessing || !stripeReady}
                   className="flex-1 bg-green-600 hover:bg-green-700 text-white"
                 >
                   {isProcessing ? 'Processing...' : `Pay $${total.toFixed(2)}`}
