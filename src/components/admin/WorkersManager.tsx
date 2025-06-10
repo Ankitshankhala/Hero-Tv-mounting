@@ -11,7 +11,7 @@ import { Wrench, Phone, MapPin, Calendar, UserPlus } from 'lucide-react';
 import { AddWorkerModal } from './AddWorkerModal';
 import { WorkerApplicationsManager } from './WorkerApplicationsManager';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/utils/supabaseClient';
+import { supabase } from '@/integrations/supabase/client';
 
 export const WorkersManager = () => {
   const [workers, setWorkers] = useState([]);
@@ -36,7 +36,10 @@ export const WorkersManager = () => {
         .eq('role', 'worker')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
       setWorkers(data || []);
     } catch (error) {
       console.error('Error fetching workers:', error);
