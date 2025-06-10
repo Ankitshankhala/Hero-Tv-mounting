@@ -1,139 +1,156 @@
 
--- From 002_create_rls_policies.sql
--- Enable RLS on all tables
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE services ENABLE ROW LEVEL SECURITY;
-ALTER TABLE worker_availability ENABLE ROW LEVEL SECURITY;
-ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE sms_logs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
+-- From 003_create_functions.sql
+-- Function to calculate booking total
+CREATE OR REPLACE FUNCTION calculate_booking_total(service_ids UUID[], quantities INTEGER[])
+RETURNS TABLE(total_price DECIMAL, total_duration INTEGER) AS $$
+DECLARE
+  service_record RECORD;
+  i INTEGER;
+  price_sum DECIMAL := 0;
+  duration_sum INTEGER := 0;
+BEGIN
+  FOR i IN 1..array_length(service_ids, 1) LOOP
+    SELECT base_price, duration_minutes INTO service_record
+    FROM services 
+    WHERE id = service_ids[i] AND is_active = true;
+    
+    IF FOUND THEN
+      price_sum := price_sum + (service_record.base_price * quantities[i]);
+      duration_sum := duration_sum + (service_record.duration_minutes * quantities[i]);
+    END IF;
+  END LOOP;
+  
+  -- Add 15 minute buffer for multi-service bookings
+  IF array_length(service_ids, 1) > 1 THEN
+    duration_sum := duration_sum + 15;
+  END IF;
+  
+  RETURN QUERY SELECT price_sum, duration_sum;
+END;
+$$ LANGUAGE plpgsql;
 
--- Users table policies
-CREATE POLICY "Users can view their own profile" ON users
-  FOR SELECT USING (auth.uid() = id);
+-- Function to check cancellation fee
+CREATE OR REPLACE FUNCTION calculate_cancellation_fee(booking_id UUID)
+RETURNS DECIMAL AS $$
+DECLARE
+  booking_record RECORD;
+  hours_until_job INTEGER;
+BEGIN
+  SELECT scheduled_at, total_price INTO booking_record
+  FROM bookings 
+  WHERE id = booking_id;
+  
+  IF NOT FOUND THEN
+    RETURN 0;
+  END IF;
+  
+  hours_until_job := EXTRACT(EPOCH FROM (booking_record.scheduled_at - NOW())) / 3600;
+  
+  -- Apply $90 fee if cancelled within 24-26 hours
+  IF hours_until_job >= 24 AND hours_until_job <= 26 THEN
+    RETURN 90.00;
+  END IF;
+  
+  RETURN 0;
+END;
+$$ LANGUAGE plpgsql;
 
-CREATE POLICY "Admins can view all users" ON users
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM users 
-      WHERE id = auth.uid() AND role = 'admin'
+-- Function to find available workers
+CREATE OR REPLACE FUNCTION find_available_workers(
+  job_date DATE,
+  job_time TIME,
+  job_duration INTEGER,
+  job_region TEXT
+)
+RETURNS TABLE(worker_id UUID) AS $$
+DECLARE
+  job_day_of_week INTEGER;
+  job_end_time TIME;
+BEGIN
+  job_day_of_week := EXTRACT(DOW FROM job_date);
+  job_end_time := job_time + (job_duration * INTERVAL '1 minute');
+  
+  RETURN QUERY
+  SELECT DISTINCT wa.worker_id
+  FROM worker_availability wa
+  JOIN users u ON u.id = wa.worker_id
+  WHERE 
+    u.role = 'worker' AND
+    u.is_active = true AND
+    u.region = job_region AND
+    wa.day_of_week = job_day_of_week AND
+    wa.start_time <= job_time AND
+    wa.end_time >= job_end_time AND
+    NOT EXISTS (
+      SELECT 1
+      FROM bookings b
+      WHERE 
+        b.worker_id = wa.worker_id AND
+        b.status IN ('confirmed', 'in_progress') AND
+        DATE(b.scheduled_at) = job_date AND
+        (
+          (TIME(b.scheduled_at) <= job_time AND 
+           TIME(b.scheduled_at) + (b.total_duration_minutes * INTERVAL '1 minute') >= job_time)
+          OR
+          (TIME(b.scheduled_at) >= job_time AND 
+           TIME(b.scheduled_at) <= job_end_time)
+        )
+    );
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to auto-assign worker trigger
+CREATE OR REPLACE FUNCTION auto_assign_worker()
+RETURNS TRIGGER AS $$
+DECLARE
+  available_worker UUID;
+BEGIN
+  -- Only try to assign if no worker is already assigned
+  IF NEW.worker_id IS NULL AND NEW.status = 'pending' THEN
+    SELECT worker_id INTO available_worker
+    FROM find_available_workers(
+      DATE(NEW.scheduled_at),
+      TIME(NEW.scheduled_at),
+      NEW.total_duration_minutes,
+      (SELECT region FROM users WHERE id = NEW.customer_id)
     )
-  );
+    LIMIT 1;
+    
+    IF available_worker IS NOT NULL THEN
+      NEW.worker_id := available_worker;
+      NEW.status := 'confirmed';
+    END IF;
+  END IF;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
-CREATE POLICY "Users can update their own profile" ON users
-  FOR UPDATE USING (auth.uid() = id);
+-- Create trigger for auto-assignment
+DROP TRIGGER IF EXISTS assign_worker_trigger ON bookings;
+CREATE TRIGGER assign_worker_trigger
+  BEFORE INSERT OR UPDATE 
+  ON bookings
+  FOR EACH ROW
+  EXECUTE FUNCTION auto_assign_worker();
 
-CREATE POLICY "Admins can update any user" ON users
-  FOR UPDATE USING (
-    EXISTS (
-      SELECT 1 FROM users 
-      WHERE id = auth.uid() AND role = 'admin'
-    )
-  );
+-- Function to track cancellation fees
+CREATE OR REPLACE FUNCTION track_cancellation_fee()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF OLD.status != 'cancelled' AND NEW.status = 'cancelled' THEN
+    NEW.cancellation_fee := calculate_cancellation_fee(NEW.id);
+  END IF;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
--- Services table policies (public read, admin write)
-CREATE POLICY "Anyone can view active services" ON services
-  FOR SELECT USING (is_active = true);
-
-CREATE POLICY "Admins can manage services" ON services
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM users 
-      WHERE id = auth.uid() AND role = 'admin'
-    )
-  );
-
--- Worker availability policies
-CREATE POLICY "Workers can manage their own availability" ON worker_availability
-  FOR ALL USING (worker_id = auth.uid());
-
-CREATE POLICY "Admins can view all worker availability" ON worker_availability
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM users 
-      WHERE id = auth.uid() AND role = 'admin'
-    )
-  );
-
--- Bookings table policies
-CREATE POLICY "Customers can view their own bookings" ON bookings
-  FOR SELECT USING (customer_id = auth.uid());
-
-CREATE POLICY "Workers can view their assigned bookings" ON bookings
-  FOR SELECT USING (worker_id = auth.uid());
-
-CREATE POLICY "Admins can view all bookings" ON bookings
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM users 
-      WHERE id = auth.uid() AND role = 'admin'
-    )
-  );
-
-CREATE POLICY "Customers can create bookings" ON bookings
-  FOR INSERT WITH CHECK (customer_id = auth.uid());
-
-CREATE POLICY "Workers can update their assigned bookings" ON bookings
-  FOR UPDATE USING (worker_id = auth.uid());
-
-CREATE POLICY "Admins can update any booking" ON bookings
-  FOR UPDATE USING (
-    EXISTS (
-      SELECT 1 FROM users 
-      WHERE id = auth.uid() AND role = 'admin'
-    )
-  );
-
--- Transactions table policies
-CREATE POLICY "Users can view their own transactions" ON transactions
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM bookings 
-      WHERE bookings.id = transactions.booking_id 
-      AND (bookings.customer_id = auth.uid() OR bookings.worker_id = auth.uid())
-    )
-  );
-
-CREATE POLICY "Admins can view all transactions" ON transactions
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM users 
-      WHERE id = auth.uid() AND role = 'admin'
-    )
-  );
-
--- SMS logs policies (admin only)
-CREATE POLICY "Admins can view SMS logs" ON sms_logs
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM users 
-      WHERE id = auth.uid() AND role = 'admin'
-    )
-  );
-
--- Reviews table policies
-CREATE POLICY "Anyone can view reviews" ON reviews
-  FOR SELECT USING (true);
-
-CREATE POLICY "Customers can create reviews for their bookings" ON reviews
-  FOR INSERT WITH CHECK (
-    customer_id = auth.uid() AND
-    EXISTS (
-      SELECT 1 FROM bookings 
-      WHERE bookings.id = reviews.booking_id 
-      AND bookings.customer_id = auth.uid()
-      AND bookings.status = 'completed'
-    )
-  );
-
-CREATE POLICY "Customers can update their own reviews" ON reviews
-  FOR UPDATE USING (customer_id = auth.uid());
-
-CREATE POLICY "Admins can manage all reviews" ON reviews
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM users 
-      WHERE id = auth.uid() AND role = 'admin'
-    )
-  );
+-- Create trigger for cancellation fee
+DROP TRIGGER IF EXISTS cancellation_trigger ON bookings;
+CREATE TRIGGER cancellation_trigger
+  BEFORE UPDATE 
+  ON bookings
+  FOR EACH ROW
+  WHEN (OLD.status != 'cancelled' AND NEW.status = 'cancelled')
+  EXECUTE FUNCTION track_cancellation_fee();
