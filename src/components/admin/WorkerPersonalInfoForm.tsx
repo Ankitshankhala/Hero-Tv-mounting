@@ -30,8 +30,9 @@ export const WorkerPersonalInfoForm = ({ formData, onInputChange }: WorkerPerson
           value={formData.email}
           onChange={(e) => onInputChange('email', e.target.value)}
           required
-          placeholder="john@example.com"
+          placeholder="worker@company.com"
         />
+        <p className="text-xs text-gray-500">Use a real email address (not @example.com)</p>
       </div>
       <div className="space-y-2">
         <Label htmlFor="phone">Phone Number</Label>
@@ -52,7 +53,9 @@ export const WorkerPersonalInfoForm = ({ formData, onInputChange }: WorkerPerson
           onChange={(e) => onInputChange('password', e.target.value)}
           required
           placeholder="Temporary password"
+          minLength={6}
         />
+        <p className="text-xs text-gray-500">Minimum 6 characters</p>
       </div>
     </div>
   );

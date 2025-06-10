@@ -21,20 +21,44 @@ export const AddWorkerModal = ({ onClose, onWorkerAdded }: AddWorkerModalProps) 
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email) && !email.endsWith('@example.com');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      // Validate email format
+      if (!validateEmail(formData.email)) {
+        throw new Error('Please use a valid email address (not example.com)');
+      }
+
+      console.log('Creating worker with data:', {
+        email: formData.email,
+        name: formData.name,
+        phone: formData.phone,
+        city: formData.city,
+        region: formData.region,
+        zipcode: formData.zipcode
+      });
+
       // Create auth user first
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
       });
 
-      if (authError) throw authError;
+      if (authError) {
+        console.error('Auth error:', authError);
+        throw authError;
+      }
 
       if (authData?.user) {
+        console.log('Auth user created:', authData.user.id);
+
         // Create user profile
         const { error: profileError } = await supabase
           .from('users')
@@ -49,7 +73,12 @@ export const AddWorkerModal = ({ onClose, onWorkerAdded }: AddWorkerModalProps) 
             role: 'worker',
           });
 
-        if (profileError) throw profileError;
+        if (profileError) {
+          console.error('Profile error:', profileError);
+          throw profileError;
+        }
+
+        console.log('User profile created successfully');
 
         // Add worker availability
         const availabilityEntries = Object.entries(formData.availability)
@@ -66,7 +95,12 @@ export const AddWorkerModal = ({ onClose, onWorkerAdded }: AddWorkerModalProps) 
             .from('worker_availability')
             .insert(availabilityEntries);
 
-          if (availabilityError) throw availabilityError;
+          if (availabilityError) {
+            console.error('Availability error:', availabilityError);
+            throw availabilityError;
+          }
+
+          console.log('Worker availability added successfully');
         }
 
         toast({
@@ -77,11 +111,11 @@ export const AddWorkerModal = ({ onClose, onWorkerAdded }: AddWorkerModalProps) 
         onWorkerAdded?.();
         onClose();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating worker:', error);
       toast({
         title: "Error",
-        description: "Failed to create worker account",
+        description: error.message || "Failed to create worker account",
         variant: "destructive",
       });
     } finally {
@@ -103,6 +137,10 @@ export const AddWorkerModal = ({ onClose, onWorkerAdded }: AddWorkerModalProps) 
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 text-sm">
+              <strong>Note:</strong> Please use a real email address (not ending with @example.com) as Supabase validates email domains.
+            </div>
+
             <WorkerPersonalInfoForm
               formData={formData}
               onInputChange={handleInputChange}
