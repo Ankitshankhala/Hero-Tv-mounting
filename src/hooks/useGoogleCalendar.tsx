@@ -25,27 +25,38 @@ export const useGoogleCalendar = () => {
 
   const getGoogleCredentials = useCallback(async () => {
     try {
-      const { data: apiKeyData, error: apiKeyError } = await supabase.functions.invoke('get-secret', {
-        body: { name: 'GOOGLE_API_KEY' }
-      });
+      const [apiKeyResponse, clientIdResponse] = await Promise.all([
+        supabase.functions.invoke('get-secret', {
+          body: { name: 'GOOGLE_API_KEY' }
+        }),
+        supabase.functions.invoke('get-secret', {
+          body: { name: 'GOOGLE_CLIENT_ID' }
+        })
+      ]);
 
-      const { data: clientIdData, error: clientIdError } = await supabase.functions.invoke('get-secret', {
-        body: { name: 'GOOGLE_CLIENT_ID' }
-      });
+      if (apiKeyResponse.error) {
+        console.error('API Key fetch error:', apiKeyResponse.error);
+        throw new Error(`Failed to fetch Google API key: ${apiKeyResponse.error.message || 'Unknown error'}`);
+      }
 
-      if (apiKeyError || clientIdError) {
-        throw new Error('Failed to fetch Google credentials');
+      if (clientIdResponse.error) {
+        console.error('Client ID fetch error:', clientIdResponse.error);
+        throw new Error(`Failed to fetch Google Client ID: ${clientIdResponse.error.message || 'Unknown error'}`);
+      }
+
+      if (!apiKeyResponse.data?.value || !clientIdResponse.data?.value) {
+        throw new Error('Google credentials are not properly configured');
       }
 
       return {
-        apiKey: apiKeyData?.value,
-        clientId: clientIdData?.value
+        apiKey: apiKeyResponse.data.value,
+        clientId: clientIdResponse.data.value
       };
     } catch (error) {
       console.error('Error fetching Google credentials:', error);
       toast({
-        title: "Error",
-        description: "Failed to fetch Google credentials",
+        title: "Configuration Error",
+        description: error instanceof Error ? error.message : "Failed to fetch Google credentials",
         variant: "destructive",
       });
       return null;
@@ -56,20 +67,22 @@ export const useGoogleCalendar = () => {
     try {
       // Load Google API script if not already loaded
       if (!window.gapi) {
-        await new Promise<void>((resolve) => {
+        await new Promise<void>((resolve, reject) => {
           const script = document.createElement('script');
           script.src = 'https://apis.google.com/js/api.js';
           script.onload = () => resolve();
+          script.onerror = () => reject(new Error('Failed to load Google API script'));
           document.head.appendChild(script);
         });
       }
 
       // Load Google Identity Services script
       if (!window.google) {
-        await new Promise<void>((resolve) => {
+        await new Promise<void>((resolve, reject) => {
           const script = document.createElement('script');
           script.src = 'https://accounts.google.com/gsi/client';
           script.onload = () => resolve();
+          script.onerror = () => reject(new Error('Failed to load Google Identity Services script'));
           document.head.appendChild(script);
         });
       }
@@ -78,8 +91,8 @@ export const useGoogleCalendar = () => {
     } catch (error) {
       console.error('Error initializing Google Calendar:', error);
       toast({
-        title: "Error",
-        description: "Failed to initialize Google Calendar",
+        title: "Initialization Error",
+        description: error instanceof Error ? error.message : "Failed to initialize Google Calendar",
         variant: "destructive",
       });
       return false;
@@ -90,14 +103,22 @@ export const useGoogleCalendar = () => {
     setIsLoading(true);
     try {
       const credentials = await getGoogleCredentials();
-      if (!credentials) return false;
+      if (!credentials) {
+        throw new Error('Unable to retrieve Google credentials');
+      }
 
       const initialized = await initializeGoogleCalendar();
-      if (!initialized) return false;
+      if (!initialized) {
+        throw new Error('Failed to initialize Google Calendar APIs');
+      }
 
       // Initialize the Google API client
-      await new Promise<void>((resolve) => {
-        window.gapi.load('client:auth2', () => resolve());
+      await new Promise<void>((resolve, reject) => {
+        try {
+          window.gapi.load('client:auth2', () => resolve());
+        } catch (error) {
+          reject(new Error('Failed to load Google API client'));
+        }
       });
 
       await window.gapi.client.init({
@@ -108,22 +129,39 @@ export const useGoogleCalendar = () => {
       });
 
       const authInstance = window.gapi.auth2.getAuthInstance();
+      if (!authInstance) {
+        throw new Error('Failed to get Google auth instance');
+      }
+
       const user = await authInstance.signIn();
       
-      if (user.isSignedIn()) {
-        setIsConnected(true);
-        toast({
-          title: "Success",
-          description: "Connected to Google Calendar",
-        });
-        return true;
+      if (!user || !user.isSignedIn()) {
+        throw new Error('Google sign-in was not successful');
       }
-      return false;
+
+      setIsConnected(true);
+      toast({
+        title: "Success",
+        description: "Connected to Google Calendar",
+      });
+      return true;
     } catch (error) {
       console.error('Error connecting to Google Calendar:', error);
+      
+      let errorMessage = "Failed to connect to Google Calendar";
+      if (error instanceof Error) {
+        if (error.message.includes('popup_blocked')) {
+          errorMessage = "Please allow popups for Google sign-in to work";
+        } else if (error.message.includes('access_denied')) {
+          errorMessage = "Google Calendar access was denied. Please try again and grant permissions";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+
       toast({
-        title: "Error",
-        description: "Failed to connect to Google Calendar. Please check your credentials.",
+        title: "Connection Error",
+        description: errorMessage,
         variant: "destructive",
       });
       return false;
@@ -135,7 +173,7 @@ export const useGoogleCalendar = () => {
   const createCalendarEvent = useCallback(async (event: CalendarEvent) => {
     if (!isConnected) {
       toast({
-        title: "Error",
+        title: "Not Connected",
         description: "Please connect to Google Calendar first",
         variant: "destructive",
       });
@@ -143,10 +181,30 @@ export const useGoogleCalendar = () => {
     }
 
     try {
+      // Validate event data
+      if (!event.summary?.trim()) {
+        throw new Error('Event title is required');
+      }
+
+      if (!event.start?.dateTime || !event.end?.dateTime) {
+        throw new Error('Event start and end times are required');
+      }
+
+      // Check if user is still authenticated
+      const authInstance = window.gapi.auth2.getAuthInstance();
+      if (!authInstance?.isSignedIn?.get()) {
+        setIsConnected(false);
+        throw new Error('Google Calendar session expired. Please reconnect');
+      }
+
       const response = await window.gapi.client.calendar.events.insert({
         calendarId: 'primary',
         resource: event
       });
+
+      if (!response.result) {
+        throw new Error('Failed to create calendar event - no response data');
+      }
 
       toast({
         title: "Success",
@@ -156,9 +214,21 @@ export const useGoogleCalendar = () => {
       return response.result;
     } catch (error) {
       console.error('Error creating calendar event:', error);
+      
+      let errorMessage = "Failed to create calendar event";
+      if (error instanceof Error) {
+        if (error.message.includes('insufficient permission')) {
+          errorMessage = "Insufficient permissions to create calendar events";
+        } else if (error.message.includes('quota')) {
+          errorMessage = "Google Calendar API quota exceeded. Please try again later";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+
       toast({
-        title: "Error",
-        description: "Failed to create calendar event",
+        title: "Event Creation Error",
+        description: errorMessage,
         variant: "destructive",
       });
       return null;
@@ -166,14 +236,36 @@ export const useGoogleCalendar = () => {
   }, [isConnected, toast]);
 
   const updateCalendarEvent = useCallback(async (eventId: string, event: CalendarEvent) => {
-    if (!isConnected) return null;
+    if (!isConnected) {
+      toast({
+        title: "Not Connected",
+        description: "Please connect to Google Calendar first",
+        variant: "destructive",
+      });
+      return null;
+    }
 
     try {
+      if (!eventId?.trim()) {
+        throw new Error('Event ID is required for updating');
+      }
+
+      // Check if user is still authenticated
+      const authInstance = window.gapi.auth2.getAuthInstance();
+      if (!authInstance?.isSignedIn?.get()) {
+        setIsConnected(false);
+        throw new Error('Google Calendar session expired. Please reconnect');
+      }
+
       const response = await window.gapi.client.calendar.events.update({
         calendarId: 'primary',
         eventId: eventId,
         resource: event
       });
+
+      if (!response.result) {
+        throw new Error('Failed to update calendar event - no response data');
+      }
 
       toast({
         title: "Success",
@@ -183,9 +275,21 @@ export const useGoogleCalendar = () => {
       return response.result;
     } catch (error) {
       console.error('Error updating calendar event:', error);
+      
+      let errorMessage = "Failed to update calendar event";
+      if (error instanceof Error) {
+        if (error.message.includes('not found')) {
+          errorMessage = "Calendar event not found. It may have been deleted";
+        } else if (error.message.includes('insufficient permission')) {
+          errorMessage = "Insufficient permissions to update calendar events";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+
       toast({
-        title: "Error",
-        description: "Failed to update calendar event",
+        title: "Event Update Error",
+        description: errorMessage,
         variant: "destructive",
       });
       return null;
@@ -193,9 +297,27 @@ export const useGoogleCalendar = () => {
   }, [isConnected, toast]);
 
   const deleteCalendarEvent = useCallback(async (eventId: string) => {
-    if (!isConnected) return false;
+    if (!isConnected) {
+      toast({
+        title: "Not Connected",
+        description: "Please connect to Google Calendar first",
+        variant: "destructive",
+      });
+      return false;
+    }
 
     try {
+      if (!eventId?.trim()) {
+        throw new Error('Event ID is required for deletion');
+      }
+
+      // Check if user is still authenticated
+      const authInstance = window.gapi.auth2.getAuthInstance();
+      if (!authInstance?.isSignedIn?.get()) {
+        setIsConnected(false);
+        throw new Error('Google Calendar session expired. Please reconnect');
+      }
+
       await window.gapi.client.calendar.events.delete({
         calendarId: 'primary',
         eventId: eventId
@@ -209,9 +331,21 @@ export const useGoogleCalendar = () => {
       return true;
     } catch (error) {
       console.error('Error deleting calendar event:', error);
+      
+      let errorMessage = "Failed to delete calendar event";
+      if (error instanceof Error) {
+        if (error.message.includes('not found')) {
+          errorMessage = "Calendar event not found. It may have already been deleted";
+        } else if (error.message.includes('insufficient permission')) {
+          errorMessage = "Insufficient permissions to delete calendar events";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+
       toast({
-        title: "Error",
-        description: "Failed to delete calendar event",
+        title: "Event Deletion Error",
+        description: errorMessage,
         variant: "destructive",
       });
       return false;
@@ -220,9 +354,11 @@ export const useGoogleCalendar = () => {
 
   const disconnectFromGoogleCalendar = useCallback(async () => {
     try {
-      if (window.gapi && window.gapi.auth2) {
+      if (window.gapi?.auth2) {
         const authInstance = window.gapi.auth2.getAuthInstance();
-        await authInstance.signOut();
+        if (authInstance) {
+          await authInstance.signOut();
+        }
       }
       setIsConnected(false);
       toast({
@@ -231,9 +367,11 @@ export const useGoogleCalendar = () => {
       });
     } catch (error) {
       console.error('Error disconnecting from Google Calendar:', error);
+      // Even if disconnect fails, reset the local state
+      setIsConnected(false);
       toast({
-        title: "Error",
-        description: "Failed to disconnect from Google Calendar",
+        title: "Warning",
+        description: "Local session cleared. You may need to revoke access manually in Google settings",
         variant: "destructive",
       });
     }
