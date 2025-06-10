@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Header } from '@/components/Header';
 import { ServicesSection } from '@/components/ServicesSection';
@@ -8,6 +7,7 @@ import { Cart } from '@/components/Cart';
 import { CheckoutModal } from '@/components/CheckoutModal';
 import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/hooks/use-toast';
+import { EmbeddedCheckout } from '@/components/EmbeddedCheckout';
 
 export interface CartItem {
   id: string;
@@ -93,10 +93,14 @@ const Index = () => {
         )}
         
         {isCheckoutOpen && (
-          <CheckoutModal
+          <EmbeddedCheckout
             cart={cart}
             total={getTotalPrice()}
             onClose={() => setIsCheckoutOpen(false)}
+            onSuccess={() => {
+              setCart([]);
+              setIsCheckoutOpen(false);
+            }}
           />
         )}
       </main>
