@@ -12,6 +12,11 @@ export const AdminHeader = () => {
   const [showAssignWorker, setShowAssignWorker] = useState(false);
   const [showTodaysJobs, setShowTodaysJobs] = useState(false);
 
+  const handleWorkerAssignment = (bookingId: string, workerId: string) => {
+    console.log('Worker assigned:', { bookingId, workerId });
+    // Optionally refresh data or show success message
+  };
+
   return (
     <>
       <header className="bg-white shadow-sm border-b px-6 py-4">
@@ -58,7 +63,12 @@ export const AdminHeader = () => {
         <CreateBookingModal onClose={() => setShowCreateBooking(false)} />
       )}
       {showAssignWorker && (
-        <AssignWorkerModal onClose={() => setShowAssignWorker(false)} />
+        <AssignWorkerModal 
+          isOpen={showAssignWorker}
+          onClose={() => setShowAssignWorker(false)}
+          booking={null}
+          onAssign={handleWorkerAssignment}
+        />
       )}
       {showTodaysJobs && (
         <TodaysJobsModal onClose={() => setShowTodaysJobs(false)} />
