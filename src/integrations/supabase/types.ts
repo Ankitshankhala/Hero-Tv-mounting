@@ -16,6 +16,9 @@ export type Database = {
           created_at: string | null
           customer_address: string
           customer_id: string | null
+          customer_latitude: number | null
+          customer_longitude: number | null
+          customer_zipcode: string | null
           has_modifications: boolean | null
           id: string
           late_fee_amount: number | null
@@ -39,6 +42,9 @@ export type Database = {
           created_at?: string | null
           customer_address: string
           customer_id?: string | null
+          customer_latitude?: number | null
+          customer_longitude?: number | null
+          customer_zipcode?: string | null
           has_modifications?: boolean | null
           id?: string
           late_fee_amount?: number | null
@@ -62,6 +68,9 @@ export type Database = {
           created_at?: string | null
           customer_address?: string
           customer_id?: string | null
+          customer_latitude?: number | null
+          customer_longitude?: number | null
+          customer_zipcode?: string | null
           has_modifications?: boolean | null
           id?: string
           late_fee_amount?: number | null
@@ -200,6 +209,47 @@ export type Database = {
             columns: ["worker_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_sessions: {
+        Row: {
+          amount: number
+          booking_id: string | null
+          created_at: string | null
+          currency: string | null
+          id: string
+          status: string | null
+          stripe_session_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          booking_id?: string | null
+          created_at?: string | null
+          currency?: string | null
+          id?: string
+          status?: string | null
+          stripe_session_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          booking_id?: string | null
+          created_at?: string | null
+          currency?: string | null
+          id?: string
+          status?: string | null
+          stripe_session_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_sessions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
             referencedColumns: ["id"]
           },
         ]
@@ -381,6 +431,8 @@ export type Database = {
           email: string
           id: string
           is_active: boolean | null
+          latitude: number | null
+          longitude: number | null
           name: string
           phone: string | null
           region: string | null
@@ -394,6 +446,8 @@ export type Database = {
           email: string
           id?: string
           is_active?: boolean | null
+          latitude?: number | null
+          longitude?: number | null
           name: string
           phone?: string | null
           region?: string | null
@@ -407,6 +461,8 @@ export type Database = {
           email?: string
           id?: string
           is_active?: boolean | null
+          latitude?: number | null
+          longitude?: number | null
           name?: string
           phone?: string | null
           region?: string | null
