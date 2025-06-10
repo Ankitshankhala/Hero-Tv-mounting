@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,6 +23,7 @@ export const AddWorkerModal = ({ onClose, onWorkerAdded }: AddWorkerModalProps) 
     phone: '',
     city: '',
     region: '',
+    zipcode: '',
     password: '',
     availability: {
       monday: false,
@@ -187,7 +189,7 @@ export const AddWorkerModal = ({ onClose, onWorkerAdded }: AddWorkerModalProps) 
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="city">City</Label>
                 <Input
@@ -206,6 +208,16 @@ export const AddWorkerModal = ({ onClose, onWorkerAdded }: AddWorkerModalProps) 
                   onChange={(e) => handleInputChange('region', e.target.value)}
                   required
                   placeholder="Downtown, Manhattan"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="zipcode">Zipcode</Label>
+                <Input
+                  id="zipcode"
+                  value={formData.zipcode}
+                  onChange={(e) => handleInputChange('zipcode', e.target.value)}
+                  required
+                  placeholder="10001"
                 />
               </div>
             </div>
