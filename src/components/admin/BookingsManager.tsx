@@ -180,7 +180,7 @@ export const BookingsManager = () => {
         total_price: 0,
         total_duration_minutes: 60,
         customer_address: 'Test Address',
-        status: 'pending'
+        status: 'pending' as const
       };
 
       const { data, error } = await supabase
