@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -155,7 +154,7 @@ export const useGoogleCalendar = () => {
       const tokenClient = window.google.accounts.oauth2.initTokenClient({
         client_id: credentials.clientId,
         scope: 'https://www.googleapis.com/auth/calendar',
-        callback: (response: any) => {
+        callback: (response: TokenResponse) => {
           if (response.error) {
             console.error('OAuth error:', response.error);
             throw new Error(`OAuth failed: ${response.error}`);
@@ -414,7 +413,9 @@ export const useGoogleCalendar = () => {
     try {
       if (accessToken && window.google?.accounts?.oauth2) {
         // Revoke the access token
-        window.google.accounts.oauth2.revoke(accessToken);
+        window.google.accounts.oauth2.revoke(accessToken, () => {
+          console.log('Access token revoked');
+        });
       }
       
       setIsConnected(false);
