@@ -4,8 +4,8 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Plus, UserPlus, Calendar, ArrowLeft } from 'lucide-react';
 import { CreateBookingModal } from './CreateBookingModal';
+import { AssignWorkerModal } from './AssignWorkerModal';
 import { TodaysJobsModal } from './TodaysJobsModal';
-import { BookingAssignmentModal } from './BookingAssignmentModal';
 
 export const AdminHeader = () => {
   const [showCreateBooking, setShowCreateBooking] = useState(false);
@@ -58,10 +58,7 @@ export const AdminHeader = () => {
         <CreateBookingModal onClose={() => setShowCreateBooking(false)} />
       )}
       {showAssignWorker && (
-        <BookingAssignmentModal 
-          isOpen={showAssignWorker}
-          onClose={() => setShowAssignWorker(false)}
-        />
+        <AssignWorkerModal onClose={() => setShowAssignWorker(false)} />
       )}
       {showTodaysJobs && (
         <TodaysJobsModal onClose={() => setShowTodaysJobs(false)} />
