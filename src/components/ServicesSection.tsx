@@ -44,7 +44,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ onAddToCart })
       id: 'simple-concealment',
       name: 'Simple Cable Concealment',
       price: 50,
-      image: '/lovable-uploads/cf7c3439-4e6f-4b1c-82d9-2c3ba4b900f5.png',
+      image: '/lovable-uploads/30e56e23-dec2-4e93-a794-d7575b2e1bd5.png',
       description: 'Basic in-wall cable concealment'
     },
     {
