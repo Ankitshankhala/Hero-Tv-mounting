@@ -156,77 +156,77 @@ const WorkerScheduleManager = ({ onScheduleUpdate }: WorkerScheduleManagerProps)
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div className="bg-card border border-border rounded-lg shadow-sm">
-        <div className="p-4 border-b border-border">
-          <h3 className="text-lg font-semibold text-card-foreground">Set Your Availability</h3>
-        </div>
-        <div className="p-4">
+      <Card className="shadow-lg border-0 bg-white">
+        <CardHeader className="bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-t-lg">
+          <CardTitle className="text-lg font-semibold">Set Your Availability</CardTitle>
+        </CardHeader>
+        <CardContent className="p-6 bg-white">
           <Calendar
             mode="single"
             selected={selectedDate}
             onSelect={(date) => date && setSelectedDate(date)}
-            className="w-full border-0"
+            className="w-full border-0 bg-white"
             classNames={{
               months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
               month: "space-y-4",
-              caption: "flex justify-center pt-1 relative items-center text-foreground",
-              caption_label: "text-sm font-medium text-foreground",
+              caption: "flex justify-center pt-1 relative items-center text-gray-900",
+              caption_label: "text-sm font-medium text-gray-900",
               nav: "space-x-1 flex items-center",
-              nav_button: "h-7 w-7 bg-background p-0 opacity-70 hover:opacity-100 text-foreground border border-border rounded hover:bg-accent",
+              nav_button: "h-7 w-7 bg-white p-0 opacity-70 hover:opacity-100 text-gray-700 border border-gray-200 rounded hover:bg-gray-50",
               nav_button_previous: "absolute left-1",
               nav_button_next: "absolute right-1",
               table: "w-full border-collapse space-y-1",
               head_row: "flex",
-              head_cell: "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
+              head_cell: "text-gray-600 rounded-md w-9 font-normal text-[0.8rem]",
               row: "flex w-full mt-2",
               cell: "h-9 w-9 text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
-              day: "h-9 w-9 p-0 font-normal text-foreground hover:bg-accent rounded-md",
+              day: "h-9 w-9 p-0 font-normal text-gray-900 hover:bg-purple-50 rounded-md transition-colors",
               day_range_end: "day-range-end",
-              day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-              day_today: "bg-accent text-accent-foreground font-semibold",
-              day_outside: "text-muted-foreground opacity-50",
-              day_disabled: "text-muted-foreground opacity-50",
-              day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
+              day_selected: "bg-purple-600 text-white hover:bg-purple-700 hover:text-white focus:bg-purple-600 focus:text-white",
+              day_today: "bg-purple-100 text-purple-900 font-semibold",
+              day_outside: "text-gray-400 opacity-50",
+              day_disabled: "text-gray-400 opacity-50",
+              day_range_middle: "aria-selected:bg-purple-50 aria-selected:text-purple-900",
               day_hidden: "invisible",
             }}
           />
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      <div className="bg-card border border-border rounded-lg shadow-sm">
-        <div className="p-4 border-b border-border">
+      <Card className="shadow-lg border-0 bg-white">
+        <CardHeader className="bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-t-lg">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-card-foreground">
+            <CardTitle className="text-lg font-semibold">
               Schedule for {selectedDate.toLocaleDateString()}
-            </h3>
+            </CardTitle>
             <Button 
               onClick={() => {
                 resetForm();
                 setEditingSchedule(null);
                 setShowAddModal(true);
               }}
-              className="bg-green-600 hover:bg-green-700 text-white"
+              className="bg-white text-orange-700 hover:bg-orange-50 border-0"
               size="sm"
             >
               <Plus className="h-4 w-4 mr-1" />
               Add Time Slot
             </Button>
           </div>
-        </div>
-        <div className="p-4">
+        </CardHeader>
+        <CardContent className="p-6 bg-white">
           {schedules.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-muted-foreground">No schedule set for this date</p>
+              <p className="text-gray-600">No schedule set for this date</p>
             </div>
           ) : (
             <div className="space-y-3">
               {schedules.map((schedule) => (
-                <div key={schedule.id} className="bg-accent/50 rounded-lg p-4 border border-border">
+                <div key={schedule.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:shadow-md transition-shadow">
                   <div className="flex justify-between items-start">
                     <div>
                       <div className="flex items-center space-x-2 mb-2">
-                        <Clock className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-foreground font-medium">
+                        <Clock className="h-4 w-4 text-blue-600" />
+                        <span className="text-gray-900 font-medium">
                           {formatTime(schedule.start_time)} - {formatTime(schedule.end_time)}
                         </span>
                         <Badge variant={schedule.is_available ? 'default' : 'secondary'}>
@@ -234,7 +234,7 @@ const WorkerScheduleManager = ({ onScheduleUpdate }: WorkerScheduleManagerProps)
                         </Badge>
                       </div>
                       {schedule.notes && (
-                        <p className="text-muted-foreground text-sm">{schedule.notes}</p>
+                        <p className="text-gray-600 text-sm">{schedule.notes}</p>
                       )}
                     </div>
                     <div className="flex space-x-2">
@@ -260,13 +260,13 @@ const WorkerScheduleManager = ({ onScheduleUpdate }: WorkerScheduleManagerProps)
               ))}
             </div>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
-        <DialogContent className="bg-background border-border">
+        <DialogContent className="bg-white border-gray-200">
           <DialogHeader>
-            <DialogTitle className="text-foreground">
+            <DialogTitle className="text-gray-900">
               {editingSchedule ? 'Edit Schedule' : 'Add Time Slot'}
             </DialogTitle>
           </DialogHeader>
@@ -274,23 +274,23 @@ const WorkerScheduleManager = ({ onScheduleUpdate }: WorkerScheduleManagerProps)
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="startTime" className="text-foreground">Start Time</Label>
+                <Label htmlFor="startTime" className="text-gray-900">Start Time</Label>
                 <Input
                   id="startTime"
                   type="time"
                   value={formData.startTime}
                   onChange={(e) => setFormData({...formData, startTime: e.target.value})}
-                  className="bg-background border-border text-foreground"
+                  className="bg-white border-gray-300 text-gray-900"
                 />
               </div>
               <div>
-                <Label htmlFor="endTime" className="text-foreground">End Time</Label>
+                <Label htmlFor="endTime" className="text-gray-900">End Time</Label>
                 <Input
                   id="endTime"
                   type="time"
                   value={formData.endTime}
                   onChange={(e) => setFormData({...formData, endTime: e.target.value})}
-                  className="bg-background border-border text-foreground"
+                  className="bg-white border-gray-300 text-gray-900"
                 />
               </div>
             </div>
@@ -303,17 +303,17 @@ const WorkerScheduleManager = ({ onScheduleUpdate }: WorkerScheduleManagerProps)
                 onChange={(e) => setFormData({...formData, isAvailable: e.target.checked})}
                 className="rounded"
               />
-              <Label htmlFor="isAvailable" className="text-foreground">Available for bookings</Label>
+              <Label htmlFor="isAvailable" className="text-gray-900">Available for bookings</Label>
             </div>
 
             <div>
-              <Label htmlFor="notes" className="text-foreground">Notes (Optional)</Label>
+              <Label htmlFor="notes" className="text-gray-900">Notes (Optional)</Label>
               <Textarea
                 id="notes"
                 value={formData.notes}
                 onChange={(e) => setFormData({...formData, notes: e.target.value})}
                 placeholder="Any special notes for this time slot..."
-                className="bg-background border-border text-foreground"
+                className="bg-white border-gray-300 text-gray-900"
               />
             </div>
 
@@ -325,7 +325,7 @@ const WorkerScheduleManager = ({ onScheduleUpdate }: WorkerScheduleManagerProps)
                   setEditingSchedule(null);
                   resetForm();
                 }}
-                className="text-foreground border-border"
+                className="text-gray-700 border-gray-300"
               >
                 Cancel
               </Button>

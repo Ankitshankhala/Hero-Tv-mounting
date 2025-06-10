@@ -97,93 +97,93 @@ const WorkerCalendar = ({ onDateSelect }: WorkerCalendarProps) => {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div className="bg-card border border-border rounded-lg shadow-sm">
-        <div className="p-4 border-b border-border">
-          <h3 className="text-lg font-semibold text-card-foreground">Calendar</h3>
-        </div>
-        <div className="p-4">
+      <Card className="shadow-lg border-0 bg-white">
+        <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-t-lg">
+          <CardTitle className="text-lg font-semibold">Calendar</CardTitle>
+        </CardHeader>
+        <CardContent className="p-6 bg-white">
           <Calendar
             mode="single"
             selected={selectedDate}
             onSelect={handleDateSelect}
-            className="w-full border-0"
+            className="w-full border-0 bg-white"
             classNames={{
               months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
               month: "space-y-4",
-              caption: "flex justify-center pt-1 relative items-center text-foreground",
-              caption_label: "text-sm font-medium text-foreground",
+              caption: "flex justify-center pt-1 relative items-center text-gray-900",
+              caption_label: "text-sm font-medium text-gray-900",
               nav: "space-x-1 flex items-center",
-              nav_button: "h-7 w-7 bg-background p-0 opacity-70 hover:opacity-100 text-foreground border border-border rounded hover:bg-accent",
+              nav_button: "h-7 w-7 bg-white p-0 opacity-70 hover:opacity-100 text-gray-700 border border-gray-200 rounded hover:bg-gray-50",
               nav_button_previous: "absolute left-1",
               nav_button_next: "absolute right-1",
               table: "w-full border-collapse space-y-1",
               head_row: "flex",
-              head_cell: "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
+              head_cell: "text-gray-600 rounded-md w-9 font-normal text-[0.8rem]",
               row: "flex w-full mt-2",
               cell: "h-9 w-9 text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
-              day: "h-9 w-9 p-0 font-normal text-foreground hover:bg-accent rounded-md",
+              day: "h-9 w-9 p-0 font-normal text-gray-900 hover:bg-blue-50 rounded-md transition-colors",
               day_range_end: "day-range-end",
-              day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-              day_today: "bg-accent text-accent-foreground font-semibold",
-              day_outside: "text-muted-foreground opacity-50",
-              day_disabled: "text-muted-foreground opacity-50",
-              day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
+              day_selected: "bg-blue-600 text-white hover:bg-blue-700 hover:text-white focus:bg-blue-600 focus:text-white",
+              day_today: "bg-blue-100 text-blue-900 font-semibold",
+              day_outside: "text-gray-400 opacity-50",
+              day_disabled: "text-gray-400 opacity-50",
+              day_range_middle: "aria-selected:bg-blue-50 aria-selected:text-blue-900",
               day_hidden: "invisible",
             }}
           />
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      <div className="bg-card border border-border rounded-lg shadow-sm">
-        <div className="p-4 border-b border-border">
-          <h3 className="text-lg font-semibold text-card-foreground">
+      <Card className="shadow-lg border-0 bg-white">
+        <CardHeader className="bg-gradient-to-r from-green-600 to-green-700 text-white rounded-t-lg">
+          <CardTitle className="text-lg font-semibold">
             Jobs for {selectedDate.toLocaleDateString()}
-          </h3>
-        </div>
-        <div className="p-4">
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-6 bg-white">
           {loading ? (
             <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-              <p className="mt-2 text-muted-foreground">Loading jobs...</p>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-2 text-gray-600">Loading jobs...</p>
             </div>
           ) : jobs.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-muted-foreground">No jobs scheduled for this date</p>
+              <p className="text-gray-600">No jobs scheduled for this date</p>
             </div>
           ) : (
             <div className="space-y-4">
               {jobs.map((job) => (
-                <div key={job.id} className="bg-accent/50 rounded-lg p-4 border border-border">
+                <div key={job.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:shadow-md transition-shadow">
                   <div className="flex justify-between items-start mb-2">
                     <div>
-                      <h4 className="font-semibold text-foreground">{job.customer?.name || 'Customer'}</h4>
-                      <p className="text-sm text-muted-foreground">Job #{job.id.slice(0, 8)}</p>
+                      <h4 className="font-semibold text-gray-900">{job.customer?.name || 'Customer'}</h4>
+                      <p className="text-sm text-gray-600">Job #{job.id.slice(0, 8)}</p>
                     </div>
                     <div className="text-right">
                       {getStatusBadge(job.status)}
-                      <p className="text-sm font-bold text-foreground mt-1">${job.total_price}</p>
+                      <p className="text-sm font-bold text-green-600 mt-1">${job.total_price}</p>
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-1 gap-2 text-sm text-muted-foreground">
+                  <div className="grid grid-cols-1 gap-2 text-sm text-gray-600">
                     <div className="flex items-center space-x-2">
-                      <Clock className="h-4 w-4" />
+                      <Clock className="h-4 w-4 text-blue-600" />
                       <span>{formatTime(job.scheduled_at)} • {formatDuration(job.total_duration_minutes)}</span>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <MapPin className="h-4 w-4" />
+                      <MapPin className="h-4 w-4 text-red-600" />
                       <span className="truncate">{job.customer_address}</span>
                     </div>
                     {job.customer?.phone && (
                       <div className="flex items-center space-x-2">
-                        <User className="h-4 w-4" />
+                        <User className="h-4 w-4 text-green-600" />
                         <span>{job.customer.phone}</span>
                       </div>
                     )}
                   </div>
 
                   {job.special_instructions && (
-                    <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-yellow-800 text-sm">
+                    <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded text-yellow-800 text-sm">
                       <strong>Instructions:</strong> {job.special_instructions}
                     </div>
                   )}
@@ -191,8 +191,8 @@ const WorkerCalendar = ({ onDateSelect }: WorkerCalendarProps) => {
               ))}
             </div>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
