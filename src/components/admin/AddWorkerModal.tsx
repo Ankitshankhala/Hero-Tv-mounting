@@ -23,7 +23,13 @@ export const AddWorkerModal = ({ onClose, onWorkerAdded }: AddWorkerModalProps) 
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email) && !email.endsWith('@example.com');
+    const isValidFormat = emailRegex.test(email);
+    
+    // Only block obviously fake domains
+    const fakeDomains = ['example.com', 'test.com', 'fake.com', 'invalid.com'];
+    const hasFakeDomain = fakeDomains.some(domain => email.toLowerCase().endsWith('@' + domain));
+    
+    return isValidFormat && !hasFakeDomain;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -33,7 +39,7 @@ export const AddWorkerModal = ({ onClose, onWorkerAdded }: AddWorkerModalProps) 
     try {
       // Validate email format
       if (!validateEmail(formData.email)) {
-        throw new Error('Please use a valid email address (not example.com)');
+        throw new Error('Please use a valid email address with a real domain');
       }
 
       console.log('Creating worker with data:', {
@@ -138,7 +144,7 @@ export const AddWorkerModal = ({ onClose, onWorkerAdded }: AddWorkerModalProps) 
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 text-sm">
-              <strong>Note:</strong> Please use a real email address (not ending with @example.com) as Supabase validates email domains.
+              <strong>Note:</strong> Please use a real email address. Try using Gmail, Yahoo, or your company domain instead of test domains.
             </div>
 
             <WorkerPersonalInfoForm

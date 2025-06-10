@@ -30,9 +30,9 @@ export const WorkerPersonalInfoForm = ({ formData, onInputChange }: WorkerPerson
           value={formData.email}
           onChange={(e) => onInputChange('email', e.target.value)}
           required
-          placeholder="worker@company.com"
+          placeholder="worker@gmail.com"
         />
-        <p className="text-xs text-gray-500">Use a real email address (not @example.com)</p>
+        <p className="text-xs text-gray-500">Use Gmail, Yahoo, or your company domain (avoid test/fake domains)</p>
       </div>
       <div className="space-y-2">
         <Label htmlFor="phone">Phone Number</Label>
