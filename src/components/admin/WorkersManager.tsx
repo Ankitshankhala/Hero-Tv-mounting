@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +11,7 @@ import { AddWorkerModal } from './AddWorkerModal';
 import { WorkerApplicationsManager } from './WorkerApplicationsManager';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import GoogleCalendarIntegration from '@/components/GoogleCalendarIntegration';
 
 export const WorkersManager = () => {
   const [workers, setWorkers] = useState([]);
@@ -19,6 +19,7 @@ export const WorkersManager = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [showAddWorker, setShowAddWorker] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isCalendarConnected, setIsCalendarConnected] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -85,6 +86,11 @@ export const WorkersManager = () => {
 
   return (
     <div className="space-y-6">
+      {/* Google Calendar Integration Card */}
+      <GoogleCalendarIntegration 
+        onConnectionChange={(connected) => setIsCalendarConnected(connected)}
+      />
+
       <Tabs defaultValue="workers" className="w-full">
         <TabsList>
           <TabsTrigger value="workers">Current Workers</TabsTrigger>
@@ -97,6 +103,11 @@ export const WorkersManager = () => {
               <CardTitle className="flex items-center space-x-2">
                 <Wrench className="h-5 w-5" />
                 <span>Workers Management</span>
+                {isCalendarConnected && (
+                  <Badge variant="default" className="bg-green-600">
+                    Calendar Connected
+                  </Badge>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent>

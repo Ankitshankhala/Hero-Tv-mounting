@@ -11,6 +11,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useRealtimeBookings } from '@/hooks/useRealtimeBookings';
 import { useToast } from '@/hooks/use-toast';
+import GoogleCalendarIntegration from '@/components/GoogleCalendarIntegration';
+import BookingCalendarSync from '@/components/BookingCalendarSync';
 
 export const BookingsManager = () => {
   const [bookings, setBookings] = useState([]);
@@ -19,6 +21,7 @@ export const BookingsManager = () => {
   const [filterRegion, setFilterRegion] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [isCalendarConnected, setIsCalendarConnected] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -141,6 +144,11 @@ export const BookingsManager = () => {
 
   return (
     <div className="space-y-6">
+      {/* Google Calendar Integration Card */}
+      <GoogleCalendarIntegration 
+        onConnectionChange={(connected) => setIsCalendarConnected(connected)}
+      />
+
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -255,6 +263,28 @@ export const BookingsManager = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Calendar sync components for all bookings when calendar is connected */}
+      {isCalendarConnected && filteredBookings.map((booking) => (
+        <BookingCalendarSync
+          key={booking.id}
+          booking={{
+            id: booking.id,
+            service: `${formatServices(booking.services)} - Admin View`,
+            date: new Date(booking.scheduled_at).toISOString().split('T')[0],
+            time: new Date(booking.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            address: booking.customer_address,
+            worker: booking.worker?.name || 'Unassigned',
+            status: booking.status
+          }}
+          action="create"
+          onEventCreated={(eventId) => {
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`Admin calendar event created for booking ${booking.id}: ${eventId}`);
+            }
+          }}
+        />
+      ))}
     </div>
   );
 };
