@@ -99,7 +99,10 @@ export const WorkersManager = () => {
                 onAddWorker={() => setShowAddWorker(true)}
               />
 
-              <WorkerTable workers={filteredWorkers} />
+              <WorkerTable 
+                workers={filteredWorkers} 
+                onWorkerUpdate={fetchWorkers}
+              />
             </CardContent>
           </Card>
         </TabsContent>
