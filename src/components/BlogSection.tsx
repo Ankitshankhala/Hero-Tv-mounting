@@ -39,7 +39,7 @@ export const BlogSection = () => {
           {proTips.map((tip) => (
             <div key={tip.id} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Video Card */}
-              <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl overflow-hidden border border-slate-700 h-[400px]">
+              <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl overflow-hidden border border-slate-700 h-80">
                 <div className="relative h-full bg-slate-900">
                   <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 to-purple-600/20" />
                   <div className="absolute inset-0 flex items-center justify-center">
@@ -52,14 +52,14 @@ export const BlogSection = () => {
                       </svg>
                     </div>
                   </div>
-                  <div className="absolute bottom-4 left-4 right-4">
+                  <div className="absolute bottom-6 left-6 right-6">
                     <div className="text-white text-sm opacity-75">Watch Expert Tips</div>
                   </div>
                 </div>
               </div>
               
               {/* Text Card */}
-              <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700 p-8 flex flex-col justify-center h-[400px]">
+              <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700 p-8 flex flex-col justify-center h-80">
                 <h3 className="text-2xl md:text-3xl font-bold text-white mb-6">
                   {tip.title}
                 </h3>

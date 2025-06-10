@@ -69,7 +69,7 @@ export const ReviewsSection = () => {
                   key={review.id} 
                   className="bg-slate-800/50 backdrop-blur-sm rounded-xl overflow-hidden border border-slate-700"
                 >
-                  <div className="grid grid-cols-2 h-64">
+                  <div className="grid grid-cols-2 h-80">
                     {/* Image Section */}
                     <div className="relative">
                       <img 
@@ -81,14 +81,14 @@ export const ReviewsSection = () => {
                     </div>
                     
                     {/* Text Section */}
-                    <div className="p-6 flex flex-col justify-center">
+                    <div className="p-8 flex flex-col justify-center">
                       <div className="flex items-center mb-4">
                         {[...Array(review.rating)].map((_, i) => (
                           <Star key={i} className="h-5 w-5 fill-yellow-400 text-yellow-400" />
                         ))}
                       </div>
                       
-                      <ScrollArea className="flex-1 mb-4">
+                      <ScrollArea className="flex-1 mb-6">
                         <blockquote className="text-lg text-white leading-relaxed pr-4">
                           "{review.quote}"
                         </blockquote>
@@ -114,7 +114,7 @@ export const ReviewsSection = () => {
                 <CarouselItem key={review.id}>
                   <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl overflow-hidden border border-slate-700">
                     {/* Mobile: Stack image on top, text below */}
-                    <div className="relative h-48">
+                    <div className="relative h-64">
                       <img 
                         src={review.image} 
                         alt={`Customer ${review.name} installation`}
@@ -130,7 +130,7 @@ export const ReviewsSection = () => {
                         ))}
                       </div>
                       
-                      <ScrollArea className="h-32 mb-4">
+                      <ScrollArea className="h-32 mb-6">
                         <blockquote className="text-base text-white leading-relaxed pr-4">
                           "{review.quote}"
                         </blockquote>
