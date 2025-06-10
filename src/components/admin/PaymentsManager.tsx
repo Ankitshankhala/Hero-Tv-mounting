@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,10 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CreditCard, DollarSign, RefreshCw } from 'lucide-react';
+import PaymentDetailsModal from './PaymentDetailsModal';
 
 export const PaymentsManager = () => {
   const [filterType, setFilterType] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedPayment, setSelectedPayment] = useState<any>(null);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
   const payments = [
     {
@@ -62,6 +64,19 @@ export const PaymentsManager = () => {
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.completed;
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
+
+  const handleViewDetails = (payment: any) => {
+    setSelectedPayment(payment);
+    setIsDetailsModalOpen(true);
+  };
+
+  const filteredPayments = payments.filter(payment => {
+    const matchesFilter = filterType === 'all' || payment.status === filterType;
+    const matchesSearch = payment.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         payment.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         payment.bookingId.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesFilter && matchesSearch;
+  });
 
   return (
     <div className="space-y-6">
@@ -154,7 +169,7 @@ export const PaymentsManager = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {payments.map((payment) => (
+                {filteredPayments.map((payment) => (
                   <TableRow key={payment.id}>
                     <TableCell className="font-medium">{payment.id}</TableCell>
                     <TableCell>
@@ -170,7 +185,11 @@ export const PaymentsManager = () => {
                     <TableCell>{getStatusBadge(payment.status)}</TableCell>
                     <TableCell>{payment.date}</TableCell>
                     <TableCell>
-                      <Button variant="outline" size="sm">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleViewDetails(payment)}
+                      >
                         View Details
                       </Button>
                     </TableCell>
@@ -181,6 +200,12 @@ export const PaymentsManager = () => {
           </div>
         </CardContent>
       </Card>
+
+      <PaymentDetailsModal
+        isOpen={isDetailsModalOpen}
+        onClose={() => setIsDetailsModalOpen(false)}
+        payment={selectedPayment}
+      />
     </div>
   );
 };
