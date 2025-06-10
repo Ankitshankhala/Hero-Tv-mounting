@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +13,7 @@ import WorkerDashboardHeader from '@/components/worker/WorkerDashboardHeader';
 import WorkerDashboardStats from '@/components/worker/WorkerDashboardStats';
 import WorkerJobCard from '@/components/worker/WorkerJobCard';
 import WorkerCalendar from '@/components/worker/WorkerCalendar';
+import WorkerScheduleManager from '@/components/worker/WorkerScheduleManager';
 import type { Database } from '@/integrations/supabase/types';
 
 type BookingStatus = Database['public']['Enums']['booking_status'];
@@ -211,9 +213,10 @@ const WorkerDashboard = () => {
         />
 
         <Tabs defaultValue="jobs" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 bg-slate-800 border-slate-700">
+          <TabsList className="grid w-full grid-cols-3 bg-slate-800 border-slate-700">
             <TabsTrigger value="jobs" className="text-white data-[state=active]:bg-slate-700">My Jobs</TabsTrigger>
             <TabsTrigger value="calendar" className="text-white data-[state=active]:bg-slate-700">Calendar</TabsTrigger>
+            <TabsTrigger value="schedule" className="text-white data-[state=active]:bg-slate-700">Set Schedule</TabsTrigger>
           </TabsList>
           
           <TabsContent value="jobs" className="mt-6">
@@ -244,6 +247,10 @@ const WorkerDashboard = () => {
           
           <TabsContent value="calendar" className="mt-6">
             <WorkerCalendar />
+          </TabsContent>
+          
+          <TabsContent value="schedule" className="mt-6">
+            <WorkerScheduleManager onScheduleUpdate={fetchWorkerJobs} />
           </TabsContent>
         </Tabs>
       </div>

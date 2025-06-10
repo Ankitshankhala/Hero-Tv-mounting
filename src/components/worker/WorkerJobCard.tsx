@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Calendar, MapPin, Clock, Phone, Edit, AlertCircle, X } from 'lucide-react';
+import { Calendar, MapPin, Clock, Phone, Edit, AlertCircle, X, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import InvoiceModificationModal from './InvoiceModificationModal';
 import CancellationModal from './CancellationModal';
+import OnSiteChargeModal from './OnSiteChargeModal';
 
 interface WorkerJobCardProps {
   job: any;
@@ -16,6 +17,7 @@ interface WorkerJobCardProps {
 const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJobCardProps) => {
   const [showModifyModal, setShowModifyModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showChargeModal, setShowChargeModal] = useState(false);
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
@@ -74,7 +76,14 @@ const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJobCardPro
     }
   };
 
+  const handleChargeSuccess = () => {
+    // Refresh the job data
+    window.location.reload();
+  };
+
   const canCancelJob = job.status === 'confirmed' || job.status === 'pending';
+
+  const canAddCharges = job.status === 'in_progress' || job.status === 'confirmed';
 
   return (
     <>
@@ -161,6 +170,17 @@ const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJobCardPro
               >
                 Get Directions
               </Button>
+              {canAddCharges && (
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => setShowChargeModal(true)}
+                  className="text-green-400 border-green-400 hover:bg-green-400 hover:text-white"
+                >
+                  <CreditCard className="h-4 w-4 mr-1" />
+                  Add Charge
+                </Button>
+              )}
               <Button 
                 size="sm" 
                 variant="outline"
@@ -213,6 +233,13 @@ const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJobCardPro
         onClose={() => setShowCancelModal(false)}
         job={job}
         onCancellationSuccess={handleCancellationSuccess}
+      />
+
+      <OnSiteChargeModal
+        isOpen={showChargeModal}
+        onClose={() => setShowChargeModal(false)}
+        job={job}
+        onChargeSuccess={handleChargeSuccess}
       />
     </>
   );

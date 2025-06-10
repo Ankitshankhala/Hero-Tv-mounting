@@ -18,6 +18,9 @@ export type Database = {
           customer_id: string | null
           has_modifications: boolean | null
           id: string
+          late_fee_amount: number | null
+          late_fee_applied: boolean | null
+          late_fee_applied_at: string | null
           pending_payment_amount: number | null
           scheduled_at: string
           services: Json
@@ -38,6 +41,9 @@ export type Database = {
           customer_id?: string | null
           has_modifications?: boolean | null
           id?: string
+          late_fee_amount?: number | null
+          late_fee_applied?: boolean | null
+          late_fee_applied_at?: string | null
           pending_payment_amount?: number | null
           scheduled_at: string
           services: Json
@@ -58,6 +64,9 @@ export type Database = {
           customer_id?: string | null
           has_modifications?: boolean | null
           id?: string
+          late_fee_amount?: number | null
+          late_fee_applied?: boolean | null
+          late_fee_applied_at?: string | null
           pending_payment_amount?: number | null
           scheduled_at?: string
           services?: Json
@@ -134,6 +143,60 @@ export type Database = {
           },
           {
             foreignKeyName: "invoice_modifications_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      on_site_charges: {
+        Row: {
+          amount: number
+          booking_id: string | null
+          charged_at: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          service_name: string
+          status: string | null
+          stripe_payment_id: string | null
+          worker_id: string | null
+        }
+        Insert: {
+          amount: number
+          booking_id?: string | null
+          charged_at?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          service_name: string
+          status?: string | null
+          stripe_payment_id?: string | null
+          worker_id?: string | null
+        }
+        Update: {
+          amount?: number
+          booking_id?: string | null
+          charged_at?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          service_name?: string
+          status?: string | null
+          stripe_payment_id?: string | null
+          worker_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "on_site_charges_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "on_site_charges_worker_id_fkey"
             columns: ["worker_id"]
             isOneToOne: false
             referencedRelation: "users"
@@ -391,11 +454,59 @@ export type Database = {
           },
         ]
       }
+      worker_schedules: {
+        Row: {
+          created_at: string | null
+          date: string
+          end_time: string
+          id: string
+          is_available: boolean | null
+          notes: string | null
+          start_time: string
+          updated_at: string | null
+          worker_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          date: string
+          end_time: string
+          id?: string
+          is_available?: boolean | null
+          notes?: string | null
+          start_time: string
+          updated_at?: string | null
+          worker_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          date?: string
+          end_time?: string
+          id?: string
+          is_available?: boolean | null
+          notes?: string | null
+          start_time?: string
+          updated_at?: string | null
+          worker_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "worker_schedules_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      apply_late_cancellation_fee: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -406,6 +517,17 @@ export type Database = {
           reassigned_worker_id: string
           success: boolean
         }[]
+      }
+      upsert_worker_schedule: {
+        Args: {
+          p_worker_id: string
+          p_date: string
+          p_start_time: string
+          p_end_time: string
+          p_is_available?: boolean
+          p_notes?: string
+        }
+        Returns: string
       }
     }
     Enums: {
