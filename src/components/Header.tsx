@@ -23,7 +23,7 @@ export const Header = () => {
                   <Button 
                     variant="outline"
                     size="sm"
-                    className="flex items-center space-x-2 text-white border-white hover:bg-white hover:text-slate-900 transition-colors"
+                    className="flex items-center space-x-2 bg-slate-800 text-white border-slate-600 hover:bg-white hover:text-slate-900 transition-colors"
                   >
                     <Briefcase className="h-4 w-4" />
                     <span>Dashboard</span>
@@ -35,7 +35,7 @@ export const Header = () => {
                   <Button 
                     variant="outline"
                     size="sm"
-                    className="flex items-center space-x-2 text-white border-white hover:bg-white hover:text-slate-900 transition-colors"
+                    className="flex items-center space-x-2 bg-slate-800 text-white border-slate-600 hover:bg-white hover:text-slate-900 transition-colors"
                   >
                     <Shield className="h-4 w-4" />
                     <span>Admin</span>
@@ -46,7 +46,7 @@ export const Header = () => {
                 onClick={handleLogout}
                 variant="outline"
                 size="sm"
-                className="flex items-center space-x-2 text-white border-white hover:bg-white hover:text-slate-900 transition-colors"
+                className="flex items-center space-x-2 bg-slate-800 text-white border-slate-600 hover:bg-white hover:text-slate-900 transition-colors"
               >
                 <LogOut className="h-4 w-4" />
                 <span>Logout</span>
