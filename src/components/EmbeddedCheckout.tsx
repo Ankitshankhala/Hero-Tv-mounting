@@ -68,13 +68,22 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
       console.log('Creating unpaid booking...');
       const scheduledAt = new Date(`${formData.date}T${formData.time}:00`).toISOString();
       
+      // Convert cart to JSON format compatible with database
+      const servicesJson = cart.map(item => ({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        options: item.options || {}
+      }));
+      
       // Create the booking directly without payment
       const { data: booking, error: bookingError } = await supabase
         .from('bookings')
         .insert({
           customer_address: formData.address,
           scheduled_at: scheduledAt,
-          services: cart,
+          services: servicesJson as any,
           total_price: total,
           total_duration_minutes: calculateTotalDuration(),
           special_instructions: formData.specialInstructions,

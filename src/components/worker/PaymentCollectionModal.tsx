@@ -59,14 +59,14 @@ const PaymentCollectionModal = ({ isOpen, onClose, job, onPaymentCollected }: Pa
         console.log('Online payment processed:', data);
       }
 
-      // Record the payment transaction
+      // Record the payment transaction - using 'success' instead of 'completed'
       const { error: transactionError } = await supabase
         .from('transactions')
         .insert({
           booking_id: job.id,
           amount: parseFloat(amount),
           payment_method: paymentMethod,
-          status: 'completed',
+          status: 'success',
           processed_at: new Date().toISOString()
         });
 
