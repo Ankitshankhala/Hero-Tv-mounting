@@ -20,6 +20,7 @@ const Book = () => {
     address: '',
     city: '',
     region: '',
+    zipcode: '',
     specialInstructions: '',
     customerName: '',
     customerEmail: '',
