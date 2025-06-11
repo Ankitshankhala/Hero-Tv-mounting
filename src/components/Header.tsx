@@ -1,82 +1,35 @@
 
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React from 'react';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/hooks/useAuth';
-import { AuthModal } from './auth/AuthModal';
 
 const Header = () => {
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const { user, profile, signOut } = useAuth();
-  const navigate = useNavigate();
-
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/');
-  };
-
-  const handleDashboardClick = () => {
-    if (profile?.role === 'admin') {
-      navigate('/admin');
-    } else if (profile?.role === 'worker') {
-      navigate('/worker');
-    } else {
-      navigate('/customer');
-    }
-  };
-
   return (
-    <>
-      <header className="bg-white shadow-sm border-b">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link to="/" className="text-2xl font-bold text-blue-600">
-            HandyConnect
-          </Link>
-          
-          <nav className="hidden md:flex items-center space-x-6">
-            <Link to="/" className="text-gray-600 hover:text-blue-600">
-              Home
-            </Link>
-            <Link to="/book" className="text-gray-600 hover:text-blue-600">
-              Book Service
-            </Link>
-            <Link to="/worker-application" className="text-gray-600 hover:text-blue-600">
-              Join as Worker
-            </Link>
-          </nav>
-          
-          <div className="flex items-center space-x-4">
-            {user ? (
-              <>
-                <Button 
-                  variant="outline" 
-                  onClick={handleDashboardClick}
-                >
-                  Dashboard
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  onClick={handleSignOut}
-                >
-                  Sign Out
-                </Button>
-              </>
-            ) : (
-              <Button 
-                onClick={() => setShowAuthModal(true)}
-              >
-                Sign In
-              </Button>
-            )}
+    <header className="bg-slate-900 text-white py-3">
+      <div className="container mx-auto px-4 flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center">
+              <span className="text-white text-xl">★</span>
+            </div>
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              Hero TV Mounting
+            </h1>
+          </div>
+          <div className="text-blue-400 font-semibold">
+            +1 737-272-9971
           </div>
         </div>
-      </header>
-
-      <AuthModal 
-        open={showAuthModal} 
-        onOpenChange={setShowAuthModal} 
-      />
-    </>
+        
+        <div className="flex items-center space-x-2">
+          <Button className="bg-green-600 hover:bg-green-700 text-white">
+            Worker Login
+          </Button>
+          <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+            Admin
+          </Button>
+        </div>
+      </div>
+    </header>
   );
 };
 
