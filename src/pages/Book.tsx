@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { AvailabilityCalendar } from '@/components/AvailabilityCalendar';
+import { CalendarView } from '@/components/booking/CalendarView';
 import { BookingProgress } from '@/components/booking/BookingProgress';
 import { ServiceSelection } from '@/components/booking/ServiceSelection';
 import { LocationForm } from '@/components/booking/LocationForm';
@@ -67,13 +67,6 @@ const Book = () => {
     setBookingData(prev => ({ ...prev, ...updates }));
   };
 
-  // Convert cart items to services format for availability calendar
-  const selectedServices = cart.map(item => ({
-    id: item.id,
-    name: item.name,
-    duration_minutes: 120 // Default duration, you might want to fetch this from services
-  }));
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <header className="bg-slate-800/50 border-b border-slate-700">
@@ -112,18 +105,17 @@ const Book = () => {
         )}
 
         {step === 3 && (
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-6xl mx-auto">
             <div className="text-center mb-8">
               <h2 className="text-3xl font-bold text-white mb-4">Choose Your Appointment Time</h2>
-              <p className="text-slate-300">Select from available time slots in your area</p>
+              <p className="text-slate-300">Select from available time slots. Red blocks show existing bookings in your area.</p>
             </div>
             
-            <AvailabilityCalendar
+            <CalendarView
               selectedRegion={bookingData.region}
-              selectedServices={selectedServices}
-              onDateTimeSelect={handleDateTimeSelect}
               selectedDate={bookingData.date}
               selectedTime={bookingData.time}
+              onDateTimeSelect={handleDateTimeSelect}
             />
 
             <div className="mt-8 flex space-x-4 max-w-2xl mx-auto">
