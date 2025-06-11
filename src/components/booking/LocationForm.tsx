@@ -6,13 +6,15 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
+interface BookingData {
+  address: string;
+  city: string;
+  region: string;
+}
+
 interface LocationFormProps {
-  bookingData: {
-    address: string;
-    city: string;
-    region: string;
-  };
-  onUpdateBookingData: (updates: Partial<typeof bookingData>) => void;
+  bookingData: BookingData;
+  onUpdateBookingData: (updates: Partial<BookingData>) => void;
   onBack: () => void;
   onContinue: () => void;
 }

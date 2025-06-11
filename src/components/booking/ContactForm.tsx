@@ -7,18 +7,20 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
+interface BookingData {
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  specialInstructions: string;
+  date: string;
+  time: string;
+  address: string;
+  city: string;
+}
+
 interface ContactFormProps {
-  bookingData: {
-    customerName: string;
-    customerEmail: string;
-    customerPhone: string;
-    specialInstructions: string;
-    date: string;
-    time: string;
-    address: string;
-    city: string;
-  };
-  onUpdateBookingData: (updates: Partial<typeof bookingData>) => void;
+  bookingData: BookingData;
+  onUpdateBookingData: (updates: Partial<BookingData>) => void;
   onBack: () => void;
   onSubmit: () => void;
   getTotalPrice: () => number;
