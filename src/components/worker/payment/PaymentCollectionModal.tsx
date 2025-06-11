@@ -4,11 +4,11 @@ import { useForm, FormProvider } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { X } from 'lucide-react';
-import PaymentJobSummary from './payment/PaymentJobSummary';
-import PaymentMethodSelector from './payment/PaymentMethodSelector';
-import PaymentAmountInput from './payment/PaymentAmountInput';
-import PaymentNotesInput from './payment/PaymentNotesInput';
-import { usePaymentProcessing } from './payment/usePaymentProcessing';
+import PaymentJobSummary from './PaymentJobSummary';
+import PaymentMethodSelector from './PaymentMethodSelector';
+import PaymentAmountInput from './PaymentAmountInput';
+import PaymentNotesInput from './PaymentNotesInput';
+import { usePaymentProcessing } from './usePaymentProcessing';
 
 interface PaymentCollectionModalProps {
   isOpen: boolean;
