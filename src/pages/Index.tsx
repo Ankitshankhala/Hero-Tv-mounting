@@ -5,6 +5,7 @@ import { ServicesSection } from '@/components/ServicesSection';
 import { ReviewsSection } from '@/components/ReviewsSection';
 import { BlogSection } from '@/components/BlogSection';
 import { Cart } from '@/components/Cart';
+import { InlineBookingFlow } from '@/components/InlineBookingFlow';
 import { CheckoutModal } from '@/components/CheckoutModal';
 import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/hooks/use-toast';
@@ -27,6 +28,7 @@ export interface CartItem {
 const Index = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [isBookingFlowOpen, setIsBookingFlowOpen] = useState(false);
   const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -74,6 +76,10 @@ const Index = () => {
     return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   };
 
+  const handleBookNow = () => {
+    setIsBookingFlowOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <Header />
@@ -90,6 +96,14 @@ const Index = () => {
             onCheckout={() => setIsCheckoutOpen(true)}
             onRemoveItem={removeFromCart}
             highlightedItemId={highlightedItemId}
+            onBook={handleBookNow}
+          />
+        )}
+        
+        {isBookingFlowOpen && (
+          <InlineBookingFlow
+            cart={cart}
+            onClose={() => setIsBookingFlowOpen(false)}
           />
         )}
         

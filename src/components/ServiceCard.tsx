@@ -1,7 +1,6 @@
 
 import React, { useState } from 'react';
 import { Plus, Check } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 
 interface ServiceCardProps {
   id: string;
@@ -9,17 +8,22 @@ interface ServiceCardProps {
   price: number;
   image: string;
   description: string;
+  onAddToCart: (item: any) => void;
 }
 
-export const ServiceCard: React.FC<ServiceCardProps> = ({ id, name, price, image, description }) => {
+export const ServiceCard: React.FC<ServiceCardProps> = ({ id, name, price, image, description, onAddToCart }) => {
   const [isClicked, setIsClicked] = useState(false);
-  const navigate = useNavigate();
 
   const handleClick = () => {
     setIsClicked(true);
     
-    // Navigate to booking page
-    navigate('/book');
+    // Add to cart instead of navigating
+    onAddToCart({
+      id,
+      name,
+      price,
+      quantity: 1
+    });
     
     setTimeout(() => setIsClicked(false), 1000);
   };

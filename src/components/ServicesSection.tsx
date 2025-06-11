@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { ServiceCard } from './ServiceCard';
 import { TvMountingModal } from './TvMountingModal';
@@ -77,6 +76,19 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ onAddToCart })
     }
   ];
 
+  const handleServiceClick = (service: any) => {
+    if (service.id === 'tv-mounting') {
+      setIsTvMountingModalOpen(true);
+    } else {
+      onAddToCart({
+        id: service.id,
+        name: service.name,
+        price: service.price,
+        quantity: 1
+      });
+    }
+  };
+
   return (
     <section className="py-16 bg-slate-800/50">
       <div className="container mx-auto px-4">
@@ -95,6 +107,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ onAddToCart })
               price={service.price}
               image={service.image}
               description={service.description}
+              onAddToCart={() => handleServiceClick(service)}
             />
           ))}
         </div>
