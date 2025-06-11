@@ -15,7 +15,7 @@ interface UseSupabaseQueryOptions {
   enabled?: boolean;
 }
 
-export const useSupabaseQuery = <T = any>(options: UseSupabaseQueryOptions) => {
+export const useSupabaseQuery = (options: UseSupabaseQueryOptions) => {
   const { 
     table, 
     select = '*', 
@@ -25,7 +25,7 @@ export const useSupabaseQuery = <T = any>(options: UseSupabaseQueryOptions) => {
     enabled = true 
   } = options;
   
-  const [data, setData] = useState<T | T[] | null>(null);
+  const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
@@ -82,7 +82,7 @@ export const useSupabaseQuery = <T = any>(options: UseSupabaseQueryOptions) => {
         return;
       }
 
-      setData(result as T | T[]);
+      setData(result);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
       console.error('Query execution error:', err);
