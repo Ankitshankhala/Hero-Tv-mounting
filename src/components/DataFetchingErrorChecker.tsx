@@ -145,50 +145,38 @@ export const DataFetchingErrorChecker = () => {
     try {
       console.log('Testing RLS policies...');
       
-      // Check if RLS is enabled on key tables
-      const { data: rlsData, error: rlsError } = await supabase
-        .rpc('get_rls_status', {})
-        .single();
+      // Test access patterns that would reveal RLS issues
+      const tests = [
+        { table: 'services', shouldWork: true },
+        { table: 'users', shouldWork: !!user },
+        { table: 'bookings', shouldWork: !!user }
+      ];
 
-      if (rlsError) {
-        // RLS check function doesn't exist, so we'll check differently
-        console.log('RLS function not available, checking table access patterns...');
-        
-        // Test access patterns that would reveal RLS issues
-        const tests = [
-          { table: 'services', shouldWork: true },
-          { table: 'users', shouldWork: !!user },
-          { table: 'bookings', shouldWork: !!user }
-        ];
-
-        let rlsIssues = [];
-        
-        for (const test of tests) {
-          try {
-            const { error } = await supabase
-              .from(test.table as any)
-              .select('id')
-              .limit(1);
-            
-            if (error && error.message.includes('row-level security')) {
-              if (test.shouldWork) {
-                rlsIssues.push(`${test.table}: RLS blocking expected access`);
-              }
-            } else if (!error && !test.shouldWork) {
-              rlsIssues.push(`${test.table}: RLS not protecting unauthorized access`);
+      let rlsIssues = [];
+      
+      for (const test of tests) {
+        try {
+          const { error } = await supabase
+            .from(test.table as any)
+            .select('id')
+            .limit(1);
+          
+          if (error && error.message.includes('row-level security')) {
+            if (test.shouldWork) {
+              rlsIssues.push(`${test.table}: RLS blocking expected access`);
             }
-          } catch (e) {
-            rlsIssues.push(`${test.table}: Access test failed`);
+          } else if (!error && !test.shouldWork) {
+            rlsIssues.push(`${test.table}: RLS not protecting unauthorized access`);
           }
+        } catch (e) {
+          rlsIssues.push(`${test.table}: Access test failed`);
         }
+      }
 
-        if (rlsIssues.length > 0) {
-          updateTestResult('RLS Policies Check', 'error', 'RLS issues detected', rlsIssues.join('; '));
-        } else {
-          updateTestResult('RLS Policies Check', 'success', undefined, 'RLS policies appear to be working correctly');
-        }
+      if (rlsIssues.length > 0) {
+        updateTestResult('RLS Policies Check', 'error', 'RLS issues detected', rlsIssues.join('; '));
       } else {
-        updateTestResult('RLS Policies Check', 'success', undefined, 'RLS status check completed');
+        updateTestResult('RLS Policies Check', 'success', undefined, 'RLS policies appear to be working correctly');
       }
     } catch (error) {
       console.error('RLS check exception:', error);

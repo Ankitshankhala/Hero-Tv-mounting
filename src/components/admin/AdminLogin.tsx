@@ -8,7 +8,7 @@ import { Lock, User } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 interface AdminLoginProps {
-  onLogin: () => void;
+  onLogin?: () => void;
 }
 
 export const AdminLogin = ({ onLogin }: AdminLoginProps) => {
@@ -35,7 +35,9 @@ export const AdminLogin = ({ onLogin }: AdminLoginProps) => {
         console.log('Login successful');
         // Small delay to ensure auth state is updated
         setTimeout(() => {
-          onLogin();
+          if (onLogin) {
+            onLogin();
+          }
           // Force a page reload to ensure clean state
           window.location.reload();
         }, 100);
