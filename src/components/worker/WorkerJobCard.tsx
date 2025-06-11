@@ -8,6 +8,7 @@ import JobActions from './JobActions';
 import InvoiceModificationModal from './InvoiceModificationModal';
 import CancellationModal from './CancellationModal';
 import OnSiteChargeModal from './OnSiteChargeModal';
+import PaymentCollectionModal from './PaymentCollectionModal';
 
 interface WorkerJobCardProps {
   job: any;
@@ -19,6 +20,7 @@ const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJobCardPro
   const [showModifyModal, setShowModifyModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showChargeModal, setShowChargeModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   const handleModificationCreated = () => {
     // Refresh the job data or trigger a re-fetch
@@ -36,6 +38,11 @@ const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJobCardPro
     window.location.reload();
   };
 
+  const handlePaymentCollected = () => {
+    // Refresh the job data
+    window.location.reload();
+  };
+
   return (
     <>
       <Card className="bg-slate-700 border-slate-600">
@@ -49,6 +56,7 @@ const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJobCardPro
             onModifyClick={() => setShowModifyModal(true)}
             onCancelClick={() => setShowCancelModal(true)}
             onChargeClick={() => setShowChargeModal(true)}
+            onCollectPaymentClick={() => setShowPaymentModal(true)}
           />
         </CardContent>
       </Card>
@@ -72,6 +80,13 @@ const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJobCardPro
         onClose={() => setShowChargeModal(false)}
         job={job}
         onChargeSuccess={handleChargeSuccess}
+      />
+
+      <PaymentCollectionModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        job={job}
+        onPaymentCollected={handlePaymentCollected}
       />
     </>
   );

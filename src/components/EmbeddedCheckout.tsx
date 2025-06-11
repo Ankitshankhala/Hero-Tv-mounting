@@ -4,11 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent } from '@/components/ui/card';
-import { X, MapPin, Clock, User, Mail, Phone, CreditCard, RefreshCw } from 'lucide-react';
+import { X, MapPin, Clock, User, Mail, Phone } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { StripeCardElement } from '@/components/StripeCardElement';
 import type { CartItem } from '@/pages/Index';
 
 interface EmbeddedCheckoutProps {
@@ -30,13 +28,6 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
     specialInstructions: ''
   });
   const [isProcessing, setIsProcessing] = useState(false);
-  const [paymentStep, setPaymentStep] = useState<'details' | 'payment'>('details');
-  const [stripe, setStripe] = useState<any>(null);
-  const [cardElement, setCardElement] = useState<any>(null);
-  const [cardError, setCardError] = useState<string>('');
-  const [stripeReady, setStripeReady] = useState(false);
-  const [stripeError, setStripeError] = useState<string>('');
-  const [paymentAttempted, setPaymentAttempted] = useState(false);
   const { toast } = useToast();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -59,7 +50,7 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
     }, 0);
   };
 
-  const handleDetailsSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.name || !formData.email || !formData.phone || !formData.address || !formData.date || !formData.time) {
@@ -71,162 +62,93 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
       return;
     }
 
-    console.log('Moving to payment step');
-    setPaymentStep('payment');
-    setStripeError('');
-    setPaymentAttempted(false);
-  };
-
-  const handleStripeReady = (stripeInstance: any, elements: any, cardElementInstance: any) => {
-    console.log('Stripe ready callback triggered');
-    setStripe(stripeInstance);
-    setCardElement(cardElementInstance);
-    setStripeReady(true);
-    setStripeError('');
-  };
-
-  const handleCardError = (error: string) => {
-    setCardError(error);
-    if (error) {
-      setStripeError(error);
-    }
-  };
-
-  const retryStripeInitialization = () => {
-    setStripeError('');
-    setStripeReady(false);
-    setStripe(null);
-    setCardElement(null);
-    setPaymentAttempted(false);
-    // Force re-render of StripeCardElement by toggling paymentStep
-    setPaymentStep('details');
-    setTimeout(() => setPaymentStep('payment'), 100);
-  };
-
-  const handlePaymentSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    console.log('Payment submit triggered', { 
-      stripe: !!stripe, 
-      cardElement: !!cardElement, 
-      stripeReady,
-      isProcessing,
-      paymentAttempted
-    });
-    
-    // Prevent duplicate submissions
-    if (isProcessing || paymentAttempted) {
-      console.log('Payment already in progress or attempted, preventing duplicate submission');
-      return;
-    }
-
-    if (!stripe || !cardElement || !stripeReady) {
-      toast({
-        title: "Payment Error",
-        description: "Payment system is not ready. Please wait a moment and try again.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsProcessing(true);
-    setPaymentAttempted(true);
-    setCardError('');
-
-    const timeoutId = setTimeout(() => {
-      if (isProcessing) {
-        setIsProcessing(false);
-        setPaymentAttempted(false);
-        toast({
-          title: "Payment Timeout",
-          description: "Payment is taking too long. Please try again.",
-          variant: "destructive",
-        });
-      }
-    }, 30000); // 30 second timeout
 
     try {
-      console.log('Creating payment intent...');
+      console.log('Creating unpaid booking...');
       const scheduledAt = new Date(`${formData.date}T${formData.time}:00`).toISOString();
       
-      const bookingData = {
-        address: formData.address,
-        scheduledAt,
-        services: cart,
-        totalPrice: total,
-        totalDuration: calculateTotalDuration(),
-        specialInstructions: formData.specialInstructions,
-        zipcode: formData.zipcode,
-        latitude: null,
-        longitude: null
-      };
+      // Create the booking directly without payment
+      const { data: booking, error: bookingError } = await supabase
+        .from('bookings')
+        .insert({
+          customer_address: formData.address,
+          scheduled_at: scheduledAt,
+          services: cart,
+          total_price: total,
+          total_duration_minutes: calculateTotalDuration(),
+          special_instructions: formData.specialInstructions,
+          customer_zipcode: formData.zipcode,
+          customer_latitude: null,
+          customer_longitude: null,
+          status: 'pending',
+          pending_payment_amount: total
+        })
+        .select()
+        .single();
 
-      // Create payment intent
-      const { data, error } = await supabase.functions.invoke('create-payment-intent', {
-        body: {
-          bookingData,
-          customerEmail: formData.email,
-          customerName: formData.name
-        }
-      });
-
-      if (error) {
-        console.error('Payment intent error:', error);
-        throw new Error(error.message || 'Failed to create payment intent');
+      if (bookingError) {
+        console.error('Booking creation error:', bookingError);
+        throw new Error(bookingError.message || 'Failed to create booking');
       }
 
-      if (!data?.client_secret) {
-        throw new Error('No client secret received from payment intent');
-      }
+      // Create or update user record
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', formData.email)
+        .single();
 
-      console.log('Payment intent created, confirming with card...');
+      let userId = existingUser?.id;
 
-      // Confirm payment with card
-      const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(data.client_secret, {
-        payment_method: {
-          card: cardElement,
-          billing_details: {
+      if (!existingUser) {
+        const { data: newUser, error: userError } = await supabase
+          .from('users')
+          .insert({
             name: formData.name,
             email: formData.email,
-          },
+            phone: formData.phone,
+            zipcode: formData.zipcode
+          })
+          .select('id')
+          .single();
+
+        if (userError) {
+          console.warn('User creation failed:', userError);
+        } else {
+          userId = newUser.id;
         }
-      });
-
-      if (confirmError) {
-        console.error('Payment confirmation error:', confirmError);
-        throw new Error(confirmError.message || 'Payment confirmation failed');
       }
 
-      if (paymentIntent?.status === 'succeeded') {
-        console.log('Payment successful');
-        clearTimeout(timeoutId);
-        
-        toast({
-          title: "Payment Successful",
-          description: "Your booking has been confirmed!",
-        });
-
-        // Small delay to show success message before closing
-        setTimeout(() => {
-          onSuccess();
-          onClose();
-        }, 1000);
-      } else {
-        throw new Error('Payment was not successful');
+      // Update booking with customer_id if we have one
+      if (userId) {
+        await supabase
+          .from('bookings')
+          .update({ customer_id: userId })
+          .eq('id', booking.id);
       }
 
-    } catch (error: any) {
-      console.error('Payment error:', error);
-      clearTimeout(timeoutId);
+      console.log('Booking created successfully');
       
       toast({
-        title: "Payment Error",
-        description: error.message || "Failed to process payment. Please try again.",
+        title: "Booking Confirmed",
+        description: "Your service has been booked! Payment will be collected by the technician.",
+      });
+
+      // Small delay to show success message before closing
+      setTimeout(() => {
+        onSuccess();
+        onClose();
+      }, 1000);
+
+    } catch (error: any) {
+      console.error('Booking error:', error);
+      
+      toast({
+        title: "Booking Error",
+        description: error.message || "Failed to create booking. Please try again.",
         variant: "destructive",
       });
-      
-      // Reset states to allow retry
-      setPaymentAttempted(false);
     } finally {
       setIsProcessing(false);
     }
@@ -242,9 +164,7 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-gray-900">
-            {paymentStep === 'details' ? 'Book Your Service' : 'Payment Details'}
-          </h2>
+          <h2 className="text-2xl font-bold text-gray-900">Book Your Service</h2>
           <button
             onClick={handleClose}
             disabled={isProcessing}
@@ -254,253 +174,165 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
           </button>
         </div>
 
-        {paymentStep === 'details' && (
-          <form onSubmit={handleDetailsSubmit} className="p-6 space-y-6">
-            {/* Service Summary */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="font-semibold text-gray-900 mb-3">Service Summary</h3>
-              {cart.map((item, index) => (
-                <div key={index} className="flex justify-between items-center py-2">
-                  <span className="text-gray-700">{item.name} (x{item.quantity})</span>
-                  <span className="font-semibold">${(item.price * item.quantity).toFixed(2)}</span>
-                </div>
-              ))}
-              <div className="border-t pt-2 mt-2">
-                <div className="flex justify-between items-center font-bold text-lg">
-                  <span>Total:</span>
-                  <span className="text-blue-600">${total.toFixed(2)}</span>
-                </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Service Summary */}
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h3 className="font-semibold text-gray-900 mb-3">Service Summary</h3>
+            {cart.map((item, index) => (
+              <div key={index} className="flex justify-between items-center py-2">
+                <span className="text-gray-700">{item.name} (x{item.quantity})</span>
+                <span className="font-semibold">${(item.price * item.quantity).toFixed(2)}</span>
               </div>
+            ))}
+            <div className="border-t pt-2 mt-2">
+              <div className="flex justify-between items-center font-bold text-lg">
+                <span>Total:</span>
+                <span className="text-blue-600">${total.toFixed(2)}</span>
+              </div>
+              <p className="text-sm text-gray-600 mt-1">Payment will be collected by the technician</p>
             </div>
+          </div>
 
-            {/* Customer Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="name" className="flex items-center space-x-2">
-                  <User className="h-4 w-4" />
-                  <span>Full Name *</span>
-                </Label>
-                <Input
-                  id="name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  required
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="email" className="flex items-center space-x-2">
-                  <Mail className="h-4 w-4" />
-                  <span>Email *</span>
-                </Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  required
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="phone" className="flex items-center space-x-2">
-                  <Phone className="h-4 w-4" />
-                  <span>Phone Number *</span>
-                </Label>
-                <Input
-                  id="phone"
-                  name="phone"
-                  type="tel"
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                  required
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="zipcode">ZIP Code</Label>
-                <Input
-                  id="zipcode"
-                  name="zipcode"
-                  value={formData.zipcode}
-                  onChange={handleInputChange}
-                  className="mt-1"
-                />
-              </div>
-            </div>
-
-            {/* Service Address */}
+          {/* Customer Information */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="address" className="flex items-center space-x-2">
-                <MapPin className="h-4 w-4" />
-                <span>Service Address *</span>
+              <Label htmlFor="name" className="flex items-center space-x-2">
+                <User className="h-4 w-4" />
+                <span>Full Name *</span>
               </Label>
               <Input
-                id="address"
-                name="address"
-                value={formData.address}
+                id="name"
+                name="name"
+                value={formData.name}
                 onChange={handleInputChange}
-                placeholder="Enter full address where service will be performed"
                 required
                 className="mt-1"
               />
             </div>
-
-            {/* Scheduling */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="date" className="flex items-center space-x-2">
-                  <Clock className="h-4 w-4" />
-                  <span>Preferred Date *</span>
-                </Label>
-                <Input
-                  id="date"
-                  name="date"
-                  type="date"
-                  value={formData.date}
-                  onChange={handleInputChange}
-                  min={new Date().toISOString().split('T')[0]}
-                  required
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="time">Preferred Time *</Label>
-                <Input
-                  id="time"
-                  name="time"
-                  type="time"
-                  value={formData.time}
-                  onChange={handleInputChange}
-                  required
-                  className="mt-1"
-                />
-              </div>
-            </div>
-
-            {/* Special Instructions */}
             <div>
-              <Label htmlFor="specialInstructions">Special Instructions</Label>
-              <Textarea
-                id="specialInstructions"
-                name="specialInstructions"
-                value={formData.specialInstructions}
+              <Label htmlFor="email" className="flex items-center space-x-2">
+                <Mail className="h-4 w-4" />
+                <span>Email *</span>
+              </Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                value={formData.email}
                 onChange={handleInputChange}
-                placeholder="Any special instructions for our technician..."
+                required
                 className="mt-1"
-                rows={3}
               />
             </div>
-
-            <div className="flex space-x-4 pt-4">
-              <Button
-                type="submit"
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                Continue to Payment
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleClose}
-                className="px-8"
-              >
-                Cancel
-              </Button>
+            <div>
+              <Label htmlFor="phone" className="flex items-center space-x-2">
+                <Phone className="h-4 w-4" />
+                <span>Phone Number *</span>
+              </Label>
+              <Input
+                id="phone"
+                name="phone"
+                type="tel"
+                value={formData.phone}
+                onChange={handleInputChange}
+                required
+                className="mt-1"
+              />
             </div>
-          </form>
-        )}
-
-        {paymentStep === 'payment' && (
-          <div className="p-6 space-y-6">
-            {/* Order Summary */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="font-semibold text-gray-900 mb-2">Order Summary</h3>
-              <div className="text-sm text-gray-600 space-y-1">
-                <div>Customer: {formData.name}</div>
-                <div>Service Date: {formData.date} at {formData.time}</div>
-                <div>Address: {formData.address}</div>
-              </div>
-              <div className="border-t pt-2 mt-2">
-                <div className="flex justify-between items-center font-bold text-lg">
-                  <span>Total:</span>
-                  <span className="text-blue-600">${total.toFixed(2)}</span>
-                </div>
-              </div>
+            <div>
+              <Label htmlFor="zipcode">ZIP Code</Label>
+              <Input
+                id="zipcode"
+                name="zipcode"
+                value={formData.zipcode}
+                onChange={handleInputChange}
+                className="mt-1"
+              />
             </div>
-
-            <form onSubmit={handlePaymentSubmit} className="space-y-6">
-              {/* Payment Method */}
-              <div>
-                <Label className="flex items-center space-x-2 mb-3">
-                  <CreditCard className="h-4 w-4" />
-                  <span>Payment Method</span>
-                </Label>
-                <Card className="p-4">
-                  {stripeError ? (
-                    <div className="text-center py-4 space-y-3">
-                      <div className="text-red-500 text-sm">{stripeError}</div>
-                      <Button
-                        type="button"
-                        onClick={retryStripeInitialization}
-                        variant="outline"
-                        size="sm"
-                        className="flex items-center space-x-2"
-                        disabled={isProcessing}
-                      >
-                        <RefreshCw className="h-4 w-4" />
-                        <span>Retry Payment Form</span>
-                      </Button>
-                    </div>
-                  ) : (
-                    <StripeCardElement
-                      onReady={handleStripeReady}
-                      onError={handleCardError}
-                    />
-                  )}
-                  {cardError && !stripeError && (
-                    <div className="text-red-500 text-sm mt-2">{cardError}</div>
-                  )}
-                </Card>
-              </div>
-
-              <div className="flex space-x-4 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    if (!isProcessing) {
-                      setPaymentStep('details');
-                      setPaymentAttempted(false);
-                    }
-                  }}
-                  className="flex-1"
-                  disabled={isProcessing}
-                >
-                  Back to Details
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={isProcessing || !stripeReady || !!stripeError || paymentAttempted}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
-                >
-                  {isProcessing ? (
-                    <div className="flex items-center space-x-2">
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Processing...</span>
-                    </div>
-                  ) : paymentAttempted ? (
-                    'Payment Attempted'
-                  ) : (
-                    `Pay $${total.toFixed(2)}`
-                  )}
-                </Button>
-              </div>
-            </form>
           </div>
-        )}
+
+          {/* Service Address */}
+          <div>
+            <Label htmlFor="address" className="flex items-center space-x-2">
+              <MapPin className="h-4 w-4" />
+              <span>Service Address *</span>
+            </Label>
+            <Input
+              id="address"
+              name="address"
+              value={formData.address}
+              onChange={handleInputChange}
+              placeholder="Enter full address where service will be performed"
+              required
+              className="mt-1"
+            />
+          </div>
+
+          {/* Scheduling */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="date" className="flex items-center space-x-2">
+                <Clock className="h-4 w-4" />
+                <span>Preferred Date *</span>
+              </Label>
+              <Input
+                id="date"
+                name="date"
+                type="date"
+                value={formData.date}
+                onChange={handleInputChange}
+                min={new Date().toISOString().split('T')[0]}
+                required
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="time">Preferred Time *</Label>
+              <Input
+                id="time"
+                name="time"
+                type="time"
+                value={formData.time}
+                onChange={handleInputChange}
+                required
+                className="mt-1"
+              />
+            </div>
+          </div>
+
+          {/* Special Instructions */}
+          <div>
+            <Label htmlFor="specialInstructions">Special Instructions</Label>
+            <Textarea
+              id="specialInstructions"
+              name="specialInstructions"
+              value={formData.specialInstructions}
+              onChange={handleInputChange}
+              placeholder="Any special instructions for our technician..."
+              className="mt-1"
+              rows={3}
+            />
+          </div>
+
+          <div className="flex space-x-4 pt-4">
+            <Button
+              type="submit"
+              disabled={isProcessing}
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {isProcessing ? 'Processing...' : 'Book Service'}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleClose}
+              className="px-8"
+              disabled={isProcessing}
+            >
+              Cancel
+            </Button>
+          </div>
+        </form>
       </div>
     </div>
   );

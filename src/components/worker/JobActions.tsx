@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Edit, Phone, MapPin, CreditCard, X } from 'lucide-react';
+import { Edit, Phone, MapPin, CreditCard, X, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -10,6 +10,7 @@ interface JobActionsProps {
   onModifyClick: () => void;
   onCancelClick: () => void;
   onChargeClick: () => void;
+  onCollectPaymentClick?: () => void;
 }
 
 const JobActions = ({ 
@@ -17,7 +18,8 @@ const JobActions = ({
   onStatusUpdate, 
   onModifyClick, 
   onCancelClick, 
-  onChargeClick 
+  onChargeClick,
+  onCollectPaymentClick 
 }: JobActionsProps) => {
   const callCustomer = (phone: string) => {
     window.open(`tel:${phone}`, '_self');
@@ -30,6 +32,7 @@ const JobActions = ({
 
   const canCancelJob = job.status === 'confirmed' || job.status === 'pending';
   const canAddCharges = job.status === 'in_progress' || job.status === 'confirmed';
+  const hasUnpaidAmount = job.pending_payment_amount > 0;
 
   return (
     <div className="flex items-center justify-between pt-4 border-t border-slate-600">
@@ -51,6 +54,17 @@ const JobActions = ({
           <MapPin className="h-4 w-4 mr-1" />
           Get Directions
         </Button>
+        {hasUnpaidAmount && (
+          <Button 
+            size="sm" 
+            variant="outline"
+            onClick={onCollectPaymentClick}
+            className="text-orange-400 border-orange-400 hover:bg-orange-400 hover:text-white"
+          >
+            <DollarSign className="h-4 w-4 mr-1" />
+            Collect Payment (${job.pending_payment_amount})
+          </Button>
+        )}
         {canAddCharges && (
           <Button 
             size="sm" 
