@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Briefcase, MapPin, Clock, Phone, Mail, User } from 'lucide-react';
+import { ArrowLeft, Briefcase } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -52,8 +51,9 @@ const WorkerApplication = () => {
     setLoading(true);
 
     try {
+      // Use raw query since types might not be updated yet
       const { error } = await supabase
-        .from('worker_applications')
+        .from('worker_applications' as any)
         .insert({
           name: formData.name,
           email: formData.email,

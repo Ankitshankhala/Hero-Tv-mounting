@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 // Fetch all active services
@@ -12,20 +13,33 @@ export const fetchServices = async () => {
   return data;
 };
 
-// Calculate total price and duration for selected services
+// Calculate total price and duration for selected services (simplified version)
 export const calculateBookingTotals = async (serviceSelections: { id: string, quantity: number }[]) => {
-  // Extract arrays for the function parameters
-  const serviceIds = serviceSelections.map(s => s.id);
-  const quantities = serviceSelections.map(s => s.quantity);
+  // For now, we'll calculate this on the client side since the function doesn't exist yet
+  let totalPrice = 0;
+  let totalDuration = 0;
   
-  const { data, error } = await supabase
-    .rpc('calculate_booking_total', { 
-      service_ids: serviceIds, 
-      quantities: quantities 
-    });
+  for (const selection of serviceSelections) {
+    const { data: service, error } = await supabase
+      .from('services')
+      .select('base_price, duration_minutes')
+      .eq('id', selection.id)
+      .eq('is_active', true)
+      .single();
+    
+    if (error) throw error;
+    if (service) {
+      totalPrice += service.base_price * selection.quantity;
+      totalDuration += service.duration_minutes * selection.quantity;
+    }
+  }
   
-  if (error) throw error;
-  return data;
+  // Add 15 minute buffer for multi-service bookings
+  if (serviceSelections.length > 1) {
+    totalDuration += 15;
+  }
+  
+  return { total_price: totalPrice, total_duration: totalDuration };
 };
 
 // Example service selection format for the database
@@ -44,25 +58,22 @@ export const exampleServiceSelection = [
   }
 ];
 
-// Find available workers for a booking
+// Find available workers for a booking (simplified version)
 export const findAvailableWorkers = async (
   scheduledDate: Date,
   durationMinutes: number,
   region: string
 ) => {
-  const formattedDate = scheduledDate.toISOString().split('T')[0]; // Format: YYYY-MM-DD
-  const formattedTime = scheduledDate.toTimeString().split(' ')[0]; // Format: HH:MM:SS
-  
+  // For now, we'll do a simple query to find workers in the region
   const { data, error } = await supabase
-    .rpc('find_available_workers', {
-      job_date: formattedDate,
-      job_time: formattedTime,
-      job_duration: durationMinutes,
-      job_region: region
-    });
+    .from('users')
+    .select('id')
+    .eq('role', 'worker')
+    .eq('is_active', true)
+    .eq('region', region);
   
   if (error) throw error;
-  return data;
+  return data?.map(worker => ({ worker_id: worker.id })) || [];
 };
 
 // Create a new booking
@@ -77,7 +88,10 @@ export const createBooking = async (bookingData: {
 }) => {
   const { data, error } = await supabase
     .from('bookings')
-    .insert(bookingData)
+    .insert({
+      ...bookingData,
+      status: 'pending' as const
+    })
     .select()
     .single();
   
@@ -122,7 +136,7 @@ export const processPayment = async (
 };
 
 // Update booking status
-export const updateBookingStatus = async (bookingId: string, status: string) => {
+export const updateBookingStatus = async (bookingId: string, status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled') => {
   const { data, error } = await supabase
     .from('bookings')
     .update({ status })
