@@ -2,15 +2,12 @@
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { ServiceModificationTab } from './invoice/ServiceModificationTab';
 import { AddServicesTab } from './invoice/AddServicesTab';
 import { ModificationSummary } from './invoice/ModificationSummary';
 import { ModificationForm } from './invoice/ModificationForm';
-import { AlertTriangle, Info } from 'lucide-react';
 
 interface Service {
   id: string;
@@ -104,8 +101,7 @@ const InvoiceModificationModal = ({
           original_total: originalTotal,
           modified_total: modifiedTotal,
           modification_reason: reason,
-          customer_approved: false,
-          approval_status: 'pending'
+          customer_approved: false
         });
 
       if (modError) throw modError;
@@ -114,6 +110,7 @@ const InvoiceModificationModal = ({
         .from('bookings')
         .update({ 
           has_modifications: true,
+          pending_payment_amount: modifiedTotal - originalTotal
         })
         .eq('id', job.id);
 
@@ -121,7 +118,7 @@ const InvoiceModificationModal = ({
 
       toast({
         title: "Success",
-        description: "Invoice modification created and customer notified",
+        description: "Invoice modification created successfully",
       });
 
       onModificationCreated();
@@ -140,49 +137,18 @@ const InvoiceModificationModal = ({
 
   const originalTotal = job?.total_price || 0;
   const newTotal = calculateNewTotal();
-  const hasChanges = JSON.stringify(services) !== JSON.stringify(job?.services || []);
-  const priceDifference = newTotal - originalTotal;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-6xl bg-slate-800 border-slate-700 max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-white flex items-center space-x-2">
-            <span>Modify Invoice - Job #{job?.id?.slice(0, 8)}</span>
-            {job?.has_modifications && (
-              <Badge variant="outline" className="text-yellow-400 border-yellow-400">
-                Previously Modified
-              </Badge>
-            )}
-          </DialogTitle>
+          <DialogTitle className="text-white">Modify Invoice - Job #{job?.id?.slice(0, 8)}</DialogTitle>
         </DialogHeader>
-
-        {/* Information Alert */}
-        <Alert className="bg-blue-900/20 border-blue-700">
-          <Info className="h-4 w-4" />
-          <AlertDescription className="text-blue-200">
-            Any changes made will be sent to the customer for approval before taking effect.
-          </AlertDescription>
-        </Alert>
-
-        {/* Price Impact Warning */}
-        {hasChanges && priceDifference !== 0 && (
-          <Alert className={`${priceDifference > 0 ? 'bg-orange-900/20 border-orange-700' : 'bg-green-900/20 border-green-700'}`}>
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription className={priceDifference > 0 ? 'text-orange-200' : 'text-green-200'}>
-              {priceDifference > 0 
-                ? `This modification will increase the total by $${priceDifference.toFixed(2)}. Customer approval will be required.`
-                : `This modification will decrease the total by $${Math.abs(priceDifference).toFixed(2)}. A refund may be issued.`
-              }
-            </AlertDescription>
-          </Alert>
-        )}
 
         <Tabs defaultValue="modify" className="w-full">
           <TabsList className="grid w-full grid-cols-2 bg-slate-700">
             <TabsTrigger value="modify" className="text-white data-[state=active]:bg-slate-600">
               Modify Current Services
-              {hasChanges && <Badge variant="outline" className="ml-2">Modified</Badge>}
             </TabsTrigger>
             <TabsTrigger value="add" className="text-white data-[state=active]:bg-slate-600">
               Add New Services
@@ -203,12 +169,6 @@ const InvoiceModificationModal = ({
 
           <TabsContent value="add" className="space-y-6">
             <AddServicesTab onAddService={addNewService} />
-            {services.length > 0 && (
-              <ModificationSummary
-                originalTotal={originalTotal}
-                newTotal={newTotal}
-              />
-            )}
           </TabsContent>
         </Tabs>
 

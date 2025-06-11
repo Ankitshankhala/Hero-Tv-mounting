@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import Header from '@/components/Header';
+import { Header } from '@/components/Header';
 import { ServicesSection } from '@/components/ServicesSection';
 import { ReviewsSection } from '@/components/ReviewsSection';
 import { BlogSection } from '@/components/BlogSection';
