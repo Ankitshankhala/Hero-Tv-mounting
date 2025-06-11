@@ -1,5 +1,4 @@
-
-import { supabase } from './supabaseClient';
+import { supabase } from '@/integrations/supabase/client';
 
 // Fetch all active services
 export const fetchServices = async () => {
