@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { AuthModal } from './auth/AuthModal';
 
 const Header = () => {
@@ -49,7 +48,6 @@ const Header = () => {
           <div className="flex items-center space-x-4">
             {user ? (
               <>
-                <NotificationBell />
                 <Button 
                   variant="outline" 
                   onClick={handleDashboardClick}
