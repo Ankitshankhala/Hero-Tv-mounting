@@ -1,44 +1,134 @@
 
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, Calendar, DollarSign, Users } from 'lucide-react';
+import { TrendingUp, Calendar, DollarSign, Users, Star, Clock, UserCheck } from 'lucide-react';
+import { useAdminMetrics } from '@/hooks/useAdminMetrics';
+import { Badge } from '@/components/ui/badge';
 
 export const DashboardStats = () => {
+  const { metrics, loading } = useAdminMetrics();
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(amount);
+  };
+
+  const formatGrowth = (growth: number) => {
+    const sign = growth >= 0 ? '+' : '';
+    return `${sign}${growth.toFixed(1)}%`;
+  };
+
+  const getGrowthColor = (growth: number) => {
+    return growth >= 0 ? 'text-green-600' : 'text-red-600';
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i} className="animate-pulse">
+              <CardContent className="p-6">
+                <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                <div className="h-8 bg-gray-200 rounded mb-1"></div>
+                <div className="h-3 bg-gray-200 rounded"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   const stats = [
     {
       title: 'Total Revenue',
-      value: '$12,460',
-      description: '+20.1% from last month',
+      value: formatCurrency(metrics.totalRevenue),
+      description: `${formatGrowth(metrics.revenueGrowth)} from last month`,
       icon: DollarSign,
       color: 'text-green-600',
+      growth: metrics.revenueGrowth,
     },
     {
       title: 'Bookings This Month',
-      value: '156',
-      description: '+12.5% from last month',
+      value: metrics.bookingsThisMonth.toString(),
+      description: `${formatGrowth(metrics.bookingsGrowth)} from last month`,
       icon: Calendar,
       color: 'text-blue-600',
+      growth: metrics.bookingsGrowth,
     },
     {
       title: 'Active Customers',
-      value: '1,234',
-      description: '+8.2% from last month',
+      value: metrics.activeCustomers.toString(),
+      description: `${formatGrowth(metrics.customersGrowth)} from last month`,
       icon: Users,
       color: 'text-purple-600',
+      growth: metrics.customersGrowth,
     },
     {
       title: 'Jobs Completed',
-      value: '142',
-      description: '+5.3% from last month',
+      value: metrics.completedJobs.toString(),
+      description: `${formatGrowth(metrics.jobsGrowth)} from last month`,
       icon: TrendingUp,
       color: 'text-orange-600',
+      growth: metrics.jobsGrowth,
+    },
+  ];
+
+  const additionalStats = [
+    {
+      title: 'Pending Bookings',
+      value: metrics.pendingBookings.toString(),
+      description: 'Awaiting confirmation',
+      icon: Clock,
+      color: 'text-yellow-600',
+    },
+    {
+      title: 'Active Workers',
+      value: metrics.activeWorkers.toString(),
+      description: 'Available for jobs',
+      icon: UserCheck,
+      color: 'text-indigo-600',
+    },
+    {
+      title: 'Average Rating',
+      value: metrics.averageRating > 0 ? metrics.averageRating.toFixed(1) : 'N/A',
+      description: `${metrics.totalReviews} reviews`,
+      icon: Star,
+      color: 'text-yellow-500',
     },
   ];
 
   return (
     <div className="space-y-6">
+      {/* Main Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, index) => {
+          const Icon = stat.icon;
+          return (
+            <Card key={index} className="hover:shadow-lg transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-gray-600">
+                  {stat.title}
+                </CardTitle>
+                <Icon className={`h-4 w-4 ${stat.color}`} />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-gray-900">{stat.value}</div>
+                <p className={`text-xs mt-1 ${getGrowthColor(stat.growth)}`}>
+                  {stat.description}
+                </p>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Additional Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {additionalStats.map((stat, index) => {
           const Icon = stat.icon;
           return (
             <Card key={index} className="hover:shadow-lg transition-shadow">
@@ -59,72 +149,31 @@ export const DashboardStats = () => {
         })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Bookings</CardTitle>
-            <CardDescription>Latest bookings and their status</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {[
-                { customer: 'John Smith', service: 'TV Mounting + Hide Cables', time: '2:00 PM', status: 'Confirmed' },
-                { customer: 'Sarah Johnson', service: 'TV Mounting', time: '4:00 PM', status: 'In Progress' },
-                { customer: 'Mike Davis', service: 'TV Mounting + Hide Cables', time: '10:00 AM', status: 'Completed' },
-              ].map((booking, index) => (
-                <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-gray-900">{booking.customer}</p>
-                    <p className="text-sm text-gray-600">{booking.service}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-gray-900">{booking.time}</p>
-                    <span className={`text-xs px-2 py-1 rounded-full ${
-                      booking.status === 'Completed' ? 'bg-green-100 text-green-800' :
-                      booking.status === 'In Progress' ? 'bg-blue-100 text-blue-800' :
-                      'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {booking.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Today's Schedule</CardTitle>
-            <CardDescription>Workers and their assigned jobs</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {[
-                { worker: 'Alex Thompson', jobs: 3, region: 'Downtown', status: 'Active' },
-                { worker: 'Maria Garcia', jobs: 2, region: 'North Side', status: 'Active' },
-                { worker: 'David Lee', jobs: 4, region: 'West End', status: 'Busy' },
-              ].map((worker, index) => (
-                <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-gray-900">{worker.worker}</p>
-                    <p className="text-sm text-gray-600">{worker.region}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-gray-900">{worker.jobs} jobs</p>
-                    <span className={`text-xs px-2 py-1 rounded-full ${
-                      worker.status === 'Active' ? 'bg-green-100 text-green-800' :
-                      'bg-red-100 text-red-800'
-                    }`}>
-                      {worker.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Quick Status Overview */}
+      <Card>
+        <CardHeader>
+          <CardTitle>System Status Overview</CardTitle>
+          <CardDescription>Current system health and activity</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2">
+            <Badge variant={metrics.pendingBookings > 0 ? "destructive" : "default"}>
+              {metrics.pendingBookings} Pending Bookings
+            </Badge>
+            <Badge variant={metrics.activeWorkers > 0 ? "default" : "secondary"}>
+              {metrics.activeWorkers} Active Workers
+            </Badge>
+            <Badge variant="outline">
+              {metrics.totalReviews} Total Reviews
+            </Badge>
+            {metrics.averageRating > 4.5 && (
+              <Badge variant="default" className="bg-yellow-500">
+                ⭐ Excellent Rating
+              </Badge>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
