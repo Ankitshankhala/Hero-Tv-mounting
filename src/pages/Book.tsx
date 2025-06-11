@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ServicesSection } from '@/components/ServicesSection';
+import { AvailabilityCalendar } from '@/components/AvailabilityCalendar';
 import { CartItem } from './Index';
 
 const Book = () => {
@@ -55,6 +56,21 @@ const Book = () => {
     setStep(4);
   };
 
+  const handleDateTimeSelect = (date: string, time: string) => {
+    setBookingData(prev => ({
+      ...prev,
+      date,
+      time
+    }));
+  };
+
+  // Convert cart items to services format for availability calendar
+  const selectedServices = cart.map(item => ({
+    id: item.id,
+    name: item.name,
+    duration_minutes: 120 // Default duration, you might want to fetch this from services
+  }));
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <header className="bg-slate-800/50 border-b border-slate-700">
@@ -75,14 +91,14 @@ const Book = () => {
         {/* Progress Steps */}
         <div className="flex justify-center mb-8">
           <div className="flex items-center space-x-4">
-            {[1, 2, 3, 4].map((i) => (
+            {[1, 2, 3, 4, 5].map((i) => (
               <div key={i} className="flex items-center">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
                   step >= i ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-400'
                 }`}>
                   {i}
                 </div>
-                {i < 4 && <div className={`w-12 h-1 ${step > i ? 'bg-blue-600' : 'bg-slate-700'}`} />}
+                {i < 5 && <div className={`w-12 h-1 ${step > i ? 'bg-blue-600' : 'bg-slate-700'}`} />}
               </div>
             ))}
           </div>
@@ -115,7 +131,7 @@ const Book = () => {
                       </div>
                     </div>
                     <Button onClick={() => setStep(2)} className="w-full">
-                      Continue to Details
+                      Continue to Location
                     </Button>
                   </CardContent>
                 </Card>
@@ -128,37 +144,9 @@ const Book = () => {
           <div className="max-w-2xl mx-auto">
             <Card className="bg-slate-800 border-slate-700">
               <CardHeader>
-                <CardTitle className="text-white">Booking Details</CardTitle>
+                <CardTitle className="text-white">Service Location</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="date" className="text-white">Preferred Date</Label>
-                    <Input
-                      id="date"
-                      type="date"
-                      value={bookingData.date}
-                      onChange={(e) => setBookingData({...bookingData, date: e.target.value})}
-                      className="bg-slate-700 border-slate-600 text-white"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="time" className="text-white">Preferred Time</Label>
-                    <Select value={bookingData.time} onValueChange={(value) => setBookingData({...bookingData, time: value})}>
-                      <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
-                        <SelectValue placeholder="Select time" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="9:00">9:00 AM</SelectItem>
-                        <SelectItem value="11:00">11:00 AM</SelectItem>
-                        <SelectItem value="13:00">1:00 PM</SelectItem>
-                        <SelectItem value="15:00">3:00 PM</SelectItem>
-                        <SelectItem value="17:00">5:00 PM</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
                 <div>
                   <Label htmlFor="address" className="text-white">Service Address</Label>
                   <Input
@@ -198,23 +186,16 @@ const Book = () => {
                   </div>
                 </div>
 
-                <div>
-                  <Label htmlFor="instructions" className="text-white">Special Instructions</Label>
-                  <Textarea
-                    id="instructions"
-                    value={bookingData.specialInstructions}
-                    onChange={(e) => setBookingData({...bookingData, specialInstructions: e.target.value})}
-                    placeholder="Any special instructions for our technician..."
-                    className="bg-slate-700 border-slate-600 text-white"
-                  />
-                </div>
-
                 <div className="flex space-x-4">
                   <Button variant="outline" onClick={() => setStep(1)} className="flex-1">
                     Back
                   </Button>
-                  <Button onClick={() => setStep(3)} className="flex-1">
-                    Continue to Contact Info
+                  <Button 
+                    onClick={() => setStep(3)} 
+                    className="flex-1"
+                    disabled={!bookingData.address || !bookingData.city || !bookingData.region}
+                  >
+                    Continue to Schedule
                   </Button>
                 </div>
               </CardContent>
@@ -223,6 +204,36 @@ const Book = () => {
         )}
 
         {step === 3 && (
+          <div className="max-w-4xl mx-auto">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-white mb-4">Choose Your Appointment Time</h2>
+              <p className="text-slate-300">Select from available time slots in your area</p>
+            </div>
+            
+            <AvailabilityCalendar
+              selectedRegion={bookingData.region}
+              selectedServices={selectedServices}
+              onDateTimeSelect={handleDateTimeSelect}
+              selectedDate={bookingData.date}
+              selectedTime={bookingData.time}
+            />
+
+            <div className="mt-8 flex space-x-4 max-w-2xl mx-auto">
+              <Button variant="outline" onClick={() => setStep(2)} className="flex-1">
+                Back
+              </Button>
+              <Button 
+                onClick={() => setStep(4)} 
+                className="flex-1"
+                disabled={!bookingData.date || !bookingData.time}
+              >
+                Continue to Details
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {step === 4 && (
           <div className="max-w-2xl mx-auto">
             <Card className="bg-slate-800 border-slate-700">
               <CardHeader>
@@ -264,12 +275,31 @@ const Book = () => {
                   />
                 </div>
 
+                <div>
+                  <Label htmlFor="instructions" className="text-white">Special Instructions</Label>
+                  <Textarea
+                    id="instructions"
+                    value={bookingData.specialInstructions}
+                    onChange={(e) => setBookingData({...bookingData, specialInstructions: e.target.value})}
+                    placeholder="Any special instructions for our technician..."
+                    className="bg-slate-700 border-slate-600 text-white"
+                  />
+                </div>
+
                 <div className="bg-slate-700/50 p-4 rounded-lg">
                   <h3 className="text-white font-medium mb-2">Booking Summary</h3>
                   <div className="space-y-2 text-slate-300">
                     <div className="flex items-center space-x-2">
                       <Calendar className="h-4 w-4" />
-                      <span>{bookingData.date} at {bookingData.time}</span>
+                      <span>{new Date(bookingData.date).toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })} at {new Date(`2000-01-01T${bookingData.time}`).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}</span>
                     </div>
                     <div className="flex items-center space-x-2">
                       <MapPin className="h-4 w-4" />
@@ -284,7 +314,7 @@ const Book = () => {
                 </div>
 
                 <div className="flex space-x-4">
-                  <Button variant="outline" onClick={() => setStep(2)} className="flex-1">
+                  <Button variant="outline" onClick={() => setStep(3)} className="flex-1">
                     Back
                   </Button>
                   <Button onClick={handleBookingSubmit} className="flex-1">
@@ -296,7 +326,7 @@ const Book = () => {
           </div>
         )}
 
-        {step === 4 && (
+        {step === 5 && (
           <div className="max-w-2xl mx-auto text-center">
             <Card className="bg-slate-800 border-slate-700">
               <CardContent className="py-12">
