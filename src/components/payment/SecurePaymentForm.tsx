@@ -162,7 +162,7 @@ export const SecurePaymentForm = ({
 
       <Button 
         onClick={handlePayment}
-        disabled={processing || (paymentMethod === 'card' && (!stripe || cardError))}
+        disabled={processing || (paymentMethod === 'card' && (!stripe || !!cardError))}
         className="w-full"
         size="lg"
       >
