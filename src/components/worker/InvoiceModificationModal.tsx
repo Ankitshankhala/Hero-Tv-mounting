@@ -1,16 +1,13 @@
 
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Minus, Plus, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { ServicesSection } from '@/components/ServicesSection';
+import { ServiceModificationTab } from './invoice/ServiceModificationTab';
+import { AddServicesTab } from './invoice/AddServicesTab';
+import { ModificationSummary } from './invoice/ModificationSummary';
+import { ModificationForm } from './invoice/ModificationForm';
 
 interface Service {
   id: string;
@@ -57,7 +54,6 @@ const InvoiceModificationModal = ({
     const existingService = services.find(s => s.id === newService.id);
     
     if (existingService) {
-      // If service already exists, increase quantity
       setServices(services.map(service => 
         service.id === newService.id 
           ? { ...service, quantity: service.quantity + newService.quantity }
@@ -68,7 +64,6 @@ const InvoiceModificationModal = ({
         description: `${newService.name} quantity increased`,
       });
     } else {
-      // Add new service
       setServices([...services, newService]);
       toast({
         title: "Service Added",
@@ -96,7 +91,6 @@ const InvoiceModificationModal = ({
       const originalTotal = job.total_price;
       const modifiedTotal = calculateNewTotal();
 
-      // Create invoice modification record
       const { error: modError } = await supabase
         .from('invoice_modifications')
         .insert({
@@ -112,7 +106,6 @@ const InvoiceModificationModal = ({
 
       if (modError) throw modError;
 
-      // Update booking with modification flag and pending payment amount
       const { error: bookingError } = await supabase
         .from('bookings')
         .update({ 
@@ -144,7 +137,6 @@ const InvoiceModificationModal = ({
 
   const originalTotal = job?.total_price || 0;
   const newTotal = calculateNewTotal();
-  const difference = newTotal - originalTotal;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -164,117 +156,30 @@ const InvoiceModificationModal = ({
           </TabsList>
 
           <TabsContent value="modify" className="space-y-6">
-            <div>
-              <Label className="text-white">Current Services</Label>
-              <div className="space-y-3 mt-2">
-                {services.map((service) => (
-                  <Card key={service.id} className="bg-slate-700 border-slate-600">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <h4 className="text-white font-medium">{service.name}</h4>
-                          <p className="text-slate-400">${service.price} each</p>
-                        </div>
-                        
-                        <div className="flex items-center space-x-3">
-                          <div className="flex items-center space-x-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => updateServiceQuantity(service.id, service.quantity - 1)}
-                              disabled={service.quantity <= 0}
-                            >
-                              <Minus className="h-4 w-4" />
-                            </Button>
-                            <Input
-                              type="number"
-                              value={service.quantity}
-                              onChange={(e) => updateServiceQuantity(service.id, parseInt(e.target.value) || 0)}
-                              className="w-16 text-center bg-slate-600 border-slate-500"
-                              min="0"
-                            />
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => updateServiceQuantity(service.id, service.quantity + 1)}
-                            >
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                          </div>
-                          
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => removeService(service.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                      
-                      <div className="mt-2 text-right">
-                        <span className="text-white font-semibold">
-                          Subtotal: ${(service.price * service.quantity).toFixed(2)}
-                        </span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div className="bg-slate-700 p-3 rounded">
-                <p className="text-slate-400">Original Total</p>
-                <p className="text-white font-bold text-xl">${originalTotal.toFixed(2)}</p>
-              </div>
-              <div className="bg-slate-700 p-3 rounded">
-                <p className="text-slate-400">New Total</p>
-                <p className="text-white font-bold text-xl">${newTotal.toFixed(2)}</p>
-              </div>
-              <div className="bg-slate-700 p-3 rounded">
-                <p className="text-slate-400">Difference</p>
-                <p className={`font-bold text-xl ${difference >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {difference >= 0 ? '+' : ''}${difference.toFixed(2)}
-                </p>
-              </div>
-            </div>
+            <ServiceModificationTab
+              services={services}
+              onUpdateQuantity={updateServiceQuantity}
+              onRemoveService={removeService}
+            />
+            <ModificationSummary
+              originalTotal={originalTotal}
+              newTotal={newTotal}
+            />
           </TabsContent>
 
           <TabsContent value="add" className="space-y-6">
-            <div className="bg-slate-900/50 rounded-lg p-4">
-              <h3 className="text-white text-lg font-semibold mb-4">Add Services to Booking</h3>
-              <ServicesSection onAddToCart={addNewService} />
-            </div>
+            <AddServicesTab onAddService={addNewService} />
           </TabsContent>
         </Tabs>
 
-        <div className="space-y-4 mt-6">
-          <div>
-            <Label htmlFor="reason" className="text-white">Reason for Modification</Label>
-            <Textarea
-              id="reason"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Explain why the invoice is being modified (e.g., customer requested additional services)"
-              className="mt-2 bg-slate-700 border-slate-600 text-white"
-              rows={3}
-            />
-          </div>
-
-          <div className="flex justify-end space-x-3">
-            <Button variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSubmitModification}
-              disabled={loading || services.length === 0}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              {loading ? 'Creating...' : 'Create Modification'}
-            </Button>
-          </div>
-        </div>
+        <ModificationForm
+          reason={reason}
+          onReasonChange={setReason}
+          onSubmit={handleSubmitModification}
+          onCancel={onClose}
+          loading={loading}
+          servicesCount={services.length}
+        />
       </DialogContent>
     </Dialog>
   );
