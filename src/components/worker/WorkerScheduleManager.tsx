@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,10 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Clock, Plus, Edit, Trash2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Clock, Plus, Edit, Trash2, AlertTriangle, Wifi, WifiOff } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { useToast } from '@/hooks/use-toast';
+import { useWorkerScheduleOperations } from '@/hooks/useWorkerScheduleOperations';
 
 interface WorkerScheduleManagerProps {
   onScheduleUpdate?: () => void;
@@ -21,108 +22,84 @@ const WorkerScheduleManager = ({ onScheduleUpdate }: WorkerScheduleManagerProps)
   const [schedules, setSchedules] = useState<any[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     startTime: '09:00',
     endTime: '17:00',
     isAvailable: true,
     notes: ''
   });
+  
   const { user } = useAuth();
-  const { toast } = useToast();
+  const { createOrUpdateSchedule, deleteSchedule, fetchSchedulesForDate, loading } = useWorkerScheduleOperations();
+
+  // Monitor network connection
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   useEffect(() => {
-    if (user) {
-      fetchSchedulesForDate(selectedDate);
+    if (user && isOnline) {
+      loadSchedulesForDate(selectedDate);
     }
-  }, [selectedDate, user]);
+  }, [selectedDate, user, isOnline]);
 
-  const fetchSchedulesForDate = async (date: Date) => {
-    try {
-      const formattedDate = date.toISOString().split('T')[0];
-      const { data, error } = await supabase
-        .from('worker_schedules')
-        .select('*')
-        .eq('worker_id', user.id)
-        .eq('date', formattedDate)
-        .order('start_time', { ascending: true });
-
-      if (error) throw error;
-      setSchedules(data || []);
-    } catch (error) {
-      console.error('Error fetching schedules:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load schedule",
-        variant: "destructive",
-      });
+  const loadSchedulesForDate = async (date: Date) => {
+    setFetchError(null);
+    const result = await fetchSchedulesForDate(date);
+    
+    if (result.error) {
+      setFetchError(result.error);
+      setSchedules([]);
+    } else {
+      setSchedules(result.data);
     }
   };
 
   const handleSaveSchedule = async () => {
-    if (!user) return;
+    if (!user || !isOnline) return;
     
-    setLoading(true);
     try {
       const formattedDate = selectedDate.toISOString().split('T')[0];
       
-      const { data, error } = await supabase
-        .rpc('upsert_worker_schedule', {
-          p_worker_id: user.id,
-          p_date: formattedDate,
-          p_start_time: formData.startTime,
-          p_end_time: formData.endTime,
-          p_is_available: formData.isAvailable,
-          p_notes: formData.notes || null
-        });
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Schedule updated successfully",
+      const result = await createOrUpdateSchedule({
+        date: formattedDate,
+        startTime: formData.startTime,
+        endTime: formData.endTime,
+        isAvailable: formData.isAvailable,
+        notes: formData.notes
       });
 
-      await fetchSchedulesForDate(selectedDate);
-      setShowAddModal(false);
-      setEditingSchedule(null);
-      resetForm();
-      if (onScheduleUpdate) onScheduleUpdate();
+      if (!result.error) {
+        await loadSchedulesForDate(selectedDate);
+        setShowAddModal(false);
+        setEditingSchedule(null);
+        resetForm();
+        if (onScheduleUpdate) onScheduleUpdate();
+      }
     } catch (error) {
       console.error('Error saving schedule:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save schedule",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleDeleteSchedule = async (scheduleId: string) => {
-    try {
-      const { error } = await supabase
-        .from('worker_schedules')
-        .delete()
-        .eq('id', scheduleId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Schedule deleted successfully",
-      });
-
-      await fetchSchedulesForDate(selectedDate);
+    if (!isOnline) return;
+    
+    const result = await deleteSchedule(scheduleId);
+    
+    if (!result.error) {
+      await loadSchedulesForDate(selectedDate);
       if (onScheduleUpdate) onScheduleUpdate();
-    } catch (error) {
-      console.error('Error deleting schedule:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete schedule",
-        variant: "destructive",
-      });
     }
   };
 
@@ -155,12 +132,37 @@ const WorkerScheduleManager = ({ onScheduleUpdate }: WorkerScheduleManagerProps)
 
   return (
     <div className="w-full max-w-7xl mx-auto">
+      {/* Connection Status Alert */}
+      {!isOnline && (
+        <Alert className="mb-4" variant="destructive">
+          <WifiOff className="h-4 w-4" />
+          <AlertDescription>
+            No internet connection. Schedule management is unavailable.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {fetchError && (
+        <Alert className="mb-4" variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            Failed to load schedules: {fetchError}
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Calendar Card */}
         <Card className="w-full">
           <CardHeader className="bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-t-lg">
             <CardTitle className="text-lg font-semibold text-center">Set Your Availability</CardTitle>
             <p className="text-sm text-purple-100 text-center">Select a date to manage your schedule</p>
+            {!isOnline && (
+              <div className="flex items-center justify-center text-sm text-purple-200">
+                <WifiOff className="h-4 w-4 mr-1" />
+                Offline
+              </div>
+            )}
           </CardHeader>
           <CardContent className="p-6">
             <div className="w-full overflow-hidden">
@@ -169,6 +171,7 @@ const WorkerScheduleManager = ({ onScheduleUpdate }: WorkerScheduleManagerProps)
                 selected={selectedDate}
                 onSelect={(date) => date && setSelectedDate(date)}
                 className="w-full mx-auto"
+                disabled={!isOnline}
                 classNames={{
                   months: "flex flex-col space-y-4 w-full",
                   month: "space-y-4 w-full",
@@ -212,6 +215,7 @@ const WorkerScheduleManager = ({ onScheduleUpdate }: WorkerScheduleManagerProps)
                 }}
                 className="bg-white text-orange-700 hover:bg-orange-50 border-0 ml-4"
                 size="sm"
+                disabled={!isOnline}
               >
                 <Plus className="h-4 w-4 mr-1" />
                 Add Time Slot
@@ -219,7 +223,21 @@ const WorkerScheduleManager = ({ onScheduleUpdate }: WorkerScheduleManagerProps)
             </div>
           </CardHeader>
           <CardContent className="p-6">
-            {schedules.length === 0 ? (
+            {fetchError ? (
+              <div className="text-center py-8">
+                <AlertTriangle className="h-8 w-8 text-red-500 mx-auto mb-2" />
+                <p className="text-muted-foreground">Failed to load schedule</p>
+                <Button 
+                  onClick={() => loadSchedulesForDate(selectedDate)}
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  disabled={!isOnline}
+                >
+                  Retry
+                </Button>
+              </div>
+            ) : schedules.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-muted-foreground">No schedule set for this date</p>
               </div>
@@ -248,6 +266,7 @@ const WorkerScheduleManager = ({ onScheduleUpdate }: WorkerScheduleManagerProps)
                           variant="outline"
                           onClick={() => openEditModal(schedule)}
                           className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                          disabled={!isOnline}
                         >
                           <Edit className="h-3 w-3" />
                         </Button>
@@ -256,6 +275,7 @@ const WorkerScheduleManager = ({ onScheduleUpdate }: WorkerScheduleManagerProps)
                           variant="outline"
                           onClick={() => handleDeleteSchedule(schedule.id)}
                           className="text-red-600 border-red-600 hover:bg-red-50"
+                          disabled={!isOnline}
                         >
                           <Trash2 className="h-3 w-3" />
                         </Button>
@@ -278,6 +298,15 @@ const WorkerScheduleManager = ({ onScheduleUpdate }: WorkerScheduleManagerProps)
           </DialogHeader>
           
           <div className="space-y-4">
+            {!isOnline && (
+              <Alert variant="destructive">
+                <WifiOff className="h-4 w-4" />
+                <AlertDescription>
+                  No internet connection. Cannot save changes.
+                </AlertDescription>
+              </Alert>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="startTime" className="text-gray-900">Start Time</Label>
@@ -287,6 +316,7 @@ const WorkerScheduleManager = ({ onScheduleUpdate }: WorkerScheduleManagerProps)
                   value={formData.startTime}
                   onChange={(e) => setFormData({...formData, startTime: e.target.value})}
                   className="bg-white border-gray-300 text-gray-900"
+                  disabled={!isOnline}
                 />
               </div>
               <div>
@@ -297,6 +327,7 @@ const WorkerScheduleManager = ({ onScheduleUpdate }: WorkerScheduleManagerProps)
                   value={formData.endTime}
                   onChange={(e) => setFormData({...formData, endTime: e.target.value})}
                   className="bg-white border-gray-300 text-gray-900"
+                  disabled={!isOnline}
                 />
               </div>
             </div>
@@ -308,6 +339,7 @@ const WorkerScheduleManager = ({ onScheduleUpdate }: WorkerScheduleManagerProps)
                 checked={formData.isAvailable}
                 onChange={(e) => setFormData({...formData, isAvailable: e.target.checked})}
                 className="rounded"
+                disabled={!isOnline}
               />
               <Label htmlFor="isAvailable" className="text-gray-900">Available for bookings</Label>
             </div>
@@ -320,6 +352,7 @@ const WorkerScheduleManager = ({ onScheduleUpdate }: WorkerScheduleManagerProps)
                 onChange={(e) => setFormData({...formData, notes: e.target.value})}
                 placeholder="Any special notes for this time slot..."
                 className="bg-white border-gray-300 text-gray-900"
+                disabled={!isOnline}
               />
             </div>
 
@@ -337,7 +370,7 @@ const WorkerScheduleManager = ({ onScheduleUpdate }: WorkerScheduleManagerProps)
               </Button>
               <Button 
                 onClick={handleSaveSchedule}
-                disabled={loading}
+                disabled={loading || !isOnline}
                 className="bg-green-600 hover:bg-green-700 text-white"
               >
                 {loading ? 'Saving...' : (editingSchedule ? 'Update' : 'Save')}
