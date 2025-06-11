@@ -1,8 +1,7 @@
 
 import React, { useState } from 'react';
-import { LocationForm } from './booking/LocationForm';
+import { CustomerLocationForm } from './booking/CustomerLocationForm';
 import { CalendarView } from './booking/CalendarView';
-import { ContactForm } from './booking/ContactForm';
 import { BookingConfirmation } from './booking/BookingConfirmation';
 import { CartItem } from '@/pages/Index';
 
@@ -32,7 +31,7 @@ export const InlineBookingFlow = ({ cart, onClose }: InlineBookingFlowProps) => 
 
   const handleBookingSubmit = () => {
     console.log('Booking submitted:', { cart, bookingData, total: getTotalPrice() });
-    setStep(4);
+    setStep(3);
   };
 
   const handleDateTimeSelect = (date: string, time: string) => {
@@ -51,7 +50,7 @@ export const InlineBookingFlow = ({ cart, onClose }: InlineBookingFlowProps) => 
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 overflow-y-auto">
       <div className="min-h-screen py-8">
         <div className="container mx-auto px-4">
-          <div className="bg-slate-800 rounded-xl p-6 max-w-4xl mx-auto">
+          <div className="bg-slate-800 rounded-xl p-6 max-w-6xl mx-auto">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-white">Complete Your Booking</h2>
               <button 
@@ -63,7 +62,7 @@ export const InlineBookingFlow = ({ cart, onClose }: InlineBookingFlowProps) => 
             </div>
 
             {step === 1 && (
-              <LocationForm
+              <CustomerLocationForm
                 bookingData={bookingData}
                 onUpdateBookingData={updateBookingData}
                 onBack={onClose}
@@ -78,21 +77,11 @@ export const InlineBookingFlow = ({ cart, onClose }: InlineBookingFlowProps) => 
                 selectedTime={bookingData.time}
                 onDateTimeSelect={handleDateTimeSelect}
                 onBack={() => setStep(1)}
-                onContinue={() => setStep(3)}
+                onContinue={handleBookingSubmit}
               />
             )}
 
-            {step === 3 && (
-              <ContactForm
-                bookingData={bookingData}
-                onUpdateBookingData={updateBookingData}
-                onBack={() => setStep(2)}
-                onSubmit={handleBookingSubmit}
-                getTotalPrice={getTotalPrice}
-              />
-            )}
-
-            {step === 4 && <BookingConfirmation />}
+            {step === 3 && <BookingConfirmation />}
           </div>
         </div>
       </div>

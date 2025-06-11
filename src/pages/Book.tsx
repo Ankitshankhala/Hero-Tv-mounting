@@ -6,8 +6,7 @@ import { Button } from '@/components/ui/button';
 import { CalendarView } from '@/components/booking/CalendarView';
 import { BookingProgress } from '@/components/booking/BookingProgress';
 import { ServiceSelection } from '@/components/booking/ServiceSelection';
-import { LocationForm } from '@/components/booking/LocationForm';
-import { ContactForm } from '@/components/booking/ContactForm';
+import { CustomerLocationForm } from '@/components/booking/CustomerLocationForm';
 import { BookingConfirmation } from '@/components/booking/BookingConfirmation';
 import { CartItem } from './Index';
 
@@ -53,7 +52,7 @@ const Book = () => {
   const handleBookingSubmit = () => {
     console.log('Booking submitted:', { cart, bookingData, total: getTotalPrice() });
     // TODO: Integrate with Supabase
-    setStep(5);
+    setStep(4);
   };
 
   const handleDateTimeSelect = (date: string, time: string) => {
@@ -97,7 +96,7 @@ const Book = () => {
         )}
 
         {step === 2 && (
-          <LocationForm
+          <CustomerLocationForm
             bookingData={bookingData}
             onUpdateBookingData={updateBookingData}
             onBack={() => setStep(1)}
@@ -112,21 +111,11 @@ const Book = () => {
             selectedTime={bookingData.time}
             onDateTimeSelect={handleDateTimeSelect}
             onBack={() => setStep(2)}
-            onContinue={() => setStep(4)}
+            onContinue={handleBookingSubmit}
           />
         )}
 
-        {step === 4 && (
-          <ContactForm
-            bookingData={bookingData}
-            onUpdateBookingData={updateBookingData}
-            onBack={() => setStep(3)}
-            onSubmit={handleBookingSubmit}
-            getTotalPrice={getTotalPrice}
-          />
-        )}
-
-        {step === 5 && <BookingConfirmation />}
+        {step === 4 && <BookingConfirmation />}
       </div>
     </div>
   );
