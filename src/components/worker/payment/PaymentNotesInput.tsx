@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Label } from '@/components/ui/label';
+import { FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 
 interface PaymentNotesInputProps {
@@ -10,17 +10,18 @@ interface PaymentNotesInputProps {
 
 const PaymentNotesInput = ({ notes, onNotesChange }: PaymentNotesInputProps) => {
   return (
-    <div>
-      <Label htmlFor="notes">Notes (Optional)</Label>
-      <Textarea
-        id="notes"
-        value={notes}
-        onChange={(e) => onNotesChange(e.target.value)}
-        placeholder="Any notes about this payment..."
-        className="mt-1"
-        rows={3}
-      />
-    </div>
+    <FormItem>
+      <FormLabel>Notes (Optional)</FormLabel>
+      <FormControl>
+        <Textarea
+          value={notes}
+          onChange={(e) => onNotesChange(e.target.value)}
+          placeholder="Any notes about this payment..."
+          rows={3}
+        />
+      </FormControl>
+      <FormMessage />
+    </FormItem>
   );
 };
 

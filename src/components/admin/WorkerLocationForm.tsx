@@ -1,7 +1,7 @@
 
 import React from 'react';
+import { FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { WorkerFormData } from '@/hooks/useWorkerForm';
 
 interface WorkerLocationFormProps {
@@ -12,36 +12,47 @@ interface WorkerLocationFormProps {
 export const WorkerLocationForm = ({ formData, onInputChange }: WorkerLocationFormProps) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div className="space-y-2">
-        <Label htmlFor="city">City</Label>
-        <Input
-          id="city"
-          value={formData.city}
-          onChange={(e) => onInputChange('city', e.target.value)}
-          required
-          placeholder="New York"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="region">Service Region</Label>
-        <Input
-          id="region"
-          value={formData.region}
-          onChange={(e) => onInputChange('region', e.target.value)}
-          required
-          placeholder="Downtown, Manhattan"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="zipcode">Zipcode</Label>
-        <Input
-          id="zipcode"
-          value={formData.zipcode}
-          onChange={(e) => onInputChange('zipcode', e.target.value)}
-          required
-          placeholder="10001"
-        />
-      </div>
+      <FormItem>
+        <FormLabel htmlFor="city">City</FormLabel>
+        <FormControl>
+          <Input
+            id="city"
+            value={formData.city}
+            onChange={(e) => onInputChange('city', e.target.value)}
+            required
+            placeholder="New York"
+          />
+        </FormControl>
+        <FormMessage />
+      </FormItem>
+      
+      <FormItem>
+        <FormLabel htmlFor="region">Service Region</FormLabel>
+        <FormControl>
+          <Input
+            id="region"
+            value={formData.region}
+            onChange={(e) => onInputChange('region', e.target.value)}
+            required
+            placeholder="Downtown, Manhattan"
+          />
+        </FormControl>
+        <FormMessage />
+      </FormItem>
+      
+      <FormItem>
+        <FormLabel htmlFor="zipcode">Zipcode</FormLabel>
+        <FormControl>
+          <Input
+            id="zipcode"
+            value={formData.zipcode}
+            onChange={(e) => onInputChange('zipcode', e.target.value)}
+            required
+            placeholder="10001"
+          />
+        </FormControl>
+        <FormMessage />
+      </FormItem>
     </div>
   );
 };

@@ -1,7 +1,7 @@
 
 import React from 'react';
+import { FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 
 interface ModificationFormProps {
@@ -23,17 +23,20 @@ export const ModificationForm: React.FC<ModificationFormProps> = ({
 }) => {
   return (
     <div className="space-y-4 mt-6">
-      <div>
-        <Label htmlFor="reason" className="text-white">Reason for Modification</Label>
-        <Textarea
-          id="reason"
-          value={reason}
-          onChange={(e) => onReasonChange(e.target.value)}
-          placeholder="Explain why the invoice is being modified (e.g., customer requested additional services)"
-          className="mt-2 bg-slate-700 border-slate-600 text-white"
-          rows={3}
-        />
-      </div>
+      <FormItem>
+        <FormLabel htmlFor="reason" className="text-white">Reason for Modification</FormLabel>
+        <FormControl>
+          <Textarea
+            id="reason"
+            value={reason}
+            onChange={(e) => onReasonChange(e.target.value)}
+            placeholder="Explain why the invoice is being modified (e.g., customer requested additional services)"
+            className="bg-slate-700 border-slate-600 text-white"
+            rows={3}
+          />
+        </FormControl>
+        <FormMessage />
+      </FormItem>
 
       <div className="flex justify-end space-x-3">
         <Button variant="outline" onClick={onCancel}>
