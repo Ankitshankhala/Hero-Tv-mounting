@@ -1,61 +1,63 @@
 
 import React from 'react';
-import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { 
   BarChart3, 
   Calendar, 
   Users, 
-  Wrench, 
+  UserCheck, 
   Settings, 
-  CreditCard, 
-  MessageSquare, 
-  Star, 
-  FileText 
+  CreditCard,
+  Star,
+  UserPlus,
+  MessageSquare,
+  FileText,
+  AlertTriangle
 } from 'lucide-react';
 
 interface AdminSidebarProps {
-  activeSection: string;
-  onSectionChange: (section: string) => void;
+  activeTab: string;
+  onTabChange: (tab: string) => void;
 }
 
-export const AdminSidebar = ({ activeSection, onSectionChange }: AdminSidebarProps) => {
+export const AdminSidebar = ({ activeTab, onTabChange }: AdminSidebarProps) => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
+    { id: 'errors', label: 'Error Checker', icon: AlertTriangle },
     { id: 'bookings', label: 'Bookings', icon: Calendar },
+    { id: 'workers', label: 'Workers', icon: UserCheck },
     { id: 'customers', label: 'Customers', icon: Users },
-    { id: 'workers', label: 'Workers', icon: Wrench },
     { id: 'services', label: 'Services', icon: Settings },
     { id: 'payments', label: 'Payments', icon: CreditCard },
-    { id: 'sms', label: 'SMS Logs', icon: MessageSquare },
     { id: 'reviews', label: 'Reviews', icon: Star },
-    { id: 'blog', label: 'Blog Manager', icon: FileText },
+    { id: 'applications', label: 'Applications', icon: UserPlus },
+    { id: 'sms', label: 'SMS Logs', icon: MessageSquare },
+    { id: 'blog', label: 'Blog', icon: FileText },
   ];
 
   return (
-    <div className="w-64 bg-white shadow-lg h-screen">
-      <div className="p-6 border-b">
-        <h1 className="text-xl font-bold text-gray-800">TV Mount Pro</h1>
-        <p className="text-sm text-gray-600">Admin Dashboard</p>
+    <aside className="w-64 bg-white shadow-sm border-r min-h-screen">
+      <div className="p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-6">Admin Panel</h2>
+        <nav className="space-y-2">
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Button
+                key={item.id}
+                variant={activeTab === item.id ? "default" : "ghost"}
+                className={`w-full justify-start ${
+                  item.id === 'errors' ? 'text-red-600 hover:text-red-700 hover:bg-red-50' : ''
+                }`}
+                onClick={() => onTabChange(item.id)}
+              >
+                <Icon className="mr-2 h-4 w-4" />
+                {item.label}
+              </Button>
+            );
+          })}
+        </nav>
       </div>
-      <nav className="p-4">
-        {menuItems.map((item) => {
-          const Icon = item.icon;
-          return (
-            <button
-              key={item.id}
-              onClick={() => onSectionChange(item.id)}
-              className={`w-full flex items-center space-x-3 p-3 rounded-lg text-left transition-colors ${
-                activeSection === item.id
-                  ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                  : 'text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              <Icon className="h-5 w-5" />
-              <span className="font-medium">{item.label}</span>
-            </button>
-          );
-        })}
-      </nav>
-    </div>
+    </aside>
   );
 };
