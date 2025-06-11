@@ -113,39 +113,57 @@ export type Database = {
       }
       invoice_modifications: {
         Row: {
+          approval_status: string | null
           booking_id: string | null
           created_at: string | null
           customer_approved: boolean | null
+          customer_approved_at: string | null
+          customer_notified_at: string | null
+          customer_rejected_at: string | null
+          customer_viewed_at: string | null
           id: string
           modification_reason: string | null
           modified_services: Json
           modified_total: number
           original_services: Json
           original_total: number
+          rejection_reason: string | null
           worker_id: string | null
         }
         Insert: {
+          approval_status?: string | null
           booking_id?: string | null
           created_at?: string | null
           customer_approved?: boolean | null
+          customer_approved_at?: string | null
+          customer_notified_at?: string | null
+          customer_rejected_at?: string | null
+          customer_viewed_at?: string | null
           id?: string
           modification_reason?: string | null
           modified_services: Json
           modified_total: number
           original_services: Json
           original_total: number
+          rejection_reason?: string | null
           worker_id?: string | null
         }
         Update: {
+          approval_status?: string | null
           booking_id?: string | null
           created_at?: string | null
           customer_approved?: boolean | null
+          customer_approved_at?: string | null
+          customer_notified_at?: string | null
+          customer_rejected_at?: string | null
+          customer_viewed_at?: string | null
           id?: string
           modification_reason?: string | null
           modified_services?: Json
           modified_total?: number
           original_services?: Json
           original_total?: number
+          rejection_reason?: string | null
           worker_id?: string | null
         }
         Relationships: [
@@ -161,6 +179,57 @@ export type Database = {
             columns: ["worker_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_read: boolean | null
+          message: string
+          related_booking_id: string | null
+          related_modification_id: string | null
+          title: string
+          type: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message: string
+          related_booking_id?: string | null
+          related_modification_id?: string | null
+          title: string
+          type?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message?: string
+          related_booking_id?: string | null
+          related_modification_id?: string | null
+          title?: string
+          type?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_related_booking_id_fkey"
+            columns: ["related_booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_related_modification_id_fkey"
+            columns: ["related_modification_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_modifications"
             referencedColumns: ["id"]
           },
         ]
