@@ -4,8 +4,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 
+type TableName = 'users' | 'bookings' | 'invoice_modifications' | 'on_site_charges' | 'payment_sessions' | 'reviews' | 'services' | 'sms_logs' | 'transactions' | 'worker_applications' | 'worker_availability' | 'worker_schedules';
+
 interface UseSupabaseQueryOptions {
-  table: string;
+  table: TableName;
   select?: string;
   filter?: Record<string, any>;
   orderBy?: { column: string; ascending?: boolean };
@@ -80,7 +82,7 @@ export const useSupabaseQuery = <T = any>(options: UseSupabaseQueryOptions) => {
         return;
       }
 
-      setData(result);
+      setData(result as T | T[]);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
       console.error('Query execution error:', err);
