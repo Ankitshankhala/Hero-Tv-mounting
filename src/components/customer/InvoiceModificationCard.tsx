@@ -26,6 +26,7 @@ interface InvoiceModificationCardProps {
     modification_reason: string;
     approval_status: string;
     created_at: string;
+    customer_viewed_at?: string;
   };
   onModificationUpdated: () => void;
 }
@@ -55,7 +56,7 @@ const InvoiceModificationCard = ({ modification, onModificationUpdated }: Invoic
         .from('bookings')
         .update({
           total_price: modification.modified_total,
-          services: modification.modified_services,
+          services: modification.modified_services as any,
           pending_payment_amount: modification.modified_total - modification.original_total
         })
         .eq('id', modification.booking_id);
