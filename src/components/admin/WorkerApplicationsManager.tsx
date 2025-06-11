@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CheckCircle, XCircle, Clock, Phone, Mail, MapPin } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/utils/supabaseClient';
+import { supabase } from '@/integrations/supabase/client';
 
 export const WorkerApplicationsManager = () => {
   const [applications, setApplications] = useState([]);
@@ -19,19 +19,18 @@ export const WorkerApplicationsManager = () => {
 
   const fetchApplications = async () => {
     try {
-      // Use raw SQL query since the table might not be in types yet
       const { data, error } = await supabase
-        .rpc('get_worker_applications')
-        .catch(() => {
-          // Fallback: try direct table access
-          return supabase
-            .from('worker_applications' as any)
-            .select('*')
-            .order('created_at', { ascending: false });
-        });
+        .from('worker_applications')
+        .select('*')
+        .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Worker applications table not ready yet:', error);
+        console.error('Error fetching worker applications:', error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch worker applications",
+          variant: "destructive",
+        });
         setApplications([]);
       } else {
         setApplications(data || []);
@@ -39,8 +38,9 @@ export const WorkerApplicationsManager = () => {
     } catch (error) {
       console.error('Error fetching applications:', error);
       toast({
-        title: "Info",
-        description: "Worker applications feature is being set up",
+        title: "Error",
+        description: "Failed to fetch worker applications",
+        variant: "destructive",
       });
       setApplications([]);
     } finally {
@@ -50,9 +50,8 @@ export const WorkerApplicationsManager = () => {
 
   const updateApplicationStatus = async (id: string, status: string) => {
     try {
-      // Use raw SQL since types might not be updated yet
       const { error } = await supabase
-        .from('worker_applications' as any)
+        .from('worker_applications')
         .update({ status })
         .eq('id', id);
 
