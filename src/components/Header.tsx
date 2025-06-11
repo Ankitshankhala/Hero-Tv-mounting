@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
-import AuthModal from './auth/AuthModal';
+import { AuthModal } from './auth/AuthModal';
 
 const Header = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -75,8 +75,8 @@ const Header = () => {
       </header>
 
       <AuthModal 
-        isOpen={showAuthModal} 
-        onClose={() => setShowAuthModal(false)} 
+        open={showAuthModal} 
+        onOpenChange={setShowAuthModal} 
       />
     </>
   );
