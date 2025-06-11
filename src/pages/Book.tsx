@@ -105,32 +105,14 @@ const Book = () => {
         )}
 
         {step === 3 && (
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-white mb-4">Choose Your Appointment Time</h2>
-              <p className="text-slate-300">Select from available time slots. Red blocks show existing bookings in your area.</p>
-            </div>
-            
-            <CalendarView
-              selectedRegion={bookingData.region}
-              selectedDate={bookingData.date}
-              selectedTime={bookingData.time}
-              onDateTimeSelect={handleDateTimeSelect}
-            />
-
-            <div className="mt-8 flex space-x-4 max-w-2xl mx-auto">
-              <Button variant="outline" onClick={() => setStep(2)} className="flex-1">
-                Back
-              </Button>
-              <Button 
-                onClick={() => setStep(4)} 
-                className="flex-1"
-                disabled={!bookingData.date || !bookingData.time}
-              >
-                Continue to Details
-              </Button>
-            </div>
-          </div>
+          <CalendarView
+            selectedRegion={bookingData.region}
+            selectedDate={bookingData.date}
+            selectedTime={bookingData.time}
+            onDateTimeSelect={handleDateTimeSelect}
+            onBack={() => setStep(2)}
+            onContinue={() => setStep(4)}
+          />
         )}
 
         {step === 4 && (

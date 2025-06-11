@@ -11,6 +11,8 @@ interface CalendarViewProps {
   selectedDate?: string;
   selectedTime?: string;
   onDateTimeSelect: (date: string, time: string) => void;
+  onBack: () => void;
+  onContinue: () => void;
 }
 
 interface Booking {
@@ -25,7 +27,9 @@ export const CalendarView = ({
   selectedRegion, 
   selectedDate, 
   selectedTime, 
-  onDateTimeSelect 
+  onDateTimeSelect,
+  onBack,
+  onContinue
 }: CalendarViewProps) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -148,134 +152,154 @@ export const CalendarView = ({
   };
 
   return (
-    <Card className="bg-slate-800 border-slate-700">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-white flex items-center space-x-2">
-            <Clock className="h-5 w-5" />
-            <span>Available Time Slots</span>
-          </CardTitle>
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigateWeek('prev')}
-              className="text-white border-slate-600"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span className="text-white font-medium">
-              {weekDays[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {weekDays[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigateWeek('next')}
-              className="text-white border-slate-600"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {!selectedRegion ? (
-          <div className="text-slate-400 text-center py-8">
-            Please select a region first
-          </div>
-        ) : loading ? (
-          <div className="text-slate-400 text-center py-8">
-            Loading calendar...
-          </div>
-        ) : (
-          <div className="grid grid-cols-8 gap-1">
-            {/* Time column header */}
-            <div className="text-slate-400 text-sm font-medium p-2"></div>
-            
-            {/* Day headers */}
-            {weekDays.map((day, index) => (
-              <div key={index} className="text-center p-2">
-                <div className="text-slate-400 text-sm">
-                  {day.toLocaleDateString('en-US', { weekday: 'short' })}
-                </div>
-                <div className="text-white font-medium">
-                  {day.getDate()}
-                </div>
-              </div>
-            ))}
+    <div className="max-w-6xl mx-auto">
+      <div className="text-center mb-8">
+        <h2 className="text-3xl font-bold text-white mb-4">Choose Your Appointment Time</h2>
+        <p className="text-slate-300">Select from available time slots. Red blocks show existing bookings in your area.</p>
+      </div>
 
-            {/* Time slots */}
-            {timeSlots.map((time) => (
-              <React.Fragment key={time}>
-                {/* Time label */}
-                <div className="text-slate-400 text-sm p-2 text-right">
-                  {new Date(`2000-01-01T${time}`).toLocaleTimeString([], { 
-                    hour: '2-digit', 
-                    minute: '2-digit' 
+      <Card className="bg-slate-800 border-slate-700">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-white flex items-center space-x-2">
+              <Clock className="h-5 w-5" />
+              <span>Available Time Slots</span>
+            </CardTitle>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigateWeek('prev')}
+                className="text-white border-slate-600"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="text-white font-medium">
+                {weekDays[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {weekDays[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigateWeek('next')}
+                className="text-white border-slate-600"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {!selectedRegion ? (
+            <div className="text-slate-400 text-center py-8">
+              Please select a region first
+            </div>
+          ) : loading ? (
+            <div className="text-slate-400 text-center py-8">
+              Loading calendar...
+            </div>
+          ) : (
+            <div className="grid grid-cols-8 gap-1">
+              {/* Time column header */}
+              <div className="text-slate-400 text-sm font-medium p-2"></div>
+              
+              {/* Day headers */}
+              {weekDays.map((day, index) => (
+                <div key={index} className="text-center p-2">
+                  <div className="text-slate-400 text-sm">
+                    {day.toLocaleDateString('en-US', { weekday: 'short' })}
+                  </div>
+                  <div className="text-white font-medium">
+                    {day.getDate()}
+                  </div>
+                </div>
+              ))}
+
+              {/* Time slots */}
+              {timeSlots.map((time) => (
+                <React.Fragment key={time}>
+                  {/* Time label */}
+                  <div className="text-slate-400 text-sm p-2 text-right">
+                    {new Date(`2000-01-01T${time}`).toLocaleTimeString([], { 
+                      hour: '2-digit', 
+                      minute: '2-digit' 
+                    })}
+                  </div>
+
+                  {/* Day columns */}
+                  {weekDays.map((day, dayIndex) => {
+                    const dayBookings = getBookingsForDateTime(day, time);
+                    const isAvailable = isTimeSlotAvailable(day, time);
+                    const isSelectedSlot = isSelected(day, time);
+
+                    return (
+                      <div
+                        key={`${dayIndex}-${time}`}
+                        className={`
+                          min-h-16 border border-slate-700 p-1 cursor-pointer transition-colors
+                          ${isSelectedSlot ? 'bg-blue-600 border-blue-500' : ''}
+                          ${!isAvailable ? 'bg-slate-700' : 'hover:bg-slate-600'}
+                          ${isAvailable && !isSelectedSlot ? 'bg-slate-800' : ''}
+                        `}
+                        onClick={() => handleTimeSlotClick(day, time)}
+                      >
+                        {dayBookings.map((booking, bookingIndex) => (
+                          <div
+                            key={`${booking.id}-${bookingIndex}`}
+                            className="bg-red-600 text-white text-xs p-1 rounded mb-1 opacity-75"
+                          >
+                            <div className="flex items-center space-x-1">
+                              <User className="h-3 w-3" />
+                              <span className="truncate">
+                                {booking.worker?.name || 'Worker'}
+                              </span>
+                            </div>
+                            <div className="truncate">
+                              {formatServices(booking.services)}
+                            </div>
+                          </div>
+                        ))}
+                        {isAvailable && dayBookings.length === 0 && (
+                          <div className="text-green-400 text-xs p-1">
+                            Available
+                          </div>
+                        )}
+                      </div>
+                    );
                   })}
-                </div>
+                </React.Fragment>
+              ))}
+            </div>
+          )}
 
-                {/* Day columns */}
-                {weekDays.map((day, dayIndex) => {
-                  const dayBookings = getBookingsForDateTime(day, time);
-                  const isAvailable = isTimeSlotAvailable(day, time);
-                  const isSelectedSlot = isSelected(day, time);
+          <div className="mt-4 flex space-x-4 text-sm">
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 bg-green-600 rounded"></div>
+              <span className="text-slate-300">Available</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 bg-red-600 rounded"></div>
+              <span className="text-slate-300">Booked</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 bg-blue-600 rounded"></div>
+              <span className="text-slate-300">Selected</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-                  return (
-                    <div
-                      key={`${dayIndex}-${time}`}
-                      className={`
-                        min-h-16 border border-slate-700 p-1 cursor-pointer transition-colors
-                        ${isSelectedSlot ? 'bg-blue-600 border-blue-500' : ''}
-                        ${!isAvailable ? 'bg-slate-700' : 'hover:bg-slate-600'}
-                        ${isAvailable && !isSelectedSlot ? 'bg-slate-800' : ''}
-                      `}
-                      onClick={() => handleTimeSlotClick(day, time)}
-                    >
-                      {dayBookings.map((booking, bookingIndex) => (
-                        <div
-                          key={`${booking.id}-${bookingIndex}`}
-                          className="bg-red-600 text-white text-xs p-1 rounded mb-1 opacity-75"
-                        >
-                          <div className="flex items-center space-x-1">
-                            <User className="h-3 w-3" />
-                            <span className="truncate">
-                              {booking.worker?.name || 'Worker'}
-                            </span>
-                          </div>
-                          <div className="truncate">
-                            {formatServices(booking.services)}
-                          </div>
-                        </div>
-                      ))}
-                      {isAvailable && dayBookings.length === 0 && (
-                        <div className="text-green-400 text-xs p-1">
-                          Available
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </React.Fragment>
-            ))}
-          </div>
-        )}
-
-        <div className="mt-4 flex space-x-4 text-sm">
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 bg-green-600 rounded"></div>
-            <span className="text-slate-300">Available</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 bg-red-600 rounded"></div>
-            <span className="text-slate-300">Booked</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 bg-blue-600 rounded"></div>
-            <span className="text-slate-300">Selected</span>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+      <div className="mt-8 flex space-x-4">
+        <Button variant="outline" onClick={onBack} className="flex-1">
+          Back
+        </Button>
+        <Button 
+          onClick={onContinue} 
+          className="flex-1"
+          disabled={!selectedDate || !selectedTime}
+        >
+          Continue to Details
+        </Button>
+      </div>
+    </div>
   );
 };
