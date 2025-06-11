@@ -1,7 +1,6 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Shield, LogOut, Briefcase } from 'lucide-react';
+import { Shield, LogOut, Briefcase, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -18,6 +17,18 @@ export const Header = () => {
         <div className="absolute top-4 right-4 flex space-x-2">
           {user ? (
             <div className="flex items-center space-x-2">
+              {profile?.role === 'customer' && (
+                <Link to="/customer-dashboard">
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center space-x-2 bg-slate-800 text-white border-slate-600 hover:bg-white hover:text-slate-900 transition-colors"
+                  >
+                    <User className="h-4 w-4" />
+                    <span>Dashboard</span>
+                  </Button>
+                </Link>
+              )}
               {profile?.role === 'worker' && (
                 <Link to="/worker-dashboard">
                   <Button 

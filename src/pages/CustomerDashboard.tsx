@@ -1,18 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Calendar, MapPin, Clock, Phone, User } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Clock, Phone, User, FileEdit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeBookings } from '@/hooks/useRealtimeBookings';
 import { useToast } from '@/hooks/use-toast';
 import GoogleCalendarIntegration from '@/components/GoogleCalendarIntegration';
 import BookingCalendarSync from '@/components/BookingCalendarSync';
+import InvoiceModificationCard from '@/components/customer/InvoiceModificationCard';
+import NotificationsBell from '@/components/customer/NotificationsBell';
 
 const CustomerDashboard = () => {
   const [customerBookings, setCustomerBookings] = useState([]);
+  const [invoiceModifications, setInvoiceModifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [calendarConnected, setCalendarConnected] = useState(false);
   const { user, profile } = useAuth();
@@ -45,6 +49,7 @@ const CustomerDashboard = () => {
   useEffect(() => {
     if (user) {
       fetchCustomerBookings();
+      fetchInvoiceModifications();
     }
   }, [user]);
 
@@ -92,7 +97,8 @@ const CustomerDashboard = () => {
           address: booking.customer_address,
           worker: booking.worker?.name || null,
           workerPhone: booking.worker?.phone || null,
-          totalPrice: booking.total_price
+          totalPrice: booking.total_price,
+          hasModifications: booking.has_modifications
         };
       }) || [];
 
@@ -106,6 +112,26 @@ const CustomerDashboard = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchInvoiceModifications = async () => {
+    if (!user?.id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('invoice_modifications')
+        .select(`
+          *,
+          booking:bookings!inner(customer_id)
+        `)
+        .eq('booking.customer_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setInvoiceModifications(data || []);
+    } catch (error) {
+      console.error('Error fetching invoice modifications:', error);
     }
   };
 
@@ -130,6 +156,8 @@ const CustomerDashboard = () => {
     );
   }
 
+  const pendingModifications = invoiceModifications.filter(mod => mod.approval_status === 'pending');
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <header className="bg-slate-800/50 border-b border-slate-700">
@@ -149,9 +177,12 @@ const CustomerDashboard = () => {
                 )}
               </div>
             </div>
-            <Link to="/book">
-              <Button>Book New Service</Button>
-            </Link>
+            <div className="flex items-center space-x-4">
+              <NotificationsBell />
+              <Link to="/book">
+                <Button>Book New Service</Button>
+              </Link>
+            </div>
           </div>
         </div>
       </header>
@@ -166,6 +197,20 @@ const CustomerDashboard = () => {
         <div className="mb-8">
           <GoogleCalendarIntegration onConnectionChange={setCalendarConnected} />
         </div>
+
+        {/* Show pending modifications alert */}
+        {pendingModifications.length > 0 && (
+          <Card className="bg-yellow-900/20 border-yellow-600 mb-8">
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2">
+                <FileEdit className="h-5 w-5 text-yellow-400" />
+                <p className="text-yellow-200">
+                  You have {pendingModifications.length} invoice modification{pendingModifications.length > 1 ? 's' : ''} waiting for your review.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <Card className="bg-slate-800 border-slate-700">
@@ -215,83 +260,124 @@ const CustomerDashboard = () => {
           </Card>
         </div>
 
-        <Card className="bg-slate-800 border-slate-700">
-          <CardHeader>
-            <CardTitle className="text-white">My Bookings</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {customerBookings.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-slate-400">No bookings yet</p>
-                <Link to="/book">
-                  <Button className="mt-4">Book Your First Service</Button>
-                </Link>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {customerBookings.map((booking) => (
-                  <Card key={booking.id} className="bg-slate-700 border-slate-600">
-                    <CardContent className="p-6">
-                      <div className="flex justify-between items-start mb-4">
-                        <div>
-                          <h3 className="text-lg font-semibold text-white">{booking.service}</h3>
-                          <p className="text-slate-400">Booking #{booking.id}</p>
-                        </div>
-                        <div className="text-right">
-                          {getStatusBadge(booking.status)}
-                          <p className="text-xl font-bold text-white mt-1">${booking.totalPrice}</p>
-                        </div>
-                      </div>
+        <Tabs defaultValue="bookings" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 bg-slate-800">
+            <TabsTrigger value="bookings" className="text-white data-[state=active]:bg-slate-700">
+              My Bookings
+            </TabsTrigger>
+            <TabsTrigger value="modifications" className="text-white data-[state=active]:bg-slate-700">
+              Invoice Changes ({pendingModifications.length})
+            </TabsTrigger>
+          </TabsList>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <div className="flex items-center space-x-2 text-slate-300">
-                          <Calendar className="h-4 w-4" />
-                          <span>{booking.date} at {booking.time}</span>
-                        </div>
-                        <div className="flex items-center space-x-2 text-slate-300">
-                          <MapPin className="h-4 w-4" />
-                          <span>{booking.address}</span>
-                        </div>
-                      </div>
-
-                      {booking.worker && (
-                        <div className="flex items-center justify-between pt-4 border-t border-slate-600">
-                          <div className="flex items-center space-x-2 text-slate-300">
-                            <User className="h-4 w-4" />
-                            <span>Assigned to: <span className="text-white font-medium">{booking.worker}</span></span>
+          <TabsContent value="bookings" className="mt-6">
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader>
+                <CardTitle className="text-white">My Bookings</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {customerBookings.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-slate-400">No bookings yet</p>
+                    <Link to="/book">
+                      <Button className="mt-4">Book Your First Service</Button>
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {customerBookings.map((booking) => (
+                      <Card key={booking.id} className="bg-slate-700 border-slate-600">
+                        <CardContent className="p-6">
+                          <div className="flex justify-between items-start mb-4">
+                            <div>
+                              <h3 className="text-lg font-semibold text-white">{booking.service}</h3>
+                              <p className="text-slate-400">Booking #{booking.id}</p>
+                            </div>
+                            <div className="text-right flex flex-col items-end space-y-2">
+                              {getStatusBadge(booking.status)}
+                              {booking.hasModifications && (
+                                <Badge variant="outline" className="text-yellow-400 border-yellow-400">
+                                  <FileEdit className="h-3 w-3 mr-1" />
+                                  Modified
+                                </Badge>
+                              )}
+                              <p className="text-xl font-bold text-white">${booking.totalPrice}</p>
+                            </div>
                           </div>
-                          <div className="flex items-center space-x-2 text-slate-300">
-                            <Phone className="h-4 w-4" />
-                            <span>{booking.workerPhone}</span>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div className="flex items-center space-x-2 text-slate-300">
+                              <Calendar className="h-4 w-4" />
+                              <span>{booking.date} at {booking.time}</span>
+                            </div>
+                            <div className="flex items-center space-x-2 text-slate-300">
+                              <MapPin className="h-4 w-4" />
+                              <span>{booking.address}</span>
+                            </div>
                           </div>
-                        </div>
-                      )}
 
-                      {!booking.worker && booking.status === 'pending' && (
-                        <div className="pt-4 border-t border-slate-600">
-                          <p className="text-yellow-400 text-sm">
-                            ⏳ Worker assignment pending - we'll notify you once assigned
-                          </p>
-                        </div>
-                      )}
+                          {booking.worker && (
+                            <div className="flex items-center justify-between pt-4 border-t border-slate-600">
+                              <div className="flex items-center space-x-2 text-slate-300">
+                                <User className="h-4 w-4" />
+                                <span>Assigned to: <span className="text-white font-medium">{booking.worker}</span></span>
+                              </div>
+                              <div className="flex items-center space-x-2 text-slate-300">
+                                <Phone className="h-4 w-4" />
+                                <span>{booking.workerPhone}</span>
+                              </div>
+                            </div>
+                          )}
 
-                      {/* Add calendar sync for each booking */}
-                      {calendarConnected && (
-                        <BookingCalendarSync
-                          booking={booking}
-                          action="create"
-                          onEventCreated={(eventId) => {
-                            console.log(`Calendar event created for booking ${booking.id}: ${eventId}`);
-                          }}
-                        />
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                          {!booking.worker && booking.status === 'pending' && (
+                            <div className="pt-4 border-t border-slate-600">
+                              <p className="text-yellow-400 text-sm">
+                                ⏳ Worker assignment pending - we'll notify you once assigned
+                              </p>
+                            </div>
+                          )}
+
+                          {calendarConnected && (
+                            <BookingCalendarSync
+                              booking={booking}
+                              action="create"
+                              onEventCreated={(eventId) => {
+                                console.log(`Calendar event created for booking ${booking.id}: ${eventId}`);
+                              }}
+                            />
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="modifications" className="mt-6">
+            <div className="space-y-6">
+              {invoiceModifications.length === 0 ? (
+                <Card className="bg-slate-800 border-slate-700">
+                  <CardContent className="p-8 text-center">
+                    <p className="text-slate-400">No invoice modifications</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                invoiceModifications.map((modification) => (
+                  <InvoiceModificationCard
+                    key={modification.id}
+                    modification={modification}
+                    onModificationUpdated={() => {
+                      fetchInvoiceModifications();
+                      fetchCustomerBookings();
+                    }}
+                  />
+                ))
+              )}
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
