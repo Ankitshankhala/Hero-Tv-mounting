@@ -36,6 +36,7 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
   const [cardError, setCardError] = useState<string>('');
   const [stripeReady, setStripeReady] = useState(false);
   const [stripeError, setStripeError] = useState<string>('');
+  const [paymentAttempted, setPaymentAttempted] = useState(false);
   const { toast } = useToast();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -72,7 +73,8 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
 
     console.log('Moving to payment step');
     setPaymentStep('payment');
-    setStripeError(''); // Clear any previous errors
+    setStripeError('');
+    setPaymentAttempted(false);
   };
 
   const handleStripeReady = (stripeInstance: any, elements: any, cardElementInstance: any) => {
@@ -80,7 +82,7 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
     setStripe(stripeInstance);
     setCardElement(cardElementInstance);
     setStripeReady(true);
-    setStripeError(''); // Clear any errors when Stripe is ready
+    setStripeError('');
   };
 
   const handleCardError = (error: string) => {
@@ -95,6 +97,7 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
     setStripeReady(false);
     setStripe(null);
     setCardElement(null);
+    setPaymentAttempted(false);
     // Force re-render of StripeCardElement by toggling paymentStep
     setPaymentStep('details');
     setTimeout(() => setPaymentStep('payment'), 100);
@@ -107,9 +110,16 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
       stripe: !!stripe, 
       cardElement: !!cardElement, 
       stripeReady,
-      isProcessing
+      isProcessing,
+      paymentAttempted
     });
     
+    // Prevent duplicate submissions
+    if (isProcessing || paymentAttempted) {
+      console.log('Payment already in progress or attempted, preventing duplicate submission');
+      return;
+    }
+
     if (!stripe || !cardElement || !stripeReady) {
       toast({
         title: "Payment Error",
@@ -119,13 +129,21 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
       return;
     }
 
-    if (isProcessing) {
-      console.log('Already processing payment, ignoring duplicate submit');
-      return;
-    }
-
     setIsProcessing(true);
+    setPaymentAttempted(true);
     setCardError('');
+
+    const timeoutId = setTimeout(() => {
+      if (isProcessing) {
+        setIsProcessing(false);
+        setPaymentAttempted(false);
+        toast({
+          title: "Payment Timeout",
+          description: "Payment is taking too long. Please try again.",
+          variant: "destructive",
+        });
+      }
+    }, 30000); // 30 second timeout
 
     try {
       console.log('Creating payment intent...');
@@ -143,12 +161,8 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
         longitude: null
       };
 
-      // Create payment intent with shorter timeout
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Request timeout - please try again')), 15000)
-      );
-
-      const paymentPromise = supabase.functions.invoke('create-payment-intent', {
+      // Create payment intent
+      const { data, error } = await supabase.functions.invoke('create-payment-intent', {
         body: {
           bookingData,
           customerEmail: formData.email,
@@ -156,17 +170,19 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
         }
       });
 
-      const { data, error } = await Promise.race([paymentPromise, timeoutPromise]) as any;
-
       if (error) {
         console.error('Payment intent error:', error);
-        throw error;
+        throw new Error(error.message || 'Failed to create payment intent');
+      }
+
+      if (!data?.client_secret) {
+        throw new Error('No client secret received from payment intent');
       }
 
       console.log('Payment intent created, confirming with card...');
 
-      // Confirm payment with card with timeout
-      const confirmPromise = stripe.confirmCardPayment(data.client_secret, {
+      // Confirm payment with card
+      const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(data.client_secret, {
         payment_method: {
           card: cardElement,
           billing_details: {
@@ -176,35 +192,49 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
         }
       });
 
-      const confirmTimeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Payment confirmation timeout - please try again')), 15000)
-      );
-
-      const { error: confirmError } = await Promise.race([confirmPromise, confirmTimeoutPromise]) as any;
-
       if (confirmError) {
         console.error('Payment confirmation error:', confirmError);
-        setCardError(confirmError.message);
-        return;
+        throw new Error(confirmError.message || 'Payment confirmation failed');
       }
 
-      console.log('Payment successful');
-      toast({
-        title: "Payment Successful",
-        description: "Your booking has been confirmed!",
-      });
+      if (paymentIntent?.status === 'succeeded') {
+        console.log('Payment successful');
+        clearTimeout(timeoutId);
+        
+        toast({
+          title: "Payment Successful",
+          description: "Your booking has been confirmed!",
+        });
 
-      onSuccess();
-      onClose();
+        // Small delay to show success message before closing
+        setTimeout(() => {
+          onSuccess();
+          onClose();
+        }, 1000);
+      } else {
+        throw new Error('Payment was not successful');
+      }
+
     } catch (error: any) {
       console.error('Payment error:', error);
+      clearTimeout(timeoutId);
+      
       toast({
         title: "Payment Error",
         description: error.message || "Failed to process payment. Please try again.",
         variant: "destructive",
       });
+      
+      // Reset states to allow retry
+      setPaymentAttempted(false);
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const handleClose = () => {
+    if (!isProcessing) {
+      onClose();
     }
   };
 
@@ -216,8 +246,9 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
             {paymentStep === 'details' ? 'Book Your Service' : 'Payment Details'}
           </h2>
           <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            onClick={handleClose}
+            disabled={isProcessing}
+            className="text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
           >
             <X className="h-6 w-6" />
           </button>
@@ -373,7 +404,7 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
               <Button
                 type="button"
                 variant="outline"
-                onClick={onClose}
+                onClick={handleClose}
                 className="px-8"
               >
                 Cancel
@@ -417,6 +448,7 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
                         variant="outline"
                         size="sm"
                         className="flex items-center space-x-2"
+                        disabled={isProcessing}
                       >
                         <RefreshCw className="h-4 w-4" />
                         <span>Retry Payment Form</span>
@@ -438,7 +470,12 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setPaymentStep('details')}
+                  onClick={() => {
+                    if (!isProcessing) {
+                      setPaymentStep('details');
+                      setPaymentAttempted(false);
+                    }
+                  }}
                   className="flex-1"
                   disabled={isProcessing}
                 >
@@ -446,7 +483,7 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
                 </Button>
                 <Button
                   type="submit"
-                  disabled={isProcessing || !stripeReady || !!stripeError}
+                  disabled={isProcessing || !stripeReady || !!stripeError || paymentAttempted}
                   className="flex-1 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
                 >
                   {isProcessing ? (
@@ -454,6 +491,8 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                       <span>Processing...</span>
                     </div>
+                  ) : paymentAttempted ? (
+                    'Payment Attempted'
                   ) : (
                     `Pay $${total.toFixed(2)}`
                   )}
