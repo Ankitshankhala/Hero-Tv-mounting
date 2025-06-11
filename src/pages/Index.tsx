@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Header } from '@/components/Header';
 import { ServicesSection } from '@/components/ServicesSection';
@@ -116,9 +117,10 @@ const Index = () => {
         
         <Cart 
           items={cart} 
+          total={getTotalPrice()}
           onRemoveItem={removeFromCart} 
           onCheckout={handleCheckout}
-          onBook={handleBookNow}
+          highlightedItemId={highlightedItemId}
         />
         
         {isCheckoutOpen && (
