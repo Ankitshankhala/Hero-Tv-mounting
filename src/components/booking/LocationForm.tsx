@@ -10,6 +10,7 @@ interface BookingData {
   address: string;
   city: string;
   region: string;
+  zipcode: string;
 }
 
 interface LocationFormProps {
@@ -20,7 +21,7 @@ interface LocationFormProps {
 }
 
 export const LocationForm = ({ bookingData, onUpdateBookingData, onBack, onContinue }: LocationFormProps) => {
-  const isFormValid = bookingData.address && bookingData.city && bookingData.region;
+  const isFormValid = bookingData.address && bookingData.city && bookingData.region && bookingData.zipcode;
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -40,7 +41,7 @@ export const LocationForm = ({ bookingData, onUpdateBookingData, onBack, onConti
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <Label htmlFor="city" className="text-white">City</Label>
               <Input
@@ -68,6 +69,16 @@ export const LocationForm = ({ bookingData, onUpdateBookingData, onBack, onConti
                   <SelectItem value="south-side">South Side</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label htmlFor="zipcode" className="text-white">Zipcode</Label>
+              <Input
+                id="zipcode"
+                value={bookingData.zipcode}
+                onChange={(e) => onUpdateBookingData({ zipcode: e.target.value })}
+                placeholder="12345"
+                className="bg-slate-700 border-slate-600 text-white"
+              />
             </div>
           </div>
 

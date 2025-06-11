@@ -6,13 +6,12 @@ import { CartItem } from '@/pages/Index';
 interface CartProps {
   items: CartItem[];
   total: number;
-  onCheckout: () => void;
   onRemoveItem: (id: string) => void;
   onBook: () => void;
   highlightedItemId?: string | null;
 }
 
-export const Cart: React.FC<CartProps> = ({ items, total, onCheckout, onRemoveItem, onBook, highlightedItemId }) => {
+export const Cart: React.FC<CartProps> = ({ items, total, onRemoveItem, onBook, highlightedItemId }) => {
   return (
     <div className="fixed bottom-4 right-4 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl max-w-sm w-full mx-4 z-40 animate-fade-in">
       <div className="p-4">
@@ -63,21 +62,13 @@ export const Cart: React.FC<CartProps> = ({ items, total, onCheckout, onRemoveIt
               ${total}
             </span>
           </div>
-          <div className="space-y-2">
-            <button
-              onClick={onBook}
-              className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg transition-all duration-200 hover:scale-105 hover:shadow-lg flex items-center justify-center space-x-2"
-            >
-              <Calendar className="h-4 w-4" />
-              <span>Book Service</span>
-            </button>
-            <button
-              onClick={onCheckout}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-all duration-200 hover:scale-105 hover:shadow-lg"
-            >
-              Checkout
-            </button>
-          </div>
+          <button
+            onClick={onBook}
+            className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg transition-all duration-200 hover:scale-105 hover:shadow-lg flex items-center justify-center space-x-2"
+          >
+            <Calendar className="h-4 w-4" />
+            <span>Book Service</span>
+          </button>
         </div>
       </div>
     </div>

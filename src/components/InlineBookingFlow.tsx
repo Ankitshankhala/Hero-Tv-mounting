@@ -19,6 +19,7 @@ export const InlineBookingFlow = ({ cart, onClose }: InlineBookingFlowProps) => 
     address: '',
     city: '',
     region: '',
+    zipcode: '',
     specialInstructions: '',
     customerName: '',
     customerEmail: '',
