@@ -1,24 +1,26 @@
 
 import React, { useState } from 'react';
 import { Plus, Check } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 interface ServiceCardProps {
-  service: {
-    id: string;
-    name: string;
-    price: number;
-    image: string;
-    description: string;
-  };
-  onClick: () => void;
+  id: string;
+  name: string;
+  price: number;
+  image: string;
+  description: string;
 }
 
-export const ServiceCard: React.FC<ServiceCardProps> = ({ service, onClick }) => {
+export const ServiceCard: React.FC<ServiceCardProps> = ({ id, name, price, image, description }) => {
   const [isClicked, setIsClicked] = useState(false);
+  const navigate = useNavigate();
 
   const handleClick = () => {
     setIsClicked(true);
-    onClick();
+    
+    // Navigate to booking page
+    navigate('/book');
+    
     setTimeout(() => setIsClicked(false), 1000);
   };
 
@@ -29,8 +31,8 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, onClick }) =>
     >
       <div className="relative h-48 overflow-hidden">
         <img 
-          src={service.image} 
-          alt={service.name}
+          src={image} 
+          alt={name}
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent" />
@@ -38,13 +40,13 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, onClick }) =>
       
       <div className="p-6">
         <div className="mb-4">
-          <h3 className="text-xl font-bold text-white mb-2">{service.name}</h3>
-          <p className="text-slate-300 text-sm">{service.description}</p>
+          <h3 className="text-xl font-bold text-white mb-2">{name}</h3>
+          <p className="text-slate-300 text-sm">{description}</p>
         </div>
         
         <div className="flex items-center justify-between">
           <div className="text-2xl font-bold text-white transition-all duration-300">
-            ${service.price}
+            ${price}
           </div>
           <button className={`p-3 rounded-full transition-all duration-300 group-hover:scale-110 ${
             isClicked 
