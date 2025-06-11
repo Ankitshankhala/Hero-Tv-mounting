@@ -1,40 +1,48 @@
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
 import { useToast } from '@/hooks/use-toast';
 import { useBookingCalendarSync } from '@/hooks/useBookingCalendarSync';
 
 export const useBookingManager = (isCalendarConnected: boolean) => {
   const [bookings, setBookings] = useState([]);
-  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const { syncBookingToCalendar } = useBookingCalendarSync();
 
-  const fetchBookings = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('bookings')
-        .select(`
-          *,
-          customer:users!customer_id(name, phone, region),
-          worker:users!worker_id(name, phone)
-        `)
-        .order('scheduled_at', { ascending: false });
+  // Use the authenticated query hook
+  const { 
+    data: bookingsData, 
+    loading, 
+    error, 
+    refetch: fetchBookings 
+  } = useSupabaseQuery({
+    table: 'bookings',
+    select: `
+      *,
+      customer:users!customer_id(name, phone, region),
+      worker:users!worker_id(name, phone)
+    `,
+    orderBy: { column: 'scheduled_at', ascending: false }
+  });
 
-      if (error) throw error;
+  // Update local state when data changes
+  useEffect(() => {
+    if (bookingsData) {
+      setBookings(Array.isArray(bookingsData) ? bookingsData : []);
+    }
+  }, [bookingsData]);
 
-      setBookings(data || []);
-    } catch (error) {
+  // Show error toast if query fails
+  useEffect(() => {
+    if (error) {
       console.error('Error fetching bookings:', error);
       toast({
         title: "Error",
         description: "Failed to load bookings",
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [error, toast]);
 
   const handleBookingUpdate = async (updatedBooking: any) => {
     console.log('Real-time booking update received:', updatedBooking);
@@ -86,10 +94,6 @@ export const useBookingManager = (isCalendarConnected: boolean) => {
       return updatedBookings;
     });
   };
-
-  useEffect(() => {
-    fetchBookings();
-  }, []);
 
   return {
     bookings,

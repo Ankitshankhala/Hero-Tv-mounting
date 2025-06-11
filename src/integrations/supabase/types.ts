@@ -19,8 +19,10 @@ export type Database = {
           customer_latitude: number | null
           customer_longitude: number | null
           customer_zipcode: string | null
+          google_calendar_event_id: string | null
           has_modifications: boolean | null
           id: string
+          is_calendar_synced: boolean | null
           late_fee_amount: number | null
           late_fee_applied: boolean | null
           late_fee_applied_at: string | null
@@ -45,8 +47,10 @@ export type Database = {
           customer_latitude?: number | null
           customer_longitude?: number | null
           customer_zipcode?: string | null
+          google_calendar_event_id?: string | null
           has_modifications?: boolean | null
           id?: string
+          is_calendar_synced?: boolean | null
           late_fee_amount?: number | null
           late_fee_applied?: boolean | null
           late_fee_applied_at?: string | null
@@ -71,8 +75,10 @@ export type Database = {
           customer_latitude?: number | null
           customer_longitude?: number | null
           customer_zipcode?: string | null
+          google_calendar_event_id?: string | null
           has_modifications?: boolean | null
           id?: string
+          is_calendar_synced?: boolean | null
           late_fee_amount?: number | null
           late_fee_applied?: boolean | null
           late_fee_applied_at?: string | null

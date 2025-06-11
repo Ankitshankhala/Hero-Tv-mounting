@@ -12,6 +12,8 @@ import { BookingTable } from './BookingTable';
 import { BookingCalendarSyncList } from './BookingCalendarSyncList';
 import { SystemStatusCard } from './SystemStatusCard';
 import { useBookingManager } from '@/hooks/useBookingManager';
+import { AuthGuard } from '@/components/AuthGuard';
+import { ConnectionTester } from '@/components/ConnectionTester';
 
 export const BookingsManager = () => {
   const [filteredBookings, setFilteredBookings] = useState([]);
@@ -64,70 +66,75 @@ export const BookingsManager = () => {
     setFilteredBookings(filtered);
   }, [bookings, filterStatus, filterRegion, searchTerm]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-gray-600">Loading bookings...</div>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6">
-      {/* System Status Card */}
-      <SystemStatusCard 
-        isConnected={isConnected}
-        isCalendarConnected={isCalendarConnected}
-      />
+    <AuthGuard allowedRoles={['admin']}>
+      <div className="space-y-6">
+        {/* Connection Tester */}
+        <ConnectionTester />
 
-      {/* Google Calendar Integration Card */}
-      <GoogleCalendarIntegration 
-        onConnectionChange={(connected) => setIsCalendarConnected(connected)}
-      />
+        {/* System Status Card */}
+        <SystemStatusCard 
+          isConnected={isConnected}
+          isCalendarConnected={isCalendarConnected}
+        />
 
-      {/* Google Calendar Integration Tester */}
-      <GoogleCalendarTester />
+        {/* Google Calendar Integration Card */}
+        <GoogleCalendarIntegration 
+          onConnectionChange={(connected) => setIsCalendarConnected(connected)}
+        />
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center space-x-2">
-              <Calendar className="h-5 w-5" />
-              <span>Bookings Management</span>
-            </CardTitle>
-            <div className="flex items-center space-x-4">
-              {isConnected && (
-                <span className="text-sm text-green-600">● Live updates enabled</span>
-              )}
-              {isCalendarConnected && (
-                <span className="text-sm text-blue-600">● Calendar sync active</span>
-              )}
+        {/* Google Calendar Integration Tester */}
+        <GoogleCalendarTester />
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center space-x-2">
+                <Calendar className="h-5 w-5" />
+                <span>Bookings Management</span>
+              </CardTitle>
+              <div className="flex items-center space-x-4">
+                {isConnected && (
+                  <span className="text-sm text-green-600">● Live updates enabled</span>
+                )}
+                {isCalendarConnected && (
+                  <span className="text-sm text-blue-600">● Calendar sync active</span>
+                )}
+              </div>
             </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <BookingFilters
-            searchTerm={searchTerm}
-            filterStatus={filterStatus}
-            filterRegion={filterRegion}
-            onSearchChange={setSearchTerm}
-            onStatusChange={setFilterStatus}
-            onRegionChange={setFilterRegion}
-          />
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="flex items-center justify-center p-8">
+                <div className="text-gray-600">Loading bookings...</div>
+              </div>
+            ) : (
+              <>
+                <BookingFilters
+                  searchTerm={searchTerm}
+                  filterStatus={filterStatus}
+                  filterRegion={filterRegion}
+                  onSearchChange={setSearchTerm}
+                  onStatusChange={setFilterStatus}
+                  onRegionChange={setFilterRegion}
+                />
 
-          <BookingTable 
-            bookings={filteredBookings} 
-            onBookingUpdate={fetchBookings}
-          />
-        </CardContent>
-      </Card>
+                <BookingTable 
+                  bookings={filteredBookings} 
+                  onBookingUpdate={fetchBookings}
+                />
+              </>
+            )}
+          </CardContent>
+        </Card>
 
-      {/* Calendar sync components for all bookings when calendar is connected */}
-      <BookingCalendarSyncList 
-        bookings={filteredBookings}
-        isCalendarConnected={isCalendarConnected}
-      />
-    </div>
+        {/* Calendar sync components for all bookings when calendar is connected */}
+        <BookingCalendarSyncList 
+          bookings={filteredBookings}
+          isCalendarConnected={isCalendarConnected}
+        />
+      </div>
+    </AuthGuard>
   );
 };
 

@@ -22,6 +22,9 @@ export type Database = {
           is_active: boolean
           created_at: string
           updated_at: string
+          zipcode: string | null
+          longitude: number | null
+          latitude: number | null
         }
         Insert: {
           id?: string
@@ -34,6 +37,9 @@ export type Database = {
           is_active?: boolean
           created_at?: string
           updated_at?: string
+          zipcode?: string | null
+          longitude?: number | null
+          latitude?: number | null
         }
         Update: {
           id?: string
@@ -46,6 +52,9 @@ export type Database = {
           is_active?: boolean
           created_at?: string
           updated_at?: string
+          zipcode?: string | null
+          longitude?: number | null
+          latitude?: number | null
         }
       }
       services: {
@@ -57,6 +66,7 @@ export type Database = {
           duration_minutes: number
           is_active: boolean
           created_at: string
+          image_url: string | null
         }
         Insert: {
           id?: string
@@ -66,6 +76,7 @@ export type Database = {
           duration_minutes: number
           is_active?: boolean
           created_at?: string
+          image_url?: string | null
         }
         Update: {
           id?: string
@@ -75,6 +86,7 @@ export type Database = {
           duration_minutes?: number
           is_active?: boolean
           created_at?: string
+          image_url?: string | null
         }
       }
       worker_availability: {
@@ -121,6 +133,10 @@ export type Database = {
           special_instructions: string | null
           created_at: string
           updated_at: string
+          has_modifications: boolean
+          pending_payment_amount: number | null
+          google_calendar_event_id: string | null
+          is_calendar_synced: boolean
         }
         Insert: {
           id?: string
@@ -136,6 +152,10 @@ export type Database = {
           special_instructions?: string | null
           created_at?: string
           updated_at?: string
+          has_modifications?: boolean
+          pending_payment_amount?: number | null
+          google_calendar_event_id?: string | null
+          is_calendar_synced?: boolean
         }
         Update: {
           id?: string
@@ -151,6 +171,10 @@ export type Database = {
           special_instructions?: string | null
           created_at?: string
           updated_at?: string
+          has_modifications?: boolean
+          pending_payment_amount?: number | null
+          google_calendar_event_id?: string | null
+          is_calendar_synced?: boolean
         }
       }
       transactions: {
@@ -252,38 +276,208 @@ export type Database = {
           created_at?: string
         }
       }
+      invoice_modifications: {
+        Row: {
+          id: string
+          booking_id: string
+          worker_id: string
+          original_services: Json
+          modified_services: Json
+          original_total: number
+          modified_total: number
+          modification_reason: string | null
+          customer_approved: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          booking_id: string
+          worker_id: string
+          original_services: Json
+          modified_services: Json
+          original_total: number
+          modified_total: number
+          modification_reason?: string | null
+          customer_approved?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          booking_id?: string
+          worker_id?: string
+          original_services?: Json
+          modified_services?: Json
+          original_total?: number
+          modified_total?: number
+          modification_reason?: string | null
+          customer_approved?: boolean
+          created_at?: string
+        }
+      }
+      on_site_charges: {
+        Row: {
+          id: string
+          booking_id: string
+          worker_id: string
+          service_name: string
+          description: string | null
+          amount: number
+          status: string
+          stripe_payment_id: string | null
+          charged_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          booking_id: string
+          worker_id: string
+          service_name: string
+          description?: string | null
+          amount: number
+          status?: string
+          stripe_payment_id?: string | null
+          charged_at?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          booking_id?: string
+          worker_id?: string
+          service_name?: string
+          description?: string | null
+          amount?: number
+          status?: string
+          stripe_payment_id?: string | null
+          charged_at?: string
+          created_at?: string
+        }
+      }
+      payment_sessions: {
+        Row: {
+          id: string
+          booking_id: string
+          amount: number
+          currency: string
+          status: string
+          stripe_session_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          booking_id: string
+          amount: number
+          currency?: string
+          status?: string
+          stripe_session_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          booking_id?: string
+          amount?: number
+          currency?: string
+          status?: string
+          stripe_session_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      worker_schedules: {
+        Row: {
+          id: string
+          worker_id: string
+          date: string
+          start_time: string
+          end_time: string
+          is_available: boolean
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          worker_id: string
+          date: string
+          start_time: string
+          end_time: string
+          is_available?: boolean
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          worker_id?: string
+          date?: string
+          start_time?: string
+          end_time?: string
+          is_available?: boolean
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      worker_applications: {
+        Row: {
+          id: string
+          name: string
+          email: string
+          phone: string
+          city: string
+          region: string
+          experience: string
+          skills: string | null
+          has_tools: boolean
+          has_vehicle: boolean
+          availability: Json
+          background_check_consent: boolean
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          email: string
+          phone: string
+          city: string
+          region: string
+          experience: string
+          skills?: string | null
+          has_tools?: boolean
+          has_vehicle?: boolean
+          availability: Json
+          background_check_consent?: boolean
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          email?: string
+          phone?: string
+          city?: string
+          region?: string
+          experience?: string
+          skills?: string | null
+          has_tools?: boolean
+          has_vehicle?: boolean
+          availability?: Json
+          background_check_consent?: boolean
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      calculate_booking_total: {
-        Args: {
-          service_ids: string[]
-          quantities: number[]
-        }
-        Returns: {
-          total_price: number
-          total_duration: number
-        }
-      }
-      calculate_cancellation_fee: {
-        Args: {
-          booking_id: string
-        }
-        Returns: number
-      }
-      find_available_workers: {
-        Args: {
-          job_date: string
-          job_time: string
-          job_duration: number
-          job_region: string
-        }
-        Returns: {
-          worker_id: string
-        }[]
-      }
+      [_ in never]: never
     }
     Enums: {
       user_role: 'customer' | 'worker' | 'admin'
