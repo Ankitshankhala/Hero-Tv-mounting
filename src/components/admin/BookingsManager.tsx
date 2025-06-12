@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar, RefreshCw } from 'lucide-react';
@@ -31,11 +30,17 @@ export const BookingsManager = () => {
   // Use our custom hook for booking management
   const { bookings, loading, handleBookingUpdate, fetchBookings, refetchBookings } = useBookingManager(isCalendarConnected);
 
+  // Memoize the booking update callback to prevent unnecessary re-subscriptions
+  const memoizedBookingUpdate = useCallback((booking: any) => {
+    console.log('Memoized booking update received:', booking);
+    handleBookingUpdate(booking);
+  }, [handleBookingUpdate]);
+
   // Set up real-time subscriptions for admin
   const { isConnected } = useRealtimeBookings({
     userId: user?.id,
     userRole: 'admin',
-    onBookingUpdate: handleBookingUpdate
+    onBookingUpdate: memoizedBookingUpdate
   });
 
   // Update calendar connection state

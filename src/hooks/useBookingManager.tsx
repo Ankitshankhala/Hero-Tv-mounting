@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
 import { useBookingOperations } from '@/hooks/useBookingOperations';
 import { useToast } from '@/hooks/use-toast';
@@ -28,7 +27,7 @@ export const useBookingManager = (isCalendarConnected: boolean) => {
   });
 
   // Custom fetch function with better error handling
-  const fetchBookings = async () => {
+  const fetchBookings = useCallback(async () => {
     try {
       console.log('Fetching bookings manually...');
       const data = await loadBookings();
@@ -44,7 +43,7 @@ export const useBookingManager = (isCalendarConnected: boolean) => {
         variant: "destructive",
       });
     }
-  };
+  }, [loadBookings, toast]);
 
   // Update local state when data changes
   useEffect(() => {
@@ -77,7 +76,7 @@ export const useBookingManager = (isCalendarConnected: boolean) => {
     return () => clearInterval(interval);
   }, [refetchBookings]);
 
-  const handleBookingUpdate = async (updatedBooking: any) => {
+  const handleBookingUpdate = useCallback(async (updatedBooking: any) => {
     console.log('Real-time booking update received:', updatedBooking);
     
     setBookings(currentBookings => {
@@ -143,7 +142,7 @@ export const useBookingManager = (isCalendarConnected: boolean) => {
         description: "A new booking has been received!",
       });
     }
-  };
+  }, [bookings, isCalendarConnected, syncBookingToCalendar, fetchBookings, toast]);
 
   return {
     bookings,
