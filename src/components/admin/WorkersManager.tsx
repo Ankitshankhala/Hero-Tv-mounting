@@ -15,11 +15,7 @@ export const WorkersManager = () => {
   const [workers, setWorkers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddWorker, setShowAddWorker] = useState(false);
-  const [filters, setFilters] = useState({
-    status: 'all',
-    region: '',
-    search: ''
-  });
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     fetchWorkers();
@@ -52,17 +48,10 @@ export const WorkersManager = () => {
   };
 
   const filteredWorkers = workers.filter(worker => {
-    const matchesStatus = filters.status === 'all' || 
-      (filters.status === 'active' && worker.is_active) ||
-      (filters.status === 'inactive' && !worker.is_active);
+    if (!searchTerm) return true;
     
-    const matchesRegion = !filters.region || worker.region === filters.region;
-    
-    const matchesSearch = !filters.search || 
-      worker.name.toLowerCase().includes(filters.search.toLowerCase()) ||
-      worker.email.toLowerCase().includes(filters.search.toLowerCase());
-
-    return matchesStatus && matchesRegion && matchesSearch;
+    return worker.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           worker.email.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
   return (
@@ -100,14 +89,13 @@ export const WorkersManager = () => {
             </CardHeader>
             <CardContent>
               <WorkerFilters 
-                filters={filters}
-                onFiltersChange={setFilters}
-                workers={workers}
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                onAddWorker={() => setShowAddWorker(true)}
               />
               <WorkerTable 
                 workers={filteredWorkers}
-                loading={loading}
-                onRefresh={fetchWorkers}
+                onWorkerUpdate={fetchWorkers}
               />
             </CardContent>
           </Card>
