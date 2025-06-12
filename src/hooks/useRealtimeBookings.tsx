@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -16,9 +16,32 @@ export const useRealtimeBookings = ({
 }: UseRealtimeBookingsProps) => {
   const { toast } = useToast();
   const [isConnected, setIsConnected] = useState(false);
+  const channelRef = useRef<any>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isConnectingRef = useRef(false);
 
   useEffect(() => {
     if (!userId || !userRole) return;
+
+    // Prevent multiple simultaneous connection attempts
+    if (isConnectingRef.current) {
+      console.log('Connection attempt already in progress, skipping...');
+      return;
+    }
+
+    // Clear any existing reconnect timeout
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+
+    // Clean up existing channel before creating new one
+    if (channelRef.current) {
+      console.log('Cleaning up existing channel before reconnection');
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+      setIsConnected(false);
+    }
 
     let channelName = '';
     let filter = '';
@@ -42,6 +65,7 @@ export const useRealtimeBookings = ({
     }
 
     console.log(`Setting up realtime subscription for ${userRole}:`, channelName);
+    isConnectingRef.current = true;
 
     const channel = supabase
       .channel(channelName)
@@ -94,19 +118,49 @@ export const useRealtimeBookings = ({
       )
       .subscribe((status) => {
         console.log('Realtime subscription status:', status);
-        setIsConnected(status === 'SUBSCRIBED');
+        isConnectingRef.current = false;
         
         if (status === 'SUBSCRIBED') {
-          toast({
-            title: "Connected",
-            description: "Real-time updates enabled",
-          });
+          setIsConnected(true);
+          channelRef.current = channel;
+          console.log('Successfully connected to realtime updates');
+          
+          // Only show success toast for successful connections after previous failures
+          if (!isConnected) {
+            toast({
+              title: "Connected",
+              description: "Real-time updates enabled",
+            });
+          }
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          setIsConnected(false);
+          channelRef.current = null;
+          
+          console.log(`Realtime connection ${status.toLowerCase()}, will retry in 5 seconds...`);
+          
+          // Schedule reconnection attempt after a delay
+          reconnectTimeoutRef.current = setTimeout(() => {
+            console.log('Attempting to reconnect realtime subscription...');
+            // This will trigger the useEffect to run again
+            setIsConnected(false);
+          }, 5000);
         }
       });
 
     return () => {
       console.log('Cleaning up realtime subscription');
-      supabase.removeChannel(channel);
+      isConnectingRef.current = false;
+      
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+      
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+      
       setIsConnected(false);
     };
   }, [userId, userRole, onBookingUpdate, toast]);
