@@ -69,9 +69,12 @@ export const useBookingManager = (
         lastUpdateTimestamp.current = Date.now();
         console.log('Manual booking fetch successful:', data.length, 'bookings');
       }
-    } catch (error) {
-      console.error('Manual booking fetch failed:', error);
-      setError(error instanceof Error ? error.message : 'Failed to fetch bookings');
+    } catch (err) {
+      console.error('Manual booking fetch failed:', err);
+      const errorMessage = err && typeof err === 'object' && 'message' in err 
+        ? (err as Error).message 
+        : 'Failed to fetch bookings';
+      setError(errorMessage);
       
       // Retry logic for production resilience
       if (retryCount < 2) {
@@ -108,7 +111,9 @@ export const useBookingManager = (
   useEffect(() => {
     if (queryError) {
       console.error('Query error:', queryError);
-      const errorMessage = queryError instanceof Error ? queryError.message : 'Failed to load bookings';
+      const errorMessage = queryError && typeof queryError === 'object' && 'message' in queryError 
+        ? (queryError as Error).message 
+        : 'Failed to load bookings';
       setError(errorMessage);
       
       if (enableToastNotifications) {
@@ -226,8 +231,8 @@ export const useBookingManager = (
         lastUpdateTimestamp.current = Date.now();
         return updatedBookings;
       });
-    } catch (error) {
-      console.error('Error processing booking update:', error);
+    } catch (err) {
+      console.error('Error processing booking update:', err);
       setError('Failed to process booking update');
     } finally {
       isProcessingUpdate.current = false;
