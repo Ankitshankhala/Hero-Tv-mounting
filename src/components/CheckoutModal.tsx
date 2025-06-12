@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { ValidatedInput } from '@/components/ui/ValidatedInput';
+import { useFormValidation } from '@/hooks/useFormValidation';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { CartItem } from '@/pages/Index';
@@ -29,16 +31,33 @@ export const CheckoutModal = ({ cart, total, onClose }: CheckoutModalProps) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+  const validationRules = {
+    name: { required: true, type: 'name' as const, minLength: 2, maxLength: 50 },
+    email: { required: true, type: 'email' as const },
+    phone: { required: true, type: 'phone' as const },
+    address: { required: true, type: 'address' as const, minLength: 10, maxLength: 100 },
+    zipcode: { required: false, type: 'zipcode' as const },
+    date: { required: true },
+    time: { required: true }
+  };
+
+  const { errors, touched, validateField, validateAllFields, markFieldAsTouched, hasError } = useFormValidation(validationRules);
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (touched[field]) {
+      validateField(field, value);
+    }
+  };
+
+  const handleBlur = (field: string) => {
+    markFieldAsTouched(field);
+    validateField(field, formData[field]);
   };
 
   const calculateTotalDuration = () => {
     return cart.reduce((total, item) => {
-      let baseDuration = 60; // Base duration for TV mounting
+      let baseDuration = 60;
       if (item.options?.numberOfTvs && item.options.numberOfTvs > 1) {
         baseDuration += (item.options.numberOfTvs - 1) * 30;
       }
@@ -52,10 +71,23 @@ export const CheckoutModal = ({ cart, total, onClose }: CheckoutModalProps) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.email || !formData.phone || !formData.address || !formData.date || !formData.time) {
+    // Validate all fields
+    if (!validateAllFields(formData)) {
       toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields",
+        title: "Validation Error",
+        description: "Please correct the errors in the form",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Additional date validation
+    const selectedDate = new Date(`${formData.date}T${formData.time}:00`);
+    const now = new Date();
+    if (selectedDate <= now) {
+      toast({
+        title: "Invalid Date",
+        description: "Please select a future date and time",
         variant: "destructive",
       });
       return;
@@ -64,10 +96,8 @@ export const CheckoutModal = ({ cart, total, onClose }: CheckoutModalProps) => {
     setIsProcessing(true);
 
     try {
-      // Create scheduled datetime
       const scheduledAt = new Date(`${formData.date}T${formData.time}:00`).toISOString();
       
-      // Prepare booking data
       const bookingData = {
         address: formData.address,
         scheduledAt,
@@ -76,12 +106,10 @@ export const CheckoutModal = ({ cart, total, onClose }: CheckoutModalProps) => {
         totalDuration: calculateTotalDuration(),
         specialInstructions: formData.specialInstructions,
         zipcode: formData.zipcode,
-        // You can add geocoding here later for latitude/longitude
         latitude: null,
         longitude: null
       };
 
-      // Create Stripe checkout session
       const { data, error } = await supabase.functions.invoke('create-checkout', {
         body: {
           bookingData,
@@ -95,7 +123,6 @@ export const CheckoutModal = ({ cart, total, onClose }: CheckoutModalProps) => {
       }
 
       if (data?.url) {
-        // Open Stripe checkout in a new tab
         window.open(data.url, '_blank');
         
         toast({
@@ -152,121 +179,118 @@ export const CheckoutModal = ({ cart, total, onClose }: CheckoutModalProps) => {
 
           {/* Customer Information */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="name" className="flex items-center space-x-2">
-                <User className="h-4 w-4" />
-                <span>Full Name *</span>
-              </Label>
-              <Input
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                required
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="email" className="flex items-center space-x-2">
-                <Mail className="h-4 w-4" />
-                <span>Email *</span>
-              </Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                required
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="phone" className="flex items-center space-x-2">
-                <Phone className="h-4 w-4" />
-                <span>Phone Number *</span>
-              </Label>
-              <Input
-                id="phone"
-                name="phone"
-                type="tel"
-                value={formData.phone}
-                onChange={handleInputChange}
-                required
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="zipcode">ZIP Code</Label>
-              <Input
-                id="zipcode"
-                name="zipcode"
-                value={formData.zipcode}
-                onChange={handleInputChange}
-                className="mt-1"
-              />
-            </div>
-          </div>
-
-          {/* Service Address */}
-          <div>
-            <Label htmlFor="address" className="flex items-center space-x-2">
-              <MapPin className="h-4 w-4" />
-              <span>Service Address *</span>
-            </Label>
-            <Input
-              id="address"
-              name="address"
-              value={formData.address}
-              onChange={handleInputChange}
-              placeholder="Enter full address where service will be performed"
+            <ValidatedInput
+              id="name"
+              label="Full Name"
+              value={formData.name}
+              onChange={(value) => handleInputChange('name', value)}
+              onBlur={() => handleBlur('name')}
+              error={errors.name}
+              touched={touched.name}
               required
-              className="mt-1"
+              autoFormat="name"
+              placeholder="John Doe"
+            />
+            
+            <ValidatedInput
+              id="email"
+              label="Email"
+              type="email"
+              value={formData.email}
+              onChange={(value) => handleInputChange('email', value)}
+              onBlur={() => handleBlur('email')}
+              error={errors.email}
+              touched={touched.email}
+              required
+              placeholder="john@example.com"
+            />
+            
+            <ValidatedInput
+              id="phone"
+              label="Phone Number"
+              type="tel"
+              value={formData.phone}
+              onChange={(value) => handleInputChange('phone', value)}
+              onBlur={() => handleBlur('phone')}
+              error={errors.phone}
+              touched={touched.phone}
+              required
+              autoFormat="phone"
+              placeholder="(555) 123-4567"
+            />
+            
+            <ValidatedInput
+              id="zipcode"
+              label="ZIP Code"
+              value={formData.zipcode}
+              onChange={(value) => handleInputChange('zipcode', value)}
+              onBlur={() => handleBlur('zipcode')}
+              error={errors.zipcode}
+              touched={touched.zipcode}
+              placeholder="12345"
             />
           </div>
 
+          {/* Service Address */}
+          <ValidatedInput
+            id="address"
+            label="Service Address"
+            value={formData.address}
+            onChange={(value) => handleInputChange('address', value)}
+            onBlur={() => handleBlur('address')}
+            error={errors.address}
+            touched={touched.address}
+            required
+            autoFormat="address"
+            placeholder="123 Main St, City, State"
+          />
+
           {/* Scheduling */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="date" className="flex items-center space-x-2">
+            <div className="space-y-2">
+              <Label htmlFor="date" className="flex items-center space-x-2 text-sm font-medium after:content-['*'] after:ml-0.5 after:text-destructive">
                 <Clock className="h-4 w-4" />
-                <span>Preferred Date *</span>
+                <span>Preferred Date</span>
               </Label>
               <Input
                 id="date"
-                name="date"
                 type="date"
                 value={formData.date}
-                onChange={handleInputChange}
+                onChange={(e) => handleInputChange('date', e.target.value)}
+                onBlur={() => handleBlur('date')}
                 min={new Date().toISOString().split('T')[0]}
                 required
-                className="mt-1"
+                className={hasError('date') ? "border-destructive" : ""}
               />
+              {hasError('date') && (
+                <p className="text-sm text-destructive">{errors.date}</p>
+              )}
             </div>
-            <div>
-              <Label htmlFor="time">Preferred Time *</Label>
+            <div className="space-y-2">
+              <Label htmlFor="time" className="text-sm font-medium after:content-['*'] after:ml-0.5 after:text-destructive">Preferred Time</Label>
               <Input
                 id="time"
-                name="time"
                 type="time"
                 value={formData.time}
-                onChange={handleInputChange}
+                onChange={(e) => handleInputChange('time', e.target.value)}
+                onBlur={() => handleBlur('time')}
                 required
-                className="mt-1"
+                className={hasError('time') ? "border-destructive" : ""}
               />
+              {hasError('time') && (
+                <p className="text-sm text-destructive">{errors.time}</p>
+              )}
             </div>
           </div>
 
           {/* Special Instructions */}
-          <div>
-            <Label htmlFor="specialInstructions">Special Instructions</Label>
+          <div className="space-y-2">
+            <Label htmlFor="specialInstructions" className="text-sm font-medium">Special Instructions</Label>
             <Textarea
               id="specialInstructions"
-              name="specialInstructions"
               value={formData.specialInstructions}
-              onChange={handleInputChange}
+              onChange={(e) => handleInputChange('specialInstructions', e.target.value)}
               placeholder="Any special instructions for our technician..."
-              className="mt-1"
               rows={3}
             />
           </div>

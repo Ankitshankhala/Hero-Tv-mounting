@@ -1,26 +1,58 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ValidatedInput } from '@/components/ui/ValidatedInput';
+import { useFormValidation } from '@/hooks/useFormValidation';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { Wrench } from 'lucide-react';
 
 const WorkerLoginForm = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [formData, setFormData] = useState({
+    email: '',
+    password: ''
+  });
   const [loading, setLoading] = useState(false);
   const { signIn } = useAuth();
   const { toast } = useToast();
 
+  const validationRules = {
+    email: { required: true, type: 'email' as const },
+    password: { required: true, minLength: 6 }
+  };
+
+  const { errors, touched, validateField, validateAllFields, markFieldAsTouched } = useFormValidation(validationRules);
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (touched[field]) {
+      validateField(field, value);
+    }
+  };
+
+  const handleBlur = (field: string) => {
+    markFieldAsTouched(field);
+    validateField(field, formData[field]);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateAllFields(formData)) {
+      toast({
+        title: "Validation Error",
+        description: "Please correct the errors in the form",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
-      await signIn(email, password);
+      await signIn(formData.email, formData.password);
     } catch (error) {
       toast({
         title: "Login Failed",
@@ -43,28 +75,34 @@ const WorkerLoginForm = () => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                placeholder="worker@company.com"
-              />
-            </div>
-            <div>
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                placeholder="Enter your password"
-              />
-            </div>
+            <ValidatedInput
+              id="email"
+              label="Email"
+              type="email"
+              value={formData.email}
+              onChange={(value) => handleInputChange('email', value)}
+              onBlur={() => handleBlur('email')}
+              error={errors.email}
+              touched={touched.email}
+              required
+              placeholder="worker@company.com"
+              disabled={loading}
+            />
+
+            <ValidatedInput
+              id="password"
+              label="Password"
+              type="password"
+              value={formData.password}
+              onChange={(value) => handleInputChange('password', value)}
+              onBlur={() => handleBlur('password')}
+              error={errors.password}
+              touched={touched.password}
+              required
+              placeholder="Enter your password"
+              disabled={loading}
+            />
+
             <Button 
               type="submit" 
               className="w-full" 
