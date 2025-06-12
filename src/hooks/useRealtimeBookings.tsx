@@ -77,15 +77,15 @@ export const useRealtimeBookings = ({
 
     const channel = supabase.channel(channelName);
 
-    // Set up the channel configuration
-    const channelConfig = {
-      event: '*',
+    // Set up the postgres changes listener with proper syntax
+    const postgresChangesConfig = {
+      event: '*' as const,
       schema: 'public',
       table: 'bookings',
       ...(filter && { filter }),
     };
 
-    channel.on('postgres_changes', channelConfig, (payload) => {
+    channel.on('postgres_changes', postgresChangesConfig, (payload) => {
       // Check if this is still the current attempt
       if (currentAttempt !== subscriptionAttemptRef.current) {
         console.log('Ignoring payload from old subscription attempt');
