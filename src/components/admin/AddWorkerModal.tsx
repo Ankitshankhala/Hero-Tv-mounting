@@ -51,10 +51,18 @@ export const AddWorkerModal = ({ onClose, onWorkerAdded }: AddWorkerModalProps) 
         zipcode: formData.zipcode
       });
 
-      // Create auth user first
+      // Create auth user first with custom email template data
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
+        options: {
+          data: {
+            role: 'worker',
+            name: formData.name,
+            company: 'Hero TV Mounting'
+          },
+          emailRedirectTo: `${window.location.origin}/worker`,
+        }
       });
 
       if (authError) {
@@ -111,7 +119,8 @@ export const AddWorkerModal = ({ onClose, onWorkerAdded }: AddWorkerModalProps) 
 
         toast({
           title: "Success",
-          description: "Worker account created successfully",
+          description: "Check your email for verification.",
+          variant: "default",
         });
 
         onWorkerAdded?.();
@@ -144,7 +153,7 @@ export const AddWorkerModal = ({ onClose, onWorkerAdded }: AddWorkerModalProps) 
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 text-sm">
-              <strong>Note:</strong> Please use a real email address. Try using Gmail, Yahoo, or your company domain instead of test domains.
+              <strong>Note:</strong> Worker will receive an email verification to complete the onboarding process.
             </div>
 
             <WorkerPersonalInfoForm
@@ -181,3 +190,4 @@ export const AddWorkerModal = ({ onClose, onWorkerAdded }: AddWorkerModalProps) 
     </div>
   );
 };
+

@@ -156,11 +156,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       const redirectUrl = `${window.location.origin}/`;
       
-      // First create the auth user
+      // First create the auth user with custom email template data
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
+          data: {
+            role: 'customer',
+            name: userData.name,
+          },
           emailRedirectTo: redirectUrl
         }
       });
