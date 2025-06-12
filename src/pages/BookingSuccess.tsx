@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { useSearchParams, Link, useNavigate } from 'react-router-dom';
+import { useSearchParams, useLocation, Link, useNavigate } from 'react-router-dom';
 import { CheckCircle, Calendar, MapPin, Clock, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 
 const BookingSuccess = () => {
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const [booking, setBooking] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -16,12 +17,27 @@ const BookingSuccess = () => {
   
   const sessionId = searchParams.get('session_id');
   const bookingId = searchParams.get('booking_id');
+  
+  // Get booking data from navigation state if available
+  const bookingDataFromState = location.state?.bookingData;
 
   useEffect(() => {
     const verifyPaymentAndBooking = async () => {
       console.log('BookingSuccess: Starting verification with sessionId:', sessionId, 'bookingId:', bookingId);
       
       try {
+        // If we have booking data from navigation state, use it
+        if (bookingDataFromState) {
+          console.log('Using booking data from navigation state:', bookingDataFromState);
+          setBooking(bookingDataFromState);
+          toast({
+            title: "Booking Confirmed!",
+            description: "Your service has been successfully booked.",
+          });
+          setLoading(false);
+          return;
+        }
+
         // If we have a booking ID, fetch it directly
         if (bookingId) {
           console.log('Fetching booking directly by ID:', bookingId);
@@ -80,12 +96,11 @@ const BookingSuccess = () => {
           return;
         }
 
-        // If no session ID or booking ID, show error
-        console.log('No session ID or booking ID found in URL parameters');
+        // If no session ID, booking ID, or state data, show generic success
+        console.log('No specific booking data found, showing generic success message');
         toast({
-          title: "Missing Information",
-          description: "Could not find booking information. Please check your email for confirmation.",
-          variant: "destructive",
+          title: "Booking Received",
+          description: "Your booking request has been received. We'll contact you soon with confirmation.",
         });
         
       } catch (error) {
@@ -101,51 +116,33 @@ const BookingSuccess = () => {
     };
 
     verifyPaymentAndBooking();
-  }, [sessionId, bookingId, toast]);
+  }, [sessionId, bookingId, bookingDataFromState, toast]);
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-600 mx-auto"></div>
-          <p className="mt-4 text-white">Verifying your booking...</p>
+          <p className="mt-4 text-white">Processing your booking...</p>
         </div>
       </div>
     );
   }
 
-  if (!booking) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
-        <Card className="bg-slate-800 border-slate-700 p-8 max-w-md">
-          <CardContent className="text-center">
-            <h2 className="text-xl font-bold text-white mb-4">Booking Information</h2>
-            <p className="text-slate-300 mb-4">
-              We couldn't find your booking details, but don't worry! Please check your email for confirmation details.
-            </p>
-            <div className="flex flex-col gap-4">
-              <Link to="/">
-                <Button className="w-full bg-blue-600 hover:bg-blue-700">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Return Home
-                </Button>
-              </Link>
-              <Button 
-                variant="outline" 
-                className="border-slate-600 text-white hover:bg-slate-700"
-                onClick={() => navigate('/book')}
-              >
-                Book Another Service
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  // Default booking data if none is available
+  const displayBooking = booking || {
+    scheduled_at: bookingDataFromState?.date && bookingDataFromState?.time 
+      ? new Date(`${bookingDataFromState.date}T${bookingDataFromState.time}`) 
+      : new Date(),
+    customer_address: bookingDataFromState?.address || 'Address not specified',
+    total_duration_minutes: 60,
+    services: bookingDataFromState?.services || [],
+    total_price: bookingDataFromState?.totalPrice || 0,
+    special_instructions: bookingDataFromState?.specialInstructions || ''
+  };
 
-  const scheduledDate = new Date(booking.scheduled_at);
-  const services = Array.isArray(booking.services) ? booking.services : [];
+  const scheduledDate = new Date(displayBooking.scheduled_at);
+  const services = Array.isArray(displayBooking.services) ? displayBooking.services : [];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-12 px-4">
@@ -188,7 +185,7 @@ const BookingSuccess = () => {
               <MapPin className="h-5 w-5 text-blue-400 mt-0.5" />
               <div>
                 <p className="text-white font-medium">Service Address</p>
-                <p className="text-slate-300">{booking.customer_address}</p>
+                <p className="text-slate-300">{displayBooking.customer_address}</p>
               </div>
             </div>
 
@@ -196,7 +193,7 @@ const BookingSuccess = () => {
               <Clock className="h-5 w-5 text-blue-400 mt-0.5" />
               <div>
                 <p className="text-white font-medium">Estimated Duration</p>
-                <p className="text-slate-300">{booking.total_duration_minutes} minutes</p>
+                <p className="text-slate-300">{displayBooking.total_duration_minutes} minutes</p>
               </div>
             </div>
 
@@ -211,17 +208,17 @@ const BookingSuccess = () => {
                 ))}
                 <div className="border-t border-slate-600 mt-2 pt-2">
                   <div className="flex justify-between items-center font-bold">
-                    <span className="text-white">Total Paid:</span>
-                    <span className="text-green-400">${booking.total_price.toFixed(2)}</span>
+                    <span className="text-white">Total:</span>
+                    <span className="text-green-400">${displayBooking.total_price.toFixed(2)}</span>
                   </div>
                 </div>
               </div>
             )}
 
-            {booking.special_instructions && (
+            {displayBooking.special_instructions && (
               <div>
                 <p className="text-white font-medium">Special Instructions:</p>
-                <p className="text-slate-300">{booking.special_instructions}</p>
+                <p className="text-slate-300">{displayBooking.special_instructions}</p>
               </div>
             )}
           </CardContent>

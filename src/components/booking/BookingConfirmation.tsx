@@ -1,10 +1,12 @@
 
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
 export const BookingConfirmation = () => {
+  const navigate = useNavigate();
+
   return (
     <div className="max-w-2xl mx-auto text-center">
       <Card className="bg-slate-800 border-slate-700">
@@ -19,12 +21,19 @@ export const BookingConfirmation = () => {
             Thank you for your booking. We'll contact you shortly to confirm the details and assign a technician.
           </p>
           <div className="space-y-4">
-            <Link to="/dashboard">
-              <Button className="w-full">View My Bookings</Button>
-            </Link>
-            <Link to="/">
-              <Button variant="outline" className="w-full">Back to Home</Button>
-            </Link>
+            <Button 
+              onClick={() => navigate('/customer-dashboard')}
+              className="w-full"
+            >
+              View My Bookings
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => navigate('/')}
+              className="w-full"
+            >
+              Back to Home
+            </Button>
           </div>
         </CardContent>
       </Card>

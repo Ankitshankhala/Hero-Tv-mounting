@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CalendarView } from '@/components/booking/CalendarView';
@@ -25,6 +25,7 @@ const Book = () => {
     customerEmail: '',
     customerPhone: ''
   });
+  const navigate = useNavigate();
 
   const addToCart = (item: CartItem) => {
     setCart(prev => {
@@ -49,10 +50,30 @@ const Book = () => {
     return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   };
 
-  const handleBookingSubmit = () => {
-    console.log('Booking submitted:', { cart, bookingData, total: getTotalPrice() });
-    // TODO: Integrate with Supabase
-    setStep(4);
+  const handleBookingSubmit = async () => {
+    try {
+      console.log('Booking submitted:', { cart, bookingData, total: getTotalPrice() });
+      // TODO: Integrate with Supabase to save booking
+      
+      // For now, simulate successful booking and navigate to success page
+      // In a real implementation, you would save to database first
+      setTimeout(() => {
+        navigate('/booking-success', { 
+          replace: true,
+          state: { 
+            bookingData: {
+              ...bookingData,
+              services: cart,
+              totalPrice: getTotalPrice()
+            }
+          }
+        });
+      }, 500);
+      
+    } catch (error) {
+      console.error('Booking submission error:', error);
+      // Handle error - could show error message to user
+    }
   };
 
   const handleDateTimeSelect = (date: string, time: string) => {
@@ -66,6 +87,13 @@ const Book = () => {
   const updateBookingData = (updates: Partial<typeof bookingData>) => {
     setBookingData(prev => ({ ...prev, ...updates }));
   };
+
+  // Don't render BookingConfirmation component in step 4 anymore
+  // Instead, redirect to the dedicated success page
+  if (step > 4) {
+    navigate('/booking-success');
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
@@ -114,8 +142,6 @@ const Book = () => {
             onContinue={handleBookingSubmit}
           />
         )}
-
-        {step === 4 && <BookingConfirmation />}
       </div>
     </div>
   );
