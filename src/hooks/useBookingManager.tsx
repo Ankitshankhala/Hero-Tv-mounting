@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
 import { useBookingOperations } from '@/hooks/useBookingOperations';
