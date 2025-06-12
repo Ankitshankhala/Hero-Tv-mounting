@@ -19,13 +19,9 @@ export const useRealtimeBookings = ({
   const channelRef = useRef<any>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isConnectingRef = useRef(false);
-  const subscriptionAttemptRef = useRef(0);
 
   useEffect(() => {
     if (!userId || !userRole) return;
-
-    // Create a unique attempt ID to prevent race conditions
-    const currentAttempt = ++subscriptionAttemptRef.current;
 
     // Prevent multiple simultaneous connection attempts
     if (isConnectingRef.current) {
@@ -75,6 +71,7 @@ export const useRealtimeBookings = ({
     console.log(`Setting up realtime subscription for ${userRole}:`, channelName);
     isConnectingRef.current = true;
 
+    // Create a new channel instance
     const channel = supabase.channel(channelName);
 
     // Set up the postgres changes listener with proper syntax
@@ -86,12 +83,6 @@ export const useRealtimeBookings = ({
     };
 
     channel.on('postgres_changes', postgresChangesConfig, (payload) => {
-      // Check if this is still the current attempt
-      if (currentAttempt !== subscriptionAttemptRef.current) {
-        console.log('Ignoring payload from old subscription attempt');
-        return;
-      }
-
       console.log('Realtime booking update:', payload);
       
       const { eventType, new: newRecord, old: oldRecord } = payload;
@@ -134,12 +125,6 @@ export const useRealtimeBookings = ({
     channel.subscribe((status) => {
       console.log('Realtime subscription status:', status);
       
-      // Check if this is still the current attempt
-      if (currentAttempt !== subscriptionAttemptRef.current) {
-        console.log('Ignoring status from old subscription attempt');
-        return;
-      }
-
       isConnectingRef.current = false;
       
       if (status === 'SUBSCRIBED') {
@@ -160,12 +145,12 @@ export const useRealtimeBookings = ({
         
         console.log(`Realtime connection ${status.toLowerCase()}, will retry in 5 seconds...`);
         
-        // Only schedule reconnection if this is still the current attempt
-        if (currentAttempt === subscriptionAttemptRef.current) {
+        // Schedule reconnection with a delay
+        if (!reconnectTimeoutRef.current) {
           reconnectTimeoutRef.current = setTimeout(() => {
             console.log('Attempting to reconnect realtime subscription...');
-            // Increment attempt counter to trigger useEffect
-            subscriptionAttemptRef.current++;
+            reconnectTimeoutRef.current = null;
+            // Trigger re-connection by updating state
             setIsConnected(false);
           }, 5000);
         }
@@ -192,7 +177,7 @@ export const useRealtimeBookings = ({
       
       setIsConnected(false);
     };
-  }, [userId, userRole, onBookingUpdate, toast, subscriptionAttemptRef.current]);
+  }, [userId, userRole, onBookingUpdate, toast]);
 
   return { isConnected };
 };
