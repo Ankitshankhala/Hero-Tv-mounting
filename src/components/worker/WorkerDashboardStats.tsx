@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { Calendar, Clock, CheckCircle } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Calendar, CheckCircle, Clock, DollarSign } from 'lucide-react';
 
 interface WorkerDashboardStatsProps {
   todaysJobs: number;
@@ -16,63 +16,51 @@ const WorkerDashboardStats = ({
   completedJobs, 
   todaysEarnings 
 }: WorkerDashboardStatsProps) => {
+  const stats = [
+    {
+      title: "Today's Jobs",
+      value: todaysJobs,
+      icon: Calendar,
+      color: "text-blue-400"
+    },
+    {
+      title: "Upcoming Jobs",
+      value: upcomingJobs,
+      icon: Clock,
+      color: "text-orange-400"
+    },
+    {
+      title: "Completed Jobs",
+      value: completedJobs,
+      icon: CheckCircle,
+      color: "text-green-400"
+    },
+    {
+      title: "Today's Earnings",
+      value: `$${todaysEarnings.toFixed(2)}`,
+      icon: DollarSign,
+      color: "text-yellow-400"
+    }
+  ];
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
-      <Card className="bg-slate-800 border-slate-700">
-        <CardContent className="p-6">
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
-              <Calendar className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <p className="text-slate-400">Today's Jobs</p>
-              <p className="text-2xl font-bold text-white">{todaysJobs}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="bg-slate-800 border-slate-700">
-        <CardContent className="p-6">
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center">
-              <Clock className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <p className="text-slate-400">Upcoming</p>
-              <p className="text-2xl font-bold text-white">{upcomingJobs}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="bg-slate-800 border-slate-700">
-        <CardContent className="p-6">
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center">
-              <CheckCircle className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <p className="text-slate-400">Completed</p>
-              <p className="text-2xl font-bold text-white">{completedJobs}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="bg-slate-800 border-slate-700">
-        <CardContent className="p-6">
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-yellow-600 rounded-full flex items-center justify-center">
-              <span className="text-white font-bold">$</span>
-            </div>
-            <div>
-              <p className="text-slate-400">Today's Earnings</p>
-              <p className="text-2xl font-bold text-white">${todaysEarnings}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      {stats.map((stat, index) => {
+        const Icon = stat.icon;
+        return (
+          <Card key={index} className="bg-slate-800 border-slate-700">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-slate-300">
+                {stat.title}
+              </CardTitle>
+              <Icon className={`h-4 w-4 ${stat.color}`} />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-white">{stat.value}</div>
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 };
