@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { CheckCircle, Calendar, MapPin, Clock, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,43 +12,87 @@ const BookingSuccess = () => {
   const [booking, setBooking] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const navigate = useNavigate();
   
   const sessionId = searchParams.get('session_id');
+  const bookingId = searchParams.get('booking_id');
 
   useEffect(() => {
-    const verifyPayment = async () => {
-      if (!sessionId) {
-        setLoading(false);
-        return;
-      }
-
+    const verifyPaymentAndBooking = async () => {
+      console.log('BookingSuccess: Starting verification with sessionId:', sessionId, 'bookingId:', bookingId);
+      
       try {
-        const { data, error } = await supabase.functions.invoke('verify-payment', {
-          body: { session_id: sessionId }
+        // If we have a booking ID, fetch it directly
+        if (bookingId) {
+          console.log('Fetching booking directly by ID:', bookingId);
+          const { data: bookingData, error: bookingError } = await supabase
+            .from('bookings')
+            .select(`
+              *,
+              customer:users!customer_id(name, email)
+            `)
+            .eq('id', bookingId)
+            .single();
+
+          if (bookingError) {
+            console.error('Error fetching booking:', bookingError);
+            throw bookingError;
+          }
+
+          if (bookingData) {
+            setBooking(bookingData);
+            console.log('Booking fetched successfully:', bookingData);
+            toast({
+              title: "Booking Confirmed!",
+              description: "Your service has been successfully booked.",
+            });
+            return;
+          }
+        }
+
+        // If we have a session ID, verify payment
+        if (sessionId) {
+          console.log('Verifying payment with session ID:', sessionId);
+          const { data, error } = await supabase.functions.invoke('verify-payment', {
+            body: { session_id: sessionId }
+          });
+
+          if (error) {
+            console.error('Payment verification error:', error);
+            throw error;
+          }
+
+          if (data?.success && data?.booking) {
+            setBooking(data.booking);
+            console.log('Payment verified and booking retrieved:', data.booking);
+            toast({
+              title: "Payment Successful!",
+              description: "Your booking has been confirmed. We'll contact you soon.",
+            });
+          } else {
+            console.error('Payment verification failed:', data);
+            toast({
+              title: "Payment Issue",
+              description: "There was an issue with your payment. Please contact us.",
+              variant: "destructive",
+            });
+          }
+          return;
+        }
+
+        // If no session ID or booking ID, show error
+        console.log('No session ID or booking ID found in URL parameters');
+        toast({
+          title: "Missing Information",
+          description: "Could not find booking information. Please check your email for confirmation.",
+          variant: "destructive",
         });
-
-        if (error) {
-          throw error;
-        }
-
-        if (data?.success) {
-          setBooking(data.booking);
-          toast({
-            title: "Payment Successful!",
-            description: "Your booking has been confirmed. We'll contact you soon.",
-          });
-        } else {
-          toast({
-            title: "Payment Issue",
-            description: "There was an issue with your payment. Please contact us.",
-            variant: "destructive",
-          });
-        }
+        
       } catch (error) {
-        console.error('Payment verification error:', error);
+        console.error('Payment/booking verification error:', error);
         toast({
           title: "Verification Error",
-          description: "Could not verify payment status. Please contact us.",
+          description: "Could not verify booking status. Please contact us if you have concerns.",
           variant: "destructive",
         });
       } finally {
@@ -56,35 +100,44 @@ const BookingSuccess = () => {
       }
     };
 
-    verifyPayment();
-  }, [sessionId, toast]);
+    verifyPaymentAndBooking();
+  }, [sessionId, bookingId, toast]);
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-600 mx-auto"></div>
-          <p className="mt-4 text-white">Verifying your payment...</p>
+          <p className="mt-4 text-white">Verifying your booking...</p>
         </div>
       </div>
     );
   }
 
-  if (!sessionId || !booking) {
+  if (!booking) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
         <Card className="bg-slate-800 border-slate-700 p-8 max-w-md">
           <CardContent className="text-center">
-            <h2 className="text-xl font-bold text-white mb-4">Booking Not Found</h2>
+            <h2 className="text-xl font-bold text-white mb-4">Booking Information</h2>
             <p className="text-slate-300 mb-4">
-              We couldn't find your booking. Please check your email for confirmation details.
+              We couldn't find your booking details, but don't worry! Please check your email for confirmation details.
             </p>
-            <Link to="/">
-              <Button className="bg-blue-600 hover:bg-blue-700">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Return Home
+            <div className="flex flex-col gap-4">
+              <Link to="/">
+                <Button className="w-full bg-blue-600 hover:bg-blue-700">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Return Home
+                </Button>
+              </Link>
+              <Button 
+                variant="outline" 
+                className="border-slate-600 text-white hover:bg-slate-700"
+                onClick={() => navigate('/book')}
+              >
+                Book Another Service
               </Button>
-            </Link>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -92,6 +145,7 @@ const BookingSuccess = () => {
   }
 
   const scheduledDate = new Date(booking.scheduled_at);
+  const services = Array.isArray(booking.services) ? booking.services : [];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-12 px-4">
@@ -146,21 +200,23 @@ const BookingSuccess = () => {
               </div>
             </div>
 
-            <div className="bg-slate-700 p-4 rounded-lg">
-              <p className="text-white font-medium mb-2">Services Booked:</p>
-              {Array.isArray(booking.services) && booking.services.map((service: any, index: number) => (
-                <div key={index} className="flex justify-between items-center py-1">
-                  <span className="text-slate-300">{service.name} (x{service.quantity})</span>
-                  <span className="text-white">${(service.price * service.quantity).toFixed(2)}</span>
-                </div>
-              ))}
-              <div className="border-t border-slate-600 mt-2 pt-2">
-                <div className="flex justify-between items-center font-bold">
-                  <span className="text-white">Total Paid:</span>
-                  <span className="text-green-400">${booking.total_price.toFixed(2)}</span>
+            {services.length > 0 && (
+              <div className="bg-slate-700 p-4 rounded-lg">
+                <p className="text-white font-medium mb-2">Services Booked:</p>
+                {services.map((service: any, index: number) => (
+                  <div key={index} className="flex justify-between items-center py-1">
+                    <span className="text-slate-300">{service.name} (x{service.quantity})</span>
+                    <span className="text-white">${(service.price * service.quantity).toFixed(2)}</span>
+                  </div>
+                ))}
+                <div className="border-t border-slate-600 mt-2 pt-2">
+                  <div className="flex justify-between items-center font-bold">
+                    <span className="text-white">Total Paid:</span>
+                    <span className="text-green-400">${booking.total_price.toFixed(2)}</span>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {booking.special_instructions && (
               <div>
