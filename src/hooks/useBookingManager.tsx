@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
 import { useBookingOperations } from '@/hooks/useBookingOperations';
 import { useToast } from '@/hooks/use-toast';
@@ -9,6 +10,9 @@ export const useBookingManager = (isCalendarConnected: boolean) => {
   const { toast } = useToast();
   const { syncBookingToCalendar } = useBookingCalendarSync();
   const { loadBookings } = useBookingOperations();
+  
+  // Use ref to avoid circular dependencies
+  const bookingsRef = useRef([]);
 
   // Use the authenticated query hook for initial load
   const { 
@@ -50,9 +54,15 @@ export const useBookingManager = (isCalendarConnected: boolean) => {
     if (bookingsData) {
       const bookingsList = Array.isArray(bookingsData) ? bookingsData : [];
       setBookings(bookingsList);
+      bookingsRef.current = bookingsList;
       console.log('Bookings data updated from query:', bookingsList.length, 'bookings');
     }
   }, [bookingsData]);
+
+  // Update ref when bookings change
+  useEffect(() => {
+    bookingsRef.current = bookings;
+  }, [bookings]);
 
   // Show error toast if query fails
   useEffect(() => {
@@ -135,14 +145,14 @@ export const useBookingManager = (isCalendarConnected: boolean) => {
       return updatedBookings;
     });
     
-    // Show toast for new bookings
-    if (!bookings.find(b => b.id === updatedBooking.id)) {
+    // Show toast for new bookings - use ref to avoid dependency
+    if (!bookingsRef.current.find(b => b.id === updatedBooking.id)) {
       toast({
         title: "New Booking",
         description: "A new booking has been received!",
       });
     }
-  }, [bookings, isCalendarConnected, syncBookingToCalendar, fetchBookings, toast]);
+  }, [isCalendarConnected, syncBookingToCalendar, fetchBookings, toast]);
 
   return {
     bookings,

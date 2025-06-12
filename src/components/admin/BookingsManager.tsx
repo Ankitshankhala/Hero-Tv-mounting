@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,17 +31,11 @@ export const BookingsManager = () => {
   // Use our custom hook for booking management
   const { bookings, loading, handleBookingUpdate, fetchBookings, refetchBookings } = useBookingManager(isCalendarConnected);
 
-  // Memoize the booking update callback to prevent unnecessary re-subscriptions
-  const memoizedBookingUpdate = useCallback((booking: any) => {
-    console.log('Memoized booking update received:', booking);
-    handleBookingUpdate(booking);
-  }, [handleBookingUpdate]);
-
-  // Set up real-time subscriptions for admin
+  // Set up real-time subscriptions for admin - use the stable callback directly
   const { isConnected } = useRealtimeBookings({
     userId: user?.id,
     userRole: 'admin',
-    onBookingUpdate: memoizedBookingUpdate
+    onBookingUpdate: handleBookingUpdate
   });
 
   // Update calendar connection state
