@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { 
@@ -23,7 +22,7 @@ interface AdminSidebarProps {
 export const AdminSidebar = ({ activeTab, onTabChange }: AdminSidebarProps) => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
-    { id: 'errors', label: 'Error Checker', icon: AlertTriangle },
+    // Removed: { id: 'errors', label: 'Error Checker', icon: AlertTriangle },
     { id: 'bookings', label: 'Bookings', icon: Calendar },
     { id: 'workers', label: 'Workers', icon: UserCheck },
     { id: 'customers', label: 'Customers', icon: Users },
