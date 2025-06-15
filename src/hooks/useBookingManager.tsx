@@ -110,11 +110,12 @@ export const useBookingManager = (
   useEffect(() => {
     if (queryError) {
       console.error('Query error:', queryError);
-      const errorMessage = queryError && typeof queryError === 'object' && 'message' in queryError 
-        ? (queryError as Error).message 
-        : 'Failed to load bookings';
+      let errorMessage = 'Failed to load bookings';
+      if (queryError && typeof queryError === 'object' && queryError !== null && 'message' in queryError) {
+        errorMessage = (queryError as Error).message;
+      }
       setError(errorMessage);
-      
+
       if (enableToastNotifications) {
         toast({
           title: "Error",
