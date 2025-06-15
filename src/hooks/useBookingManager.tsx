@@ -111,7 +111,7 @@ export const useBookingManager = (
     if (queryError) {
       console.error('Query error:', queryError);
       let errorMessage = 'Failed to load bookings';
-      if (queryError && typeof queryError === 'object' && queryError !== null && 'message' in queryError) {
+      if (typeof queryError === 'object' && queryError !== null && 'message' in queryError) {
         errorMessage = (queryError as Error).message;
       }
       setError(errorMessage);
