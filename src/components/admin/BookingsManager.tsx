@@ -10,7 +10,6 @@ import { GoogleCalendarTester } from './GoogleCalendarTester';
 import { BookingFilters } from './BookingFilters';
 import { BookingTable } from './BookingTable';
 import { BookingCalendarSyncList } from './BookingCalendarSyncList';
-import { SystemStatusCard } from './SystemStatusCard';
 import { useBookingManager } from '@/hooks/useBookingManager';
 import { AuthGuard } from '@/components/AuthGuard';
 
@@ -68,12 +67,6 @@ export const BookingsManager = () => {
   return (
     <AuthGuard allowedRoles={['admin']}>
       <div className="space-y-6">
-        {/* System Status Card */}
-        <SystemStatusCard 
-          isConnected={isConnected}
-          isCalendarConnected={isCalendarConnected}
-        />
-
         {/* Google Calendar Integration Card */}
         <GoogleCalendarIntegration 
           onConnectionChange={(connected) => setIsCalendarConnected(connected)}
