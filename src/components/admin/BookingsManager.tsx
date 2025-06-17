@@ -13,7 +13,6 @@ import { BookingCalendarSyncList } from './BookingCalendarSyncList';
 import { SystemStatusCard } from './SystemStatusCard';
 import { useBookingManager } from '@/hooks/useBookingManager';
 import { AuthGuard } from '@/components/AuthGuard';
-import { ConnectionTester } from '@/components/ConnectionTester';
 
 export const BookingsManager = () => {
   const [filteredBookings, setFilteredBookings] = useState([]);
@@ -69,9 +68,6 @@ export const BookingsManager = () => {
   return (
     <AuthGuard allowedRoles={['admin']}>
       <div className="space-y-6">
-        {/* Connection Tester */}
-        <ConnectionTester />
-
         {/* System Status Card */}
         <SystemStatusCard 
           isConnected={isConnected}
