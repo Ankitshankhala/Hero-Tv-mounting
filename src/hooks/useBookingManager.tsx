@@ -113,7 +113,7 @@ export const useBookingManager = (
       let errorMessage = 'Failed to load bookings';
       
       // More explicit type checking for TypeScript
-      if (queryError && typeof queryError === 'object' && 'message' in queryError) {
+      if (queryError !== null && typeof queryError === 'object' && 'message' in queryError) {
         const error = queryError as { message: string };
         errorMessage = error.message;
       }
