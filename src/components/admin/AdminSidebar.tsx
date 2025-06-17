@@ -11,8 +11,7 @@ import {
   Star,
   UserPlus,
   MessageSquare,
-  FileText,
-  AlertTriangle
+  FileText
 } from 'lucide-react';
 
 interface AdminSidebarProps {
@@ -23,7 +22,6 @@ interface AdminSidebarProps {
 export const AdminSidebar = ({ activeTab, onTabChange }: AdminSidebarProps) => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
-    { id: 'errors', label: 'Error Checker', icon: AlertTriangle },
     { id: 'bookings', label: 'Bookings', icon: Calendar },
     { id: 'workers', label: 'Workers', icon: UserCheck },
     { id: 'customers', label: 'Customers', icon: Users },
@@ -46,9 +44,7 @@ export const AdminSidebar = ({ activeTab, onTabChange }: AdminSidebarProps) => {
               <Button
                 key={item.id}
                 variant={activeTab === item.id ? "default" : "ghost"}
-                className={`w-full justify-start ${
-                  item.id === 'errors' ? 'text-red-600 hover:text-red-700 hover:bg-red-50' : ''
-                }`}
+                className="w-full justify-start"
                 onClick={() => onTabChange(item.id)}
               >
                 <Icon className="mr-2 h-4 w-4" />

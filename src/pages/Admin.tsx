@@ -13,7 +13,6 @@ import { ReviewsManager } from '@/components/admin/ReviewsManager';
 import { WorkerApplicationsManager } from '@/components/admin/WorkerApplicationsManager';
 import { SMSLogsManager } from '@/components/admin/SMSLogsManager';
 import { BlogManager } from '@/components/admin/BlogManager';
-import { DataFetchingErrorChecker } from '@/components/DataFetchingErrorChecker';
 import { useAuth } from '@/hooks/useAuth';
 import { useState } from 'react';
 
@@ -39,12 +38,7 @@ const Admin = () => {
   const renderActiveTab = () => {
     switch (activeTab) {
       case 'dashboard':
-        return (
-          <div className="space-y-6">
-            <DataFetchingErrorChecker />
-            <DashboardStats />
-          </div>
-        );
+        return <DashboardStats />;
       case 'bookings':
         return <BookingsManager />;
       case 'workers':
@@ -63,15 +57,8 @@ const Admin = () => {
         return <SMSLogsManager />;
       case 'blog':
         return <BlogManager />;
-      case 'errors':
-        return <DataFetchingErrorChecker />;
       default:
-        return (
-          <div className="space-y-6">
-            <DataFetchingErrorChecker />
-            <DashboardStats />
-          </div>
-        );
+        return <DashboardStats />;
     }
   };
 
