@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
 import { useBookingOperations } from '@/hooks/useBookingOperations';
@@ -113,9 +114,11 @@ export const useBookingManager = (
       let errorMessage = 'Failed to load bookings';
       
       // More explicit type checking for TypeScript
-      if (queryError !== null && typeof queryError === 'object' && 'message' in queryError) {
-        const error = queryError as { message: string };
-        errorMessage = error.message;
+      if (queryError !== null && typeof queryError === 'object') {
+        if ('message' in queryError) {
+          const error = queryError as { message: string };
+          errorMessage = error.message;
+        }
       }
       
       setError(errorMessage);
