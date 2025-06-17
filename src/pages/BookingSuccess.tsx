@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { useSearchParams, useLocation, Link, useNavigate } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { CheckCircle, Calendar, MapPin, Clock, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,105 +9,46 @@ import { useToast } from '@/hooks/use-toast';
 
 const BookingSuccess = () => {
   const [searchParams] = useSearchParams();
-  const location = useLocation();
   const [booking, setBooking] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  const navigate = useNavigate();
   
   const sessionId = searchParams.get('session_id');
-  const bookingId = searchParams.get('booking_id');
-  
-  // Get booking data from navigation state if available
-  const bookingDataFromState = location.state?.bookingData;
 
   useEffect(() => {
-    const verifyPaymentAndBooking = async () => {
-      console.log('BookingSuccess: Starting verification with sessionId:', sessionId, 'bookingId:', bookingId);
-      
+    const verifyPayment = async () => {
+      if (!sessionId) {
+        setLoading(false);
+        return;
+      }
+
       try {
-        // If we have booking data from navigation state, use it
-        if (bookingDataFromState) {
-          console.log('Using booking data from navigation state:', bookingDataFromState);
-          setBooking(bookingDataFromState);
-          toast({
-            title: "Booking Confirmed!",
-            description: "Your service has been successfully booked.",
-          });
-          setLoading(false);
-          return;
-        }
-
-        // If we have a booking ID, fetch it directly
-        if (bookingId) {
-          console.log('Fetching booking directly by ID:', bookingId);
-          const { data: bookingData, error: bookingError } = await supabase
-            .from('bookings')
-            .select(`
-              *,
-              customer:users!customer_id(name, email)
-            `)
-            .eq('id', bookingId)
-            .single();
-
-          if (bookingError) {
-            console.error('Error fetching booking:', bookingError);
-            throw bookingError;
-          }
-
-          if (bookingData) {
-            setBooking(bookingData);
-            console.log('Booking fetched successfully:', bookingData);
-            toast({
-              title: "Booking Confirmed!",
-              description: "Your service has been successfully booked.",
-            });
-            return;
-          }
-        }
-
-        // If we have a session ID, verify payment
-        if (sessionId) {
-          console.log('Verifying payment with session ID:', sessionId);
-          const { data, error } = await supabase.functions.invoke('verify-payment', {
-            body: { session_id: sessionId }
-          });
-
-          if (error) {
-            console.error('Payment verification error:', error);
-            throw error;
-          }
-
-          if (data?.success && data?.booking) {
-            setBooking(data.booking);
-            console.log('Payment verified and booking retrieved:', data.booking);
-            toast({
-              title: "Payment Successful!",
-              description: "Your booking has been confirmed. We'll contact you soon.",
-            });
-          } else {
-            console.error('Payment verification failed:', data);
-            toast({
-              title: "Payment Issue",
-              description: "There was an issue with your payment. Please contact us.",
-              variant: "destructive",
-            });
-          }
-          return;
-        }
-
-        // If no session ID, booking ID, or state data, show generic success
-        console.log('No specific booking data found, showing generic success message');
-        toast({
-          title: "Booking Received",
-          description: "Your booking request has been received. We'll contact you soon with confirmation.",
+        const { data, error } = await supabase.functions.invoke('verify-payment', {
+          body: { session_id: sessionId }
         });
-        
+
+        if (error) {
+          throw error;
+        }
+
+        if (data?.success) {
+          setBooking(data.booking);
+          toast({
+            title: "Payment Successful!",
+            description: "Your booking has been confirmed. We'll contact you soon.",
+          });
+        } else {
+          toast({
+            title: "Payment Issue",
+            description: "There was an issue with your payment. Please contact us.",
+            variant: "destructive",
+          });
+        }
       } catch (error) {
-        console.error('Payment/booking verification error:', error);
+        console.error('Payment verification error:', error);
         toast({
           title: "Verification Error",
-          description: "Could not verify booking status. Please contact us if you have concerns.",
+          description: "Could not verify payment status. Please contact us.",
           variant: "destructive",
         });
       } finally {
@@ -115,34 +56,42 @@ const BookingSuccess = () => {
       }
     };
 
-    verifyPaymentAndBooking();
-  }, [sessionId, bookingId, bookingDataFromState, toast]);
+    verifyPayment();
+  }, [sessionId, toast]);
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-600 mx-auto"></div>
-          <p className="mt-4 text-white">Processing your booking...</p>
+          <p className="mt-4 text-white">Verifying your payment...</p>
         </div>
       </div>
     );
   }
 
-  // Default booking data if none is available
-  const displayBooking = booking || {
-    scheduled_at: bookingDataFromState?.date && bookingDataFromState?.time 
-      ? new Date(`${bookingDataFromState.date}T${bookingDataFromState.time}`) 
-      : new Date(),
-    customer_address: bookingDataFromState?.address || 'Address not specified',
-    total_duration_minutes: 60,
-    services: bookingDataFromState?.services || [],
-    total_price: bookingDataFromState?.totalPrice || 0,
-    special_instructions: bookingDataFromState?.specialInstructions || ''
-  };
+  if (!sessionId || !booking) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+        <Card className="bg-slate-800 border-slate-700 p-8 max-w-md">
+          <CardContent className="text-center">
+            <h2 className="text-xl font-bold text-white mb-4">Booking Not Found</h2>
+            <p className="text-slate-300 mb-4">
+              We couldn't find your booking. Please check your email for confirmation details.
+            </p>
+            <Link to="/">
+              <Button className="bg-blue-600 hover:bg-blue-700">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Return Home
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
-  const scheduledDate = new Date(displayBooking.scheduled_at);
-  const services = Array.isArray(displayBooking.services) ? displayBooking.services : [];
+  const scheduledDate = new Date(booking.scheduled_at);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-12 px-4">
@@ -185,7 +134,7 @@ const BookingSuccess = () => {
               <MapPin className="h-5 w-5 text-blue-400 mt-0.5" />
               <div>
                 <p className="text-white font-medium">Service Address</p>
-                <p className="text-slate-300">{displayBooking.customer_address}</p>
+                <p className="text-slate-300">{booking.customer_address}</p>
               </div>
             </div>
 
@@ -193,32 +142,30 @@ const BookingSuccess = () => {
               <Clock className="h-5 w-5 text-blue-400 mt-0.5" />
               <div>
                 <p className="text-white font-medium">Estimated Duration</p>
-                <p className="text-slate-300">{displayBooking.total_duration_minutes} minutes</p>
+                <p className="text-slate-300">{booking.total_duration_minutes} minutes</p>
               </div>
             </div>
 
-            {services.length > 0 && (
-              <div className="bg-slate-700 p-4 rounded-lg">
-                <p className="text-white font-medium mb-2">Services Booked:</p>
-                {services.map((service: any, index: number) => (
-                  <div key={index} className="flex justify-between items-center py-1">
-                    <span className="text-slate-300">{service.name} (x{service.quantity})</span>
-                    <span className="text-white">${(service.price * service.quantity).toFixed(2)}</span>
-                  </div>
-                ))}
-                <div className="border-t border-slate-600 mt-2 pt-2">
-                  <div className="flex justify-between items-center font-bold">
-                    <span className="text-white">Total:</span>
-                    <span className="text-green-400">${displayBooking.total_price.toFixed(2)}</span>
-                  </div>
+            <div className="bg-slate-700 p-4 rounded-lg">
+              <p className="text-white font-medium mb-2">Services Booked:</p>
+              {Array.isArray(booking.services) && booking.services.map((service: any, index: number) => (
+                <div key={index} className="flex justify-between items-center py-1">
+                  <span className="text-slate-300">{service.name} (x{service.quantity})</span>
+                  <span className="text-white">${(service.price * service.quantity).toFixed(2)}</span>
+                </div>
+              ))}
+              <div className="border-t border-slate-600 mt-2 pt-2">
+                <div className="flex justify-between items-center font-bold">
+                  <span className="text-white">Total Paid:</span>
+                  <span className="text-green-400">${booking.total_price.toFixed(2)}</span>
                 </div>
               </div>
-            )}
+            </div>
 
-            {displayBooking.special_instructions && (
+            {booking.special_instructions && (
               <div>
                 <p className="text-white font-medium">Special Instructions:</p>
-                <p className="text-slate-300">{displayBooking.special_instructions}</p>
+                <p className="text-slate-300">{booking.special_instructions}</p>
               </div>
             )}
           </CardContent>

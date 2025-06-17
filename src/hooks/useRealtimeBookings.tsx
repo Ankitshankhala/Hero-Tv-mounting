@@ -1,5 +1,5 @@
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -16,36 +16,9 @@ export const useRealtimeBookings = ({
 }: UseRealtimeBookingsProps) => {
   const { toast } = useToast();
   const [isConnected, setIsConnected] = useState(false);
-  const channelRef = useRef<any>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const isConnectingRef = useRef(false);
 
   useEffect(() => {
     if (!userId || !userRole) return;
-
-    // Prevent multiple simultaneous connection attempts
-    if (isConnectingRef.current) {
-      console.log('Connection attempt already in progress, skipping...');
-      return;
-    }
-
-    // Clear any existing reconnect timeout
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-      reconnectTimeoutRef.current = null;
-    }
-
-    // Clean up existing channel before creating new one
-    if (channelRef.current) {
-      console.log('Cleaning up existing channel before reconnection');
-      try {
-        supabase.removeChannel(channelRef.current);
-      } catch (error) {
-        console.log('Error removing channel:', error);
-      }
-      channelRef.current = null;
-      setIsConnected(false);
-    }
 
     let channelName = '';
     let filter = '';
@@ -69,112 +42,71 @@ export const useRealtimeBookings = ({
     }
 
     console.log(`Setting up realtime subscription for ${userRole}:`, channelName);
-    isConnectingRef.current = true;
 
-    // Create a new channel instance
-    const channel = supabase.channel(channelName);
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'bookings',
+          ...(filter && { filter }),
+        },
+        (payload) => {
+          console.log('Realtime booking update:', payload);
+          
+          const { eventType, new: newRecord, old: oldRecord } = payload;
+          
+          // Handle different event types
+          if (eventType === 'UPDATE' && oldRecord && newRecord) {
+            // Status change notification
+            if (oldRecord.status !== newRecord.status) {
+              const statusMessages = {
+                confirmed: 'Your booking has been confirmed!',
+                in_progress: 'Your service is now in progress',
+                completed: 'Your service has been completed',
+                cancelled: 'Your booking has been cancelled'
+              };
 
-    // Set up the postgres changes listener with proper syntax
-    const postgresChangesConfig = {
-      event: '*' as const,
-      schema: 'public',
-      table: 'bookings',
-      ...(filter && { filter }),
-    };
+              if (userRole === 'customer' && statusMessages[newRecord.status as keyof typeof statusMessages]) {
+                toast({
+                  title: "Booking Update",
+                  description: statusMessages[newRecord.status as keyof typeof statusMessages],
+                });
+              }
+            }
 
-    channel.on('postgres_changes', postgresChangesConfig, (payload) => {
-      console.log('Realtime booking update:', payload);
-      
-      const { eventType, new: newRecord, old: oldRecord } = payload;
-      
-      // Handle different event types
-      if (eventType === 'UPDATE' && oldRecord && newRecord) {
-        // Status change notification
-        if (oldRecord.status !== newRecord.status) {
-          const statusMessages = {
-            confirmed: 'Your booking has been confirmed!',
-            in_progress: 'Your service is now in progress',
-            completed: 'Your service has been completed',
-            cancelled: 'Your booking has been cancelled'
-          };
+            // Worker assignment notification
+            if (!oldRecord.worker_id && newRecord.worker_id && userRole === 'customer') {
+              toast({
+                title: "Worker Assigned",
+                description: "A technician has been assigned to your booking!",
+              });
+            }
+          }
 
-          if (userRole === 'customer' && statusMessages[newRecord.status as keyof typeof statusMessages]) {
-            toast({
-              title: "Booking Update",
-              description: statusMessages[newRecord.status as keyof typeof statusMessages],
-            });
+          // Call the callback with the updated booking
+          if (onBookingUpdate) {
+            onBookingUpdate(newRecord || oldRecord);
           }
         }
-
-        // Worker assignment notification
-        if (!oldRecord.worker_id && newRecord.worker_id && userRole === 'customer') {
-          toast({
-            title: "Worker Assigned",
-            description: "A technician has been assigned to your booking!",
-          });
-        }
-      }
-
-      // Call the callback with the updated booking
-      if (onBookingUpdate) {
-        onBookingUpdate(newRecord || oldRecord);
-      }
-    });
-
-    // Subscribe to the channel
-    channel.subscribe((status) => {
-      console.log('Realtime subscription status:', status);
-      
-      isConnectingRef.current = false;
-      
-      if (status === 'SUBSCRIBED') {
-        setIsConnected(true);
-        channelRef.current = channel;
-        console.log('Successfully connected to realtime updates');
+      )
+      .subscribe((status) => {
+        console.log('Realtime subscription status:', status);
+        setIsConnected(status === 'SUBSCRIBED');
         
-        // Only show success toast for successful connections after previous failures
-        if (!isConnected) {
+        if (status === 'SUBSCRIBED') {
           toast({
             title: "Connected",
             description: "Real-time updates enabled",
           });
         }
-      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-        setIsConnected(false);
-        channelRef.current = null;
-        
-        console.log(`Realtime connection ${status.toLowerCase()}, will retry in 5 seconds...`);
-        
-        // Schedule reconnection with a delay
-        if (!reconnectTimeoutRef.current) {
-          reconnectTimeoutRef.current = setTimeout(() => {
-            console.log('Attempting to reconnect realtime subscription...');
-            reconnectTimeoutRef.current = null;
-            // Trigger re-connection by updating state
-            setIsConnected(false);
-          }, 5000);
-        }
-      }
-    });
+      });
 
     return () => {
       console.log('Cleaning up realtime subscription');
-      isConnectingRef.current = false;
-      
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-        reconnectTimeoutRef.current = null;
-      }
-      
-      if (channelRef.current) {
-        try {
-          supabase.removeChannel(channelRef.current);
-        } catch (error) {
-          console.log('Error removing channel during cleanup:', error);
-        }
-        channelRef.current = null;
-      }
-      
+      supabase.removeChannel(channel);
       setIsConnected(false);
     };
   }, [userId, userRole, onBookingUpdate, toast]);

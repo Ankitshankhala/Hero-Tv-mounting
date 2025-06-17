@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { AdminLogin } from '@/components/admin/AdminLogin';
 import { AdminHeader } from '@/components/admin/AdminHeader';
@@ -40,6 +41,7 @@ const Admin = () => {
       case 'dashboard':
         return (
           <div className="space-y-6">
+            <DataFetchingErrorChecker />
             <DashboardStats />
           </div>
         );
@@ -61,9 +63,12 @@ const Admin = () => {
         return <SMSLogsManager />;
       case 'blog':
         return <BlogManager />;
+      case 'errors':
+        return <DataFetchingErrorChecker />;
       default:
         return (
           <div className="space-y-6">
+            <DataFetchingErrorChecker />
             <DashboardStats />
           </div>
         );

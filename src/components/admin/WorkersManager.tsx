@@ -3,19 +3,22 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
-import { Plus, Wrench, Users } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { Wrench } from 'lucide-react';
 import { AddWorkerModal } from './AddWorkerModal';
 import { WorkerApplicationsManager } from './WorkerApplicationsManager';
-import { WorkerTable } from './WorkerTable';
 import { WorkerFilters } from './WorkerFilters';
+import { WorkerTable } from './WorkerTable';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import GoogleCalendarIntegration from '@/components/GoogleCalendarIntegration';
 
 export const WorkersManager = () => {
   const [workers, setWorkers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showAddWorker, setShowAddWorker] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showAddWorker, setShowAddWorker] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [isCalendarConnected, setIsCalendarConnected] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchWorkers();
@@ -23,84 +26,87 @@ export const WorkersManager = () => {
 
   const fetchWorkers = async () => {
     try {
-      setLoading(true);
       const { data, error } = await supabase
         .from('users')
-        .select('*')
+        .select(`
+          *,
+          worker_availability(day_of_week, start_time, end_time)
+        `)
         .eq('role', 'worker')
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching workers:', error);
-        return;
+        console.error('Supabase error:', error);
+        throw error;
       }
-
       setWorkers(data || []);
     } catch (error) {
-      console.error('Error in fetchWorkers:', error);
+      console.error('Error fetching workers:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load workers",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleWorkerAdded = () => {
-    fetchWorkers();
-  };
-
   const filteredWorkers = workers.filter(worker => {
-    if (!searchTerm) return true;
-    
-    return worker.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           worker.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = worker.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         worker.email.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesSearch;
   });
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold">Workers Management</h2>
-          <p className="text-gray-600">Manage your technicians and their availability</p>
-        </div>
-        <Button onClick={() => setShowAddWorker(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Worker
-        </Button>
-      </div>
+      {/* Google Calendar Integration Card */}
+      <GoogleCalendarIntegration 
+        onConnectionChange={(connected) => setIsCalendarConnected(connected)}
+      />
 
       <Tabs defaultValue="workers" className="w-full">
         <TabsList>
-          <TabsTrigger value="workers" className="flex items-center space-x-2">
-            <Users className="h-4 w-4" />
-            <span>Workers</span>
-          </TabsTrigger>
-          <TabsTrigger value="applications" className="flex items-center space-x-2">
-            <Wrench className="h-4 w-4" />
-            <span>Applications</span>
-          </TabsTrigger>
+          <TabsTrigger value="workers">Current Workers</TabsTrigger>
+          <TabsTrigger value="applications">Applications</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="workers" className="space-y-4">
+        
+        <TabsContent value="workers">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Active Workers ({filteredWorkers.length})</span>
-                <Badge variant="outline">{workers.length} Total</Badge>
+              <CardTitle className="flex items-center space-x-2">
+                <Wrench className="h-5 w-5" />
+                <span>Workers Management</span>
+                {isCalendarConnected && (
+                  <Badge variant="default" className="bg-green-600">
+                    Calendar Connected
+                  </Badge>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <WorkerFilters 
+              <WorkerFilters
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}
                 onAddWorker={() => setShowAddWorker(true)}
               />
+
               <WorkerTable 
-                workers={filteredWorkers}
+                workers={filteredWorkers} 
                 onWorkerUpdate={fetchWorkers}
               />
             </CardContent>
           </Card>
         </TabsContent>
-
+        
         <TabsContent value="applications">
           <WorkerApplicationsManager />
         </TabsContent>
@@ -108,8 +114,8 @@ export const WorkersManager = () => {
 
       {showAddWorker && (
         <AddWorkerModal 
-          onClose={() => setShowAddWorker(false)}
-          onWorkerAdded={handleWorkerAdded}
+          onClose={() => setShowAddWorker(false)} 
+          onWorkerAdded={fetchWorkers}
         />
       )}
     </div>
