@@ -50,42 +50,40 @@ export const AvailabilityCalendar = ({
     try {
       const dateStr = selectedDate.toISOString().split('T')[0];
       
-      // Get worker schedules for the selected date and region
+      // Get worker schedules for the selected date
       const { data: schedules, error: schedulesError } = await supabase
-        .from('worker_schedules')
+        .from('worker_schedule')
         .select(`
           *,
           users!worker_id (
             id,
             name,
-            region
+            city
           )
         `)
-        .eq('date', dateStr)
-        .eq('is_available', true);
+        .eq('work_date', dateStr);
 
       if (schedulesError) throw schedulesError;
 
-      // Filter by region
+      // Filter by region (using city as region for now)
       const regionSchedules = schedules?.filter(schedule => 
-        schedule.users?.region?.toLowerCase() === selectedRegion.toLowerCase()
+        schedule.users?.city?.toLowerCase() === selectedRegion.toLowerCase()
       ) || [];
 
       // Get existing bookings for the date
       const { data: bookings, error: bookingsError } = await supabase
         .from('bookings')
-        .select('scheduled_at, total_duration_minutes, worker_id')
-        .gte('scheduled_at', `${dateStr}T00:00:00`)
-        .lt('scheduled_at', `${dateStr}T23:59:59`)
-        .in('status', ['confirmed', 'in_progress']);
+        .select('scheduled_date, scheduled_start, worker_id')
+        .eq('scheduled_date', dateStr)
+        .in('status', ['confirmed', 'pending']);
 
       if (bookingsError) throw bookingsError;
 
       // Generate time slots (9 AM to 5 PM, every hour)
       const slots: TimeSlot[] = [];
       for (let hour = 9; hour <= 17; hour++) {
-        const timeStr = `${hour.toString().padStart(2, '0')}:00`;
-        const slotTime = new Date(`${dateStr}T${timeStr}:00`);
+        const timeStr = `${hour.toString().padStart(2, '0')}:00:00`;
+        const slotTime = new Date(`${dateStr}T${timeStr}`);
         
         // Check how many workers are available for this time slot
         let availableWorkers = 0;
@@ -101,8 +99,8 @@ export const AvailabilityCalendar = ({
             const hasConflict = bookings?.some(booking => {
               if (booking.worker_id !== schedule.worker_id) return false;
               
-              const bookingStart = new Date(booking.scheduled_at);
-              const bookingEnd = new Date(bookingStart.getTime() + booking.total_duration_minutes * 60000);
+              const bookingStart = new Date(`${booking.scheduled_date}T${booking.scheduled_start}`);
+              const bookingEnd = new Date(bookingStart.getTime() + totalDuration * 60000);
               
               return (slotTime < bookingEnd && slotEndTime > bookingStart);
             });
@@ -114,7 +112,7 @@ export const AvailabilityCalendar = ({
         });
 
         slots.push({
-          time: timeStr,
+          time: timeStr.substring(0, 5), // Remove seconds
           availableWorkers,
           isAvailable: availableWorkers > 0
         });

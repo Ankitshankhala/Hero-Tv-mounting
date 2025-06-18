@@ -62,13 +62,28 @@ export const SystemStatusCard = ({ isConnected, isCalendarConnected }: SystemSta
     setRealtimeTestResult('🔄 Testing real-time connection...');
     
     try {
+      // Create a test service first
+      const { data: testService, error: serviceError } = await supabase
+        .from('services')
+        .insert({
+          name: 'Test Service',
+          description: 'Test service for real-time testing',
+          base_price: 0,
+          duration_minutes: 60
+        })
+        .select()
+        .single();
+
+      if (serviceError) {
+        throw serviceError;
+      }
+
       const testBooking = {
         customer_id: user?.id || '00000000-0000-0000-0000-000000000000',
-        scheduled_at: new Date().toISOString(),
-        services: [{ name: 'Real-time Test', price: 0 }],
-        total_price: 0,
-        total_duration_minutes: 60,
-        customer_address: 'Test Address',
+        service_id: testService.id,
+        scheduled_date: new Date().toISOString().split('T')[0],
+        scheduled_start: '10:00:00',
+        location_notes: 'Test Address',
         status: 'pending' as const
       };
 
@@ -102,9 +117,14 @@ export const SystemStatusCard = ({ isConnected, isCalendarConnected }: SystemSta
             .from('bookings')
             .delete()
             .eq('id', data.id);
+          
+          await supabase
+            .from('services')
+            .delete()
+            .eq('id', testService.id);
         }, 5000);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Real-time test failed:', error);
       setRealtimeTestResult(`❌ Real-time test failed: ${error.message}`);
     }

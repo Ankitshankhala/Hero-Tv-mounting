@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useErrorHandler } from '@/hooks/useErrorHandler';
 import { useRetryableQuery } from '@/hooks/useRetryableQuery';
 
-type TableName = 'users' | 'bookings' | 'invoice_modifications' | 'on_site_charges' | 'payment_sessions' | 'reviews' | 'services' | 'sms_logs' | 'transactions' | 'worker_applications' | 'worker_availability' | 'worker_schedules';
+type TableName = 'users' | 'bookings' | 'onsite_charges' | 'payment_sessions' | 'reviews' | 'services' | 'sms_logs' | 'transactions' | 'worker_availability' | 'worker_notifications' | 'worker_schedule';
 
 interface UseSupabaseQueryOptions {
   table: TableName;
@@ -56,26 +56,23 @@ export const useSupabaseQuery = (options: UseSupabaseQueryOptions) => {
           case 'transactions':
             queryBuilder = supabase.from('transactions').select(select);
             break;
-          case 'worker_applications':
-            queryBuilder = supabase.from('worker_applications').select(select);
-            break;
           case 'worker_availability':
             queryBuilder = supabase.from('worker_availability').select(select);
             break;
-          case 'worker_schedules':
-            queryBuilder = supabase.from('worker_schedules').select(select);
+          case 'worker_schedule':
+            queryBuilder = supabase.from('worker_schedule').select(select);
             break;
-          case 'invoice_modifications':
-            queryBuilder = supabase.from('invoice_modifications').select(select);
-            break;
-          case 'on_site_charges':
-            queryBuilder = supabase.from('on_site_charges').select(select);
+          case 'onsite_charges':
+            queryBuilder = supabase.from('onsite_charges').select(select);
             break;
           case 'payment_sessions':
             queryBuilder = supabase.from('payment_sessions').select(select);
             break;
           case 'sms_logs':
             queryBuilder = supabase.from('sms_logs').select(select);
+            break;
+          case 'worker_notifications':
+            queryBuilder = supabase.from('worker_notifications').select(select);
             break;
           default:
             throw new Error(`Unsupported table: ${table}`);

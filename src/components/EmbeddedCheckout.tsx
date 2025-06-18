@@ -95,31 +95,68 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
     setIsProcessing(true);
 
     try {
-      console.log('Creating unpaid booking...');
-      const scheduledAt = new Date(`${formData.date}T${formData.time}:00`).toISOString();
+      console.log('Creating booking...');
       
-      const servicesJson = cart.map(item => ({
-        id: item.id,
-        name: item.name,
-        price: item.price,
-        quantity: item.quantity,
-        options: item.options || {}
-      }));
+      // First, get or create the service (using the first service for now)
+      const firstService = cart[0];
+      let serviceId = firstService.id;
+      
+      // If the service doesn't exist in the database, create it
+      if (firstService.id === 'tv-mounting-configured') {
+        const { data: existingService } = await supabase
+          .from('services')
+          .select('id')
+          .eq('name', 'TV Mounting')
+          .single();
+          
+        if (existingService) {
+          serviceId = existingService.id;
+        }
+      }
+      
+      // Create customer if doesn't exist
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', formData.email)
+        .maybeSingle();
+
+      let customerId = existingUser?.id;
+
+      if (!existingUser) {
+        const { data: newUser, error: userError } = await supabase
+          .from('users')
+          .insert({
+            name: formData.name,
+            email: formData.email,
+            phone: formData.phone,
+            zip_code: formData.zipcode,
+            city: formData.address
+          })
+          .select('id')
+          .single();
+
+        if (userError) {
+          console.error('User creation failed:', userError);
+          throw new Error('Failed to create customer profile');
+        } else {
+          customerId = newUser.id;
+        }
+      }
+
+      if (!customerId) {
+        throw new Error('Failed to get customer ID');
+      }
       
       const { data: booking, error: bookingError } = await supabase
         .from('bookings')
         .insert({
-          customer_address: formData.address,
-          scheduled_at: scheduledAt,
-          services: servicesJson as any,
-          total_price: total,
-          total_duration_minutes: calculateTotalDuration(),
-          special_instructions: formData.specialInstructions,
-          customer_zipcode: formData.zipcode,
-          customer_latitude: null,
-          customer_longitude: null,
-          status: 'pending',
-          pending_payment_amount: total
+          customer_id: customerId,
+          service_id: serviceId,
+          scheduled_date: formData.date,
+          scheduled_start: formData.time,
+          location_notes: `${formData.address}. Special instructions: ${formData.specialInstructions}`,
+          status: 'pending'
         })
         .select()
         .single();
@@ -129,45 +166,11 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
         throw new Error(bookingError.message || 'Failed to create booking');
       }
 
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', formData.email)
-        .single();
-
-      let userId = existingUser?.id;
-
-      if (!existingUser) {
-        const { data: newUser, error: userError } = await supabase
-          .from('users')
-          .insert({
-            name: formData.name,
-            email: formData.email,
-            phone: formData.phone,
-            zipcode: formData.zipcode
-          })
-          .select('id')
-          .single();
-
-        if (userError) {
-          console.warn('User creation failed:', userError);
-        } else {
-          userId = newUser.id;
-        }
-      }
-
-      if (userId) {
-        await supabase
-          .from('bookings')
-          .update({ customer_id: userId })
-          .eq('id', booking.id);
-      }
-
       console.log('Booking created successfully');
       
       toast({
         title: "Booking Confirmed",
-        description: "Your service has been booked! Payment will be collected by the technician.",
+        description: "Your service has been booked! We'll contact you soon.",
       });
 
       setTimeout(() => {
