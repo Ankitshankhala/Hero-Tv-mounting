@@ -6,7 +6,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useRealtimeBookings } from '@/hooks/useRealtimeBookings';
 import { useBookingCalendarSync } from '@/hooks/useBookingCalendarSync';
 import GoogleCalendarIntegration from '@/components/GoogleCalendarIntegration';
-import { GoogleCalendarTester } from './GoogleCalendarTester';
 import { BookingFilters } from './BookingFilters';
 import { BookingTable } from './BookingTable';
 import { BookingCalendarSyncList } from './BookingCalendarSyncList';
@@ -71,9 +70,6 @@ export const BookingsManager = () => {
         <GoogleCalendarIntegration 
           onConnectionChange={(connected) => setIsCalendarConnected(connected)}
         />
-
-        {/* Google Calendar Integration Tester */}
-        <GoogleCalendarTester />
 
         <Card>
           <CardHeader>
