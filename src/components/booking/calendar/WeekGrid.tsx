@@ -2,22 +2,22 @@
 import React from 'react';
 import { TimeSlot } from './TimeSlot';
 
-interface Booking {
+interface CalendarBooking {
   id: string;
-  scheduled_at: string;
-  total_duration_minutes: number;
-  services: any;
-  worker: { name: string } | null;
+  scheduled_date: string;
+  scheduled_start: string;
+  location_notes: string | null;
+  users: { name: string } | null;
 }
 
 interface WeekGridProps {
   weekDays: Date[];
   timeSlots: string[];
-  bookings: Booking[];
+  bookings: CalendarBooking[];
   selectedDate?: string;
   selectedTime?: string;
   onTimeSlotClick: (date: Date, time: string) => void;
-  getBookingsForDateTime: (date: Date, time: string) => Booking[];
+  getBookingsForDateTime: (date: Date, time: string) => CalendarBooking[];
   isTimeSlotAvailable: (date: Date, time: string) => boolean;
 }
 

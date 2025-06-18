@@ -17,7 +17,7 @@ interface CalendarViewProps {
   onContinue: () => void;
 }
 
-interface Booking {
+interface CalendarBooking {
   id: string;
   scheduled_date: string;
   scheduled_start: string;
@@ -34,7 +34,7 @@ export const CalendarView = ({
   onContinue
 }: CalendarViewProps) => {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [bookings, setBookings] = useState<CalendarBooking[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 

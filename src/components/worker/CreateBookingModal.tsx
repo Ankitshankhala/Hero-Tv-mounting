@@ -124,22 +124,14 @@ export const CreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingM
 
       if (customerError) throw customerError;
 
-      // Create booking with proper typing
-      const scheduledAt = new Date(`${formData.date}T${formData.time}`);
+      // Create booking with proper schema fields
       const bookingData: Database['public']['Tables']['bookings']['Insert'] = {
         customer_id: customerData.id,
         worker_id: user?.id,
-        scheduled_at: scheduledAt.toISOString(),
-        customer_address: formData.address,
-        special_instructions: formData.specialInstructions,
-        services: selectedServices.map(ss => ({
-          id: ss.service.id,
-          name: ss.service.name,
-          price: ss.service.base_price,
-          quantity: ss.quantity
-        })),
-        total_price: calculateTotal(),
-        total_duration_minutes: calculateDuration(),
+        scheduled_date: formData.date,
+        scheduled_start: formData.time,
+        service_id: selectedServices[0].service.id, // Use first service as primary
+        location_notes: `${formData.address}\n\nServices: ${selectedServices.map(ss => `${ss.service.name} (${ss.quantity}x)`).join(', ')}\n\nSpecial Instructions: ${formData.specialInstructions}`,
         status: 'confirmed' as BookingStatus
       };
 

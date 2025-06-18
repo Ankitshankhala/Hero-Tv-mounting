@@ -32,26 +32,24 @@ const CancellationModal = ({ isOpen, onClose, job, onCancellationSuccess }: Canc
 
     setIsSubmitting(true);
     try {
-      // Call the handle_worker_cancellation function
-      const { data, error } = await supabase
-        .rpc('handle_worker_cancellation', {
-          p_booking_id: job.id,
-          p_cancellation_reason: reason
-        });
+      // Update booking status to cancelled
+      const { error } = await supabase
+        .from('bookings')
+        .update({ 
+          status: 'cancelled',
+          worker_id: null
+        })
+        .eq('id', job.id);
 
       if (error) throw error;
 
-      if (data && data.length > 0 && data[0].success) {
-        toast({
-          title: "Job Cancelled",
-          description: "The job has been cancelled and will be reassigned automatically",
-        });
-        onCancellationSuccess();
-        onClose();
-        setReason('');
-      } else {
-        throw new Error('Failed to cancel job');
-      }
+      toast({
+        title: "Job Cancelled",
+        description: "The job has been cancelled and will be reassigned automatically",
+      });
+      onCancellationSuccess();
+      onClose();
+      setReason('');
     } catch (error) {
       console.error('Error cancelling job:', error);
       toast({
@@ -92,10 +90,9 @@ const CancellationModal = ({ isOpen, onClose, job, onCancellationSuccess }: Canc
             <h4 className="font-semibold text-white mb-2">Job Details</h4>
             <div className="text-slate-300 text-sm space-y-1">
               <p><strong>Customer:</strong> {job?.customer?.name || 'N/A'}</p>
-              <p><strong>Date:</strong> {job?.scheduled_at ? new Date(job.scheduled_at).toLocaleDateString() : 'N/A'}</p>
-              <p><strong>Time:</strong> {job?.scheduled_at ? new Date(job.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A'}</p>
-              <p><strong>Address:</strong> {job?.customer_address || 'N/A'}</p>
-              <p><strong>Price:</strong> ${job?.total_price || 0}</p>
+              <p><strong>Date:</strong> {job?.scheduled_date ? new Date(job.scheduled_date).toLocaleDateString() : 'N/A'}</p>
+              <p><strong>Time:</strong> {job?.scheduled_start || 'N/A'}</p>
+              <p><strong>Address:</strong> {job?.location_notes || 'N/A'}</p>
             </div>
           </div>
 
