@@ -7,24 +7,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { CheckCircle, XCircle, Clock, Phone, Mail, MapPin, User, Briefcase } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { Tables } from '@/integrations/supabase/types';
 
-interface WorkerApplication {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  city: string;
-  region: string;
-  experience: string;
-  skills?: string;
-  availability: Record<string, boolean>;
-  has_vehicle: boolean;
-  has_tools: boolean;
-  background_check_consent: boolean;
-  status: 'pending' | 'approved' | 'rejected';
-  created_at: string;
-  updated_at: string;
-}
+// Use the Supabase generated type instead of defining our own
+type WorkerApplication = Tables<'worker_applications'>;
 
 export const WorkerApplicationsManager = () => {
   const [applications, setApplications] = useState<WorkerApplication[]>([]);
@@ -82,14 +68,14 @@ export const WorkerApplicationsManager = () => {
     fetchApplications();
   }, []);
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string | null) => {
     const statusConfig = {
       pending: { label: 'Pending', variant: 'secondary' as const, icon: Clock },
       approved: { label: 'Approved', variant: 'default' as const, icon: CheckCircle },
       rejected: { label: 'Rejected', variant: 'destructive' as const, icon: XCircle },
     };
     
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
+    const config = statusConfig[(status || 'pending') as keyof typeof statusConfig] || statusConfig.pending;
     const Icon = config.icon;
     
     return (
@@ -100,8 +86,12 @@ export const WorkerApplicationsManager = () => {
     );
   };
 
-  const formatAvailability = (availability: Record<string, boolean>) => {
-    const days = Object.entries(availability)
+  const formatAvailability = (availability: any) => {
+    if (!availability || typeof availability !== 'object') {
+      return 'Not specified';
+    }
+    
+    const days = Object.entries(availability as Record<string, boolean>)
       .filter(([_, available]) => available)
       .map(([day, _]) => day.charAt(0).toUpperCase() + day.slice(1))
       .join(', ');
@@ -207,7 +197,7 @@ export const WorkerApplicationsManager = () => {
                       <TableCell>{getStatusBadge(application.status)}</TableCell>
                       <TableCell>
                         <div className="text-sm text-gray-600">
-                          {new Date(application.created_at).toLocaleDateString()}
+                          {application.created_at ? new Date(application.created_at).toLocaleDateString() : 'N/A'}
                         </div>
                       </TableCell>
                       <TableCell>
