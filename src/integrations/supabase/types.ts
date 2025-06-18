@@ -346,6 +346,60 @@ export type Database = {
         }
         Relationships: []
       }
+      worker_applications: {
+        Row: {
+          availability: Json
+          background_check_consent: boolean | null
+          city: string
+          created_at: string | null
+          email: string
+          experience: string
+          has_tools: boolean | null
+          has_vehicle: boolean | null
+          id: string
+          name: string
+          phone: string
+          region: string
+          skills: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          availability?: Json
+          background_check_consent?: boolean | null
+          city: string
+          created_at?: string | null
+          email: string
+          experience: string
+          has_tools?: boolean | null
+          has_vehicle?: boolean | null
+          id?: string
+          name: string
+          phone: string
+          region: string
+          skills?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          availability?: Json
+          background_check_consent?: boolean | null
+          city?: string
+          created_at?: string | null
+          email?: string
+          experience?: string
+          has_tools?: boolean | null
+          has_vehicle?: boolean | null
+          id?: string
+          name?: string
+          phone?: string
+          region?: string
+          skills?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       worker_availability: {
         Row: {
           created_at: string | null

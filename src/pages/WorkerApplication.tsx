@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/utils/supabaseClient';
+import { supabase } from '@/integrations/supabase/client';
 
 const WorkerApplication = () => {
   const [formData, setFormData] = useState({
@@ -51,9 +51,8 @@ const WorkerApplication = () => {
     setLoading(true);
 
     try {
-      // Use raw query since types might not be updated yet
       const { error } = await supabase
-        .from('worker_applications' as any)
+        .from('worker_applications')
         .insert({
           name: formData.name,
           email: formData.email,
