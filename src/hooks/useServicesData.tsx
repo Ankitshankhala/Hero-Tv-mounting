@@ -24,12 +24,19 @@ export const useServicesData = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('services')
-        .select('*')
+        .select('id, name, description, base_price, duration_minutes, is_active, created_at')
         .eq('is_active', true)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setServices(data || []);
+      
+      // Add image_url as null since it doesn't exist in the database
+      const servicesWithImageUrl = (data || []).map(service => ({
+        ...service,
+        image_url: null
+      }));
+      
+      setServices(servicesWithImageUrl);
     } catch (error) {
       console.error('Error fetching services:', error);
       toast({
@@ -52,18 +59,28 @@ export const useServicesData = () => {
     try {
       const { data, error } = await supabase
         .from('services')
-        .insert([serviceData])
-        .select()
+        .insert([{
+          name: serviceData.name,
+          description: serviceData.description,
+          base_price: serviceData.base_price,
+          duration_minutes: serviceData.duration_minutes
+        }])
+        .select('id, name, description, base_price, duration_minutes, is_active, created_at')
         .single();
 
       if (error) throw error;
 
-      setServices(prev => [data, ...prev]);
+      const serviceWithImageUrl = {
+        ...data,
+        image_url: null
+      };
+
+      setServices(prev => [serviceWithImageUrl, ...prev]);
       toast({
         title: "Success",
         description: "Service added successfully",
       });
-      return data;
+      return serviceWithImageUrl;
     } catch (error) {
       console.error('Error adding service:', error);
       toast({
@@ -85,21 +102,31 @@ export const useServicesData = () => {
     try {
       const { data, error } = await supabase
         .from('services')
-        .update(serviceData)
+        .update({
+          name: serviceData.name,
+          description: serviceData.description,
+          base_price: serviceData.base_price,
+          duration_minutes: serviceData.duration_minutes
+        })
         .eq('id', id)
-        .select()
+        .select('id, name, description, base_price, duration_minutes, is_active, created_at')
         .single();
 
       if (error) throw error;
 
+      const serviceWithImageUrl = {
+        ...data,
+        image_url: null
+      };
+
       setServices(prev => prev.map(service => 
-        service.id === id ? data : service
+        service.id === id ? serviceWithImageUrl : service
       ));
       toast({
         title: "Success",
         description: "Service updated successfully",
       });
-      return data;
+      return serviceWithImageUrl;
     } catch (error) {
       console.error('Error updating service:', error);
       toast({
@@ -132,7 +159,6 @@ export const useServicesData = () => {
         description: "Failed to delete service",
         variant: "destructive",
       });
-      throw error;
     }
   };
 

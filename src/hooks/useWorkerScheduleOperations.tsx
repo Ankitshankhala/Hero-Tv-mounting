@@ -26,38 +26,60 @@ export const useWorkerScheduleOperations = () => {
     try {
       console.log('Creating/updating schedule:', scheduleData);
 
-      const { data, error } = await supabase
-        .rpc('upsert_worker_schedule', {
-          p_worker_id: user.id,
-          p_date: scheduleData.date,
-          p_start_time: scheduleData.startTime,
-          p_end_time: scheduleData.endTime,
-          p_is_available: scheduleData.isAvailable,
-          p_notes: scheduleData.notes || null
-        });
+      // Since the RPC function doesn't exist, we'll use a direct insert/update approach
+      const { data: existingSchedule } = await supabase
+        .from('worker_schedule')
+        .select('*')
+        .eq('worker_id', user.id)
+        .eq('work_date', scheduleData.date)
+        .eq('start_time', scheduleData.startTime)
+        .single();
 
-      if (error) {
-        console.error('Schedule operation error:', error);
+      let result;
+      if (existingSchedule) {
+        // Update existing schedule
+        result = await supabase
+          .from('worker_schedule')
+          .update({
+            end_time: scheduleData.endTime
+          })
+          .eq('id', existingSchedule.id)
+          .select();
+      } else {
+        // Create new schedule
+        result = await supabase
+          .from('worker_schedule')
+          .insert({
+            worker_id: user.id,
+            work_date: scheduleData.date,
+            start_time: scheduleData.startTime,
+            end_time: scheduleData.endTime
+          })
+          .select();
+      }
+
+      if (result.error) {
+        console.error('Schedule operation error:', result.error);
         
-        if (error.message?.includes('permission denied')) {
+        if (result.error.message?.includes('permission denied')) {
           throw new Error('You don\'t have permission to manage schedules');
         }
         
-        if (error.message?.includes('violates unique constraint')) {
+        if (result.error.message?.includes('violates unique constraint')) {
           throw new Error('A schedule already exists for this time slot');
         }
         
-        throw new Error(error.message || 'Failed to save schedule');
+        throw new Error(result.error.message || 'Failed to save schedule');
       }
 
-      console.log('Schedule saved successfully:', data);
+      console.log('Schedule saved successfully:', result.data);
       
       toast({
         title: "Success",
         description: "Schedule updated successfully",
       });
 
-      return { data, error: null };
+      return { data: result.data, error: null };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
       console.error('Schedule operation failed:', error);
@@ -80,7 +102,7 @@ export const useWorkerScheduleOperations = () => {
       console.log('Deleting schedule:', scheduleId);
 
       const { error } = await supabase
-        .from('worker_schedules')
+        .from('worker_schedule')
         .delete()
         .eq('id', scheduleId);
 
@@ -132,10 +154,10 @@ export const useWorkerScheduleOperations = () => {
       console.log('Fetching schedules for date:', formattedDate);
 
       const { data, error } = await supabase
-        .from('worker_schedules')
+        .from('worker_schedule')
         .select('*')
         .eq('worker_id', user.id)
-        .eq('date', formattedDate)
+        .eq('work_date', formattedDate)
         .order('start_time', { ascending: true });
 
       if (error) {
