@@ -9,13 +9,17 @@ import { DeleteBookingModal } from './DeleteBookingModal';
 
 interface Booking {
   id: string;
-  customer?: { name?: string; region?: string };
-  services: any;
-  scheduled_at: string;
+  customer?: { name?: string; city?: string };
+  service?: { name?: string; duration_minutes?: number };
+  services?: any[];
+  scheduled_date?: string;
+  scheduled_start?: string;
+  scheduled_at?: string;
   worker?: { name?: string };
   status: string;
-  total_price: number;
-  customer_address: string;
+  total_price?: number;
+  customer_address?: string;
+  location_notes?: string;
 }
 
 interface BookingTableProps {
@@ -41,21 +45,52 @@ export const BookingTable = ({ bookings, onBookingUpdate }: BookingTableProps) =
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
-  const formatServices = (services: any) => {
-    if (Array.isArray(services)) {
-      return services.map(s => s.name).join(', ');
+  const formatServices = (booking: Booking) => {
+    if (booking.service?.name) {
+      return booking.service.name;
+    }
+    if (Array.isArray(booking.services) && booking.services.length > 0) {
+      return booking.services.map(s => s.name).join(', ');
     }
     return 'N/A';
   };
 
-  const formatDuration = (services: any) => {
-    if (Array.isArray(services)) {
-      const totalMinutes = services.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
-      const hours = Math.floor(totalMinutes / 60);
-      const minutes = totalMinutes % 60;
-      return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+  const formatDuration = (booking: Booking) => {
+    let totalMinutes = 0;
+    
+    if (booking.service?.duration_minutes) {
+      totalMinutes = booking.service.duration_minutes;
+    } else if (Array.isArray(booking.services) && booking.services.length > 0) {
+      totalMinutes = booking.services.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
     }
-    return 'N/A';
+    
+    if (totalMinutes === 0) return 'N/A';
+    
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+  };
+
+  const formatDateTime = (booking: Booking) => {
+    let dateTimeString = '';
+    
+    if (booking.scheduled_date && booking.scheduled_start) {
+      dateTimeString = `${booking.scheduled_date}T${booking.scheduled_start}`;
+    } else if (booking.scheduled_at) {
+      dateTimeString = booking.scheduled_at;
+    }
+    
+    if (!dateTimeString) return { date: 'N/A', time: 'N/A' };
+    
+    try {
+      const date = new Date(dateTimeString);
+      return {
+        date: date.toLocaleDateString(),
+        time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+    } catch (error) {
+      return { date: 'N/A', time: 'N/A' };
+    }
   };
 
   const handleEdit = (booking: Booking) => {
@@ -92,7 +127,7 @@ export const BookingTable = ({ bookings, onBookingUpdate }: BookingTableProps) =
               <TableHead>Service</TableHead>
               <TableHead>Duration</TableHead>
               <TableHead>Date & Time</TableHead>
-              <TableHead>Region</TableHead>
+              <TableHead>Location</TableHead>
               <TableHead>Worker</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Price</TableHead>
@@ -100,53 +135,49 @@ export const BookingTable = ({ bookings, onBookingUpdate }: BookingTableProps) =
             </TableRow>
           </TableHeader>
           <TableBody>
-            {bookings.map((booking) => (
-              <TableRow key={booking.id}>
-                <TableCell className="font-medium">{booking.id.slice(0, 8)}</TableCell>
-                <TableCell>{booking.customer?.name || 'N/A'}</TableCell>
-                <TableCell>{formatServices(booking.services)}</TableCell>
-                <TableCell>
-                  <span className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                    {formatDuration(booking.services)}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <div>
-                    <div className="font-medium">
-                      {new Date(booking.scheduled_at).toLocaleDateString()}
+            {bookings.map((booking) => {
+              const { date, time } = formatDateTime(booking);
+              return (
+                <TableRow key={booking.id}>
+                  <TableCell className="font-medium">{booking.id.slice(0, 8)}</TableCell>
+                  <TableCell>{booking.customer?.name || 'N/A'}</TableCell>
+                  <TableCell>{formatServices(booking)}</TableCell>
+                  <TableCell>
+                    <span className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                      {formatDuration(booking)}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <div>
+                      <div className="font-medium">{date}</div>
+                      <div className="text-sm text-gray-600">{time}</div>
                     </div>
-                    <div className="text-sm text-gray-600">
-                      {new Date(booking.scheduled_at).toLocaleTimeString([], { 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
-                      })}
+                  </TableCell>
+                  <TableCell>{booking.customer?.city || booking.customer_address || booking.location_notes || 'N/A'}</TableCell>
+                  <TableCell>{booking.worker?.name || 'Unassigned'}</TableCell>
+                  <TableCell>{getStatusBadge(booking.status)}</TableCell>
+                  <TableCell className="font-medium">${booking.total_price || 0}</TableCell>
+                  <TableCell>
+                    <div className="flex space-x-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleEdit(booking)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleDelete(booking)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
-                  </div>
-                </TableCell>
-                <TableCell>{booking.customer?.region || 'N/A'}</TableCell>
-                <TableCell>{booking.worker?.name || 'Unassigned'}</TableCell>
-                <TableCell>{getStatusBadge(booking.status)}</TableCell>
-                <TableCell className="font-medium">${booking.total_price}</TableCell>
-                <TableCell>
-                  <div className="flex space-x-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => handleEdit(booking)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => handleDelete(booking)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
         

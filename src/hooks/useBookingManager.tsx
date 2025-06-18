@@ -1,104 +1,139 @@
 
 import { useState, useEffect } from 'react';
-import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useBookingCalendarSync } from '@/hooks/useBookingCalendarSync';
 
-export const useBookingManager = (isCalendarConnected: boolean) => {
-  const [bookings, setBookings] = useState([]);
+interface BookingData {
+  id: string;
+  customer_id: string;
+  worker_id?: string;
+  service_id: string;
+  scheduled_date: string;
+  scheduled_start: string;
+  status: string;
+  location_notes?: string;
+  created_at: string;
+  customer?: any;
+  worker?: any;
+  service?: any;
+  services?: any; // For backwards compatibility
+  scheduled_at?: string; // For backwards compatibility
+  customer_address?: string; // For backwards compatibility
+  total_price?: number; // For backwards compatibility
+}
+
+export const useBookingManager = (isCalendarConnected: boolean = false) => {
+  const [bookings, setBookings] = useState<BookingData[]>([]);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  const { syncBookingToCalendar } = useBookingCalendarSync();
 
-  // Use the authenticated query hook
-  const { 
-    data: bookingsData, 
-    loading, 
-    error, 
-    refetch: fetchBookings 
-  } = useSupabaseQuery({
-    table: 'bookings',
-    select: `
-      *,
-      customer:users!customer_id(name, phone, region),
-      worker:users!worker_id(name, phone)
-    `,
-    orderBy: { column: 'scheduled_at', ascending: false }
-  });
+  const fetchBookings = async () => {
+    try {
+      setLoading(true);
+      console.log('Fetching bookings...');
 
-  // Update local state when data changes
-  useEffect(() => {
-    if (bookingsData) {
-      setBookings(Array.isArray(bookingsData) ? bookingsData : []);
-    }
-  }, [bookingsData]);
+      // First, get the basic booking data
+      const { data: bookingsData, error: bookingsError } = await supabase
+        .from('bookings')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-  // Show error toast if query fails
-  useEffect(() => {
-    if (error) {
-      console.error('Error fetching bookings:', error);
+      if (bookingsError) {
+        console.error('Error fetching bookings:', bookingsError);
+        throw bookingsError;
+      }
+
+      console.log('Raw bookings data:', bookingsData);
+
+      if (!bookingsData || bookingsData.length === 0) {
+        console.log('No bookings found');
+        setBookings([]);
+        return;
+      }
+
+      // Enrich bookings with customer, worker, and service data
+      const enrichedBookings = await Promise.all(
+        bookingsData.map(async (booking) => {
+          // Fetch customer data
+          let customer = null;
+          if (booking.customer_id) {
+            const { data: customerData } = await supabase
+              .from('users')
+              .select('id, name, email, phone, city')
+              .eq('id', booking.customer_id)
+              .single();
+            customer = customerData;
+          }
+
+          // Fetch worker data
+          let worker = null;
+          if (booking.worker_id) {
+            const { data: workerData } = await supabase
+              .from('users')
+              .select('id, name, email, phone')
+              .eq('id', booking.worker_id)
+              .single();
+            worker = workerData;
+          }
+
+          // Fetch service data
+          let service = null;
+          if (booking.service_id) {
+            const { data: serviceData } = await supabase
+              .from('services')
+              .select('id, name, description, base_price, duration_minutes')
+              .eq('id', booking.service_id)
+              .single();
+            service = serviceData;
+          }
+
+          // Create backward-compatible format
+          const enrichedBooking: BookingData = {
+            ...booking,
+            customer,
+            worker,
+            service,
+            services: service ? [service] : [], // For compatibility with BookingTable
+            scheduled_at: `${booking.scheduled_date}T${booking.scheduled_start}`, // For compatibility
+            customer_address: booking.location_notes || 'No address provided', // For compatibility
+            total_price: service?.base_price || 0 // For compatibility
+          };
+
+          return enrichedBooking;
+        })
+      );
+
+      console.log('Enriched bookings:', enrichedBookings);
+      setBookings(enrichedBookings);
+    } catch (error) {
+      console.error('Error in fetchBookings:', error);
       toast({
         title: "Error",
         description: "Failed to load bookings",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
-  }, [error, toast]);
-
-  const handleBookingUpdate = async (updatedBooking: any) => {
-    console.log('Real-time booking update received:', updatedBooking);
-    
-    setBookings(currentBookings => {
-      const existingBookingIndex = currentBookings.findIndex(booking => booking.id === updatedBooking.id);
-      let updatedBookings = [...currentBookings];
-      
-      if (existingBookingIndex >= 0) {
-        const oldBooking = currentBookings[existingBookingIndex];
-        updatedBookings[existingBookingIndex] = { ...oldBooking, ...updatedBooking };
-        
-        // Handle calendar sync for real-time updates if calendar is connected
-        if (isCalendarConnected) {
-          const bookingData = updatedBookings[existingBookingIndex];
-          
-          // Determine if this is a status change that needs calendar sync
-          if (oldBooking.status !== updatedBooking.status) {
-            setTimeout(async () => {
-              try {
-                if (updatedBooking.status === 'cancelled') {
-                  await syncBookingToCalendar(bookingData, 'delete');
-                } else if (oldBooking.status === 'pending' && updatedBooking.status === 'confirmed') {
-                  await syncBookingToCalendar(bookingData, 'create');
-                } else {
-                  await syncBookingToCalendar(bookingData, 'update');
-                }
-              } catch (error) {
-                console.error('Error syncing calendar for real-time update:', error);
-              }
-            }, 0);
-          }
-        }
-      } else {
-        updatedBookings.unshift(updatedBooking);
-        fetchBookings();
-        
-        if (isCalendarConnected && updatedBooking.status !== 'cancelled') {
-          setTimeout(async () => {
-            try {
-              await syncBookingToCalendar(updatedBooking, 'create');
-            } catch (error) {
-              console.error('Error syncing new booking to calendar:', error);
-            }
-          }, 0);
-        }
-      }
-      
-      return updatedBookings;
-    });
   };
+
+  const handleBookingUpdate = (updatedBooking: any) => {
+    console.log('Booking update received:', updatedBooking);
+    setBookings(prevBookings => 
+      prevBookings.map(booking => 
+        booking.id === updatedBooking.id ? { ...booking, ...updatedBooking } : booking
+      )
+    );
+  };
+
+  useEffect(() => {
+    fetchBookings();
+  }, []);
 
   return {
     bookings,
     loading,
-    fetchBookings,
-    handleBookingUpdate
+    handleBookingUpdate,
+    fetchBookings
   };
 };
