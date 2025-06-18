@@ -2,18 +2,18 @@
 import React from 'react';
 import { BookingBlock } from './BookingBlock';
 
-interface Booking {
+interface CalendarBooking {
   id: string;
-  scheduled_at: string;
-  total_duration_minutes: number;
-  services: any;
-  worker: { name: string } | null;
+  scheduled_date: string;
+  scheduled_start: string;
+  location_notes: string | null;
+  users: { name: string } | null;
 }
 
 interface TimeSlotProps {
   day: Date;
   time: string;
-  bookings: Booking[];
+  bookings: CalendarBooking[];
   isAvailable: boolean;
   isSelected: boolean;
   onTimeSlotClick: (date: Date, time: string) => void;

@@ -32,23 +32,23 @@ export const usePaymentOperations = () => {
     }
   };
 
-  const createInvoiceModification = async (modificationData: any) => {
+  const createPaymentRecord = async (paymentData: any) => {
     setLoading(true);
     try {
       return await executeWithRetry(async () => {
         const { data, error } = await supabase
-          .from('invoice_modifications')
-          .insert(modificationData)
+          .from('transactions')
+          .insert(paymentData)
           .select()
           .single();
 
         if (error) throw error;
         return data;
-      }, 'create invoice modification');
+      }, 'create payment record');
     } catch (error) {
-      handleError(error, 'create invoice modification', {
-        toastTitle: 'Failed to create invoice modification',
-        fallbackMessage: 'Unable to create invoice modification. Please try again.'
+      handleError(error, 'create payment record', {
+        toastTitle: 'Failed to create payment record',
+        fallbackMessage: 'Unable to create payment record. Please try again.'
       });
       throw error;
     } finally {
@@ -58,7 +58,7 @@ export const usePaymentOperations = () => {
 
   return {
     processPayment,
-    createInvoiceModification,
+    createPaymentRecord,
     loading
   };
 };

@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useErrorHandler } from './useErrorHandler';
 import { useRetryableQuery } from './useRetryableQuery';
 
-type BookingStatus = 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
+type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
 
 export const useBookingOperations = () => {
   const { executeWithRetry } = useRetryableQuery();
@@ -41,7 +41,7 @@ export const useBookingOperations = () => {
       return await executeWithRetry(async () => {
         const { data, error } = await supabase
           .from('bookings')
-          .update({ status, updated_at: new Date().toISOString() })
+          .update({ status })
           .eq('id', bookingId)
           .select()
           .single();

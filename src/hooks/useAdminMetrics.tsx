@@ -1,166 +1,62 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useErrorHandler } from '@/hooks/useErrorHandler';
-import { useRetryableQuery } from '@/hooks/useRetryableQuery';
 
-interface AdminMetrics {
+interface MetricsData {
+  totalBookings: number;
   totalRevenue: number;
-  revenueGrowth: number;
-  bookingsThisMonth: number;
-  bookingsGrowth: number;
-  activeCustomers: number;
-  customersGrowth: number;
-  completedJobs: number;
-  jobsGrowth: number;
-  pendingBookings: number;
-  activeWorkers: number;
-  averageRating: number;
-  totalReviews: number;
+  avgBookingValue: number;
+  completedBookings: number;
 }
 
 export const useAdminMetrics = () => {
-  const [metrics, setMetrics] = useState<AdminMetrics>({
+  const [metrics, setMetrics] = useState<MetricsData>({
+    totalBookings: 0,
     totalRevenue: 0,
-    revenueGrowth: 0,
-    bookingsThisMonth: 0,
-    bookingsGrowth: 0,
-    activeCustomers: 0,
-    customersGrowth: 0,
-    completedJobs: 0,
-    jobsGrowth: 0,
-    pendingBookings: 0,
-    activeWorkers: 0,
-    averageRating: 0,
-    totalReviews: 0,
+    avgBookingValue: 0,
+    completedBookings: 0
   });
-  
-  const { executeWithRetry, loading, error } = useRetryableQuery();
-  const { handleError } = useErrorHandler();
-
-  const fetchMetrics = async () => {
-    try {
-      await executeWithRetry(async () => {
-        console.log('Fetching admin metrics...');
-
-        const now = new Date();
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
-
-        // Fetch all data with better error handling
-        const [bookingsResult, usersResult, reviewsResult] = await Promise.all([
-          supabase.from('bookings').select('*'),
-          supabase.from('users').select('*'),
-          supabase.from('reviews').select('rating')
-        ]);
-
-        // Check for errors
-        if (bookingsResult.error) throw bookingsResult.error;
-        if (usersResult.error) throw usersResult.error;
-        if (reviewsResult.error) throw reviewsResult.error;
-
-        const bookings = bookingsResult.data || [];
-        const users = usersResult.data || [];
-        const reviews = reviewsResult.data || [];
-
-        // Calculate metrics
-        const completedBookings = bookings.filter(b => b.status === 'completed');
-        const thisMonthBookings = bookings.filter(b => 
-          new Date(b.created_at) >= startOfMonth
-        );
-        const lastMonthBookings = bookings.filter(b => 
-          new Date(b.created_at) >= startOfLastMonth && 
-          new Date(b.created_at) <= endOfLastMonth
-        );
-
-        const thisMonthCompleted = completedBookings.filter(b => 
-          new Date(b.created_at) >= startOfMonth
-        );
-        const lastMonthCompleted = completedBookings.filter(b => 
-          new Date(b.created_at) >= startOfLastMonth && 
-          new Date(b.created_at) <= endOfLastMonth
-        );
-
-        const totalRevenue = completedBookings.reduce((sum, booking) => 
-          sum + (Number(booking.total_price) || 0), 0
-        );
-
-        const thisMonthRevenue = thisMonthCompleted.reduce((sum, booking) => 
-          sum + (Number(booking.total_price) || 0), 0
-        );
-        const lastMonthRevenue = lastMonthCompleted.reduce((sum, booking) => 
-          sum + (Number(booking.total_price) || 0), 0
-        );
-
-        const customers = users.filter(u => u.role === 'customer');
-        const workers = users.filter(u => u.role === 'worker' && u.is_active);
-        
-        const thisMonthCustomers = customers.filter(c => 
-          new Date(c.created_at) >= startOfMonth
-        );
-        const lastMonthCustomers = customers.filter(c => 
-          new Date(c.created_at) >= startOfLastMonth && 
-          new Date(c.created_at) <= endOfLastMonth
-        );
-
-        const pendingBookings = bookings.filter(b => b.status === 'pending');
-
-        // Calculate growth percentages
-        const revenueGrowth = lastMonthRevenue > 0 
-          ? ((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100 
-          : 0;
-        
-        const bookingsGrowth = lastMonthBookings.length > 0 
-          ? ((thisMonthBookings.length - lastMonthBookings.length) / lastMonthBookings.length) * 100 
-          : 0;
-
-        const customersGrowth = lastMonthCustomers.length > 0 
-          ? ((thisMonthCustomers.length - lastMonthCustomers.length) / lastMonthCustomers.length) * 100 
-          : 0;
-
-        const jobsGrowth = lastMonthCompleted.length > 0 
-          ? ((thisMonthCompleted.length - lastMonthCompleted.length) / lastMonthCompleted.length) * 100 
-          : 0;
-
-        // Calculate average rating
-        const validRatings = reviews.filter(r => r.rating && r.rating > 0);
-        const averageRating = validRatings.length > 0 
-          ? validRatings.reduce((sum, r) => sum + r.rating, 0) / validRatings.length 
-          : 0;
-
-        const newMetrics = {
-          totalRevenue,
-          revenueGrowth,
-          bookingsThisMonth: thisMonthBookings.length,
-          bookingsGrowth,
-          activeCustomers: customers.length,
-          customersGrowth,
-          completedJobs: completedBookings.length,
-          jobsGrowth,
-          pendingBookings: pendingBookings.length,
-          activeWorkers: workers.length,
-          averageRating,
-          totalReviews: validRatings.length,
-        };
-
-        setMetrics(newMetrics);
-        console.log('Admin metrics calculated successfully:', newMetrics);
-        return newMetrics;
-      }, 'load dashboard metrics');
-    } catch (error) {
-      console.error('Failed to fetch admin metrics:', error);
-    }
-  };
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        // Get all bookings
+        const { data: bookings, error: bookingsError } = await supabase
+          .from('bookings')
+          .select('*');
+
+        if (bookingsError) throw bookingsError;
+
+        // Get all transactions for revenue calculation
+        const { data: transactions, error: transactionsError } = await supabase
+          .from('transactions')
+          .select('amount, status')
+          .eq('status', 'completed');
+
+        if (transactionsError) throw transactionsError;
+
+        // Calculate metrics
+        const totalBookings = bookings?.length || 0;
+        const totalRevenue = transactions?.reduce((sum, transaction) => sum + Number(transaction.amount), 0) || 0;
+        const completedBookings = bookings?.filter(booking => booking.status === 'completed').length || 0;
+        const avgBookingValue = totalBookings > 0 ? totalRevenue / totalBookings : 0;
+
+        setMetrics({
+          totalBookings,
+          totalRevenue,
+          avgBookingValue,
+          completedBookings
+        });
+      } catch (error) {
+        console.error('Error fetching metrics:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchMetrics();
   }, []);
 
-  return { 
-    metrics, 
-    loading, 
-    error,
-    refetch: fetchMetrics 
-  };
+  return { metrics, loading };
 };
