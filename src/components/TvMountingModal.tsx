@@ -1,163 +1,253 @@
 
 import React, { useState } from 'react';
-import { X, Plus, Minus } from 'lucide-react';
+import { X, Monitor, ArrowRight } from 'lucide-react';
 import { CartItem } from '@/pages/Index';
+import { Service } from '@/hooks/useServicesData';
 
 interface TvMountingModalProps {
   onClose: () => void;
   onAddToCart: (item: CartItem) => void;
+  services: Service[];
 }
 
-export const TvMountingModal: React.FC<TvMountingModalProps> = ({ onClose, onAddToCart }) => {
+export const TvMountingModal: React.FC<TvMountingModalProps> = ({ onClose, onAddToCart, services }) => {
   const [over65, setOver65] = useState(false);
   const [frameMount, setFrameMount] = useState(false);
-  const [stoneBrickTile, setStoneBrickTile] = useState(false);
-  const [numberOfTvs, setNumberOfTvs] = useState(1); // Start with 1 TV already included
+  const [numberOfTvs, setNumberOfTvs] = useState(1);
+  const [cableConcealment, setCableConcealment] = useState('none');
+  const [wallType, setWallType] = useState('standard');
 
-  const basePrice = 90; // Includes 1 TV
-  const over65Price = 25;
-  const frameMountPrice = 25;
-  const stoneBrickTilePrice = 50;
-
-  const calculateTvPrice = () => {
-    if (numberOfTvs === 1) return basePrice; // Base price includes 1 TV
-    
-    let totalTvPrice = basePrice; // First TV is included in base price
-    
-    // Calculate additional TVs pricing
-    const additionalTvs = numberOfTvs - 1;
-    
-    if (additionalTvs === 1) {
-      // +1 TV = $60
-      totalTvPrice += 60;
-    } else if (additionalTvs >= 2) {
-      // +2+ TVs = $75 each
-      totalTvPrice += 75 * additionalTvs;
-    }
-    
-    return totalTvPrice;
-  };
+  // Find services from database
+  const tvMountingService = services.find(s => s.name === 'TV Mounting');
+  const over65Service = services.find(s => s.name === 'Over 65" TV Add-on');
+  const frameMountService = services.find(s => s.name === 'Frame Mount Add-on');
+  const stoneWallService = services.find(s => s.name === 'Stone/Brick/Tile Wall');
+  const simpleConcealmentService = services.find(s => s.name === 'Simple Cable Concealment');
+  const fireSafeConcealmentService = services.find(s => s.name === 'Fire Safe Cable Concealment');
 
   const calculatePrice = () => {
-    let total = calculateTvPrice();
-    if (over65) total += over65Price;
-    if (frameMount) total += frameMountPrice;
-    if (stoneBrickTile) total += stoneBrickTilePrice;
-    return total;
+    let basePrice = tvMountingService?.base_price || 90;
+    let totalPrice = basePrice * numberOfTvs;
+
+    if (over65 && over65Service) {
+      totalPrice += over65Service.base_price * numberOfTvs;
+    }
+    
+    if (frameMount && frameMountService) {
+      totalPrice += frameMountService.base_price * numberOfTvs;
+    }
+    
+    if (wallType === 'stone-brick-tile' && stoneWallService) {
+      totalPrice += stoneWallService.base_price * numberOfTvs;
+    }
+    
+    if (cableConcealment === 'simple' && simpleConcealmentService) {
+      totalPrice += simpleConcealmentService.base_price;
+    } else if (cableConcealment === 'fire-safe' && fireSafeConcealmentService) {
+      totalPrice += fireSafeConcealmentService.base_price;
+    }
+
+    return totalPrice;
   };
 
   const handleAddToCart = () => {
-    onAddToCart({
-      id: 'tv-mounting',
-      name: 'TV Mounting',
+    const cartItem: CartItem = {
+      id: 'tv-mounting-configured',
+      name: `TV Mounting${numberOfTvs > 1 ? ` (${numberOfTvs} TVs)` : ''}`,
       price: calculatePrice(),
       quantity: 1,
       options: {
         over65,
         frameMount,
         numberOfTvs,
-        cableConcealment: 'none',
-        wallType: stoneBrickTile ? 'stone-brick-tile' : 'standard'
+        cableConcealment,
+        wallType
       }
-    });
+    };
+
+    onAddToCart(cartItem);
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-900 rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-slate-700">
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-2xl font-bold text-white">TV Mounting Options</h3>
-            <button 
-              onClick={onClose}
-              className="text-slate-400 hover:text-white p-2 rounded-full hover:bg-slate-800"
-            >
-              <X className="h-5 w-5" />
-            </button>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-slate-900 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6 border-b border-slate-700 flex justify-between items-center sticky top-0 bg-slate-900 z-10">
+          <div>
+            <h2 className="text-2xl font-bold text-white flex items-center">
+              <Monitor className="mr-3 h-6 w-6 text-blue-400" />
+              TV Mounting Configuration
+            </h2>
+            <p className="text-slate-400 mt-1">Customize your TV mounting service</p>
           </div>
-          
-          <div className="space-y-6">
-            <div>
-              <label className="flex items-center space-x-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={over65}
-                  onChange={(e) => setOver65(e.target.checked)}
-                  className="w-5 h-5 text-blue-600 bg-slate-800 border-slate-600 rounded focus:ring-blue-500 focus:ring-2"
-                />
-                <span className="text-white flex-1">Over 65" TV</span>
-                <span className="text-blue-400 font-semibold">+${over65Price}</span>
-              </label>
-            </div>
-            
-            <div>
-              <label className="flex items-center space-x-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={frameMount}
-                  onChange={(e) => setFrameMount(e.target.checked)}
-                  className="w-5 h-5 text-blue-600 bg-slate-800 border-slate-600 rounded focus:ring-blue-500 focus:ring-2"
-                />
-                <span className="text-white flex-1">Frame Mount</span>
-                <span className="text-blue-400 font-semibold">+${frameMountPrice}</span>
-              </label>
-            </div>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-white transition-colors p-2 hover:bg-slate-800 rounded-lg"
+          >
+            <X className="h-6 w-6" />
+          </button>
+        </div>
 
-            <div>
+        <div className="p-6 space-y-6">
+          {/* Number of TVs */}
+          <div className="bg-slate-800 rounded-lg p-4">
+            <label className="block text-lg font-semibold text-white mb-3">
+              Number of TVs
+            </label>
+            <div className="flex space-x-3">
+              {[1, 2, 3, 4].map((num) => (
+                <button
+                  key={num}
+                  onClick={() => setNumberOfTvs(num)}
+                  className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                    numberOfTvs === num
+                      ? 'bg-blue-600 text-white shadow-lg'
+                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                  }`}
+                >
+                  {num} TV{num > 1 ? 's' : ''}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* TV Size */}
+          <div className="bg-slate-800 rounded-lg p-4">
+            <label className="flex items-center space-x-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={over65}
+                onChange={(e) => setOver65(e.target.checked)}
+                className="w-5 h-5 text-blue-600 bg-slate-700 border-slate-600 rounded focus:ring-blue-500"
+              />
+              <div>
+                <span className="text-lg font-semibold text-white">Over 65" TV</span>
+                <p className="text-slate-400 text-sm">
+                  Additional charge for larger TVs (+${over65Service?.base_price || 25} per TV)
+                </p>
+              </div>
+            </label>
+          </div>
+
+          {/* Frame Mount */}
+          <div className="bg-slate-800 rounded-lg p-4">
+            <label className="flex items-center space-x-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={frameMount}
+                onChange={(e) => setFrameMount(e.target.checked)}
+                className="w-5 h-5 text-blue-600 bg-slate-700 border-slate-600 rounded focus:ring-blue-500"
+              />
+              <div>
+                <span className="text-lg font-semibold text-white">Frame Mount</span>
+                <p className="text-slate-400 text-sm">
+                  Specialized frame mounting service (+${frameMountService?.base_price || 25} per TV)
+                </p>
+              </div>
+            </label>
+          </div>
+
+          {/* Wall Type */}
+          <div className="bg-slate-800 rounded-lg p-4">
+            <label className="block text-lg font-semibold text-white mb-3">
+              Wall Type
+            </label>
+            <div className="space-y-2">
               <label className="flex items-center space-x-3 cursor-pointer">
                 <input
-                  type="checkbox"
-                  checked={stoneBrickTile}
-                  onChange={(e) => setStoneBrickTile(e.target.checked)}
-                  className="w-5 h-5 text-blue-600 bg-slate-800 border-slate-600 rounded focus:ring-blue-500 focus:ring-2"
+                  type="radio"
+                  name="wallType"
+                  value="standard"
+                  checked={wallType === 'standard'}
+                  onChange={(e) => setWallType(e.target.value)}
+                  className="w-4 h-4 text-blue-600 bg-slate-700 border-slate-600 focus:ring-blue-500"
                 />
-                <span className="text-white flex-1">Stone, Brick, Tile Wall</span>
-                <span className="text-blue-400 font-semibold">+${stoneBrickTilePrice}</span>
+                <span className="text-white">Standard Drywall (No extra charge)</span>
+              </label>
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name="wallType"
+                  value="stone-brick-tile"
+                  checked={wallType === 'stone-brick-tile'}
+                  onChange={(e) => setWallType(e.target.value)}
+                  className="w-4 h-4 text-blue-600 bg-slate-700 border-slate-600 focus:ring-blue-500"
+                />
+                <span className="text-white">
+                  Stone/Brick/Tile Wall (+${stoneWallService?.base_price || 50} total)
+                </span>
               </label>
             </div>
-            
-            <div>
-              <label className="block text-white mb-3">Number of TVs (1st TV included)</label>
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={() => setNumberOfTvs(Math.max(1, numberOfTvs - 1))}
-                  className="bg-slate-800 hover:bg-slate-700 text-white p-2 rounded-full"
-                  disabled={numberOfTvs === 1}
-                >
-                  <Minus className="h-4 w-4" />
-                </button>
-                <span className="text-white font-semibold w-8 text-center">{numberOfTvs}</span>
-                <button
-                  onClick={() => setNumberOfTvs(Math.min(10, numberOfTvs + 1))}
-                  className="bg-slate-800 hover:bg-slate-700 text-white p-2 rounded-full"
-                  disabled={numberOfTvs === 10}
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
-                <span className="text-blue-400 font-semibold">
-                  {numberOfTvs === 1 ? 'Included' : `+$${calculateTvPrice() - basePrice}`}
+          </div>
+
+          {/* Cable Concealment */}
+          <div className="bg-slate-800 rounded-lg p-4">
+            <label className="block text-lg font-semibold text-white mb-3">
+              Cable Concealment
+            </label>
+            <div className="space-y-2">
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name="cableConcealment"
+                  value="none"
+                  checked={cableConcealment === 'none'}
+                  onChange={(e) => setCableConcealment(e.target.value)}
+                  className="w-4 h-4 text-blue-600 bg-slate-700 border-slate-600 focus:ring-blue-500"
+                />
+                <span className="text-white">No cable concealment</span>
+              </label>
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name="cableConcealment"
+                  value="simple"
+                  checked={cableConcealment === 'simple'}
+                  onChange={(e) => setCableConcealment(e.target.value)}
+                  className="w-4 h-4 text-blue-600 bg-slate-700 border-slate-600 focus:ring-blue-500"
+                />
+                <span className="text-white">
+                  Simple Cable Concealment (+${simpleConcealmentService?.base_price || 50})
                 </span>
-              </div>
-              {numberOfTvs > 1 && (
-                <div className="text-sm text-slate-400 mt-2">
-                  Pricing: +1 TV = $60, +2 TVs = $75 each, +3+ TVs = $75 each
-                </div>
-              )}
+              </label>
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name="cableConcealment"
+                  value="fire-safe"
+                  checked={cableConcealment === 'fire-safe'}
+                  onChange={(e) => setCableConcealment(e.target.value)}
+                  className="w-4 h-4 text-blue-600 bg-slate-700 border-slate-600 focus:ring-blue-500"
+                />
+                <span className="text-white">
+                  Fire Safe Cable Concealment (+${fireSafeConcealmentService?.base_price || 100})
+                </span>
+              </label>
             </div>
-            
-            <div className="bg-slate-800 rounded-lg p-4">
-              <div className="flex justify-between items-center text-lg font-bold text-white">
-                <span>Total Price:</span>
-                <span className="text-blue-400">${calculatePrice()}</span>
-              </div>
+          </div>
+
+          {/* Price Summary */}
+          <div className="bg-gradient-to-r from-blue-900/50 to-purple-900/50 rounded-lg p-4 border border-blue-500/30">
+            <div className="flex justify-between items-center text-white">
+              <span className="text-lg font-semibold">Total Price:</span>
+              <span className="text-2xl font-bold text-blue-400">${calculatePrice()}</span>
             </div>
-            
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex space-x-4 pt-4">
+            <button
+              onClick={onClose}
+              className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-semibold py-3 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
             <button
               onClick={handleAddToCart}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
+              className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 rounded-lg transition-all flex items-center justify-center space-x-2"
             >
-              Add to Cart
+              <span>Add to Cart</span>
+              <ArrowRight className="h-4 w-4" />
             </button>
           </div>
         </div>
