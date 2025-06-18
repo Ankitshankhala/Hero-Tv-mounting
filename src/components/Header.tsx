@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Shield, LogOut, Briefcase, User } from 'lucide-react';
@@ -63,24 +64,7 @@ export const Header = () => {
                 <span>Logout</span>
               </Button>
             </div>
-          ) : (
-            <div className="flex space-x-2">
-              <Link 
-                to="/worker-dashboard"
-                className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors duration-200 text-sm font-medium text-white"
-              >
-                <Briefcase className="h-4 w-4" />
-                <span>Worker Login</span>
-              </Link>
-              <Link 
-                to="/admin"
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200 text-sm font-medium text-white"
-              >
-                <Shield className="h-4 w-4" />
-                <span>Admin</span>
-              </Link>
-            </div>
-          )}
+          ) : null}
         </div>
         
         <div className="flex items-center justify-center mb-8">
