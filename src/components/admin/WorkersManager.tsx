@@ -115,7 +115,7 @@ export const WorkersManager = () => {
       {showAddWorker && (
         <AddWorkerModal 
           onClose={() => setShowAddWorker(false)} 
-          onWorkerAdded={fetchWorkers}
+          onSuccess={fetchWorkers}
         />
       )}
     </div>

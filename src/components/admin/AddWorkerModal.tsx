@@ -69,7 +69,7 @@ export const AddWorkerModal = ({ onClose, onSuccess }: AddWorkerModalProps) => {
 
       if (workerError) throw workerError;
 
-      // Add availability records
+      // Add availability records with correct day_of_week format
       if (availability.length > 0) {
         const availabilityRecords = availability.map(avail => ({
           worker_id: worker.id,

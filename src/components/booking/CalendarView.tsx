@@ -19,10 +19,10 @@ interface CalendarViewProps {
 
 interface Booking {
   id: string;
-  scheduled_at: string;
-  total_duration_minutes: number;
-  services: any;
-  worker: { name: string } | null;
+  scheduled_date: string;
+  scheduled_start: string;
+  location_notes: string | null;
+  users: { name: string } | null;
 }
 
 export const CalendarView = ({ 
@@ -65,20 +65,20 @@ export const CalendarView = ({
         .from('bookings')
         .select(`
           id,
-          scheduled_at,
-          total_duration_minutes,
-          services,
-          worker:users!worker_id(name)
+          scheduled_date,
+          scheduled_start,
+          location_notes,
+          users!worker_id(name)
         `)
-        .gte('scheduled_at', `${startDate}T00:00:00`)
-        .lte('scheduled_at', `${endDate}T23:59:59`)
-        .in('status', ['confirmed', 'in_progress'])
+        .gte('scheduled_date', startDate)
+        .lte('scheduled_date', endDate)
+        .in('status', ['confirmed', 'completed'])
         .not('worker_id', 'is', null);
 
       if (error) throw error;
 
       const regionBookings = data?.filter(booking => 
-        booking.worker && selectedRegion
+        booking.users && selectedRegion
       ) || [];
 
       setBookings(regionBookings);
@@ -101,14 +101,13 @@ export const CalendarView = ({
   const getBookingsForDateTime = (date: Date, time: string) => {
     const dateStr = date.toISOString().split('T')[0];
     return bookings.filter(booking => {
-      const bookingDate = new Date(booking.scheduled_at);
-      const bookingDateStr = bookingDate.toISOString().split('T')[0];
-      const bookingTime = bookingDate.toTimeString().slice(0, 5);
+      const bookingDateStr = booking.scheduled_date;
+      const bookingTime = booking.scheduled_start.slice(0, 5);
       
       if (dateStr !== bookingDateStr) return false;
       
       const bookingStart = new Date(`2000-01-01T${bookingTime}`);
-      const bookingEnd = new Date(bookingStart.getTime() + booking.total_duration_minutes * 60000);
+      const bookingEnd = new Date(bookingStart.getTime() + 60 * 60000); // Assume 1 hour duration
       const slotTime = new Date(`2000-01-01T${time}`);
       const slotEnd = new Date(slotTime.getTime() + 60 * 60000);
       
