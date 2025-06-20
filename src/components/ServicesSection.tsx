@@ -12,6 +12,21 @@ interface ServicesSectionProps {
   onAddToCart: (item: CartItem) => void;
 }
 
+const getServiceImage = (serviceName: string): string => {
+  const serviceImages: { [key: string]: string } = {
+    'TV Mounting': '/lovable-uploads/77f65da7-38bc-4d01-afdd-bb998049c77b.png',
+    'Furniture Assembly': '/lovable-uploads/012bbdab-1222-48ae-aa4b-d7bb3c3aa632.png',
+    'Plumbing': '/lovable-uploads/01571029-7b6a-4df2-9c0f-1c0b120fedff.png',
+    'Electrical Work': '/lovable-uploads/15729bed-70cc-4a81-afe5-f295b900175d.png',
+    'Home Repair': '/lovable-uploads/1cdefbf0-13c5-4f66-bb5c-761861d66f74.png',
+    'Appliance Installation': '/lovable-uploads/27ce8bb9-eb88-4dd3-bd04-4525238f4f77.png',
+    'Handyman Services': '/lovable-uploads/2ca84624-6945-44f1-8cf1-e35c574b9a1f.png',
+    'Cleaning': '/lovable-uploads/30e56e23-dec2-4e93-a794-d7575b2e1bd5.png'
+  };
+  
+  return serviceImages[serviceName] || '/lovable-uploads/77f65da7-38bc-4d01-afdd-bb998049c77b.png';
+};
+
 export const ServicesSection = ({ onAddToCart }: ServicesSectionProps) => {
   const [showTvModal, setShowTvModal] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
@@ -76,7 +91,7 @@ export const ServicesSection = ({ onAddToCart }: ServicesSectionProps) => {
               id={service.id}
               name={service.name}
               price={service.base_price}
-              image={service.image_url || "/lovable-uploads/77f65da7-38bc-4d01-afdd-bb998049c77b.png"}
+              image={getServiceImage(service.name)}
               description={service.description || `Professional ${service.name.toLowerCase()} service`}
               onAddToCart={() => handleServiceClick(service.id, service.name)}
             />
