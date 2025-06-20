@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { ArrowRight, Monitor, Wrench, Home, Star, CheckCircle } from 'lucide-react';
 import { ServiceCard } from './ServiceCard';
@@ -8,12 +9,6 @@ import { CartItem } from '@/types';
 
 interface ServicesSectionProps {
   onAddToCart: (item: CartItem) => void;
-}
-
-interface ModalService {
-  id: string;
-  name: string;
-  base_price: number;
 }
 
 export const ServicesSection = ({ onAddToCart }: ServicesSectionProps) => {
@@ -30,9 +25,9 @@ export const ServicesSection = ({ onAddToCart }: ServicesSectionProps) => {
   const services = [
     {
       id: 'tv-mounting',
-      title: 'TV Wall Mounting',
+      name: 'TV Wall Mounting',
       description: 'Professional TV mounting with cable management',
-      basePrice: 90,
+      price: 90,
       image: '/lovable-uploads/77f65da7-38bc-4d01-afdd-bb998049c77b.png',
       features: ['Secure wall mounting', 'Cable hiding', 'Level adjustment', '30-day guarantee'],
       buttonText: 'Configure & Book',
@@ -40,9 +35,9 @@ export const ServicesSection = ({ onAddToCart }: ServicesSectionProps) => {
     },
     {
       id: 'furniture-assembly',
-      title: 'Furniture Assembly',
+      name: 'Furniture Assembly',
       description: 'Expert assembly for all types of furniture',
-      basePrice: 60,
+      price: 60,
       image: '/lovable-uploads/094e9449-a946-4941-9e0f-955113646365.png',
       features: ['All furniture types', 'Fast and reliable', 'Tools included', 'Cleanup service'],
       buttonText: 'Get a Quote',
@@ -50,9 +45,9 @@ export const ServicesSection = ({ onAddToCart }: ServicesSectionProps) => {
     },
     {
       id: 'smart-home-setup',
-      title: 'Smart Home Setup',
+      name: 'Smart Home Setup',
       description: 'Setup and configuration of smart home devices',
-      basePrice: 75,
+      price: 75,
       image: '/lovable-uploads/499a9999-ca36-45a1-8a91-cb98a9489443.png',
       features: ['Device integration', 'Network setup', 'Voice control', 'Personalized training'],
       buttonText: 'Explore Options',
@@ -60,12 +55,48 @@ export const ServicesSection = ({ onAddToCart }: ServicesSectionProps) => {
     },
   ];
 
-  // Mock services data for TvMountingModal
-  const mockModalServices: ModalService[] = [
-    { id: '1', name: 'TV Mounting', base_price: 90 },
-    { id: '2', name: 'Over 65" TV Add-on', base_price: 25 },
-    { id: '3', name: 'Frame Mount Add-on', base_price: 25 },
-    { id: '4', name: 'Cable Management Add-on', base_price: 20 }
+  // Create proper Service objects for TvMountingModal
+  const modalServices = [
+    { 
+      id: '1', 
+      name: 'TV Mounting', 
+      base_price: 90,
+      description: 'Professional TV wall mounting service',
+      duration_minutes: 60,
+      is_active: true,
+      created_at: new Date().toISOString(),
+      image_url: '/lovable-uploads/77f65da7-38bc-4d01-afdd-bb998049c77b.png'
+    },
+    { 
+      id: '2', 
+      name: 'Over 65" TV Add-on', 
+      base_price: 25,
+      description: 'Additional service for TVs over 65 inches',
+      duration_minutes: 30,
+      is_active: true,
+      created_at: new Date().toISOString(),
+      image_url: null
+    },
+    { 
+      id: '3', 
+      name: 'Frame Mount Add-on', 
+      base_price: 25,
+      description: 'Premium frame mounting option',
+      duration_minutes: 15,
+      is_active: true,
+      created_at: new Date().toISOString(),
+      image_url: null
+    },
+    { 
+      id: '4', 
+      name: 'Cable Management Add-on', 
+      base_price: 20,
+      description: 'Professional cable hiding and management',
+      duration_minutes: 30,
+      is_active: true,
+      created_at: new Date().toISOString(),
+      image_url: null
+    }
   ];
 
   const getTotalPrice = () => {
@@ -86,7 +117,15 @@ export const ServicesSection = ({ onAddToCart }: ServicesSectionProps) => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
           {services.map((service, index) => (
-            <ServiceCard key={index} {...service} />
+            <ServiceCard 
+              key={index} 
+              id={service.id}
+              name={service.name}
+              price={service.price}
+              image={service.image}
+              description={service.description}
+              onAddToCart={service.onClick === (() => setShowTvModal(true)) ? handleAddToCart : () => {}}
+            />
           ))}
         </div>
 
@@ -115,7 +154,7 @@ export const ServicesSection = ({ onAddToCart }: ServicesSectionProps) => {
           open={showTvModal}
           onClose={() => setShowTvModal(false)}
           onAddToCart={handleAddToCart}
-          services={mockModalServices}
+          services={modalServices}
         />
       )}
 
