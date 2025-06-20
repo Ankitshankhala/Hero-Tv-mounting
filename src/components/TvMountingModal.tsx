@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useMemo } from 'react';
 import { X, Monitor, ArrowRight, Plus, Minus, Check } from 'lucide-react';
 import { CartItem } from '@/types';
 import { PublicService } from '@/hooks/usePublicServicesData';
@@ -42,32 +43,33 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ open, onClose,
     return totalPrice;
   };
 
-  const calculatePrice = () => {
-    let totalPrice = calculateTvMountingPrice(numberOfTvs);
+  // Use useMemo to calculate price and ensure it updates when dependencies change
+  const totalPrice = useMemo(() => {
+    let price = calculateTvMountingPrice(numberOfTvs);
 
-    console.log('Base TV mounting price:', totalPrice);
+    console.log('Base TV mounting price:', price);
 
     if (over65 && over65Service) {
       const over65Cost = over65Service.base_price * numberOfTvs;
-      totalPrice += over65Cost;
-      console.log('Adding Over 65" cost:', over65Cost, 'New total:', totalPrice);
+      price += over65Cost;
+      console.log('Adding Over 65" cost:', over65Cost, 'New total:', price);
     }
     
     if (frameMount && frameMountService) {
       const frameMountCost = frameMountService.base_price * numberOfTvs;
-      totalPrice += frameMountCost;
-      console.log('Adding Frame Mount cost:', frameMountCost, 'New total:', totalPrice);
+      price += frameMountCost;
+      console.log('Adding Frame Mount cost:', frameMountCost, 'New total:', price);
     }
     
     if (wallType !== 'standard' && stoneWallService) {
       const wallCost = stoneWallService.base_price * numberOfTvs;
-      totalPrice += wallCost;
-      console.log('Adding Wall type cost:', wallCost, 'New total:', totalPrice);
+      price += wallCost;
+      console.log('Adding Wall type cost:', wallCost, 'New total:', price);
     }
 
-    console.log('Final calculated price:', totalPrice);
-    return totalPrice;
-  };
+    console.log('Final calculated price:', price);
+    return price;
+  }, [numberOfTvs, over65, frameMount, wallType, over65Service, frameMountService, stoneWallService]);
 
   const buildCartItemName = () => {
     let name = `TV Mounting${numberOfTvs > 1 ? ` (${numberOfTvs} TVs)` : ''}`;
@@ -127,11 +129,10 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ open, onClose,
   };
 
   const handleAddToCart = () => {
-    const finalPrice = calculatePrice(); // Ensure we're using the latest calculated price
     const cartItem: CartItem = {
       id: `tv-mounting-configured-${Date.now()}`, // Make ID unique to avoid conflicts
       name: buildCartItemName(),
-      price: finalPrice,
+      price: totalPrice,
       quantity: 1,
       options: {
         over65,
@@ -142,7 +143,7 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ open, onClose,
       }
     };
 
-    console.log('Adding to cart with final price:', finalPrice);
+    console.log('Adding to cart with final price:', totalPrice);
     console.log('Cart item:', cartItem);
     
     onAddToCart(cartItem);
@@ -341,7 +342,7 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ open, onClose,
           <div className="bg-gradient-to-r from-blue-900/50 to-purple-900/50 rounded-lg p-4 border border-blue-500/30">
             <div className="flex justify-between items-center text-white">
               <span className="text-lg font-semibold">Total Price:</span>
-              <span className="text-2xl font-bold text-blue-400">${calculatePrice()}</span>
+              <span className="text-2xl font-bold text-blue-400">${totalPrice}</span>
             </div>
             <div className="text-xs text-slate-400 mt-2">
               Price updates automatically based on your selections
@@ -360,7 +361,7 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ open, onClose,
               onClick={handleAddToCart}
               className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 rounded-lg transition-all flex items-center justify-center space-x-2"
             >
-              <span>Add to Cart - ${calculatePrice()}</span>
+              <span>Add to Cart - ${totalPrice}</span>
               <ArrowRight className="h-4 w-4" />
             </button>
           </div>
