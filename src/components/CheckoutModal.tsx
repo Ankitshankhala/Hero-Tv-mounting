@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { X, MapPin, Clock, User, Mail, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -60,9 +59,6 @@ export const CheckoutModal = ({ cart, total, onClose }: CheckoutModalProps) => {
       let baseDuration = 60;
       if (item.options?.numberOfTvs && item.options.numberOfTvs > 1) {
         baseDuration += (item.options.numberOfTvs - 1) * 30;
-      }
-      if (item.options?.cableConcealment === 'in-wall') {
-        baseDuration += 45;
       }
       return total + (baseDuration * item.quantity);
     }, 0);

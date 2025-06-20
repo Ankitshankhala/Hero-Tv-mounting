@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Header } from '@/components/Header';
 import { ServicesSection } from '@/components/ServicesSection';
@@ -18,7 +17,6 @@ export interface CartItem {
     over65: boolean;
     frameMount: boolean;
     numberOfTvs: number;
-    cableConcealment: string;
     wallType: string;
   };
 }
