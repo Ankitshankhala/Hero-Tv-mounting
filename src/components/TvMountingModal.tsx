@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { X, Monitor, ArrowRight } from 'lucide-react';
+import { X, Monitor, ArrowRight, Plus, Minus, Check } from 'lucide-react';
 import { CartItem } from '@/pages/Index';
 import { Service } from '@/hooks/useServicesData';
 
@@ -14,7 +14,6 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ onClose, onAdd
   const [over65, setOver65] = useState(false);
   const [frameMount, setFrameMount] = useState(false);
   const [numberOfTvs, setNumberOfTvs] = useState(1);
-  const [cableConcealment, setCableConcealment] = useState('none');
   const [wallType, setWallType] = useState('standard');
 
   // Find services from database
@@ -22,8 +21,6 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ onClose, onAdd
   const over65Service = services.find(s => s.name === 'Over 65" TV Add-on');
   const frameMountService = services.find(s => s.name === 'Frame Mount Add-on');
   const stoneWallService = services.find(s => s.name === 'Stone/Brick/Tile Wall');
-  const simpleConcealmentService = services.find(s => s.name === 'Simple Cable Concealment');
-  const fireSafeConcealmentService = services.find(s => s.name === 'Fire Safe Cable Concealment');
 
   const calculatePrice = () => {
     let basePrice = tvMountingService?.base_price || 90;
@@ -37,14 +34,8 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ onClose, onAdd
       totalPrice += frameMountService.base_price * numberOfTvs;
     }
     
-    if (wallType === 'stone-brick-tile' && stoneWallService) {
+    if (wallType !== 'standard' && stoneWallService) {
       totalPrice += stoneWallService.base_price * numberOfTvs;
-    }
-    
-    if (cableConcealment === 'simple' && simpleConcealmentService) {
-      totalPrice += simpleConcealmentService.base_price;
-    } else if (cableConcealment === 'fire-safe' && fireSafeConcealmentService) {
-      totalPrice += fireSafeConcealmentService.base_price;
     }
 
     return totalPrice;
@@ -60,7 +51,6 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ onClose, onAdd
         over65,
         frameMount,
         numberOfTvs,
-        cableConcealment,
         wallType
       }
     };
@@ -68,6 +58,25 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ onClose, onAdd
     onAddToCart(cartItem);
     onClose();
   };
+
+  const incrementTvs = () => {
+    if (numberOfTvs < 5) {
+      setNumberOfTvs(numberOfTvs + 1);
+    }
+  };
+
+  const decrementTvs = () => {
+    if (numberOfTvs > 1) {
+      setNumberOfTvs(numberOfTvs - 1);
+    }
+  };
+
+  const wallTypeOptions = [
+    { value: 'standard', label: 'Standard Drywall' },
+    { value: 'stone', label: 'Stone' },
+    { value: 'brick', label: 'Brick' },
+    { value: 'tile', label: 'Tile' }
+  ];
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -89,25 +98,37 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ onClose, onAdd
         </div>
 
         <div className="p-6 space-y-6">
-          {/* Number of TVs */}
+          {/* Number of TVs with + and - buttons */}
           <div className="bg-slate-800 rounded-lg p-4">
             <label className="block text-lg font-semibold text-white mb-3">
               Number of TVs
             </label>
-            <div className="flex space-x-3">
-              {[1, 2, 3, 4].map((num) => (
-                <button
-                  key={num}
-                  onClick={() => setNumberOfTvs(num)}
-                  className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                    numberOfTvs === num
-                      ? 'bg-blue-600 text-white shadow-lg'
-                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                  }`}
-                >
-                  {num} TV{num > 1 ? 's' : ''}
-                </button>
-              ))}
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={decrementTvs}
+                disabled={numberOfTvs <= 1}
+                className={`p-2 rounded-lg transition-colors ${
+                  numberOfTvs <= 1
+                    ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                    : 'bg-slate-700 text-white hover:bg-slate-600'
+                }`}
+              >
+                <Minus className="h-4 w-4" />
+              </button>
+              <div className="bg-slate-700 px-6 py-2 rounded-lg">
+                <span className="text-xl font-semibold text-white">{numberOfTvs}</span>
+              </div>
+              <button
+                onClick={incrementTvs}
+                disabled={numberOfTvs >= 5}
+                className={`p-2 rounded-lg transition-colors ${
+                  numberOfTvs >= 5
+                    ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                    : 'bg-slate-700 text-white hover:bg-slate-600'
+                }`}
+              >
+                <Plus className="h-4 w-4" />
+              </button>
             </div>
           </div>
 
@@ -147,82 +168,38 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ onClose, onAdd
             </label>
           </div>
 
-          {/* Wall Type */}
+          {/* Wall Type - Tick-select UI */}
           <div className="bg-slate-800 rounded-lg p-4">
             <label className="block text-lg font-semibold text-white mb-3">
               Wall Type
             </label>
-            <div className="space-y-2">
-              <label className="flex items-center space-x-3 cursor-pointer">
-                <input
-                  type="radio"
-                  name="wallType"
-                  value="standard"
-                  checked={wallType === 'standard'}
-                  onChange={(e) => setWallType(e.target.value)}
-                  className="w-4 h-4 text-blue-600 bg-slate-700 border-slate-600 focus:ring-blue-500"
-                />
-                <span className="text-white">Standard Drywall (No extra charge)</span>
-              </label>
-              <label className="flex items-center space-x-3 cursor-pointer">
-                <input
-                  type="radio"
-                  name="wallType"
-                  value="stone-brick-tile"
-                  checked={wallType === 'stone-brick-tile'}
-                  onChange={(e) => setWallType(e.target.value)}
-                  className="w-4 h-4 text-blue-600 bg-slate-700 border-slate-600 focus:ring-blue-500"
-                />
-                <span className="text-white">
-                  Stone/Brick/Tile Wall (+${stoneWallService?.base_price || 50} total)
-                </span>
-              </label>
-            </div>
-          </div>
-
-          {/* Cable Concealment */}
-          <div className="bg-slate-800 rounded-lg p-4">
-            <label className="block text-lg font-semibold text-white mb-3">
-              Cable Concealment
-            </label>
-            <div className="space-y-2">
-              <label className="flex items-center space-x-3 cursor-pointer">
-                <input
-                  type="radio"
-                  name="cableConcealment"
-                  value="none"
-                  checked={cableConcealment === 'none'}
-                  onChange={(e) => setCableConcealment(e.target.value)}
-                  className="w-4 h-4 text-blue-600 bg-slate-700 border-slate-600 focus:ring-blue-500"
-                />
-                <span className="text-white">No cable concealment</span>
-              </label>
-              <label className="flex items-center space-x-3 cursor-pointer">
-                <input
-                  type="radio"
-                  name="cableConcealment"
-                  value="simple"
-                  checked={cableConcealment === 'simple'}
-                  onChange={(e) => setCableConcealment(e.target.value)}
-                  className="w-4 h-4 text-blue-600 bg-slate-700 border-slate-600 focus:ring-blue-500"
-                />
-                <span className="text-white">
-                  Simple Cable Concealment (+${simpleConcealmentService?.base_price || 50})
-                </span>
-              </label>
-              <label className="flex items-center space-x-3 cursor-pointer">
-                <input
-                  type="radio"
-                  name="cableConcealment"
-                  value="fire-safe"
-                  checked={cableConcealment === 'fire-safe'}
-                  onChange={(e) => setCableConcealment(e.target.value)}
-                  className="w-4 h-4 text-blue-600 bg-slate-700 border-slate-600 focus:ring-blue-500"
-                />
-                <span className="text-white">
-                  Fire Safe Cable Concealment (+${fireSafeConcealmentService?.base_price || 100})
-                </span>
-              </label>
+            <div className="grid grid-cols-2 gap-3">
+              {wallTypeOptions.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => setWallType(option.value)}
+                  className={`relative p-3 rounded-lg border-2 transition-all ${
+                    wallType === option.value
+                      ? 'border-blue-500 bg-blue-500/20 text-white'
+                      : 'border-slate-600 bg-slate-700 text-slate-300 hover:border-slate-500'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">{option.label}</span>
+                    {wallType === option.value && (
+                      <Check className="h-4 w-4 text-blue-400" />
+                    )}
+                  </div>
+                  {option.value === 'standard' && (
+                    <p className="text-xs text-slate-400 mt-1">No extra charge</p>
+                  )}
+                  {option.value !== 'standard' && (
+                    <p className="text-xs text-slate-400 mt-1">
+                      +${stoneWallService?.base_price || 50} total
+                    </p>
+                  )}
+                </button>
+              ))}
             </div>
           </div>
 
