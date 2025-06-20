@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -56,7 +55,7 @@ export const TodaysJobsModal = ({ onClose }: TodaysJobsModalProps) => {
           worker:users!worker_id(name, phone)
         `)
         .eq('scheduled_date', today)
-        .in('status', ['confirmed', 'in_progress', 'completed'])
+        .in('status', ['confirmed', 'completed'])
         .order('scheduled_start');
 
       if (error) {
@@ -79,9 +78,10 @@ export const TodaysJobsModal = ({ onClose }: TodaysJobsModalProps) => {
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
+      pending: { label: 'Pending', variant: 'secondary' as const },
       confirmed: { label: 'Confirmed', variant: 'default' as const },
-      in_progress: { label: 'In Progress', variant: 'secondary' as const },
       completed: { label: 'Completed', variant: 'outline' as const },
+      cancelled: { label: 'Cancelled', variant: 'destructive' as const },
     };
     
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.confirmed;
