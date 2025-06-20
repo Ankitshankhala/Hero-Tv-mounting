@@ -12,6 +12,7 @@ export interface Service {
   is_active: boolean;
   created_at: string;
   image_url: string | null;
+  sort_order: number;
 }
 
 export const useServicesData = () => {
@@ -24,9 +25,9 @@ export const useServicesData = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('services')
-        .select('id, name, description, base_price, duration_minutes, is_active, created_at, image_url')
+        .select('id, name, description, base_price, duration_minutes, is_active, created_at, image_url, sort_order')
         .eq('is_active', true)
-        .order('name', { ascending: true }); // Changed to order by name alphabetically
+        .order('sort_order', { ascending: true });
 
       if (error) throw error;
       
@@ -60,12 +61,12 @@ export const useServicesData = () => {
           duration_minutes: serviceData.duration_minutes,
           image_url: serviceData.image_url
         }])
-        .select('id, name, description, base_price, duration_minutes, is_active, created_at, image_url')
+        .select('id, name, description, base_price, duration_minutes, is_active, created_at, image_url, sort_order')
         .single();
 
       if (error) throw error;
 
-      setServices(prev => [data, ...prev]);
+      setServices(prev => [...prev, data].sort((a, b) => a.sort_order - b.sort_order));
       toast({
         title: "Success",
         description: "Service added successfully",
@@ -100,7 +101,7 @@ export const useServicesData = () => {
           image_url: serviceData.image_url
         })
         .eq('id', id)
-        .select('id, name, description, base_price, duration_minutes, is_active, created_at, image_url')
+        .select('id, name, description, base_price, duration_minutes, is_active, created_at, image_url, sort_order')
         .single();
 
       if (error) throw error;
@@ -121,6 +122,49 @@ export const useServicesData = () => {
         variant: "destructive",
       });
       throw error;
+    }
+  };
+
+  const updateServiceOrder = async (serviceId: string, newSortOrder: number) => {
+    try {
+      const { error } = await supabase
+        .from('services')
+        .update({ sort_order: newSortOrder })
+        .eq('id', serviceId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error updating service order:', error);
+      throw error;
+    }
+  };
+
+  const reorderServices = async (reorderedServices: Service[]) => {
+    try {
+      // Update sort_order for all services based on their new positions
+      const updates = reorderedServices.map((service, index) => 
+        supabase
+          .from('services')
+          .update({ sort_order: index + 1 })
+          .eq('id', service.id)
+      );
+
+      await Promise.all(updates);
+      
+      // Update local state
+      setServices(reorderedServices);
+      
+      toast({
+        title: "Success",
+        description: "Services reordered successfully",
+      });
+    } catch (error) {
+      console.error('Error reordering services:', error);
+      toast({
+        title: "Error",
+        description: "Failed to reorder services",
+        variant: "destructive",
+      });
     }
   };
 
@@ -158,6 +202,8 @@ export const useServicesData = () => {
     addService,
     updateService,
     deleteService,
+    reorderServices,
+    updateServiceOrder,
     refetch: fetchServices
   };
 };

@@ -7,15 +7,38 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Settings, Edit, Trash2, Plus, Clock, DollarSign, Image } from 'lucide-react';
 import { ServiceModal } from './ServiceModal';
 import { DeleteServiceModal } from './DeleteServiceModal';
+import { SortableServiceItem } from './SortableServiceItem';
 import { useServicesData, Service } from '@/hooks/useServicesData';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
 
 export const ServicesManager = () => {
-  const { services, loading, addService, updateService, deleteService } = useServicesData();
+  const { services, loading, addService, updateService, deleteService, reorderServices } = useServicesData();
   const [searchTerm, setSearchTerm] = useState('');
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const filteredServices = services.filter(service =>
     service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -64,6 +87,18 @@ export const ServicesManager = () => {
     }
   };
 
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (active.id !== over?.id) {
+      const oldIndex = filteredServices.findIndex(service => service.id === active.id);
+      const newIndex = filteredServices.findIndex(service => service.id === over?.id);
+
+      const reorderedServices = arrayMove(filteredServices, oldIndex, newIndex);
+      reorderServices(reorderedServices);
+    }
+  };
+
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -96,7 +131,7 @@ export const ServicesManager = () => {
             <Settings className="h-6 w-6 text-blue-600" />
             <span>Services Management</span>
           </CardTitle>
-          <p className="text-gray-600">Manage your service offerings and pricing</p>
+          <p className="text-gray-600">Manage your service offerings and pricing. Drag and drop to reorder services.</p>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -119,6 +154,7 @@ export const ServicesManager = () => {
             <Table>
               <TableHeader>
                 <TableRow className="bg-gray-50 hover:bg-gray-50">
+                  <TableHead className="font-semibold">Order</TableHead>
                   <TableHead className="font-semibold">Image</TableHead>
                   <TableHead className="font-semibold">Service Name</TableHead>
                   <TableHead className="font-semibold">Description</TableHead>
@@ -130,75 +166,30 @@ export const ServicesManager = () => {
               <TableBody>
                 {filteredServices.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={7} className="text-center py-8 text-gray-500">
                       {searchTerm ? 'No services found matching your search.' : 'No services available. Add your first service to get started.'}
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredServices.map((service) => (
-                    <TableRow 
-                      key={service.id} 
-                      className="hover:bg-blue-50 transition-colors duration-200"
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext 
+                      items={filteredServices.map(service => service.id)}
+                      strategy={verticalListSortingStrategy}
                     >
-                      <TableCell>
-                        {service.image_url ? (
-                          <img
-                            src={service.image_url}
-                            alt={service.name}
-                            className="w-16 h-16 object-cover rounded-lg border border-gray-200"
-                          />
-                        ) : (
-                          <div className="w-16 h-16 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
-                            <Image className="h-6 w-6 text-gray-400" />
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell className="font-medium text-gray-900">
-                        {service.name}
-                      </TableCell>
-                      <TableCell className="max-w-xs">
-                        <p className="text-sm text-gray-600 truncate">
-                          {service.description || 'No description provided'}
-                        </p>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-1">
-                          <DollarSign className="h-4 w-4 text-green-600" />
-                          <span className="text-green-600 font-semibold">
-                            {formatPrice(service.base_price)}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-1">
-                          <Clock className="h-4 w-4 text-blue-600" />
-                          <span className="text-blue-600 font-medium">
-                            {formatDuration(service.duration_minutes)}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex justify-center space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEditService(service)}
-                            className="hover:bg-blue-100 hover:border-blue-300"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDeleteService(service)}
-                            className="hover:bg-red-100 hover:border-red-300 text-red-600"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                      {filteredServices.map((service) => (
+                        <SortableServiceItem
+                          key={service.id}
+                          service={service}
+                          onEdit={handleEditService}
+                          onDelete={handleDeleteService}
+                        />
+                      ))}
+                    </SortableContext>
+                  </DndContext>
                 )}
               </TableBody>
             </Table>
