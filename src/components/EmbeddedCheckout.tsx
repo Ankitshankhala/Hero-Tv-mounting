@@ -422,13 +422,11 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
               </div>
             </div>
 
-            {/* Google Calendar Style Schedule Service */}
-            <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-2xl p-6 shadow-sm">
+            {/* Schedule Service - Updated styling */}
+            <div className="bg-purple-50 border border-purple-200 rounded-2xl p-6 shadow-sm">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-purple-800 flex items-center">
-                  <div className="p-2 bg-purple-100 rounded-lg mr-3">
-                    <CalendarIcon className="h-6 w-6 text-purple-600" />
-                  </div>
+                <h3 className="text-lg font-semibold text-purple-800 flex items-center">
+                  <CalendarIcon className="h-5 w-5 text-purple-600 mr-2" />
                   Schedule Your Service
                 </h3>
                 {workerCount > 0 && (
@@ -442,12 +440,12 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Calendar Section */}
                 <div className="space-y-4">
-                  <Label className="text-base font-semibold text-gray-700 flex items-center space-x-2">
+                  <Label className="text-sm font-medium text-gray-700 flex items-center space-x-2">
                     <CalendarIcon className="h-4 w-4 text-purple-600" />
                     <span>Select Date</span>
                     <span className="text-red-500">*</span>
                   </Label>
-                  <div className="border-2 border-gray-200 rounded-xl p-4 bg-white/60">
+                  <div className="border border-gray-200 rounded-lg p-4 bg-white">
                     <Calendar
                       mode="single"
                       selected={selectedDate}
@@ -477,15 +475,15 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
                   </div>
                 </div>
 
-                {/* Time Slots Section - Google Calendar Style */}
+                {/* Time Slots Section */}
                 <div className="space-y-4">
-                  <Label className="text-base font-semibold text-gray-700 flex items-center space-x-2">
+                  <Label className="text-sm font-medium text-gray-700 flex items-center space-x-2">
                     <Clock className="h-4 w-4 text-purple-600" />
                     <span>Available Time Slots</span>
                     <span className="text-red-500">*</span>
                   </Label>
                   
-                  <div className="border-2 border-gray-200 rounded-xl bg-white/60 p-4">
+                  <div className="border border-gray-200 rounded-lg bg-white p-4">
                     {!selectedDate ? (
                       <div className="text-center py-8 text-gray-500">
                         <CalendarIcon className="h-12 w-12 mx-auto text-gray-300 mb-3" />
