@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -246,7 +245,7 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-5xl max-h-[95vh] overflow-hidden shadow-2xl border border-gray-100">
+      <div className="bg-white rounded-2xl w-full max-w-5xl max-h-[95vh] overflow-hidden shadow-2xl">
         {/* Enhanced Header */}
         <div className="relative bg-gradient-to-br from-indigo-600 via-blue-600 to-purple-700 text-white px-8 py-6 rounded-t-2xl">
           <button
@@ -299,101 +298,92 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
               </div>
             </div>
 
-            {/* Enhanced Contact Information */}
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl p-6 shadow-sm">
-              <h3 className="text-xl font-bold text-blue-800 flex items-center mb-6">
-                <div className="p-2 bg-blue-100 rounded-lg mr-3">
-                  <User className="h-6 w-6 text-blue-600" />
-                </div>
+            {/* Enhanced Contact Information - Updated styling */}
+            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 shadow-sm">
+              <h3 className="text-lg font-semibold text-blue-800 flex items-center mb-6">
+                <User className="h-5 w-5 text-blue-600 mr-2" />
                 Contact Information
               </h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-3">
-                  <Label htmlFor="name" className="text-base font-semibold text-gray-700 flex items-center space-x-2">
+                <div className="space-y-2">
+                  <Label htmlFor="name" className="text-sm font-medium text-gray-700 flex items-center space-x-2">
                     <User className="h-4 w-4 text-blue-600" />
                     <span>Full Name</span>
                     <span className="text-red-500">*</span>
                   </Label>
-                  <ValidatedInput
+                  <Input
                     id="name"
-                    label=""
                     value={formData.name}
-                    onChange={(value) => handleInputChange('name', value)}
+                    onChange={(e) => handleInputChange('name', e.target.value)}
                     onBlur={() => handleBlur('name')}
-                    error={errors.name}
-                    touched={touched.name}
-                    required
-                    autoFormat="name"
                     placeholder="Enter your full name"
-                    className="h-12 border-2 border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 rounded-lg bg-white/80 transition-all duration-200"
+                    className="h-12 bg-white border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
                   />
+                  {errors.name && touched.name && (
+                    <p className="text-sm text-red-600">{errors.name}</p>
+                  )}
                 </div>
                 
-                <div className="space-y-3">
-                  <Label htmlFor="email" className="text-base font-semibold text-gray-700 flex items-center space-x-2">
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-sm font-medium text-gray-700 flex items-center space-x-2">
                     <Mail className="h-4 w-4 text-blue-600" />
                     <span>Email Address</span>
                     <span className="text-red-500">*</span>
                   </Label>
-                  <ValidatedInput
+                  <Input
                     id="email"
-                    label=""
                     type="email"
                     value={formData.email}
-                    onChange={(value) => handleInputChange('email', value)}
+                    onChange={(e) => handleInputChange('email', e.target.value)}
                     onBlur={() => handleBlur('email')}
-                    error={errors.email}
-                    touched={touched.email}
-                    required
                     placeholder="your.email@example.com"
-                    className="h-12 border-2 border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 rounded-lg bg-white/80 transition-all duration-200"
+                    className="h-12 bg-white border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
                   />
+                  {errors.email && touched.email && (
+                    <p className="text-sm text-red-600">{errors.email}</p>
+                  )}
                 </div>
 
-                <div className="space-y-3">
-                  <Label htmlFor="phone" className="text-base font-semibold text-gray-700 flex items-center space-x-2">
+                <div className="space-y-2">
+                  <Label htmlFor="phone" className="text-sm font-medium text-gray-700 flex items-center space-x-2">
                     <Phone className="h-4 w-4 text-blue-600" />
                     <span>Phone Number</span>
                     <span className="text-red-500">*</span>
                   </Label>
-                  <ValidatedInput
+                  <Input
                     id="phone"
-                    label=""
                     type="tel"
                     value={formData.phone}
-                    onChange={(value) => handleInputChange('phone', value)}
+                    onChange={(e) => handleInputChange('phone', e.target.value)}
                     onBlur={() => handleBlur('phone')}
-                    error={errors.phone}
-                    touched={touched.phone}
-                    required
-                    autoFormat="phone"
                     placeholder="(555) 123-4567"
-                    className="h-12 border-2 border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 rounded-lg bg-white/80 transition-all duration-200"
+                    className="h-12 bg-white border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
                   />
+                  {errors.phone && touched.phone && (
+                    <p className="text-sm text-red-600">{errors.phone}</p>
+                  )}
                 </div>
                 
-                <div className="space-y-3">
-                  <Label htmlFor="zipcode" className="text-base font-semibold text-gray-700 flex items-center space-x-2">
+                <div className="space-y-2">
+                  <Label htmlFor="zipcode" className="text-sm font-medium text-gray-700 flex items-center space-x-2">
                     <MapPin className="h-4 w-4 text-blue-600" />
                     <span>ZIP Code</span>
                     <span className="text-red-500">*</span>
                   </Label>
-                  <ZipcodeInput
+                  <Input
                     id="zipcode"
-                    label=""
                     value={formData.zipcode}
-                    onChange={handleZipcodeChange}
-                    onValidation={handleZipcodeValidation}
-                    required
+                    onChange={(e) => handleZipcodeChange(e.target.value)}
                     placeholder="Enter 5-digit ZIP code"
-                    className="[&_input]:h-12 [&_input]:border-2 [&_input]:border-gray-200 [&_input]:focus:border-blue-500 [&_input]:focus:ring-blue-500/20 [&_input]:rounded-lg [&_input]:bg-white/80"
+                    maxLength={5}
+                    className="h-12 bg-white border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
                   />
                 </div>
               </div>
 
               {cityState && zipcodeValid && (
-                <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4 mt-6">
+                <div className="bg-green-50 border border-green-200 rounded-xl p-4 mt-6">
                   <p className="text-sm text-green-700 flex items-center space-x-2">
                     <CheckCircle className="h-5 w-5 text-green-600" />
                     <span className="font-semibold">Service Area Confirmed:</span>
