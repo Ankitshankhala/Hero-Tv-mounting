@@ -82,25 +82,6 @@ export const ServicesSection = ({ onAddToCart }: ServicesSectionProps) => {
             />
           ))}
         </div>
-
-        <div className="text-center mt-16">
-          <div className="bg-slate-800 rounded-lg p-8 max-w-4xl mx-auto">
-            <div className="flex items-center justify-center space-x-8 text-white">
-              <div className="flex items-center space-x-2">
-                <CheckCircle className="h-6 w-6 text-green-400" />
-                <span>Licensed & Insured</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Star className="h-6 w-6 text-yellow-400" />
-                <span>4.9/5 Rating</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Home className="h-6 w-6 text-blue-400" />
-                <span>Same Day Service</span>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
 
       {showTvModal && (
