@@ -73,7 +73,7 @@ export const useReviewsData = () => {
       rating: adminReview.rating,
       name: adminReview.customer,
       city: "Admin Added", // Could be enhanced to include actual city
-      image: "/lovable-uploads/4f2b0612-e53a-4743-9241-89f3d0c96f3f.png" // Default image
+      image: adminReview.imageUrl || "/lovable-uploads/4f2b0612-e53a-4743-9241-89f3d0c96f3f.png" // Use uploaded image or default
     };
     
     globalAdminReviews.push(frontendReview);

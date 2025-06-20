@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,6 +10,7 @@ import { Star, Image, Edit, Trash2, Eye, Plus } from 'lucide-react';
 import { ReviewModal } from './ReviewModal';
 import { CreateReviewModal } from './CreateReviewModal';
 import { useToast } from '@/hooks/use-toast';
+import { useReviewsData } from '@/hooks/useReviewsData';
 
 interface Review {
   id: string;
@@ -25,6 +27,7 @@ interface Review {
 
 export const ReviewsManager = () => {
   const { toast } = useToast();
+  const { addAdminReview } = useReviewsData();
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -102,9 +105,13 @@ export const ReviewsManager = () => {
       id: `REV${String(reviews.length + 1).padStart(3, '0')}`,
     };
     setReviews(prev => [reviewWithId, ...prev]);
+    
+    // Add to frontend reviews display
+    addAdminReview(newReview);
+    
     toast({
       title: "Success",
-      description: "Review created successfully",
+      description: "Review created successfully and added to frontend",
     });
   };
 

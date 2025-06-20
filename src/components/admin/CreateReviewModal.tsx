@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Star } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { ImageUpload } from './ImageUpload';
 
 interface Review {
   customer: string;
@@ -20,6 +21,7 @@ interface Review {
   hasImages: boolean;
   date: string;
   worker: string;
+  imageUrl?: string;
 }
 
 interface CreateReviewModalProps {
@@ -39,6 +41,7 @@ export const CreateReviewModal = ({ isOpen, onClose, onCreate }: CreateReviewMod
     status: 'approved' as 'approved' | 'pending' | 'rejected',
     hasImages: false,
     worker: '',
+    imageUrl: '' as string | undefined,
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -53,10 +56,20 @@ export const CreateReviewModal = ({ isOpen, onClose, onCreate }: CreateReviewMod
       return;
     }
 
+    if (formData.hasImages && !formData.imageUrl) {
+      toast({
+        title: "Error",
+        description: "Please upload an image or uncheck 'Review has images'",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const newReview: Review = {
       ...formData,
       booking: formData.booking || `BK${Date.now()}`,
       date: new Date().toISOString().split('T')[0],
+      imageUrl: formData.hasImages ? formData.imageUrl : undefined,
     };
 
     onCreate(newReview);
@@ -72,7 +85,16 @@ export const CreateReviewModal = ({ isOpen, onClose, onCreate }: CreateReviewMod
       status: 'approved',
       hasImages: false,
       worker: '',
+      imageUrl: '',
     });
+  };
+
+  const handleImageChange = (url: string | null) => {
+    setFormData(prev => ({ 
+      ...prev, 
+      imageUrl: url || '',
+      hasImages: !!url
+    }));
   };
 
   const renderStarRating = () => {
@@ -163,6 +185,13 @@ export const CreateReviewModal = ({ isOpen, onClose, onCreate }: CreateReviewMod
               placeholder="Enter detailed review comment"
               className="min-h-[100px]"
               required
+            />
+          </div>
+
+          <div>
+            <ImageUpload
+              currentImageUrl={formData.imageUrl}
+              onImageChange={handleImageChange}
             />
           </div>
 
