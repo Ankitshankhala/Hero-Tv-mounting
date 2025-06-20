@@ -22,15 +22,15 @@ export const ServiceLocationSection = ({
   onBlur
 }: ServiceLocationSectionProps) => {
   return (
-    <div className="bg-green-50 border border-green-200 rounded-2xl p-6 shadow-sm">
-      <h3 className="text-lg font-semibold text-green-800 flex items-center mb-6">
-        <MapPin className="h-5 w-5 text-green-600 mr-2" />
+    <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+      <h3 className="text-lg font-semibold text-gray-800 flex items-center mb-6">
+        <MapPin className="h-5 w-5 text-blue-600 mr-2" />
         Service Location
       </h3>
       
       <div className="space-y-2">
         <Label htmlFor="address" className="text-sm font-medium text-gray-700 flex items-center space-x-2">
-          <MapPin className="h-4 w-4 text-green-600" />
+          <MapPin className="h-4 w-4 text-blue-600" />
           <span>Complete Service Address</span>
           <span className="text-red-500">*</span>
         </Label>
@@ -45,7 +45,7 @@ export const ServiceLocationSection = ({
           required
           autoFormat="address"
           placeholder="123 Main Street, Apartment 4B, City, State"
-          className="h-12 bg-white border border-gray-300 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition-all duration-200"
+          className="h-12 bg-white border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
         />
       </div>
     </div>
