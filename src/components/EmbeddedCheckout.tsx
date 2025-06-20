@@ -222,7 +222,7 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
               
               <div className="bg-white border-2 border-gray-100 rounded-xl p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Full Name */}
+                  {/* Full Name - Top Left */}
                   <div className="space-y-2">
                     <Label htmlFor="name" className="flex items-center text-sm font-medium text-gray-700 after:content-['*'] after:ml-0.5 after:text-red-500">
                       <User className="h-4 w-4 text-blue-600 mr-2" />
@@ -243,7 +243,7 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
                     />
                   </div>
                   
-                  {/* Email Address */}
+                  {/* Email Address - Top Right */}
                   <div className="space-y-2">
                     <Label htmlFor="email" className="flex items-center text-sm font-medium text-gray-700 after:content-['*'] after:ml-0.5 after:text-red-500">
                       <Mail className="h-4 w-4 text-blue-600 mr-2" />
@@ -264,7 +264,7 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
                     />
                   </div>
                   
-                  {/* Phone Number */}
+                  {/* Phone Number - Bottom Left */}
                   <div className="space-y-2">
                     <Label htmlFor="phone" className="flex items-center text-sm font-medium text-gray-700 after:content-['*'] after:ml-0.5 after:text-red-500">
                       <Phone className="h-4 w-4 text-blue-600 mr-2" />
@@ -286,7 +286,7 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
                     />
                   </div>
                   
-                  {/* ZIP Code */}
+                  {/* ZIP Code - Bottom Right */}
                   <div className="space-y-2">
                     <Label htmlFor="zipcode" className="flex items-center text-sm font-medium text-gray-700 after:content-['*'] after:ml-0.5 after:text-red-500">
                       <MapPin className="h-4 w-4 text-blue-600 mr-2" />
