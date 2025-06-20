@@ -62,9 +62,6 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
       if (item.options?.numberOfTvs && item.options.numberOfTvs > 1) {
         baseDuration += (item.options.numberOfTvs - 1) * 30;
       }
-      if (item.options?.cableConcealment === 'in-wall') {
-        baseDuration += 45;
-      }
       return total + (baseDuration * item.quantity);
     }, 0);
   };
@@ -364,7 +361,7 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
               disabled={isProcessing}
             >
               Cancel
-            </Button>
+            </button>
           </div>
         </form>
       </div>

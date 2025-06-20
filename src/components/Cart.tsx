@@ -40,8 +40,7 @@ export const Cart: React.FC<CartProps> = ({ items, total, onRemoveItem, onBook, 
                     {item.options.over65 && 'Over 65", '}
                     {item.options.frameMount && 'Frame Mount, '}
                     {item.options.numberOfTvs > 1 && `${item.options.numberOfTvs} TVs, `}
-                    {item.options.wallType === 'stone-brick-tile' && 'Stone/Brick/Tile, '}
-                    {item.options.cableConcealment !== 'none' && item.options.cableConcealment}
+                    {item.options.wallType !== 'standard' && `${item.options.wallType} Wall`}
                   </div>
                 )}
               </div>
