@@ -4,19 +4,21 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Settings, Edit, Trash2, Clock, DollarSign, Image, GripVertical } from 'lucide-react';
+import { Settings, Edit, Trash2, Clock, DollarSign, Image, GripVertical, Eye, EyeOff } from 'lucide-react';
 import { Service } from '@/hooks/useServicesData';
 
 interface SortableServiceItemProps {
   service: Service;
   onEdit: (service: Service) => void;
   onDelete: (service: Service) => void;
+  onToggleVisibility: (serviceId: string) => void;
 }
 
 export const SortableServiceItem: React.FC<SortableServiceItemProps> = ({
   service,
   onEdit,
-  onDelete
+  onDelete,
+  onToggleVisibility
 }) => {
   const {
     attributes,
@@ -48,13 +50,15 @@ export const SortableServiceItem: React.FC<SortableServiceItemProps> = ({
     return `${mins}m`;
   };
 
+  const isVisible = service.is_visible !== false;
+
   return (
     <TableRow
       ref={setNodeRef}
       style={style}
       className={`hover:bg-blue-50 transition-colors duration-200 ${
         isDragging ? 'opacity-50 shadow-lg' : ''
-      }`}
+      } ${!isVisible ? 'opacity-50 bg-gray-50' : ''}`}
     >
       <TableCell>
         <div className="flex items-center gap-2">
@@ -85,6 +89,7 @@ export const SortableServiceItem: React.FC<SortableServiceItemProps> = ({
       </TableCell>
       <TableCell className="font-medium text-gray-900">
         {service.name}
+        {!isVisible && <span className="ml-2 text-xs text-gray-500">(Hidden)</span>}
       </TableCell>
       <TableCell className="max-w-xs">
         <p className="text-sm text-gray-600 truncate">
@@ -109,6 +114,17 @@ export const SortableServiceItem: React.FC<SortableServiceItemProps> = ({
       </TableCell>
       <TableCell>
         <div className="flex justify-center space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onToggleVisibility(service.id)}
+            className={`hover:bg-gray-100 hover:border-gray-300 ${
+              !isVisible ? 'text-gray-500' : 'text-blue-600'
+            }`}
+            title={isVisible ? 'Hide service' : 'Show service'}
+          >
+            {isVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+          </Button>
           <Button
             variant="outline"
             size="sm"

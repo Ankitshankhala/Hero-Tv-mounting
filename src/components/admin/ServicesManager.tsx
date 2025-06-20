@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { ServiceModal } from './ServiceModal';
@@ -10,7 +9,7 @@ import { ServicesTable } from './services/ServicesTable';
 import { ServicesStats } from './services/ServicesStats';
 
 export const ServicesManager = () => {
-  const { services, loading, addService, updateService, deleteService, reorderServices } = useServicesData();
+  const { services, loading, addService, updateService, deleteService, reorderServices, toggleServiceVisibility } = useServicesData();
   const [searchTerm, setSearchTerm] = useState('');
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -84,6 +83,7 @@ export const ServicesManager = () => {
             onEdit={handleEditService}
             onDelete={handleDeleteService}
             onReorder={reorderServices}
+            onToggleVisibility={toggleServiceVisibility}
           />
 
           <ServicesStats services={services} />

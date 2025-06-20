@@ -25,6 +25,7 @@ interface ServicesTableProps {
   onEdit: (service: Service) => void;
   onDelete: (service: Service) => void;
   onReorder: (reorderedServices: Service[]) => void;
+  onToggleVisibility: (serviceId: string) => void;
 }
 
 export const ServicesTable: React.FC<ServicesTableProps> = ({
@@ -32,7 +33,8 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
   searchTerm,
   onEdit,
   onDelete,
-  onReorder
+  onReorder,
+  onToggleVisibility
 }) => {
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -95,6 +97,7 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
                     service={service}
                     onEdit={onEdit}
                     onDelete={onDelete}
+                    onToggleVisibility={onToggleVisibility}
                   />
                 ))}
               </SortableContext>

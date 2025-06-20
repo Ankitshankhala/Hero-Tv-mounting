@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -13,6 +12,7 @@ export interface Service {
   created_at: string;
   image_url: string | null;
   sort_order: number;
+  is_visible?: boolean;
 }
 
 export const useServicesData = () => {
@@ -31,7 +31,13 @@ export const useServicesData = () => {
 
       if (error) throw error;
       
-      setServices(data || []);
+      // Add is_visible property to each service (defaulting to true)
+      const servicesWithVisibility = (data || []).map(service => ({
+        ...service,
+        is_visible: true
+      }));
+      
+      setServices(servicesWithVisibility);
     } catch (error) {
       console.error('Error fetching services:', error);
       toast({
@@ -42,6 +48,14 @@ export const useServicesData = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const toggleServiceVisibility = (serviceId: string) => {
+    setServices(prev => prev.map(service => 
+      service.id === serviceId 
+        ? { ...service, is_visible: !service.is_visible }
+        : service
+    ));
   };
 
   const addService = async (serviceData: {
@@ -66,7 +80,8 @@ export const useServicesData = () => {
 
       if (error) throw error;
 
-      setServices(prev => [...prev, data].sort((a, b) => a.sort_order - b.sort_order));
+      const serviceWithVisibility = { ...data, is_visible: true };
+      setServices(prev => [...prev, serviceWithVisibility].sort((a, b) => a.sort_order - b.sort_order));
       toast({
         title: "Success",
         description: "Service added successfully",
@@ -107,7 +122,7 @@ export const useServicesData = () => {
       if (error) throw error;
 
       setServices(prev => prev.map(service => 
-        service.id === id ? data : service
+        service.id === id ? { ...data, is_visible: service.is_visible } : service
       ));
       toast({
         title: "Success",
@@ -204,6 +219,7 @@ export const useServicesData = () => {
     deleteService,
     reorderServices,
     updateServiceOrder,
+    toggleServiceVisibility,
     refetch: fetchServices
   };
 };
