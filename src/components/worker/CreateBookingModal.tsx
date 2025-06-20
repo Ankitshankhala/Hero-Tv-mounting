@@ -10,6 +10,7 @@ import { X, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useServicesData } from '@/hooks/useServicesData';
 import type { Database } from '@/integrations/supabase/types';
 
 interface CreateBookingModalProps {
@@ -17,15 +18,13 @@ interface CreateBookingModalProps {
   onBookingCreated: () => void;
 }
 
-interface Service {
-  id: string;
-  name: string;
-  base_price: number;
-  duration_minutes: number;
-}
-
 interface ServiceSelection {
-  service: Service;
+  service: {
+    id: string;
+    name: string;
+    base_price: number;
+    duration_minutes: number;
+  };
   quantity: number;
 }
 
@@ -42,40 +41,24 @@ export const CreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingM
     specialInstructions: ''
   });
   
-  const [services, setServices] = useState<Service[]>([]);
   const [selectedServices, setSelectedServices] = useState<ServiceSelection[]>([]);
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
-
-  useEffect(() => {
-    fetchServices();
-  }, []);
-
-  const fetchServices = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('services')
-        .select('*')
-        .eq('is_active', true)
-        .order('name');
-
-      if (error) throw error;
-      setServices(data || []);
-    } catch (error) {
-      console.error('Error fetching services:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load services",
-        variant: "destructive",
-      });
-    }
-  };
+  const { services, loading: servicesLoading } = useServicesData();
 
   const addService = (serviceId: string) => {
     const service = services.find(s => s.id === serviceId);
     if (service && !selectedServices.find(ss => ss.service.id === serviceId)) {
-      setSelectedServices([...selectedServices, { service, quantity: 1 }]);
+      setSelectedServices([...selectedServices, { 
+        service: {
+          id: service.id,
+          name: service.name,
+          base_price: service.base_price,
+          duration_minutes: service.duration_minutes
+        }, 
+        quantity: 1 
+      }]);
     }
   };
 
@@ -251,18 +234,22 @@ export const CreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingM
             <div>
               <Label className="text-white">Services</Label>
               <div className="mt-2 space-y-4">
-                <Select onValueChange={addService}>
-                  <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
-                    <SelectValue placeholder="Select a service to add" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-slate-700 border-slate-600">
-                    {services.filter(s => !selectedServices.find(ss => ss.service.id === s.id)).map((service) => (
-                      <SelectItem key={service.id} value={service.id} className="text-white">
-                        {service.name} - ${service.base_price}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {servicesLoading ? (
+                  <div className="text-white">Loading services...</div>
+                ) : (
+                  <Select onValueChange={addService}>
+                    <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+                      <SelectValue placeholder="Select a service to add" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-700 border-slate-600">
+                      {services.filter(s => !selectedServices.find(ss => ss.service.id === s.id)).map((service) => (
+                        <SelectItem key={service.id} value={service.id} className="text-white">
+                          {service.name} - ${service.base_price}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
 
                 {selectedServices.map((ss) => (
                   <div key={ss.service.id} className="flex items-center justify-between bg-slate-700 p-3 rounded-lg">
@@ -320,7 +307,7 @@ export const CreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingM
               <Button 
                 type="submit" 
                 className="flex-1 bg-green-600 hover:bg-green-700"
-                disabled={loading}
+                disabled={loading || servicesLoading}
               >
                 {loading ? 'Creating...' : 'Create Booking'}
               </Button>
