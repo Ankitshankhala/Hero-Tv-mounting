@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,6 +14,7 @@ type WorkerApplication = Tables<'worker_applications'>;
 export const WorkerApplicationsManager = () => {
   const [applications, setApplications] = useState<WorkerApplication[]>([]);
   const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const fetchApplications = async () => {
@@ -41,6 +41,59 @@ export const WorkerApplicationsManager = () => {
 
   const updateApplicationStatus = async (id: string, status: 'approved' | 'rejected') => {
     try {
+      setProcessingId(id);
+      
+      if (status === 'approved') {
+        // Get the application details
+        const application = applications.find(app => app.id === id);
+        if (!application) {
+          throw new Error('Application not found');
+        }
+
+        // Generate a temporary password
+        const tempPassword = `worker${Math.random().toString(36).slice(2, 10)}`;
+        
+        console.log('Creating worker account for:', application.email);
+        
+        // Create the user account
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: application.email,
+          password: tempPassword,
+          options: {
+            emailRedirectTo: `${window.location.origin}/worker-dashboard`
+          }
+        });
+
+        if (authError) {
+          console.error('Error creating auth user:', authError);
+          throw authError;
+        }
+
+        if (authData.user) {
+          // Create the user profile
+          const { error: userError } = await supabase
+            .from('users')
+            .insert({
+              id: authData.user.id,
+              email: application.email,
+              name: application.name,
+              phone: application.phone,
+              city: application.city,
+              region: application.region,
+              role: 'worker',
+              is_active: true,
+            });
+
+          if (userError) {
+            console.error('Error creating user profile:', userError);
+            throw userError;
+          }
+
+          console.log('Worker account created successfully');
+        }
+      }
+
+      // Update application status
       const { error } = await supabase
         .from('worker_applications')
         .update({ status })
@@ -50,7 +103,9 @@ export const WorkerApplicationsManager = () => {
 
       toast({
         title: "Success",
-        description: `Application ${status} successfully`,
+        description: status === 'approved' 
+          ? `Application approved and worker account created successfully`
+          : `Application ${status} successfully`,
       });
 
       fetchApplications(); // Refresh the list
@@ -61,6 +116,8 @@ export const WorkerApplicationsManager = () => {
         description: "Failed to update application status",
         variant: "destructive",
       });
+    } finally {
+      setProcessingId(null);
     }
   };
 
@@ -207,18 +264,29 @@ export const WorkerApplicationsManager = () => {
                               size="sm"
                               variant="outline"
                               onClick={() => updateApplicationStatus(application.id, 'approved')}
+                              disabled={processingId === application.id}
                               className="text-green-600 hover:text-green-700"
                             >
-                              <CheckCircle className="h-4 w-4" />
+                              {processingId === application.id ? (
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
+                              ) : (
+                                <CheckCircle className="h-4 w-4" />
+                              )}
                             </Button>
                             <Button
                               size="sm"
                               variant="outline"
                               onClick={() => updateApplicationStatus(application.id, 'rejected')}
+                              disabled={processingId === application.id}
                               className="text-red-600 hover:text-red-700"
                             >
                               <XCircle className="h-4 w-4" />
                             </Button>
+                          </div>
+                        )}
+                        {application.status === 'approved' && (
+                          <div className="text-xs text-green-600 font-medium">
+                            Account Created
                           </div>
                         )}
                       </TableCell>
