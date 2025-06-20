@@ -52,25 +52,66 @@ export const WorkerApplicationsManager = () => {
 
         console.log('Creating worker profile for:', application.email);
         
-        // Create the user profile directly without creating auth account first
-        // The worker will need to sign up normally using their email when they want to log in
-        const { error: userError } = await supabase
+        // First check if a user with this email already exists
+        const { data: existingUser, error: checkError } = await supabase
           .from('users')
-          .insert({
-            email: application.email,
-            name: application.name,
-            phone: application.phone,
-            city: application.city,
-            role: 'worker',
-            is_active: true,
-          });
+          .select('id, email, role')
+          .eq('email', application.email)
+          .maybeSingle();
 
-        if (userError) {
-          console.error('Error creating user profile:', userError);
-          throw userError;
+        if (checkError) {
+          console.error('Error checking existing user:', checkError);
+          throw new Error('Failed to check if user already exists');
         }
 
-        console.log('Worker profile created successfully');
+        if (existingUser) {
+          // User already exists, check if they're already a worker
+          if (existingUser.role === 'worker') {
+            console.log('User already exists as a worker:', existingUser.email);
+            toast({
+              title: "Info",
+              description: "This user already exists as a worker in the system",
+            });
+          } else {
+            // Update existing user to worker role
+            const { error: updateError } = await supabase
+              .from('users')
+              .update({
+                name: application.name,
+                phone: application.phone,
+                city: application.city,
+                role: 'worker',
+                is_active: true,
+              })
+              .eq('id', existingUser.id);
+
+            if (updateError) {
+              console.error('Error updating user to worker:', updateError);
+              throw updateError;
+            }
+            
+            console.log('Existing user updated to worker role');
+          }
+        } else {
+          // Create new user profile
+          const { error: userError } = await supabase
+            .from('users')
+            .insert({
+              email: application.email,
+              name: application.name,
+              phone: application.phone,
+              city: application.city,
+              role: 'worker',
+              is_active: true,
+            });
+
+          if (userError) {
+            console.error('Error creating user profile:', userError);
+            throw userError;
+          }
+
+          console.log('New worker profile created successfully');
+        }
       }
 
       // Update application status
@@ -79,7 +120,10 @@ export const WorkerApplicationsManager = () => {
         .update({ status })
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating application status:', error);
+        throw error;
+      }
 
       toast({
         title: "Success",
@@ -89,11 +133,23 @@ export const WorkerApplicationsManager = () => {
       });
 
       fetchApplications(); // Refresh the list
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating application:', error);
+      
+      // Provide more specific error messages
+      let errorMessage = "Failed to update application status";
+      
+      if (error?.message?.includes('duplicate key')) {
+        errorMessage = "This email is already registered in the system";
+      } else if (error?.message?.includes('row-level security')) {
+        errorMessage = "Permission denied. Please check your admin access";
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Error",
-        description: "Failed to update application status",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
