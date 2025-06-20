@@ -118,10 +118,11 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ open, onClose,
   };
 
   const handleAddToCart = () => {
+    const finalPrice = calculatePrice(); // Ensure we're using the latest calculated price
     const cartItem: CartItem = {
-      id: 'tv-mounting-configured',
+      id: `tv-mounting-configured-${Date.now()}`, // Make ID unique to avoid conflicts
       name: buildCartItemName(),
-      price: calculatePrice(),
+      price: finalPrice,
       quantity: 1,
       options: {
         over65,
@@ -132,6 +133,9 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ open, onClose,
       }
     };
 
+    console.log('Adding to cart with final price:', finalPrice);
+    console.log('Cart item:', cartItem);
+    
     onAddToCart(cartItem);
     onClose();
   };
@@ -324,11 +328,14 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ open, onClose,
             </div>
           </div>
 
-          {/* Price Summary */}
+          {/* Price Summary - Enhanced to show real-time updates */}
           <div className="bg-gradient-to-r from-blue-900/50 to-purple-900/50 rounded-lg p-4 border border-blue-500/30">
             <div className="flex justify-between items-center text-white">
               <span className="text-lg font-semibold">Total Price:</span>
               <span className="text-2xl font-bold text-blue-400">${calculatePrice()}</span>
+            </div>
+            <div className="text-xs text-slate-400 mt-2">
+              Price updates automatically based on your selections
             </div>
           </div>
 
@@ -344,7 +351,7 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ open, onClose,
               onClick={handleAddToCart}
               className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 rounded-lg transition-all flex items-center justify-center space-x-2"
             >
-              <span>Add to Cart</span>
+              <span>Add to Cart - ${calculatePrice()}</span>
               <ArrowRight className="h-4 w-4" />
             </button>
           </div>
