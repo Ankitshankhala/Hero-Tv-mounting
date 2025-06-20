@@ -28,12 +28,11 @@ serve(async (req) => {
       );
     }
 
-    // Update the booking with the new pending payment amount
+    // Update the booking with the new pending payment amount (removed updated_at)
     const { error } = await supabaseClient
       .from('bookings')
       .update({ 
-        pending_payment_amount: new_pending_amount,
-        updated_at: new Date().toISOString()
+        pending_payment_amount: new_pending_amount
       })
       .eq('id', booking_id);
 

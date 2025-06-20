@@ -105,12 +105,11 @@ const InvoiceModificationModal = ({
         throw updateError;
       }
 
-      // Update booking to mark it as modified and update total price
+      // Update booking to mark it as modified (removed updated_at field)
       const { error: bookingError } = await supabase
         .from('bookings')
         .update({ 
-          has_modifications: true,
-          updated_at: new Date().toISOString()
+          has_modifications: true
         })
         .eq('id', job.id);
 
