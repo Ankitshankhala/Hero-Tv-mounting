@@ -1,7 +1,13 @@
-import React, { useState, useMemo } from 'react';
-import { X, Monitor, ArrowRight, Plus, Minus, Check } from 'lucide-react';
+
+import React from 'react';
+import { X, Monitor, ArrowRight } from 'lucide-react';
 import { CartItem } from '@/types';
 import { PublicService } from '@/hooks/usePublicServicesData';
+import { useTvMountingModal } from '@/hooks/useTvMountingModal';
+import { TvQuantitySelector } from './tv-mounting/TvQuantitySelector';
+import { TvAddOns } from './tv-mounting/TvAddOns';
+import { WallTypeSelector } from './tv-mounting/WallTypeSelector';
+import { ServicesSummary } from './tv-mounting/ServicesSummary';
 
 interface TvMountingModalProps {
   open: boolean;
@@ -10,154 +16,33 @@ interface TvMountingModalProps {
   services: PublicService[];
 }
 
-export const TvMountingModal: React.FC<TvMountingModalProps> = ({ open, onClose, onAddToCart, services }) => {
-  const [over65, setOver65] = useState(false);
-  const [frameMount, setFrameMount] = useState(false);
-  const [numberOfTvs, setNumberOfTvs] = useState(1);
-  const [wallType, setWallType] = useState('standard');
+export const TvMountingModal: React.FC<TvMountingModalProps> = ({ 
+  open, 
+  onClose, 
+  onAddToCart, 
+  services 
+}) => {
+  const {
+    over65,
+    setOver65,
+    frameMount,
+    setFrameMount,
+    numberOfTvs,
+    setNumberOfTvs,
+    wallType,
+    setWallType,
+    over65Service,
+    frameMountService,
+    stoneWallService,
+    totalPrice,
+    calculateTvMountingPrice,
+    buildServicesList,
+    buildCartItemName
+  } = useTvMountingModal(services);
 
   if (!open) {
     return null;
   }
-
-  // Find services from database
-  const tvMountingService = services.find(s => s.name === 'TV Mounting');
-  const over65Service = services.find(s => s.name === 'Over 65" TV Add-on');
-  const frameMountService = services.find(s => s.name === 'Frame Mount Add-on');
-  const stoneWallService = services.find(s => s.name === 'Stone/Brick/Tile Wall');
-
-  // Debug logging for services
-  console.log('Available services:', services.map(s => s.name));
-  console.log('Found over65Service:', over65Service);
-  console.log('Found frameMountService:', frameMountService);
-  console.log('Found stoneWallService:', stoneWallService);
-
-  const calculateTvMountingPrice = (numTvs: number) => {
-    let totalPrice = 0;
-    
-    for (let i = 1; i <= numTvs; i++) {
-      if (i === 1) {
-        totalPrice += 90; // First TV: $90
-      } else if (i === 2) {
-        totalPrice += 60; // Second TV: $60
-      } else {
-        totalPrice += 75; // Third TV and beyond: $75 each
-      }
-    }
-    
-    return totalPrice;
-  };
-
-  // Use useMemo to calculate price and ensure it updates when dependencies change
-  const totalPrice = useMemo(() => {
-    let price = calculateTvMountingPrice(numberOfTvs);
-
-    console.log('Base TV mounting price:', price);
-    console.log('Current state - over65:', over65, 'frameMount:', frameMount, 'wallType:', wallType);
-
-    if (over65) {
-      // Use fallback price if service not found
-      const over65Cost = (over65Service?.base_price || 25) * numberOfTvs;
-      price += over65Cost;
-      console.log('Adding Over 65" cost:', over65Cost, 'New total:', price);
-    }
-    
-    if (frameMount) {
-      // Use fallback price if service not found
-      const frameMountCost = (frameMountService?.base_price || 25) * numberOfTvs;
-      price += frameMountCost;
-      console.log('Adding Frame Mount cost:', frameMountCost, 'New total:', price);
-    }
-    
-    if (wallType !== 'standard') {
-      // Use fallback price if service not found
-      const wallCost = (stoneWallService?.base_price || 50) * numberOfTvs;
-      price += wallCost;
-      console.log('Adding Wall type cost:', wallCost, 'New total:', price);
-    }
-
-    console.log('Final calculated price:', price);
-    return price;
-  }, [numberOfTvs, over65, frameMount, wallType, over65Service?.base_price, frameMountService?.base_price, stoneWallService?.base_price]);
-
-  const buildCartItemName = () => {
-    let name = `TV Mounting${numberOfTvs > 1 ? ` (${numberOfTvs} TVs)` : ''}`;
-    const addOns = [];
-    
-    if (over65) addOns.push('Over 65" TV');
-    if (frameMount) addOns.push('Frame Mount');
-    if (wallType !== 'standard') addOns.push(`${wallType.charAt(0).toUpperCase() + wallType.slice(1)} Wall`);
-    
-    if (addOns.length > 0) {
-      name += ` + ${addOns.join(' + ')}`;
-    }
-    
-    return name;
-  };
-
-  const buildServicesList = () => {
-    const selectedServices = [];
-    
-    // Base TV Mounting service
-    selectedServices.push({
-      id: 'tv-mounting-base',
-      name: `TV Mounting${numberOfTvs > 1 ? ` (${numberOfTvs} TVs)` : ''}`,
-      price: calculateTvMountingPrice(numberOfTvs),
-      quantity: 1
-    });
-
-    // Add-on services
-    if (over65) {
-      selectedServices.push({
-        id: over65Service?.id || 'over65-addon',
-        name: `Over 65" TV Add-on${numberOfTvs > 1 ? ` (${numberOfTvs} TVs)` : ''}`,
-        price: (over65Service?.base_price || 25) * numberOfTvs,
-        quantity: 1
-      });
-    }
-    
-    if (frameMount) {
-      selectedServices.push({
-        id: frameMountService?.id || 'frame-mount-addon',
-        name: `Frame Mount Add-on${numberOfTvs > 1 ? ` (${numberOfTvs} TVs)` : ''}`,
-        price: (frameMountService?.base_price || 25) * numberOfTvs,
-        quantity: 1
-      });
-    }
-    
-    if (wallType !== 'standard') {
-      selectedServices.push({
-        id: stoneWallService?.id || 'wall-type-addon',
-        name: `${wallType.charAt(0).toUpperCase() + wallType.slice(1)} Wall Service${numberOfTvs > 1 ? ` (${numberOfTvs} TVs)` : ''}`,
-        price: (stoneWallService?.base_price || 50) * numberOfTvs,
-        quantity: 1
-      });
-    }
-
-    return selectedServices;
-  };
-
-  const handleAddToCart = () => {
-    const cartItem: CartItem = {
-      id: `tv-mounting-configured-${Date.now()}`, // Make ID unique to avoid conflicts
-      name: buildCartItemName(),
-      price: totalPrice,
-      quantity: 1,
-      options: {
-        over65,
-        frameMount,
-        numberOfTvs,
-        wallType,
-        services: buildServicesList()
-      }
-    };
-
-    console.log('Adding to cart with final price:', totalPrice);
-    console.log('Cart item:', cartItem);
-    
-    onAddToCart(cartItem);
-    onClose();
-  };
 
   const incrementTvs = () => {
     if (numberOfTvs < 5) {
@@ -171,12 +56,24 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ open, onClose,
     }
   };
 
-  const wallTypeOptions = [
-    { value: 'standard', label: 'Standard Drywall' },
-    { value: 'stone', label: 'Stone' },
-    { value: 'brick', label: 'Brick' },
-    { value: 'tile', label: 'Tile' }
-  ];
+  const handleAddToCart = () => {
+    const cartItem: CartItem = {
+      id: `tv-mounting-configured-${Date.now()}`,
+      name: buildCartItemName(),
+      price: totalPrice,
+      quantity: 1,
+      options: {
+        over65,
+        frameMount,
+        numberOfTvs,
+        wallType,
+        services: buildServicesList()
+      }
+    };
+
+    onAddToCart(cartItem);
+    onClose();
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -198,182 +95,34 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ open, onClose,
         </div>
 
         <div className="p-6 space-y-6">
-          {/* Number of TVs with + and - buttons */}
-          <div className="bg-slate-800 rounded-lg p-4">
-            <label className="block text-lg font-semibold text-white mb-3">
-              Number of TVs
-            </label>
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => {
-                  if (numberOfTvs > 1) {
-                    setNumberOfTvs(numberOfTvs - 1);
-                  }
-                }}
-                disabled={numberOfTvs <= 1}
-                className={`p-2 rounded-lg transition-colors ${
-                  numberOfTvs <= 1
-                    ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
-                    : 'bg-slate-700 text-white hover:bg-slate-600'
-                }`}
-              >
-                <Minus className="h-4 w-4" />
-              </button>
-              <div className="bg-slate-700 px-6 py-2 rounded-lg">
-                <span className="text-xl font-semibold text-white">{numberOfTvs}</span>
-              </div>
-              <button
-                onClick={() => {
-                  if (numberOfTvs < 5) {
-                    setNumberOfTvs(numberOfTvs + 1);
-                  }
-                }}
-                disabled={numberOfTvs >= 5}
-                className={`p-2 rounded-lg transition-colors ${
-                  numberOfTvs >= 5
-                    ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
-                    : 'bg-slate-700 text-white hover:bg-slate-600'
-                }`}
-              >
-                <Plus className="h-4 w-4" />
-              </button>
-            </div>
-            {/* TV pricing breakdown */}
-            <div className="mt-3 text-sm text-slate-400">
-              <div>Base TV Mounting: ${calculateTvMountingPrice(numberOfTvs)}</div>
-              {numberOfTvs > 1 && (
-                <div className="text-xs mt-1">
-                  1st TV: $90, 2nd TV: $60{numberOfTvs > 2 && `, Additional TVs: $75 each`}
-                </div>
-              )}
-            </div>
-          </div>
+          <TvQuantitySelector
+            numberOfTvs={numberOfTvs}
+            onIncrement={incrementTvs}
+            onDecrement={decrementTvs}
+            calculateTvMountingPrice={calculateTvMountingPrice}
+          />
 
-          {/* TV Size */}
-          <div className="bg-slate-800 rounded-lg p-4">
-            <label className="flex items-center space-x-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={over65}
-                onChange={(e) => {
-                  console.log('Over 65 checkbox changed to:', e.target.checked);
-                  setOver65(e.target.checked);
-                }}
-                className="w-5 h-5 text-blue-600 bg-slate-700 border-slate-600 rounded focus:ring-blue-500"
-              />
-              <div className="flex-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-lg font-semibold text-white">Over 65" TV Add-on</span>
-                  {over65 && (
-                    <span className="text-green-400 font-semibold">
-                      +${ (over65Service?.base_price || 25) * numberOfTvs}
-                    </span>
-                  )}
-                </div>
-                <p className="text-slate-400 text-sm">
-                  Additional charge for larger TVs (+${over65Service?.base_price || 25} per TV)
-                </p>
-              </div>
-            </label>
-          </div>
+          <TvAddOns
+            over65={over65}
+            setOver65={setOver65}
+            frameMount={frameMount}
+            setFrameMount={setFrameMount}
+            numberOfTvs={numberOfTvs}
+            over65Service={over65Service}
+            frameMountService={frameMountService}
+          />
 
-          {/* Frame Mount */}
-          <div className="bg-slate-800 rounded-lg p-4">
-            <label className="flex items-center space-x-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={frameMount}
-                onChange={(e) => {
-                  console.log('Frame Mount checkbox changed to:', e.target.checked);
-                  setFrameMount(e.target.checked);
-                }}
-                className="w-5 h-5 text-blue-600 bg-slate-700 border-slate-600 rounded focus:ring-blue-500"
-              />
-              <div className="flex-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-lg font-semibold text-white">Frame Mount Add-on</span>
-                  {frameMount && (
-                    <span className="text-green-400 font-semibold">
-                      +${(frameMountService?.base_price || 25) * numberOfTvs}
-                    </span>
-                  )}
-                </div>
-                <p className="text-slate-400 text-sm">
-                  Specialized frame mounting service (+${frameMountService?.base_price || 25} per TV)
-                </p>
-              </div>
-            </label>
-          </div>
+          <WallTypeSelector
+            wallType={wallType}
+            setWallType={setWallType}
+            numberOfTvs={numberOfTvs}
+            stoneWallService={stoneWallService}
+          />
 
-          {/* Wall Type - Tick-select UI */}
-          <div className="bg-slate-800 rounded-lg p-4">
-            <label className="block text-lg font-semibold text-white mb-3">
-              Wall Type
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              {wallTypeOptions.map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => {
-                    console.log('Wall type changed to:', option.value);
-                    setWallType(option.value);
-                  }}
-                  className={`relative p-3 rounded-lg border-2 transition-all ${
-                    wallType === option.value
-                      ? 'border-blue-500 bg-blue-500/20 text-white'
-                      : 'border-slate-600 bg-slate-700 text-slate-300 hover:border-slate-500'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium">{option.label}</span>
-                    {wallType === option.value && (
-                      <Check className="h-4 w-4 text-blue-400" />
-                    )}
-                  </div>
-                  <div className="text-left">
-                    {option.value === 'standard' ? (
-                      <p className="text-xs text-slate-400 mt-1">No extra charge</p>
-                    ) : (
-                      <div className="text-xs mt-1">
-                        <p className="text-slate-400">
-                          +${stoneWallService?.base_price || 50} per TV
-                        </p>
-                        {wallType === option.value && (
-                          <p className="text-green-400 font-semibold">
-                            Total: +${(stoneWallService?.base_price || 50) * numberOfTvs}
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Services Summary */}
-          <div className="bg-gradient-to-r from-slate-800 to-slate-700 rounded-lg p-4 border border-slate-600">
-            <h3 className="text-lg font-semibold text-white mb-3">Selected Services:</h3>
-            <div className="space-y-2">
-              {buildServicesList().map((service, index) => (
-                <div key={index} className="flex justify-between items-center text-sm">
-                  <span className="text-slate-300">{service.name}</span>
-                  <span className="text-blue-400 font-semibold">${service.price}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Price Summary - Enhanced to show real-time updates */}
-          <div className="bg-gradient-to-r from-blue-900/50 to-purple-900/50 rounded-lg p-4 border border-blue-500/30">
-            <div className="flex justify-between items-center text-white">
-              <span className="text-lg font-semibold">Total Price:</span>
-              <span className="text-2xl font-bold text-blue-400">${totalPrice}</span>
-            </div>
-            <div className="text-xs text-slate-400 mt-2">
-              Price updates automatically based on your selections
-            </div>
-          </div>
+          <ServicesSummary
+            services={buildServicesList()}
+            totalPrice={totalPrice}
+          />
 
           {/* Action Buttons */}
           <div className="flex space-x-4 pt-4">
@@ -384,27 +133,7 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ open, onClose,
               Cancel
             </button>
             <button
-              onClick={() => {
-                const cartItem: CartItem = {
-                  id: `tv-mounting-configured-${Date.now()}`,
-                  name: `TV Mounting${numberOfTvs > 1 ? ` (${numberOfTvs} TVs)` : ''}${over65 ? ' + Over 65" TV' : ''}${frameMount ? ' + Frame Mount' : ''}${wallType !== 'standard' ? ` + ${wallType.charAt(0).toUpperCase() + wallType.slice(1)} Wall` : ''}`,
-                  price: totalPrice,
-                  quantity: 1,
-                  options: {
-                    over65,
-                    frameMount,
-                    numberOfTvs,
-                    wallType,
-                    services: buildServicesList()
-                  }
-                };
-
-                console.log('Adding to cart with final price:', totalPrice);
-                console.log('Cart item:', cartItem);
-                
-                onAddToCart(cartItem);
-                onClose();
-              }}
+              onClick={handleAddToCart}
               className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 rounded-lg transition-all flex items-center justify-center space-x-2"
             >
               <span>Add to Cart - ${totalPrice}</span>
