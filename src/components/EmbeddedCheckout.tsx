@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -361,7 +360,7 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
               disabled={isProcessing}
             >
               Cancel
-            </button>
+            </Button>
           </div>
         </form>
       </div>
