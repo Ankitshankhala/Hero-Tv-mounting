@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -212,101 +211,136 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
               </div>
             </div>
 
-            {/* Customer Information */}
+            {/* Contact Information */}
             <div className="space-y-6">
-              <h3 className="text-xl font-bold text-gray-900 flex items-center border-b border-gray-200 pb-2">
-                <User className="h-5 w-5 text-blue-600 mr-2" />
+              <h3 className="text-xl font-bold text-gray-900 flex items-center border-b border-gray-200 pb-3">
+                <User className="h-6 w-6 text-blue-600 mr-3" />
                 Contact Information
               </h3>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <ValidatedInput
-                  id="name"
-                  label="Full Name"
-                  value={formData.name}
-                  onChange={(value) => handleInputChange('name', value)}
-                  onBlur={() => handleBlur('name')}
-                  error={errors.name}
-                  touched={touched.name}
-                  required
-                  autoFormat="name"
-                  placeholder="John Doe"
-                  className="bg-white border-2 border-gray-200 focus:border-blue-500 rounded-lg"
-                />
-                
-                <ValidatedInput
-                  id="email"
-                  label="Email Address"
-                  type="email"
-                  value={formData.email}
-                  onChange={(value) => handleInputChange('email', value)}
-                  onBlur={() => handleBlur('email')}
-                  error={errors.email}
-                  touched={touched.email}
-                  required
-                  placeholder="john@example.com"
-                  className="bg-white border-2 border-gray-200 focus:border-blue-500 rounded-lg"
-                />
-                
-                <ValidatedInput
-                  id="phone"
-                  label="Phone Number"
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(value) => handleInputChange('phone', value)}
-                  onBlur={() => handleBlur('phone')}
-                  error={errors.phone}
-                  touched={touched.phone}
-                  required
-                  autoFormat="phone"
-                  placeholder="(555) 123-4567"
-                  className="bg-white border-2 border-gray-200 focus:border-blue-500 rounded-lg"
-                />
-                
-                <ZipcodeInput
-                  id="zipcode"
-                  label="ZIP Code"
-                  value={formData.zipcode}
-                  onChange={handleZipcodeChange}
-                  onValidation={handleZipcodeValidation}
-                  required
-                  placeholder="12345"
-                  className="bg-white border-2 border-gray-200 focus:border-blue-500 rounded-lg"
-                />
+              <div className="bg-white border-2 border-gray-100 rounded-xl p-6 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="name" className="flex items-center text-sm font-medium text-gray-700 after:content-['*'] after:ml-0.5 after:text-red-500">
+                      <User className="h-4 w-4 text-blue-600 mr-2" />
+                      Full Name
+                    </Label>
+                    <ValidatedInput
+                      id="name"
+                      label=""
+                      value={formData.name}
+                      onChange={(value) => handleInputChange('name', value)}
+                      onBlur={() => handleBlur('name')}
+                      error={errors.name}
+                      touched={touched.name}
+                      required
+                      autoFormat="name"
+                      placeholder="Enter your full name"
+                      className="border-2 border-gray-200 focus:border-blue-500 rounded-lg h-12"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="flex items-center text-sm font-medium text-gray-700 after:content-['*'] after:ml-0.5 after:text-red-500">
+                      <Mail className="h-4 w-4 text-blue-600 mr-2" />
+                      Email Address
+                    </Label>
+                    <ValidatedInput
+                      id="email"
+                      label=""
+                      type="email"
+                      value={formData.email}
+                      onChange={(value) => handleInputChange('email', value)}
+                      onBlur={() => handleBlur('email')}
+                      error={errors.email}
+                      touched={touched.email}
+                      required
+                      placeholder="your.email@example.com"
+                      className="border-2 border-gray-200 focus:border-blue-500 rounded-lg h-12"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="phone" className="flex items-center text-sm font-medium text-gray-700 after:content-['*'] after:ml-0.5 after:text-red-500">
+                      <Phone className="h-4 w-4 text-blue-600 mr-2" />
+                      Phone Number
+                    </Label>
+                    <ValidatedInput
+                      id="phone"
+                      label=""
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(value) => handleInputChange('phone', value)}
+                      onBlur={() => handleBlur('phone')}
+                      error={errors.phone}
+                      touched={touched.phone}
+                      required
+                      autoFormat="phone"
+                      placeholder="(555) 123-4567"
+                      className="border-2 border-gray-200 focus:border-blue-500 rounded-lg h-12"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="zipcode" className="flex items-center text-sm font-medium text-gray-700 after:content-['*'] after:ml-0.5 after:text-red-500">
+                      <MapPin className="h-4 w-4 text-blue-600 mr-2" />
+                      ZIP Code
+                    </Label>
+                    <ZipcodeInput
+                      id="zipcode"
+                      label=""
+                      value={formData.zipcode}
+                      onChange={handleZipcodeChange}
+                      onValidation={handleZipcodeValidation}
+                      required
+                      placeholder="Enter 5-digit ZIP code"
+                      className="[&_input]:border-2 [&_input]:border-gray-200 [&_input]:focus:border-blue-500 [&_input]:rounded-lg [&_input]:h-12"
+                    />
+                  </div>
+                </div>
+
+                {cityState && zipcodeValid && (
+                  <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4 mt-4">
+                    <p className="text-sm text-green-700 flex items-center space-x-2">
+                      <CheckCircle className="h-5 w-5 text-green-600" />
+                      <span className="font-semibold">Service Area Confirmed:</span>
+                      <span className="font-medium">{cityState}</span>
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Service Address */}
             <div className="space-y-4">
-              <h3 className="text-xl font-bold text-gray-900 flex items-center border-b border-gray-200 pb-2">
-                <MapPin className="h-5 w-5 text-blue-600 mr-2" />
+              <h3 className="text-xl font-bold text-gray-900 flex items-center border-b border-gray-200 pb-3">
+                <MapPin className="h-6 w-6 text-blue-600 mr-3" />
                 Service Location
               </h3>
               
-              <ValidatedInput
-                id="address"
-                label="Complete Service Address"
-                value={formData.address}
-                onChange={(value) => handleInputChange('address', value)}
-                onBlur={() => handleBlur('address')}
-                error={errors.address}
-                touched={touched.address}
-                required
-                autoFormat="address"
-                placeholder="123 Main Street, Apartment 4B, City, State"
-                className="bg-white border-2 border-gray-200 focus:border-blue-500 rounded-lg"
-              />
-
-              {cityState && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <p className="text-sm text-green-700 flex items-center space-x-2">
-                    <MapPin className="h-4 w-4" />
-                    <span className="font-medium">Service Area Confirmed:</span>
-                    <span>{cityState}</span>
-                    {zipcodeValid && <CheckCircle className="h-4 w-4 text-green-600" />}
-                  </p>
+              <div className="bg-white border-2 border-gray-100 rounded-xl p-6">
+                <div className="space-y-2">
+                  <Label htmlFor="address" className="flex items-center text-sm font-medium text-gray-700 after:content-['*'] after:ml-0.5 after:text-red-500">
+                    <MapPin className="h-4 w-4 text-blue-600 mr-2" />
+                    Complete Service Address
+                  </Label>
+                  <ValidatedInput
+                    id="address"
+                    label=""
+                    value={formData.address}
+                    onChange={(value) => handleInputChange('address', value)}
+                    onBlur={() => handleBlur('address')}
+                    error={errors.address}
+                    touched={touched.address}
+                    required
+                    autoFormat="address"
+                    placeholder="123 Main Street, Apartment 4B, City, State"
+                    className="border-2 border-gray-200 focus:border-blue-500 rounded-lg h-12"
+                  />
                 </div>
-              )}
+              </div>
             </div>
 
             {/* Scheduling */}
