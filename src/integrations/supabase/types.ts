@@ -435,6 +435,48 @@ export type Database = {
           },
         ]
       }
+      worker_bookings: {
+        Row: {
+          assigned_at: string | null
+          booking_id: string
+          created_at: string | null
+          id: string
+          status: string | null
+          worker_id: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          booking_id: string
+          created_at?: string | null
+          id?: string
+          status?: string | null
+          worker_id: string
+        }
+        Update: {
+          assigned_at?: string | null
+          booking_id?: string
+          created_at?: string | null
+          id?: string
+          status?: string | null
+          worker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "worker_bookings_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "worker_bookings_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       worker_notifications: {
         Row: {
           body: string
@@ -510,7 +552,28 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      auto_assign_workers_to_booking: {
+        Args: { p_booking_id: string }
+        Returns: {
+          assigned_worker_id: string
+          assignment_status: string
+        }[]
+      }
+      find_available_workers: {
+        Args: {
+          p_zipcode: string
+          p_scheduled_date: string
+          p_scheduled_start: string
+          p_duration_minutes?: number
+        }
+        Returns: {
+          worker_id: string
+          worker_name: string
+          worker_email: string
+          worker_phone: string
+          distance_priority: number
+        }[]
+      }
     }
     Enums: {
       booking_status: "pending" | "confirmed" | "completed" | "cancelled"

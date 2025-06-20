@@ -1,5 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { createBookingWithWorkerAssignment, type BookingData } from '@/utils/bookingLogic';
 
 // Fetch all active services
 export const fetchServices = async () => {
@@ -58,54 +59,9 @@ export const exampleServiceSelection = [
   }
 ];
 
-// Find available workers for a booking (simplified version)
-export const findAvailableWorkers = async (
-  scheduledDate: Date,
-  durationMinutes: number,
-  region: string
-) => {
-  // For now, we'll do a simple query to find workers in the region
-  const { data, error } = await supabase
-    .from('users')
-    .select('id')
-    .eq('role', 'worker')
-    .eq('is_active', true);
-  
-  if (error) throw error;
-  return data?.map(worker => ({ worker_id: worker.id })) || [];
-};
-
-// Create a new booking - updated to match actual database schema
-export const createBooking = async (bookingData: {
-  customer_id: string;
-  scheduled_date: string;
-  scheduled_start: string;
-  service_id: string;
-  location_notes?: string;
-}) => {
-  const { data, error } = await supabase
-    .from('bookings')
-    .insert({
-      customer_id: bookingData.customer_id,
-      scheduled_date: bookingData.scheduled_date,
-      scheduled_start: bookingData.scheduled_start,
-      service_id: bookingData.service_id,
-      location_notes: bookingData.location_notes,
-      status: 'pending' as const
-    })
-    .select()
-    .single();
-  
-  if (error) throw error;
-  
-  // Mock SMS notification since the function doesn't exist
-  try {
-    console.log('Would send SMS notification for booking:', data.id);
-  } catch (smsError) {
-    console.error('Failed to send SMS notification:', smsError);
-  }
-  
-  return data;
+// Create a new booking using the enhanced booking logic
+export const createBooking = async (bookingData: BookingData) => {
+  return await createBookingWithWorkerAssignment(bookingData);
 };
 
 // Send SMS notification to assigned worker
