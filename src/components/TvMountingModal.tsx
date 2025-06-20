@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { X, Monitor, ArrowRight, Plus, Minus, Check } from 'lucide-react';
 import { CartItem } from '@/types';
-import { Service } from '@/hooks/useServicesData';
+import { PublicService } from '@/hooks/usePublicServicesData';
 
 interface TvMountingModalProps {
   open: boolean;
   onClose: () => void;
   onAddToCart: (item: CartItem) => void;
-  services: Service[];
+  services: PublicService[];
 }
 
 export const TvMountingModal: React.FC<TvMountingModalProps> = ({ open, onClose, onAddToCart, services }) => {
@@ -60,17 +60,75 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ open, onClose,
     return totalPrice;
   };
 
+  const buildCartItemName = () => {
+    let name = `TV Mounting${numberOfTvs > 1 ? ` (${numberOfTvs} TVs)` : ''}`;
+    const addOns = [];
+    
+    if (over65) addOns.push('Over 65" TV');
+    if (frameMount) addOns.push('Frame Mount');
+    if (wallType !== 'standard') addOns.push(`${wallType.charAt(0).toUpperCase() + wallType.slice(1)} Wall`);
+    
+    if (addOns.length > 0) {
+      name += ` + ${addOns.join(' + ')}`;
+    }
+    
+    return name;
+  };
+
+  const buildServicesList = () => {
+    const selectedServices = [];
+    
+    // Base TV Mounting service
+    selectedServices.push({
+      id: 'tv-mounting-base',
+      name: `TV Mounting${numberOfTvs > 1 ? ` (${numberOfTvs} TVs)` : ''}`,
+      price: calculateTvMountingPrice(numberOfTvs),
+      quantity: 1
+    });
+
+    // Add-on services
+    if (over65 && over65Service) {
+      selectedServices.push({
+        id: over65Service.id,
+        name: `Over 65" TV Add-on${numberOfTvs > 1 ? ` (${numberOfTvs} TVs)` : ''}`,
+        price: over65Service.base_price * numberOfTvs,
+        quantity: 1
+      });
+    }
+    
+    if (frameMount && frameMountService) {
+      selectedServices.push({
+        id: frameMountService.id,
+        name: `Frame Mount Add-on${numberOfTvs > 1 ? ` (${numberOfTvs} TVs)` : ''}`,
+        price: frameMountService.base_price * numberOfTvs,
+        quantity: 1
+      });
+    }
+    
+    if (wallType !== 'standard' && stoneWallService) {
+      selectedServices.push({
+        id: stoneWallService.id,
+        name: `${wallType.charAt(0).toUpperCase() + wallType.slice(1)} Wall Service${numberOfTvs > 1 ? ` (${numberOfTvs} TVs)` : ''}`,
+        price: stoneWallService.base_price * numberOfTvs,
+        quantity: 1
+      });
+    }
+
+    return selectedServices;
+  };
+
   const handleAddToCart = () => {
     const cartItem: CartItem = {
       id: 'tv-mounting-configured',
-      name: `TV Mounting${numberOfTvs > 1 ? ` (${numberOfTvs} TVs)` : ''}`,
+      name: buildCartItemName(),
       price: calculatePrice(),
       quantity: 1,
       options: {
         over65,
         frameMount,
         numberOfTvs,
-        wallType
+        wallType,
+        services: buildServicesList()
       }
     };
 
@@ -151,7 +209,7 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ open, onClose,
             </div>
             {/* TV pricing breakdown */}
             <div className="mt-3 text-sm text-slate-400">
-              <div>TV Mounting: ${calculateTvMountingPrice(numberOfTvs)}</div>
+              <div>Base TV Mounting: ${calculateTvMountingPrice(numberOfTvs)}</div>
               {numberOfTvs > 1 && (
                 <div className="text-xs mt-1">
                   1st TV: $90, 2nd TV: $60{numberOfTvs > 2 && `, Additional TVs: $75 each`}
@@ -169,8 +227,15 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ open, onClose,
                 onChange={(e) => setOver65(e.target.checked)}
                 className="w-5 h-5 text-blue-600 bg-slate-700 border-slate-600 rounded focus:ring-blue-500"
               />
-              <div>
-                <span className="text-lg font-semibold text-white">Over 65" TV</span>
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-lg font-semibold text-white">Over 65" TV Add-on</span>
+                  {over65 && (
+                    <span className="text-green-400 font-semibold">
+                      +${(over65Service?.base_price || 25) * numberOfTvs}
+                    </span>
+                  )}
+                </div>
                 <p className="text-slate-400 text-sm">
                   Additional charge for larger TVs (+${over65Service?.base_price || 25} per TV)
                 </p>
@@ -187,8 +252,15 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ open, onClose,
                 onChange={(e) => setFrameMount(e.target.checked)}
                 className="w-5 h-5 text-blue-600 bg-slate-700 border-slate-600 rounded focus:ring-blue-500"
               />
-              <div>
-                <span className="text-lg font-semibold text-white">Frame Mount</span>
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-lg font-semibold text-white">Frame Mount Add-on</span>
+                  {frameMount && (
+                    <span className="text-green-400 font-semibold">
+                      +${(frameMountService?.base_price || 25) * numberOfTvs}
+                    </span>
+                  )}
+                </div>
                 <p className="text-slate-400 text-sm">
                   Specialized frame mounting service (+${frameMountService?.base_price || 25} per TV)
                 </p>
@@ -218,15 +290,36 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ open, onClose,
                       <Check className="h-4 w-4 text-blue-400" />
                     )}
                   </div>
-                  {option.value === 'standard' && (
-                    <p className="text-xs text-slate-400 mt-1">No extra charge</p>
-                  )}
-                  {option.value !== 'standard' && (
-                    <p className="text-xs text-slate-400 mt-1">
-                      +${stoneWallService?.base_price || 50} total
-                    </p>
-                  )}
+                  <div className="text-left">
+                    {option.value === 'standard' ? (
+                      <p className="text-xs text-slate-400 mt-1">No extra charge</p>
+                    ) : (
+                      <div className="text-xs mt-1">
+                        <p className="text-slate-400">
+                          +${stoneWallService?.base_price || 50} per TV
+                        </p>
+                        {wallType === option.value && (
+                          <p className="text-green-400 font-semibold">
+                            Total: +${(stoneWallService?.base_price || 50) * numberOfTvs}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Services Summary */}
+          <div className="bg-gradient-to-r from-slate-800 to-slate-700 rounded-lg p-4 border border-slate-600">
+            <h3 className="text-lg font-semibold text-white mb-3">Selected Services:</h3>
+            <div className="space-y-2">
+              {buildServicesList().map((service, index) => (
+                <div key={index} className="flex justify-between items-center text-sm">
+                  <span className="text-slate-300">{service.name}</span>
+                  <span className="text-blue-400 font-semibold">${service.price}</span>
+                </div>
               ))}
             </div>
           </div>

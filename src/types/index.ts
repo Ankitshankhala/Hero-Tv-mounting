@@ -9,5 +9,11 @@ export interface CartItem {
     frameMount?: boolean;
     numberOfTvs?: number;
     wallType?: string;
+    services?: Array<{
+      id: string;
+      name: string;
+      price: number;
+      quantity: number;
+    }>;
   };
 }
