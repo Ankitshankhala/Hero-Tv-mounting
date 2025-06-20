@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Briefcase } from 'lucide-react';
@@ -9,13 +8,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 const WorkerSignup = () => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    password: '',
     phone: '',
     city: '',
     region: '',
@@ -37,7 +35,6 @@ const WorkerSignup = () => {
   });
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  const { signUp } = useAuth();
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -55,34 +52,41 @@ const WorkerSignup = () => {
     setLoading(true);
 
     try {
-      const { error } = await signUp(formData.email, formData.password, {
-        name: formData.name,
-        phone: formData.phone,
-        city: formData.city,
-        region: formData.region,
-        role: 'worker',
-        zip_code: formData.zipCode,
-        experience: formData.experience,
-        skills: formData.skills,
-        availability: formData.availability,
-        has_vehicle: formData.hasVehicle,
-        has_tools: formData.hasTools,
-        background_check_consent: formData.backgroundCheck,
-        is_active: false, // Pending approval
-      });
+      console.log('Submitting worker application:', formData);
+      
+      const { data, error } = await supabase
+        .from('worker_applications')
+        .insert({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          city: formData.city,
+          region: formData.region,
+          experience: formData.experience,
+          skills: formData.skills,
+          availability: formData.availability,
+          has_vehicle: formData.hasVehicle,
+          has_tools: formData.hasTools,
+          background_check_consent: formData.backgroundCheck,
+          status: 'pending'
+        });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error submitting worker application:', error);
+        throw error;
+      }
+
+      console.log('Worker application submitted successfully:', data);
 
       toast({
-        title: "Registration Submitted!",
-        description: "Your worker registration has been submitted for approval. You'll be notified when your account is activated.",
+        title: "Application Submitted!",
+        description: "Your worker application has been submitted for review. You'll be notified when your application is processed.",
       });
 
       // Reset form
       setFormData({
         name: '',
         email: '',
-        password: '',
         phone: '',
         city: '',
         region: '',
@@ -103,10 +107,10 @@ const WorkerSignup = () => {
         backgroundCheck: false,
       });
     } catch (error) {
-      console.error('Error submitting registration:', error);
+      console.error('Error submitting worker application:', error);
       toast({
         title: "Error",
-        description: "Failed to submit registration. Please try again.",
+        description: "Failed to submit application. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -178,19 +182,6 @@ const WorkerSignup = () => {
                       placeholder="john@example.com"
                     />
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="password" className="text-slate-300">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={formData.password}
-                    onChange={(e) => handleInputChange('password', e.target.value)}
-                    required
-                    className="bg-slate-700 border-slate-600 text-white"
-                    placeholder="Create a secure password"
-                  />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -317,7 +308,7 @@ const WorkerSignup = () => {
                   disabled={loading}
                   className="w-full bg-blue-600 hover:bg-blue-700"
                 >
-                  {loading ? 'Submitting...' : 'Submit Registration'}
+                  {loading ? 'Submitting...' : 'Submit Application'}
                 </Button>
               </form>
             </CardContent>
