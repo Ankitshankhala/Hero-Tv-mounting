@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { ServiceCard } from './ServiceCard';
 import { TvMountingModal } from './TvMountingModal';
-import { CartItem } from '@/pages/Index';
+import { CartItem } from '@/types';
 import { useServicesData } from '@/hooks/useServicesData';
 import { Loader2 } from 'lucide-react';
 

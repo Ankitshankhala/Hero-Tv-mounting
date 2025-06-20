@@ -13,10 +13,7 @@ interface PendingWorker {
   email: string;
   phone: string;
   city: string;
-  region: string;
   zip_code: string;
-  experience: string;
-  skills: string;
   created_at: string;
   is_active: boolean;
 }
@@ -34,7 +31,7 @@ const PendingWorkersManager = () => {
     try {
       const { data, error } = await supabase
         .from('users')
-        .select('*')
+        .select('id, name, email, phone, city, zip_code, created_at, is_active')
         .eq('role', 'worker')
         .eq('is_active', false)
         .order('created_at', { ascending: false });
@@ -158,27 +155,13 @@ const PendingWorkersManager = () => {
                     </div>
                     <div className="flex items-center space-x-2 text-sm text-gray-600">
                       <MapPin className="h-4 w-4" />
-                      <span>{worker.city}, {worker.region} - {worker.zip_code}</span>
+                      <span>{worker.city} - {worker.zip_code}</span>
                     </div>
                   </div>
                   <Badge variant="outline" className="text-yellow-600 border-yellow-600">
                     Pending
                   </Badge>
                 </div>
-
-                {worker.experience && (
-                  <div>
-                    <h4 className="font-medium text-sm mb-1">Experience:</h4>
-                    <p className="text-sm text-gray-600">{worker.experience}</p>
-                  </div>
-                )}
-
-                {worker.skills && (
-                  <div>
-                    <h4 className="font-medium text-sm mb-1">Skills:</h4>
-                    <p className="text-sm text-gray-600">{worker.skills}</p>
-                  </div>
-                )}
 
                 <div className="flex space-x-2 pt-2">
                   <Button

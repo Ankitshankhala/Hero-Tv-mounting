@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { X, Monitor, ArrowRight, Plus, Minus, Check } from 'lucide-react';
-import { CartItem } from '@/pages/Index';
+import { CartItem } from '@/types';
 import { Service } from '@/hooks/useServicesData';
 
 interface TvMountingModalProps {

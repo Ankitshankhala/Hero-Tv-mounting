@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   Tabs,
@@ -5,14 +6,6 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs"
-import { MainNav } from "@/components/main-nav"
-import { Overview } from "@/components/admin/overview"
-import { Bookings } from "@/components/admin/bookings"
-import { Customers } from "@/components/admin/customers"
-import { Workers } from "@/components/admin/workers"
-import { Services } from "@/components/admin/services"
-import { Payments } from "@/components/admin/payments"
-import { Reviews } from "@/components/admin/reviews"
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle } from 'lucide-react';
@@ -59,54 +52,29 @@ const Admin = () => {
   }
 
   return (
-    <>
-      <div className="border-b">
-        <div className="flex h-20 items-center justify-between space-x-4 px-6">
-          <MainNav className="mx-6" />
-          <div className="flex-1 text-right font-medium">
-            Admin Dashboard
-          </div>
-        </div>
+    <div className="container mx-auto px-4 py-8">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+        <p className="text-gray-600 mt-2">Manage your TV mounting service business</p>
       </div>
-      <div className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-8 bg-slate-800 border-slate-700">
-            <TabsTrigger value="overview" className="text-white data-[state=active]:bg-slate-700">Overview</TabsTrigger>
-            <TabsTrigger value="bookings" className="text-white data-[state=active]:bg-slate-700">Bookings</TabsTrigger>
-            <TabsTrigger value="customers" className="text-white data-[state=active]:bg-slate-700">Customers</TabsTrigger>
-            <TabsTrigger value="workers" className="text-white data-[state=active]:bg-slate-700">Workers</TabsTrigger>
-            <TabsTrigger value="pending" className="text-white data-[state=active]:bg-slate-700">Pending</TabsTrigger>
-            <TabsTrigger value="services" className="text-white data-[state=active]:bg-slate-700">Services</TabsTrigger>
-            <TabsTrigger value="payments" className="text-white data-[state=active]:bg-slate-700">Payments</TabsTrigger>
-            <TabsTrigger value="reviews" className="text-white data-[state=active]:bg-slate-700">Reviews</TabsTrigger>
-          </TabsList>
-          <TabsContent value="overview" className="mt-6">
-            <Overview />
-          </TabsContent>
-          <TabsContent value="bookings" className="mt-6">
-            <Bookings />
-          </TabsContent>
-          <TabsContent value="customers" className="mt-6">
-            <Customers />
-          </TabsContent>
-          <TabsContent value="workers" className="mt-6">
-            <Workers />
-          </TabsContent>
-          <TabsContent value="pending" className="mt-6">
-            <PendingWorkersManager />
-          </TabsContent>
-          <TabsContent value="services" className="mt-6">
-            <Services />
-          </TabsContent>
-          <TabsContent value="payments" className="mt-6">
-            <Payments />
-          </TabsContent>
-          <TabsContent value="reviews" className="mt-6">
-            <Reviews />
-          </TabsContent>
-        </Tabs>
-      </div>
-    </>
+      
+      <Tabs defaultValue="pending" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 bg-slate-800 border-slate-700">
+          <TabsTrigger value="pending" className="text-white data-[state=active]:bg-slate-700">Pending Workers</TabsTrigger>
+          <TabsTrigger value="overview" className="text-white data-[state=active]:bg-slate-700">Overview</TabsTrigger>
+        </TabsList>
+        <TabsContent value="pending" className="mt-6">
+          <PendingWorkersManager />
+        </TabsContent>
+        <TabsContent value="overview" className="mt-6">
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-gray-600">Admin overview coming soon...</p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 };
 

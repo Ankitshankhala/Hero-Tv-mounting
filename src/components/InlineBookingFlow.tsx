@@ -1,9 +1,8 @@
-
 import React, { useState } from 'react';
 import { CustomerLocationForm } from './booking/CustomerLocationForm';
 import { CalendarView } from './booking/CalendarView';
 import { BookingConfirmation } from './booking/BookingConfirmation';
-import { CartItem } from '@/pages/Index';
+import { CartItem } from '@/types';
 
 interface InlineBookingFlowProps {
   cart: CartItem[];

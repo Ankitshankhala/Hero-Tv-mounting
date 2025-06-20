@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { ShoppingCart, X, Calendar } from 'lucide-react';
-import { CartItem } from '@/pages/Index';
+import { CartItem } from '@/types';
 
 interface CartProps {
   items: CartItem[];

@@ -8,7 +8,7 @@ import { ValidatedInput } from '@/components/ui/ValidatedInput';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import type { CartItem } from '@/pages/Index';
+import type { CartItem } from '@/types';
 
 interface EmbeddedCheckoutProps {
   cart: CartItem[];

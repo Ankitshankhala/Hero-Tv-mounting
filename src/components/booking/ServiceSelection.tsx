@@ -1,9 +1,8 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ServicesSection } from '@/components/ServicesSection';
-import { CartItem } from '@/pages/Index';
+import { CartItem } from '@/types';
 
 interface ServiceSelectionProps {
   cart: CartItem[];
