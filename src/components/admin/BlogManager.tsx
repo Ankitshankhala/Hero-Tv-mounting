@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { FileText, Edit, Trash2, Eye, Video, Plus } from 'lucide-react';
 import { BlogPostModal } from './BlogPostModal';
 import { useToast } from '@/hooks/use-toast';
+import { useBlogData } from '@/hooks/useBlogData';
 
 interface BlogPost {
   id: string;
@@ -16,6 +17,7 @@ interface BlogPost {
   status: 'published' | 'draft' | 'scheduled';
   views: number;
   hasVideo: boolean;
+  videoId?: string;
   publishDate: string | null;
   lastModified: string;
   content?: string;
@@ -23,6 +25,7 @@ interface BlogPost {
 
 export const BlogManager = () => {
   const { toast } = useToast();
+  const { addAdminBlogPost } = useBlogData();
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
@@ -36,6 +39,7 @@ export const BlogManager = () => {
       status: 'published',
       views: 1247,
       hasVideo: true,
+      videoId: 'dQw4w9WgXcQ',
       publishDate: '2024-01-10',
       lastModified: '2024-01-12',
       content: 'Content for choosing the perfect TV wall mount...'
@@ -122,6 +126,11 @@ export const BlogManager = () => {
         ...postData,
       };
       setBlogPosts(prev => [...prev, newPost]);
+      
+      // Add to frontend display if published
+      if (postData.status === 'published') {
+        addAdminBlogPost(newPost);
+      }
     }
   };
 

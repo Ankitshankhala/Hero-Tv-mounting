@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Video } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface BlogPost {
@@ -16,6 +17,7 @@ interface BlogPost {
   content?: string;
   status: 'published' | 'draft' | 'scheduled';
   hasVideo: boolean;
+  videoId?: string;
   publishDate?: string;
 }
 
@@ -34,6 +36,7 @@ export const BlogPostModal = ({ isOpen, onClose, onSave, post }: BlogPostModalPr
     content: '',
     status: 'draft',
     hasVideo: false,
+    videoId: '',
   });
 
   useEffect(() => {
@@ -46,6 +49,7 @@ export const BlogPostModal = ({ isOpen, onClose, onSave, post }: BlogPostModalPr
         content: '',
         status: 'draft',
         hasVideo: false,
+        videoId: '',
       });
     }
   }, [post]);
@@ -60,11 +64,20 @@ export const BlogPostModal = ({ isOpen, onClose, onSave, post }: BlogPostModalPr
       return;
     }
 
+    if (formData.hasVideo && !formData.videoId) {
+      toast({
+        title: "Error",
+        description: "Please provide a video ID if the post has video content",
+        variant: "destructive",
+      });
+      return;
+    }
+
     onSave(formData);
     onClose();
     toast({
       title: "Success",
-      description: post ? "Blog post updated successfully" : "Blog post created successfully",
+      description: post ? "Blog post updated successfully" : "Blog post created successfully and added to frontend",
     });
   };
 
@@ -107,10 +120,37 @@ export const BlogPostModal = ({ isOpen, onClose, onSave, post }: BlogPostModalPr
               id="content"
               value={formData.content || ''}
               onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-              placeholder="Enter blog post content"
+              placeholder="Enter detailed blog post content"
               className="min-h-[200px]"
             />
           </div>
+
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="hasVideo"
+              checked={formData.hasVideo}
+              onCheckedChange={(checked) => setFormData({ ...formData, hasVideo: checked, videoId: checked ? formData.videoId : '' })}
+            />
+            <Label htmlFor="hasVideo" className="flex items-center space-x-2">
+              <Video className="h-4 w-4" />
+              <span>Has Video Content</span>
+            </Label>
+          </div>
+
+          {formData.hasVideo && (
+            <div>
+              <Label htmlFor="videoId">YouTube Video ID *</Label>
+              <Input
+                id="videoId"
+                value={formData.videoId || ''}
+                onChange={(e) => setFormData({ ...formData, videoId: e.target.value })}
+                placeholder="Enter YouTube video ID (e.g., dQw4w9WgXcQ)"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Extract the video ID from YouTube URL: https://youtube.com/watch?v=<strong>VIDEO_ID</strong>
+              </p>
+            </div>
+          )}
 
           <div>
             <Label htmlFor="status">Status</Label>
@@ -124,15 +164,6 @@ export const BlogPostModal = ({ isOpen, onClose, onSave, post }: BlogPostModalPr
                 <SelectItem value="scheduled">Scheduled</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="hasVideo"
-              checked={formData.hasVideo}
-              onCheckedChange={(checked) => setFormData({ ...formData, hasVideo: checked })}
-            />
-            <Label htmlFor="hasVideo">Has Video Content</Label>
           </div>
 
           {formData.status === 'published' && (
@@ -152,7 +183,7 @@ export const BlogPostModal = ({ isOpen, onClose, onSave, post }: BlogPostModalPr
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={handleSave}>
+          <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700">
             {post ? 'Update' : 'Create'} Post
           </Button>
         </div>
