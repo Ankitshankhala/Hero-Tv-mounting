@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { X, MapPin, Clock, User, Mail, Phone, CheckCircle } from 'lucide-react';
+import { X, MapPin, Clock, User, Mail, Phone, CheckCircle, Calendar } from 'lucide-react';
 import { ValidatedInput } from '@/components/ui/ValidatedInput';
 import { ZipcodeInput } from '@/components/ui/ZipcodeInput';
 import { useFormValidation } from '@/hooks/useFormValidation';
@@ -116,13 +116,12 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
     setIsProcessing(true);
 
     try {
-      // Create booking data with customer info and zipcode for worker assignment
       const bookingData = {
         customer_name: formData.name,
         customer_email: formData.email,
         customer_phone: formData.phone,
         customer_zipcode: formData.zipcode,
-        service_id: cart[0].id, // Use first service as primary
+        service_id: cart[0].id,
         scheduled_date: formData.date,
         scheduled_start: formData.time,
         location_notes: `${formData.address}\n\nServices: ${cart.map(item => `${item.name} (${item.quantity}x)`).join(', ')}\n\nSpecial Instructions: ${formData.specialInstructions}`,
@@ -166,184 +165,241 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-gray-900">Book Your Service</h2>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-4xl max-h-[95vh] overflow-hidden shadow-2xl">
+        {/* Header */}
+        <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold">Book Your Service</h2>
+            <p className="text-blue-100 mt-1">Complete your booking in just a few steps</p>
+          </div>
           <button
             onClick={handleClose}
             disabled={isProcessing}
-            className="text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
+            className="text-white/80 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-lg disabled:opacity-50"
           >
             <X className="h-6 w-6" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Service Summary */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h3 className="font-semibold text-gray-900 mb-3">Service Summary</h3>
-            {cart.map((item, index) => (
-              <div key={index} className="flex justify-between items-center py-2">
-                <span className="text-gray-700">{item.name} (x{item.quantity})</span>
-                <span className="font-semibold">${(item.price * item.quantity).toFixed(2)}</span>
+        <div className="overflow-y-auto max-h-[calc(95vh-120px)]">
+          <form onSubmit={handleSubmit} className="p-6 space-y-8">
+            {/* Service Summary */}
+            <div className="bg-gradient-to-br from-slate-50 to-blue-50 border border-blue-200 rounded-xl p-6">
+              <h3 className="font-bold text-gray-900 mb-4 flex items-center">
+                <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
+                Service Summary
+              </h3>
+              <div className="space-y-3">
+                {cart.map((item, index) => (
+                  <div key={index} className="flex justify-between items-center py-2 border-b border-blue-100 last:border-b-0">
+                    <div>
+                      <span className="font-medium text-gray-800">{item.name}</span>
+                      <span className="text-gray-600 ml-2">(x{item.quantity})</span>
+                    </div>
+                    <span className="font-semibold text-blue-600">${(item.price * item.quantity).toFixed(2)}</span>
+                  </div>
+                ))}
+                <div className="border-t-2 border-blue-200 pt-3 mt-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-lg font-bold text-gray-900">Total Amount:</span>
+                    <span className="text-2xl font-bold text-blue-600">${total.toFixed(2)}</span>
+                  </div>
+                  <p className="text-sm text-gray-600 mt-2 bg-yellow-50 border border-yellow-200 rounded-lg p-2">
+                    💳 Payment will be collected by our technician upon service completion
+                  </p>
+                </div>
               </div>
-            ))}
-            <div className="border-t pt-2 mt-2">
-              <div className="flex justify-between items-center font-bold text-lg">
-                <span>Total:</span>
-                <span className="text-blue-600">${total.toFixed(2)}</span>
+            </div>
+
+            {/* Customer Information */}
+            <div className="space-y-6">
+              <h3 className="text-xl font-bold text-gray-900 flex items-center border-b border-gray-200 pb-2">
+                <User className="h-5 w-5 text-blue-600 mr-2" />
+                Contact Information
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <ValidatedInput
+                  id="name"
+                  label="Full Name"
+                  value={formData.name}
+                  onChange={(value) => handleInputChange('name', value)}
+                  onBlur={() => handleBlur('name')}
+                  error={errors.name}
+                  touched={touched.name}
+                  required
+                  autoFormat="name"
+                  placeholder="John Doe"
+                  className="bg-white border-2 border-gray-200 focus:border-blue-500 rounded-lg"
+                />
+                
+                <ValidatedInput
+                  id="email"
+                  label="Email Address"
+                  type="email"
+                  value={formData.email}
+                  onChange={(value) => handleInputChange('email', value)}
+                  onBlur={() => handleBlur('email')}
+                  error={errors.email}
+                  touched={touched.email}
+                  required
+                  placeholder="john@example.com"
+                  className="bg-white border-2 border-gray-200 focus:border-blue-500 rounded-lg"
+                />
+                
+                <ValidatedInput
+                  id="phone"
+                  label="Phone Number"
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(value) => handleInputChange('phone', value)}
+                  onBlur={() => handleBlur('phone')}
+                  error={errors.phone}
+                  touched={touched.phone}
+                  required
+                  autoFormat="phone"
+                  placeholder="(555) 123-4567"
+                  className="bg-white border-2 border-gray-200 focus:border-blue-500 rounded-lg"
+                />
+                
+                <ZipcodeInput
+                  id="zipcode"
+                  label="ZIP Code"
+                  value={formData.zipcode}
+                  onChange={handleZipcodeChange}
+                  onValidation={handleZipcodeValidation}
+                  required
+                  placeholder="12345"
+                  className="bg-white border-2 border-gray-200 focus:border-blue-500 rounded-lg"
+                />
               </div>
-              <p className="text-sm text-gray-600 mt-1">Payment will be collected by the technician</p>
             </div>
-          </div>
 
-          {/* Customer Information */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <ValidatedInput
-              id="name"
-              label="Full Name"
-              value={formData.name}
-              onChange={(value) => handleInputChange('name', value)}
-              onBlur={() => handleBlur('name')}
-              error={errors.name}
-              touched={touched.name}
-              required
-              autoFormat="name"
-              placeholder="John Doe"
-            />
-            
-            <ValidatedInput
-              id="email"
-              label="Email"
-              type="email"
-              value={formData.email}
-              onChange={(value) => handleInputChange('email', value)}
-              onBlur={() => handleBlur('email')}
-              error={errors.email}
-              touched={touched.email}
-              required
-              placeholder="john@example.com"
-            />
-            
-            <ValidatedInput
-              id="phone"
-              label="Phone Number"
-              type="tel"
-              value={formData.phone}
-              onChange={(value) => handleInputChange('phone', value)}
-              onBlur={() => handleBlur('phone')}
-              error={errors.phone}
-              touched={touched.phone}
-              required
-              autoFormat="phone"
-              placeholder="(555) 123-4567"
-            />
-            
-            <ZipcodeInput
-              id="zipcode"
-              label="ZIP Code"
-              value={formData.zipcode}
-              onChange={handleZipcodeChange}
-              onValidation={handleZipcodeValidation}
-              required
-              placeholder="12345"
-            />
-          </div>
+            {/* Service Address */}
+            <div className="space-y-4">
+              <h3 className="text-xl font-bold text-gray-900 flex items-center border-b border-gray-200 pb-2">
+                <MapPin className="h-5 w-5 text-blue-600 mr-2" />
+                Service Location
+              </h3>
+              
+              <ValidatedInput
+                id="address"
+                label="Complete Service Address"
+                value={formData.address}
+                onChange={(value) => handleInputChange('address', value)}
+                onBlur={() => handleBlur('address')}
+                error={errors.address}
+                touched={touched.address}
+                required
+                autoFormat="address"
+                placeholder="123 Main Street, Apartment 4B, City, State"
+                className="bg-white border-2 border-gray-200 focus:border-blue-500 rounded-lg"
+              />
 
-          {/* Service Address */}
-          <ValidatedInput
-            id="address"
-            label="Service Address"
-            value={formData.address}
-            onChange={(value) => handleInputChange('address', value)}
-            onBlur={() => handleBlur('address')}
-            error={errors.address}
-            touched={touched.address}
-            required
-            autoFormat="address"
-            placeholder="123 Main St, City, State"
-          />
-
-          {cityState && (
-            <div className="bg-blue-50 p-3 rounded-lg">
-              <p className="text-sm text-blue-700 flex items-center space-x-2">
-                <MapPin className="h-4 w-4" />
-                <span>Service location: {cityState}</span>
-                {zipcodeValid && <CheckCircle className="h-4 w-4 text-green-600" />}
-              </p>
+              {cityState && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <p className="text-sm text-green-700 flex items-center space-x-2">
+                    <MapPin className="h-4 w-4" />
+                    <span className="font-medium">Service Area Confirmed:</span>
+                    <span>{cityState}</span>
+                    {zipcodeValid && <CheckCircle className="h-4 w-4 text-green-600" />}
+                  </p>
+                </div>
+              )}
             </div>
-          )}
 
-          {/* Scheduling */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="date" className="flex items-center space-x-2 text-sm font-medium after:content-['*'] after:ml-0.5 after:text-destructive">
-                <Clock className="h-4 w-4" />
-                <span>Preferred Date</span>
+            {/* Scheduling */}
+            <div className="space-y-4">
+              <h3 className="text-xl font-bold text-gray-900 flex items-center border-b border-gray-200 pb-2">
+                <Calendar className="h-5 w-5 text-blue-600 mr-2" />
+                Schedule Your Service
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="date" className="flex items-center space-x-2 text-sm font-medium after:content-['*'] after:ml-0.5 after:text-red-500">
+                    <Clock className="h-4 w-4 text-blue-600" />
+                    <span>Preferred Date</span>
+                  </Label>
+                  <Input
+                    id="date"
+                    type="date"
+                    value={formData.date}
+                    onChange={(e) => handleInputChange('date', e.target.value)}
+                    onBlur={() => handleBlur('date')}
+                    min={new Date().toISOString().split('T')[0]}
+                    required
+                    className={`bg-white border-2 rounded-lg ${hasError('date') ? "border-red-500" : "border-gray-200 focus:border-blue-500"}`}
+                  />
+                  {hasError('date') && (
+                    <p className="text-sm text-red-500">{errors.date}</p>
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="time" className="text-sm font-medium after:content-['*'] after:ml-0.5 after:text-red-500">
+                    Preferred Time
+                  </Label>
+                  <Input
+                    id="time"
+                    type="time"
+                    value={formData.time}
+                    onChange={(e) => handleInputChange('time', e.target.value)}
+                    onBlur={() => handleBlur('time')}
+                    required
+                    className={`bg-white border-2 rounded-lg ${hasError('time') ? "border-red-500" : "border-gray-200 focus:border-blue-500"}`}
+                  />
+                  {hasError('time') && (
+                    <p className="text-sm text-red-500">{errors.time}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Special Instructions */}
+            <div className="space-y-4">
+              <Label htmlFor="specialInstructions" className="text-lg font-bold text-gray-900">
+                Special Instructions (Optional)
               </Label>
-              <Input
-                id="date"
-                type="date"
-                value={formData.date}
-                onChange={(e) => handleInputChange('date', e.target.value)}
-                onBlur={() => handleBlur('date')}
-                min={new Date().toISOString().split('T')[0]}
-                required
-                className={hasError('date') ? "border-destructive" : ""}
+              <Textarea
+                id="specialInstructions"
+                value={formData.specialInstructions}
+                onChange={(e) => handleInputChange('specialInstructions', e.target.value)}
+                placeholder="Any special instructions, access codes, or additional details for our technician..."
+                rows={4}
+                className="bg-white border-2 border-gray-200 focus:border-blue-500 rounded-lg resize-none"
               />
-              {hasError('date') && (
-                <p className="text-sm text-destructive">{errors.date}</p>
-              )}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="time" className="text-sm font-medium after:content-['*'] after:ml-0.5 after:text-destructive">Preferred Time</Label>
-              <Input
-                id="time"
-                type="time"
-                value={formData.time}
-                onChange={(e) => handleInputChange('time', e.target.value)}
-                onBlur={() => handleBlur('time')}
-                required
-                className={hasError('time') ? "border-destructive" : ""}
-              />
-              {hasError('time') && (
-                <p className="text-sm text-destructive">{errors.time}</p>
-              )}
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-gray-200">
+              <Button
+                type="submit"
+                disabled={isProcessing || !zipcodeValid}
+                className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 text-lg font-semibold rounded-lg shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isProcessing ? (
+                  <div className="flex items-center justify-center space-x-2">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    <span>Processing...</span>
+                  </div>
+                ) : (
+                  'Confirm Booking'
+                )}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleClose}
+                className="px-8 py-3 text-lg font-semibold border-2 border-gray-300 hover:border-gray-400 rounded-lg transition-colors"
+                disabled={isProcessing}
+              >
+                Cancel
+              </Button>
             </div>
-          </div>
-
-          {/* Special Instructions */}
-          <div className="space-y-2">
-            <Label htmlFor="specialInstructions" className="text-sm font-medium">Special Instructions</Label>
-            <Textarea
-              id="specialInstructions"
-              value={formData.specialInstructions}
-              onChange={(e) => handleInputChange('specialInstructions', e.target.value)}
-              placeholder="Any special instructions for our technician..."
-              rows={3}
-            />
-          </div>
-
-          <div className="flex space-x-4 pt-4">
-            <Button
-              type="submit"
-              disabled={isProcessing || !zipcodeValid}
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              {isProcessing ? 'Processing...' : 'Book Service'}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleClose}
-              className="px-8"
-              disabled={isProcessing}
-            >
-              Cancel
-            </Button>
-          </div>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
   );
