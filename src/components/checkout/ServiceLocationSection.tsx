@@ -2,7 +2,7 @@
 import React from 'react';
 import { MapPin } from 'lucide-react';
 import { Label } from '@/components/ui/label';
-import { ValidatedInput } from '@/components/ui/ValidatedInput';
+import { Input } from '@/components/ui/input';
 
 interface ServiceLocationSectionProps {
   formData: {
@@ -34,19 +34,17 @@ export const ServiceLocationSection = ({
           <span>Complete Service Address</span>
           <span className="text-red-500">*</span>
         </Label>
-        <ValidatedInput
+        <Input
           id="address"
-          label=""
           value={formData.address}
-          onChange={(value) => onInputChange('address', value)}
+          onChange={(e) => onInputChange('address', e.target.value)}
           onBlur={() => onBlur('address')}
-          error={errors.address}
-          touched={touched.address}
-          required
-          autoFormat="address"
           placeholder="123 Main Street, Apartment 4B, City, State"
           className="h-12 bg-white border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
         />
+        {errors.address && touched.address && (
+          <p className="text-sm text-red-600">{errors.address}</p>
+        )}
       </div>
     </div>
   );
