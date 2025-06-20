@@ -26,7 +26,7 @@ export const useServicesData = () => {
         .from('services')
         .select('id, name, description, base_price, duration_minutes, is_active, created_at, image_url')
         .eq('is_active', true)
-        .order('created_at', { ascending: false });
+        .order('name', { ascending: true }); // Changed to order by name alphabetically
 
       if (error) throw error;
       
