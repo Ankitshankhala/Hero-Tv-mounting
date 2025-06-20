@@ -45,18 +45,27 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ open, onClose,
   const calculatePrice = () => {
     let totalPrice = calculateTvMountingPrice(numberOfTvs);
 
+    console.log('Base TV mounting price:', totalPrice);
+
     if (over65 && over65Service) {
-      totalPrice += over65Service.base_price * numberOfTvs;
+      const over65Cost = over65Service.base_price * numberOfTvs;
+      totalPrice += over65Cost;
+      console.log('Adding Over 65" cost:', over65Cost, 'New total:', totalPrice);
     }
     
     if (frameMount && frameMountService) {
-      totalPrice += frameMountService.base_price * numberOfTvs;
+      const frameMountCost = frameMountService.base_price * numberOfTvs;
+      totalPrice += frameMountCost;
+      console.log('Adding Frame Mount cost:', frameMountCost, 'New total:', totalPrice);
     }
     
     if (wallType !== 'standard' && stoneWallService) {
-      totalPrice += stoneWallService.base_price * numberOfTvs;
+      const wallCost = stoneWallService.base_price * numberOfTvs;
+      totalPrice += wallCost;
+      console.log('Adding Wall type cost:', wallCost, 'New total:', totalPrice);
     }
 
+    console.log('Final calculated price:', totalPrice);
     return totalPrice;
   };
 
