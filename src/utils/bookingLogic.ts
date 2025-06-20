@@ -1,6 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { validateUSZipcode, isZipcodeInServiceArea } from '@/utils/zipcodeValidation';
 
 export interface BookingData {
   customer_id: string;
@@ -8,6 +8,7 @@ export interface BookingData {
   scheduled_date: string;
   scheduled_start: string;
   location_notes?: string;
+  customer_zipcode?: string; // Add zipcode for validation
 }
 
 export interface WorkerAssignment {
@@ -29,6 +30,19 @@ export const createBookingWithWorkerAssignment = async (
   bookingData: BookingData
 ): Promise<CreateBookingResult> => {
   try {
+    // Validate zipcode if provided
+    if (bookingData.customer_zipcode) {
+      const zipcodeValidation = await validateUSZipcode(bookingData.customer_zipcode);
+      if (!zipcodeValidation) {
+        return {
+          booking_id: '',
+          assigned_workers: [],
+          status: 'error',
+          message: 'Invalid zipcode provided. Please enter a valid US zipcode.'
+        };
+      }
+    }
+
     // Step 1: Create the booking
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')

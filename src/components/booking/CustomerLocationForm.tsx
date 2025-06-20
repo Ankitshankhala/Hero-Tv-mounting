@@ -6,8 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
-import { useZipcodeSearch } from '@/hooks/useZipcodeSearch';
+import { ZipcodeInput } from '@/components/ui/ZipcodeInput';
 
 interface BookingData {
   address: string;
@@ -28,18 +27,17 @@ interface CustomerLocationFormProps {
 }
 
 export const CustomerLocationForm = ({ bookingData, onUpdateBookingData, onBack, onContinue }: CustomerLocationFormProps) => {
-  const { searchZipcode, isLoading, error } = useZipcodeSearch({
-    onLocationFound: (city: string, region: string) => {
-      onUpdateBookingData({ city, region });
-    }
-  });
-
-  const handleZipcodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const zipcode = e.target.value;
+  const handleZipcodeChange = (zipcode: string, cityState?: string) => {
     onUpdateBookingData({ zipcode });
     
-    // Trigger zipcode lookup
-    searchZipcode(zipcode);
+    // Auto-fill city and region if zipcode validation provides it
+    if (cityState) {
+      const [city, state] = cityState.split(', ');
+      onUpdateBookingData({ 
+        city: city || bookingData.city,
+        region: bookingData.region || 'downtown' // Default region
+      });
+    }
   };
 
   const isFormValid = 
@@ -113,25 +111,16 @@ export const CustomerLocationForm = ({ bookingData, onUpdateBookingData, onBack,
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="zipcode" className="text-white">Zipcode *</Label>
-              <div className="relative">
-                <Input
-                  id="zipcode"
-                  value={bookingData.zipcode}
-                  onChange={handleZipcodeChange}
-                  placeholder="12345"
-                  className="bg-slate-700 border-slate-600 text-white"
-                  maxLength={5}
-                />
-                {isLoading && (
-                  <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-slate-400" />
-                )}
-              </div>
-              {error && (
-                <p className="text-red-400 text-sm mt-1">{error}</p>
-              )}
-              <p className="text-slate-400 text-xs mt-1">City will auto-fill when you enter a valid zipcode</p>
+            <div className="md:col-span-1">
+              <ZipcodeInput
+                id="zipcode"
+                label="Zipcode"
+                value={bookingData.zipcode}
+                onChange={handleZipcodeChange}
+                required
+                placeholder="12345"
+                className="[&_label]:text-white [&_input]:bg-slate-700 [&_input]:border-slate-600 [&_input]:text-white"
+              />
             </div>
             <div>
               <Label htmlFor="city" className="text-white">City *</Label>
