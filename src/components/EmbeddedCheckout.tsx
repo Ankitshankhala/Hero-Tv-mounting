@@ -1,14 +1,20 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { X, MapPin, Clock, User, Mail, Phone, CheckCircle, Calendar } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { X, MapPin, Clock, User, Mail, Phone, CheckCircle, Calendar as CalendarIcon, Users, Sparkles } from 'lucide-react';
 import { ValidatedInput } from '@/components/ui/ValidatedInput';
 import { ZipcodeInput } from '@/components/ui/ZipcodeInput';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { useBookingLogic } from '@/hooks/useBookingLogic';
 import { useToast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
 import type { CartItem } from '@/types';
 
 interface EmbeddedCheckoutProps {
@@ -29,11 +35,20 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
     time: '',
     specialInstructions: ''
   });
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>();
+  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+  const [blockedSlots, setBlockedSlots] = useState<string[]>([]);
+  const [workerCount, setWorkerCount] = useState<number>(0);
+  const [loading, setLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [zipcodeValid, setZipcodeValid] = useState(false);
   const [cityState, setCityState] = useState('');
   const { toast } = useToast();
   const { createBooking } = useBookingLogic();
+
+  const timeSlots = [
+    '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'
+  ];
 
   const validationRules = {
     name: { required: true, type: 'name' as const, minLength: 2, maxLength: 50 },
@@ -46,6 +61,72 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
   };
 
   const { errors, touched, validateField, validateAllFields, markFieldAsTouched, hasError } = useFormValidation(validationRules);
+
+  const fetchWorkerAvailability = async (date: Date, zipcode: string) => {
+    if (!zipcode || !date) return;
+    
+    setLoading(true);
+    try {
+      const dateStr = format(date, 'yyyy-MM-dd');
+      
+      // Fetch existing bookings for the selected date and zipcode area
+      const { data: bookings, error } = await supabase
+        .from('bookings')
+        .select(`
+          scheduled_start,
+          worker_bookings!inner(
+            worker_id,
+            users!inner(zip_code)
+          )
+        `)
+        .eq('scheduled_date', dateStr)
+        .eq('status', 'confirmed');
+
+      if (error) {
+        console.error('Error fetching bookings:', error);
+        return;
+      }
+
+      // Filter bookings by zipcode proximity (first 3 digits)
+      const zipcodePrefix = zipcode.substring(0, 3);
+      const relevantBookings = bookings?.filter(booking => {
+        const workerZipcode = booking.worker_bookings?.[0]?.users?.zip_code;
+        return workerZipcode && workerZipcode.substring(0, 3) === zipcodePrefix;
+      }) || [];
+
+      // Count available workers in the area
+      const { data: workers, error: workerError } = await supabase
+        .from('users')
+        .select('id, zip_code')
+        .eq('role', 'worker')
+        .eq('is_active', true);
+
+      if (!workerError) {
+        const availableWorkers = workers?.filter(worker => 
+          worker.zip_code && worker.zip_code.substring(0, 3) === zipcodePrefix
+        ) || [];
+        setWorkerCount(availableWorkers.length);
+      }
+
+      // Extract blocked time slots
+      const blocked = relevantBookings.map(booking => 
+        booking.scheduled_start.substring(0, 5)
+      );
+
+      setBlockedSlots(blocked);
+      setAvailableSlots(timeSlots.filter(slot => !blocked.includes(slot)));
+    } catch (error) {
+      console.error('Error fetching worker availability:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedDate && formData.zipcode) {
+      fetchWorkerAvailability(selectedDate, formData.zipcode);
+    }
+  }, [selectedDate, formData.zipcode]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -101,9 +182,9 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
       return;
     }
 
-    const selectedDate = new Date(`${formData.date}T${formData.time}:00`);
+    const selectedDateTime = new Date(`${formData.date}T${formData.time}:00`);
     const now = new Date();
-    if (selectedDate <= now) {
+    if (selectedDateTime <= now) {
       toast({
         title: "Invalid Date",
         description: "Please select a future date and time",
@@ -164,254 +245,345 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl w-full max-w-4xl max-h-[95vh] overflow-hidden shadow-2xl">
-        {/* Header */}
-        <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 flex justify-between items-center">
-          <div>
-            <h2 className="text-2xl font-bold">Book Your Service</h2>
-            <p className="text-blue-100 mt-1">Complete your booking in just a few steps</p>
-          </div>
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl w-full max-w-5xl max-h-[95vh] overflow-hidden shadow-2xl border border-gray-100">
+        {/* Enhanced Header */}
+        <div className="relative bg-gradient-to-br from-indigo-600 via-blue-600 to-purple-700 text-white px-8 py-6 rounded-t-2xl">
           <button
             onClick={handleClose}
             disabled={isProcessing}
-            className="text-white/80 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-lg disabled:opacity-50"
+            className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-lg transition-all duration-200 disabled:opacity-50"
           >
-            <X className="h-6 w-6" />
+            <X className="h-5 w-5" />
           </button>
+          
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+              <Sparkles className="h-7 w-7" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold mb-1">Book Your Service</h2>
+              <p className="text-blue-100 text-sm">Complete your booking in just a few steps</p>
+            </div>
+          </div>
         </div>
 
         <div className="overflow-y-auto max-h-[calc(95vh-120px)]">
-          <form onSubmit={handleSubmit} className="p-6 space-y-8">
-            {/* Service Summary */}
-            <div className="bg-gradient-to-br from-slate-50 to-blue-50 border border-blue-200 rounded-xl p-6">
-              <h3 className="font-bold text-gray-900 mb-4 flex items-center">
-                <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
+          <form onSubmit={handleSubmit} className="p-8 space-y-8">
+            {/* Enhanced Service Summary */}
+            <div className="bg-gradient-to-r from-emerald-50 to-green-50 border-2 border-emerald-200 rounded-2xl p-6 shadow-sm">
+              <h3 className="font-bold text-emerald-800 mb-4 flex items-center text-lg">
+                <CheckCircle className="h-6 w-6 text-emerald-600 mr-3" />
                 Service Summary
               </h3>
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {cart.map((item, index) => (
-                  <div key={index} className="flex justify-between items-center py-2 border-b border-blue-100 last:border-b-0">
-                    <div>
+                  <div key={index} className="flex justify-between items-center p-4 bg-white rounded-xl shadow-sm border border-emerald-100">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
                       <span className="font-medium text-gray-800">{item.name}</span>
-                      <span className="text-gray-600 ml-2">(x{item.quantity})</span>
+                      <span className="text-emerald-600 text-sm font-medium">×{item.quantity}</span>
                     </div>
-                    <span className="font-semibold text-blue-600">${(item.price * item.quantity).toFixed(2)}</span>
+                    <span className="font-bold text-emerald-700 text-lg">${(item.price * item.quantity).toFixed(2)}</span>
                   </div>
                 ))}
-                <div className="border-t-2 border-blue-200 pt-3 mt-4">
+                <div className="border-t-2 border-emerald-200 pt-4 mt-4">
                   <div className="flex justify-between items-center">
-                    <span className="text-lg font-bold text-gray-900">Total Amount:</span>
-                    <span className="text-2xl font-bold text-blue-600">${total.toFixed(2)}</span>
+                    <span className="text-xl font-bold text-gray-900">Total Amount:</span>
+                    <span className="text-2xl font-bold text-emerald-700">${total.toFixed(2)}</span>
                   </div>
-                  <p className="text-sm text-gray-600 mt-2 bg-yellow-50 border border-yellow-200 rounded-lg p-2">
+                  <p className="text-sm text-emerald-600 mt-3 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
                     💳 Payment will be collected by our technician upon service completion
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Contact Information */}
-            <div className="space-y-6">
-              <h3 className="text-xl font-bold text-gray-900 flex items-center border-b border-gray-200 pb-3">
-                <User className="h-6 w-6 text-blue-600 mr-3" />
+            {/* Enhanced Contact Information */}
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl p-6 shadow-sm">
+              <h3 className="text-xl font-bold text-blue-800 flex items-center mb-6">
+                <div className="p-2 bg-blue-100 rounded-lg mr-3">
+                  <User className="h-6 w-6 text-blue-600" />
+                </div>
                 Contact Information
               </h3>
               
-              <div className="bg-white border-2 border-gray-100 rounded-xl p-6 space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="name" className="flex items-center text-sm font-medium text-gray-700 after:content-['*'] after:ml-0.5 after:text-red-500">
-                      <User className="h-4 w-4 text-blue-600 mr-2" />
-                      Full Name
-                    </Label>
-                    <ValidatedInput
-                      id="name"
-                      label=""
-                      value={formData.name}
-                      onChange={(value) => handleInputChange('name', value)}
-                      onBlur={() => handleBlur('name')}
-                      error={errors.name}
-                      touched={touched.name}
-                      required
-                      autoFormat="name"
-                      placeholder="Enter your full name"
-                      className="border-2 border-gray-200 focus:border-blue-500 rounded-lg h-12"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="email" className="flex items-center text-sm font-medium text-gray-700 after:content-['*'] after:ml-0.5 after:text-red-500">
-                      <Mail className="h-4 w-4 text-blue-600 mr-2" />
-                      Email Address
-                    </Label>
-                    <ValidatedInput
-                      id="email"
-                      label=""
-                      type="email"
-                      value={formData.email}
-                      onChange={(value) => handleInputChange('email', value)}
-                      onBlur={() => handleBlur('email')}
-                      error={errors.email}
-                      touched={touched.email}
-                      required
-                      placeholder="your.email@example.com"
-                      className="border-2 border-gray-200 focus:border-blue-500 rounded-lg h-12"
-                    />
-                  </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-3">
+                  <Label htmlFor="name" className="text-base font-semibold text-gray-700 flex items-center space-x-2">
+                    <User className="h-4 w-4 text-blue-600" />
+                    <span>Full Name</span>
+                    <span className="text-red-500">*</span>
+                  </Label>
+                  <ValidatedInput
+                    id="name"
+                    label=""
+                    value={formData.name}
+                    onChange={(value) => handleInputChange('name', value)}
+                    onBlur={() => handleBlur('name')}
+                    error={errors.name}
+                    touched={touched.name}
+                    required
+                    autoFormat="name"
+                    placeholder="Enter your full name"
+                    className="h-12 border-2 border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 rounded-lg bg-white/80 transition-all duration-200"
+                  />
+                </div>
+                
+                <div className="space-y-3">
+                  <Label htmlFor="email" className="text-base font-semibold text-gray-700 flex items-center space-x-2">
+                    <Mail className="h-4 w-4 text-blue-600" />
+                    <span>Email Address</span>
+                    <span className="text-red-500">*</span>
+                  </Label>
+                  <ValidatedInput
+                    id="email"
+                    label=""
+                    type="email"
+                    value={formData.email}
+                    onChange={(value) => handleInputChange('email', value)}
+                    onBlur={() => handleBlur('email')}
+                    error={errors.email}
+                    touched={touched.email}
+                    required
+                    placeholder="your.email@example.com"
+                    className="h-12 border-2 border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 rounded-lg bg-white/80 transition-all duration-200"
+                  />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="phone" className="flex items-center text-sm font-medium text-gray-700 after:content-['*'] after:ml-0.5 after:text-red-500">
-                      <Phone className="h-4 w-4 text-blue-600 mr-2" />
-                      Phone Number
-                    </Label>
-                    <ValidatedInput
-                      id="phone"
-                      label=""
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(value) => handleInputChange('phone', value)}
-                      onBlur={() => handleBlur('phone')}
-                      error={errors.phone}
-                      touched={touched.phone}
-                      required
-                      autoFormat="phone"
-                      placeholder="(555) 123-4567"
-                      className="border-2 border-gray-200 focus:border-blue-500 rounded-lg h-12"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="zipcode" className="flex items-center text-sm font-medium text-gray-700 after:content-['*'] after:ml-0.5 after:text-red-500">
-                      <MapPin className="h-4 w-4 text-blue-600 mr-2" />
-                      ZIP Code
-                    </Label>
-                    <ZipcodeInput
-                      id="zipcode"
-                      label=""
-                      value={formData.zipcode}
-                      onChange={handleZipcodeChange}
-                      onValidation={handleZipcodeValidation}
-                      required
-                      placeholder="Enter 5-digit ZIP code"
-                      className="[&_input]:border-2 [&_input]:border-gray-200 [&_input]:focus:border-blue-500 [&_input]:rounded-lg [&_input]:h-12"
-                    />
-                  </div>
+                <div className="space-y-3">
+                  <Label htmlFor="phone" className="text-base font-semibold text-gray-700 flex items-center space-x-2">
+                    <Phone className="h-4 w-4 text-blue-600" />
+                    <span>Phone Number</span>
+                    <span className="text-red-500">*</span>
+                  </Label>
+                  <ValidatedInput
+                    id="phone"
+                    label=""
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(value) => handleInputChange('phone', value)}
+                    onBlur={() => handleBlur('phone')}
+                    error={errors.phone}
+                    touched={touched.phone}
+                    required
+                    autoFormat="phone"
+                    placeholder="(555) 123-4567"
+                    className="h-12 border-2 border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 rounded-lg bg-white/80 transition-all duration-200"
+                  />
                 </div>
-
-                {cityState && zipcodeValid && (
-                  <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4 mt-4">
-                    <p className="text-sm text-green-700 flex items-center space-x-2">
-                      <CheckCircle className="h-5 w-5 text-green-600" />
-                      <span className="font-semibold">Service Area Confirmed:</span>
-                      <span className="font-medium">{cityState}</span>
-                    </p>
-                  </div>
-                )}
+                
+                <div className="space-y-3">
+                  <Label htmlFor="zipcode" className="text-base font-semibold text-gray-700 flex items-center space-x-2">
+                    <MapPin className="h-4 w-4 text-blue-600" />
+                    <span>ZIP Code</span>
+                    <span className="text-red-500">*</span>
+                  </Label>
+                  <ZipcodeInput
+                    id="zipcode"
+                    label=""
+                    value={formData.zipcode}
+                    onChange={handleZipcodeChange}
+                    onValidation={handleZipcodeValidation}
+                    required
+                    placeholder="Enter 5-digit ZIP code"
+                    className="[&_input]:h-12 [&_input]:border-2 [&_input]:border-gray-200 [&_input]:focus:border-blue-500 [&_input]:focus:ring-blue-500/20 [&_input]:rounded-lg [&_input]:bg-white/80"
+                  />
+                </div>
               </div>
+
+              {cityState && zipcodeValid && (
+                <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4 mt-6">
+                  <p className="text-sm text-green-700 flex items-center space-x-2">
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                    <span className="font-semibold">Service Area Confirmed:</span>
+                    <span className="font-medium">{cityState}</span>
+                  </p>
+                </div>
+              )}
             </div>
 
-            {/* Service Address */}
-            <div className="space-y-4">
-              <h3 className="text-xl font-bold text-gray-900 flex items-center border-b border-gray-200 pb-3">
-                <MapPin className="h-6 w-6 text-blue-600 mr-3" />
+            {/* Enhanced Service Address */}
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-2xl p-6 shadow-sm">
+              <h3 className="text-xl font-bold text-green-800 flex items-center mb-6">
+                <div className="p-2 bg-green-100 rounded-lg mr-3">
+                  <MapPin className="h-6 w-6 text-green-600" />
+                </div>
                 Service Location
               </h3>
               
-              <div className="bg-white border-2 border-gray-100 rounded-xl p-6">
-                <div className="space-y-2">
-                  <Label htmlFor="address" className="flex items-center text-sm font-medium text-gray-700 after:content-['*'] after:ml-0.5 after:text-red-500">
-                    <MapPin className="h-4 w-4 text-blue-600 mr-2" />
-                    Complete Service Address
-                  </Label>
-                  <ValidatedInput
-                    id="address"
-                    label=""
-                    value={formData.address}
-                    onChange={(value) => handleInputChange('address', value)}
-                    onBlur={() => handleBlur('address')}
-                    error={errors.address}
-                    touched={touched.address}
-                    required
-                    autoFormat="address"
-                    placeholder="123 Main Street, Apartment 4B, City, State"
-                    className="border-2 border-gray-200 focus:border-blue-500 rounded-lg h-12"
-                  />
-                </div>
+              <div className="space-y-3">
+                <Label htmlFor="address" className="text-base font-semibold text-gray-700 flex items-center space-x-2">
+                  <MapPin className="h-4 w-4 text-green-600" />
+                  <span>Complete Service Address</span>
+                  <span className="text-red-500">*</span>
+                </Label>
+                <ValidatedInput
+                  id="address"
+                  label=""
+                  value={formData.address}
+                  onChange={(value) => handleInputChange('address', value)}
+                  onBlur={() => handleBlur('address')}
+                  error={errors.address}
+                  touched={touched.address}
+                  required
+                  autoFormat="address"
+                  placeholder="123 Main Street, Apartment 4B, City, State"
+                  className="h-12 border-2 border-gray-200 focus:border-green-500 focus:ring-green-500/20 rounded-lg bg-white/80 transition-all duration-200"
+                />
               </div>
             </div>
 
-            {/* Scheduling */}
-            <div className="space-y-4">
-              <h3 className="text-xl font-bold text-gray-900 flex items-center border-b border-gray-200 pb-2">
-                <Calendar className="h-5 w-5 text-blue-600 mr-2" />
-                Schedule Your Service
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="date" className="flex items-center space-x-2 text-sm font-medium after:content-['*'] after:ml-0.5 after:text-red-500">
-                    <Clock className="h-4 w-4 text-blue-600" />
-                    <span>Preferred Date</span>
+            {/* Google Calendar Style Schedule Service */}
+            <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-2xl p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-purple-800 flex items-center">
+                  <div className="p-2 bg-purple-100 rounded-lg mr-3">
+                    <CalendarIcon className="h-6 w-6 text-purple-600" />
+                  </div>
+                  Schedule Your Service
+                </h3>
+                {workerCount > 0 && (
+                  <div className="flex items-center space-x-2 text-sm bg-purple-100 text-purple-700 px-4 py-2 rounded-full">
+                    <Users className="h-4 w-4" />
+                    <span>{workerCount} workers available</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Calendar Section */}
+                <div className="space-y-4">
+                  <Label className="text-base font-semibold text-gray-700 flex items-center space-x-2">
+                    <CalendarIcon className="h-4 w-4 text-purple-600" />
+                    <span>Select Date</span>
+                    <span className="text-red-500">*</span>
                   </Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    value={formData.date}
-                    onChange={(e) => handleInputChange('date', e.target.value)}
-                    onBlur={() => handleBlur('date')}
-                    min={new Date().toISOString().split('T')[0]}
-                    required
-                    className={`bg-white border-2 rounded-lg ${hasError('date') ? "border-red-500" : "border-gray-200 focus:border-blue-500"}`}
-                  />
-                  {hasError('date') && (
-                    <p className="text-sm text-red-500">{errors.date}</p>
-                  )}
+                  <div className="border-2 border-gray-200 rounded-xl p-4 bg-white/60">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={(date) => {
+                        setSelectedDate(date);
+                        setFormData(prev => ({ ...prev, date: date ? format(date, 'yyyy-MM-dd') : '' }));
+                      }}
+                      disabled={(date) => date < new Date()}
+                      className="w-full"
+                      classNames={{
+                        months: "flex w-full flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+                        month: "space-y-4 w-full flex flex-col",
+                        caption: "flex justify-center pt-1 relative items-center",
+                        caption_label: "text-sm font-medium",
+                        table: "w-full border-collapse space-y-1",
+                        head_row: "flex w-full",
+                        head_cell: "text-muted-foreground rounded-md w-8 font-normal text-[0.8rem] flex-1 text-center",
+                        row: "flex w-full mt-2",
+                        cell: "relative p-0 text-center text-sm focus-within:relative focus-within:z-20 flex-1",
+                        day: "h-8 w-8 p-0 font-normal aria-selected:opacity-100 mx-auto hover:bg-purple-100 rounded-md transition-colors",
+                        day_selected: "bg-purple-600 text-purple-foreground hover:bg-purple-600 hover:text-purple-foreground focus:bg-purple-600 focus:text-purple-foreground",
+                        day_today: "bg-purple-100 text-purple-900 font-semibold",
+                        day_outside: "text-muted-foreground opacity-50",
+                        day_disabled: "text-muted-foreground opacity-50 cursor-not-allowed",
+                      }}
+                    />
+                  </div>
                 </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="time" className="text-sm font-medium after:content-['*'] after:ml-0.5 after:text-red-500">
-                    Preferred Time
+
+                {/* Time Slots Section - Google Calendar Style */}
+                <div className="space-y-4">
+                  <Label className="text-base font-semibold text-gray-700 flex items-center space-x-2">
+                    <Clock className="h-4 w-4 text-purple-600" />
+                    <span>Available Time Slots</span>
+                    <span className="text-red-500">*</span>
                   </Label>
-                  <Input
-                    id="time"
-                    type="time"
-                    value={formData.time}
-                    onChange={(e) => handleInputChange('time', e.target.value)}
-                    onBlur={() => handleBlur('time')}
-                    required
-                    className={`bg-white border-2 rounded-lg ${hasError('time') ? "border-red-500" : "border-gray-200 focus:border-blue-500"}`}
-                  />
-                  {hasError('time') && (
-                    <p className="text-sm text-red-500">{errors.time}</p>
-                  )}
+                  
+                  <div className="border-2 border-gray-200 rounded-xl bg-white/60 p-4">
+                    {!selectedDate ? (
+                      <div className="text-center py-8 text-gray-500">
+                        <CalendarIcon className="h-12 w-12 mx-auto text-gray-300 mb-3" />
+                        <p>Please select a date first</p>
+                      </div>
+                    ) : loading ? (
+                      <div className="text-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-3"></div>
+                        <p className="text-gray-500">Loading availability...</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="text-sm text-gray-600 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                            <span>Available</span>
+                            <div className="w-3 h-3 bg-red-500 rounded-full ml-4"></div>
+                            <span>Booked</span>
+                          </div>
+                          <p className="text-xs text-gray-500">Times shown are based on worker availability in your area (ZIP: {formData.zipcode})</p>
+                        </div>
+                        
+                        <div className="grid grid-cols-3 gap-3 max-h-64 overflow-y-auto">
+                          {timeSlots.map((time) => {
+                            const isBlocked = blockedSlots.includes(time);
+                            const isSelected = formData.time === time;
+                            
+                            return (
+                              <Button
+                                key={time}
+                                type="button"
+                                variant={isSelected ? "default" : "outline"}
+                                size="sm"
+                                disabled={isBlocked}
+                                onClick={() => setFormData(prev => ({ ...prev, time }))}
+                                className={cn(
+                                  "h-12 text-sm font-medium transition-all duration-200 relative",
+                                  isBlocked && "bg-red-50 text-red-600 border-red-200 cursor-not-allowed hover:bg-red-50",
+                                  isSelected && "bg-purple-600 text-white border-purple-600 shadow-md",
+                                  !isBlocked && !isSelected && "hover:bg-purple-50 hover:border-purple-300 bg-white border-gray-200"
+                                )}
+                              >
+                                <div className="flex items-center space-x-2">
+                                  <div className={cn(
+                                    "w-2 h-2 rounded-full",
+                                    isBlocked ? "bg-red-500" : "bg-green-500"
+                                  )} />
+                                  <span>{time}</span>
+                                </div>
+                                {isBlocked && (
+                                  <div className="absolute inset-0 bg-red-100/50 rounded flex items-center justify-center">
+                                    <span className="text-xs font-medium text-red-700">Busy</span>
+                                  </div>
+                                )}
+                              </Button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* Special Instructions */}
-            <div className="space-y-4">
-              <Label htmlFor="specialInstructions" className="text-lg font-bold text-gray-900">
+            <div className="bg-gradient-to-r from-gray-50 to-slate-50 border-2 border-gray-200 rounded-2xl p-6 shadow-sm">
+              <Label htmlFor="specialInstructions" className="text-lg font-bold text-gray-800 mb-4 block">
                 Special Instructions (Optional)
               </Label>
               <Textarea
                 id="specialInstructions"
                 value={formData.specialInstructions}
                 onChange={(e) => handleInputChange('specialInstructions', e.target.value)}
-                placeholder="Any special instructions, access codes, or additional details for our technician..."
+                placeholder="Any special instructions, access codes, parking info, or specific requests..."
+                className="min-h-[100px] border-2 border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 rounded-lg resize-none bg-white/80 transition-all duration-200"
                 rows={4}
-                className="bg-white border-2 border-gray-200 focus:border-blue-500 rounded-lg resize-none"
               />
             </div>
 
             {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-gray-200">
+            <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t-2 border-gray-200">
               <Button
                 type="submit"
-                disabled={isProcessing || !zipcodeValid}
-                className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 text-lg font-semibold rounded-lg shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isProcessing || !zipcodeValid || !selectedDate || !formData.time}
+                className="flex-1 h-14 text-lg font-bold bg-gradient-to-r from-indigo-600 via-blue-600 to-purple-600 hover:from-indigo-700 hover:via-blue-700 hover:to-purple-700 text-white rounded-xl shadow-xl hover:shadow-2xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] disabled:transform-none"
               >
                 {isProcessing ? (
                   <div className="flex items-center justify-center space-x-2">
@@ -419,14 +591,14 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
                     <span>Processing...</span>
                   </div>
                 ) : (
-                  'Confirm Booking'
+                  `Confirm Booking - $${total.toFixed(2)}`
                 )}
               </Button>
               <Button
                 type="button"
                 variant="outline"
                 onClick={handleClose}
-                className="px-8 py-3 text-lg font-semibold border-2 border-gray-300 hover:border-gray-400 rounded-lg transition-colors"
+                className="px-8 py-3 text-lg font-semibold border-2 border-gray-300 hover:border-gray-400 rounded-xl transition-colors h-14"
                 disabled={isProcessing}
               >
                 Cancel
