@@ -22,8 +22,8 @@ export const ServiceLocationSection = ({
   onBlur
 }: ServiceLocationSectionProps) => {
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-      <h3 className="text-lg font-semibold text-gray-800 flex items-center mb-6">
+    <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 shadow-sm">
+      <h3 className="text-lg font-semibold text-blue-800 flex items-center mb-6">
         <MapPin className="h-5 w-5 text-blue-600 mr-2" />
         Service Location
       </h3>
