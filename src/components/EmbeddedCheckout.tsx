@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -219,9 +220,9 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
                 Contact Information
               </h3>
               
-              <div className="bg-white border-2 border-gray-100 rounded-xl p-6 space-y-6">
-                {/* First Row: Full Name and Email */}
+              <div className="bg-white border-2 border-gray-100 rounded-xl p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Full Name */}
                   <div className="space-y-2">
                     <Label htmlFor="name" className="flex items-center text-sm font-medium text-gray-700 after:content-['*'] after:ml-0.5 after:text-red-500">
                       <User className="h-4 w-4 text-blue-600 mr-2" />
@@ -242,6 +243,7 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
                     />
                   </div>
                   
+                  {/* Email Address */}
                   <div className="space-y-2">
                     <Label htmlFor="email" className="flex items-center text-sm font-medium text-gray-700 after:content-['*'] after:ml-0.5 after:text-red-500">
                       <Mail className="h-4 w-4 text-blue-600 mr-2" />
@@ -261,10 +263,8 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
                       className="border-2 border-gray-200 focus:border-blue-500 rounded-lg h-12"
                     />
                   </div>
-                </div>
-
-                {/* Second Row: Phone Number and ZIP Code */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  
+                  {/* Phone Number */}
                   <div className="space-y-2">
                     <Label htmlFor="phone" className="flex items-center text-sm font-medium text-gray-700 after:content-['*'] after:ml-0.5 after:text-red-500">
                       <Phone className="h-4 w-4 text-blue-600 mr-2" />
@@ -286,6 +286,7 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
                     />
                   </div>
                   
+                  {/* ZIP Code */}
                   <div className="space-y-2">
                     <Label htmlFor="zipcode" className="flex items-center text-sm font-medium text-gray-700 after:content-['*'] after:ml-0.5 after:text-red-500">
                       <MapPin className="h-4 w-4 text-blue-600 mr-2" />
@@ -305,7 +306,7 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
                 </div>
 
                 {cityState && zipcodeValid && (
-                  <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4 mt-4">
+                  <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4 mt-6">
                     <p className="text-sm text-green-700 flex items-center space-x-2">
                       <CheckCircle className="h-5 w-5 text-green-600" />
                       <span className="font-semibold">Service Area Confirmed:</span>
@@ -441,3 +442,4 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
     </div>
   );
 };
+
