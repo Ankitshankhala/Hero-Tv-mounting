@@ -22,9 +22,24 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ onClose, onAdd
   const frameMountService = services.find(s => s.name === 'Frame Mount Add-on');
   const stoneWallService = services.find(s => s.name === 'Stone/Brick/Tile Wall');
 
+  const calculateTvMountingPrice = (numTvs: number) => {
+    let totalPrice = 0;
+    
+    for (let i = 1; i <= numTvs; i++) {
+      if (i === 1) {
+        totalPrice += 90; // First TV: $90
+      } else if (i === 2) {
+        totalPrice += 60; // Second TV: $60
+      } else {
+        totalPrice += 75; // Third TV and beyond: $75 each
+      }
+    }
+    
+    return totalPrice;
+  };
+
   const calculatePrice = () => {
-    let basePrice = tvMountingService?.base_price || 90;
-    let totalPrice = basePrice * numberOfTvs;
+    let totalPrice = calculateTvMountingPrice(numberOfTvs);
 
     if (over65 && over65Service) {
       totalPrice += over65Service.base_price * numberOfTvs;
@@ -129,6 +144,15 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ onClose, onAdd
               >
                 <Plus className="h-4 w-4" />
               </button>
+            </div>
+            {/* TV pricing breakdown */}
+            <div className="mt-3 text-sm text-slate-400">
+              <div>TV Mounting: ${calculateTvMountingPrice(numberOfTvs)}</div>
+              {numberOfTvs > 1 && (
+                <div className="text-xs mt-1">
+                  1st TV: $90, 2nd TV: $60{numberOfTvs > 2 && `, Additional TVs: $75 each`}
+                </div>
+              )}
             </div>
           </div>
 
