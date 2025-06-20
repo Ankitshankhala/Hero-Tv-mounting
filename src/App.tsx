@@ -9,7 +9,6 @@ import Book from '@/pages/Book';
 import BookingSuccess from '@/pages/BookingSuccess';
 import CustomerDashboard from '@/pages/CustomerDashboard';
 import WorkerDashboard from '@/pages/WorkerDashboard';
-import WorkerApplication from '@/pages/WorkerApplication';
 import Admin from '@/pages/Admin';
 import NotFound from '@/pages/NotFound';
 import WorkerSignup from '@/pages/WorkerSignup';
@@ -28,7 +27,6 @@ function App() {
             <Route path="/booking-success" element={<BookingSuccess />} />
             <Route path="/customer-dashboard" element={<CustomerDashboard />} />
             <Route path="/worker-dashboard" element={<WorkerDashboard />} />
-            <Route path="/worker-application" element={<WorkerApplication />} />
             <Route path="/worker-signup" element={<WorkerSignup />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="*" element={<NotFound />} />
