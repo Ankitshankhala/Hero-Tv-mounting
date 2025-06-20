@@ -50,47 +50,27 @@ export const WorkerApplicationsManager = () => {
           throw new Error('Application not found');
         }
 
-        // Generate a temporary password
-        const tempPassword = `worker${Math.random().toString(36).slice(2, 10)}`;
+        console.log('Creating worker profile for:', application.email);
         
-        console.log('Creating worker account for:', application.email);
-        
-        // Create the user account
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: application.email,
-          password: tempPassword,
-          options: {
-            emailRedirectTo: `${window.location.origin}/worker-dashboard`
-          }
-        });
+        // Create the user profile directly without creating auth account first
+        // The worker will need to sign up normally using their email when they want to log in
+        const { error: userError } = await supabase
+          .from('users')
+          .insert({
+            email: application.email,
+            name: application.name,
+            phone: application.phone,
+            city: application.city,
+            role: 'worker',
+            is_active: true,
+          });
 
-        if (authError) {
-          console.error('Error creating auth user:', authError);
-          throw authError;
+        if (userError) {
+          console.error('Error creating user profile:', userError);
+          throw userError;
         }
 
-        if (authData.user) {
-          // Create the user profile
-          const { error: userError } = await supabase
-            .from('users')
-            .insert({
-              id: authData.user.id,
-              email: application.email,
-              name: application.name,
-              phone: application.phone,
-              city: application.city,
-              region: application.region,
-              role: 'worker',
-              is_active: true,
-            });
-
-          if (userError) {
-            console.error('Error creating user profile:', userError);
-            throw userError;
-          }
-
-          console.log('Worker account created successfully');
-        }
+        console.log('Worker profile created successfully');
       }
 
       // Update application status
@@ -104,7 +84,7 @@ export const WorkerApplicationsManager = () => {
       toast({
         title: "Success",
         description: status === 'approved' 
-          ? `Application approved and worker account created successfully`
+          ? `Application approved! Worker can now sign up using their email address.`
           : `Application ${status} successfully`,
       });
 
@@ -286,7 +266,7 @@ export const WorkerApplicationsManager = () => {
                         )}
                         {application.status === 'approved' && (
                           <div className="text-xs text-green-600 font-medium">
-                            Account Created
+                            Profile Created
                           </div>
                         )}
                       </TableCell>
