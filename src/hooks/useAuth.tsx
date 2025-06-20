@@ -181,7 +181,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             phone: userData.phone,
             city: userData.city,
             region: userData.region,
-            role: 'customer', // Default role for signup
+            role: userData.role || 'customer',
+            zip_code: userData.zip_code,
+            is_active: userData.is_active !== undefined ? userData.is_active : true,
           });
 
         if (profileError) {
