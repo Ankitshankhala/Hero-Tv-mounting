@@ -7,6 +7,7 @@ import { ServiceModificationTab } from './invoice/ServiceModificationTab';
 import { AddServicesTab } from './invoice/AddServicesTab';
 import { ModificationSummary } from './invoice/ModificationSummary';
 import { ModificationForm } from './invoice/ModificationForm';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Service {
   id: string;
@@ -85,12 +86,39 @@ const InvoiceModificationModal = ({
       return;
     }
 
+    const originalTotal = job?.total_price || 0;
+    const newTotal = calculateNewTotal();
+    const difference = newTotal - originalTotal;
+
     setLoading(true);
     try {
-      // Since invoice_modifications table doesn't exist, we'll just simulate the functionality
+      // Update booking with new total and pending payment amount
+      const { error: updateError } = await supabase.functions.invoke('update-booking-payment', {
+        body: {
+          booking_id: job.id,
+          new_pending_amount: difference
+        }
+      });
+
+      if (updateError) {
+        console.error('Failed to update booking:', updateError);
+        throw updateError;
+      }
+
+      // Update booking to mark it as modified and update total price
+      const { error: bookingError } = await supabase
+        .from('bookings')
+        .update({ 
+          has_modifications: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', job.id);
+
+      if (bookingError) throw bookingError;
+
       toast({
         title: "Success",
-        description: "Invoice modification created successfully (simulated)",
+        description: `Invoice modified successfully. ${difference >= 0 ? 'Additional' : 'Refund'} amount: $${Math.abs(difference).toFixed(2)}`,
       });
 
       onModificationCreated();
@@ -141,6 +169,10 @@ const InvoiceModificationModal = ({
 
           <TabsContent value="add" className="space-y-6">
             <AddServicesTab onAddService={addNewService} />
+            <ModificationSummary
+              originalTotal={originalTotal}
+              newTotal={newTotal}
+            />
           </TabsContent>
         </Tabs>
 

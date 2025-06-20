@@ -27,6 +27,14 @@ const JobHeader = ({ job }: JobHeaderProps) => {
     return 'Service details';
   };
 
+  const calculateFinalPrice = () => {
+    const basePrice = job.total_price || 0;
+    const pendingAmount = job.pending_payment_amount || 0;
+    return basePrice + pendingAmount;
+  };
+
+  const finalPrice = calculateFinalPrice();
+
   return (
     <div className="flex justify-between items-start mb-4">
       <div>
@@ -44,12 +52,19 @@ const JobHeader = ({ job }: JobHeaderProps) => {
             </Badge>
           )}
         </div>
-        <p className="text-xl font-bold text-white mt-1">${job.total_price}</p>
-        {job.pending_payment_amount && job.pending_payment_amount !== 0 && (
-          <p className={`text-sm ${job.pending_payment_amount > 0 ? 'text-green-400' : 'text-red-400'}`}>
-            Pending: {job.pending_payment_amount > 0 ? '+' : ''}${job.pending_payment_amount}
-          </p>
-        )}
+        <div className="mt-1">
+          {job.has_modifications && job.pending_payment_amount !== 0 ? (
+            <div>
+              <p className="text-sm text-slate-400">Original: ${job.total_price}</p>
+              <p className={`text-sm ${job.pending_payment_amount > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {job.pending_payment_amount > 0 ? 'Additional' : 'Discount'}: ${Math.abs(job.pending_payment_amount).toFixed(2)}
+              </p>
+              <p className="text-xl font-bold text-white">Final: ${finalPrice.toFixed(2)}</p>
+            </div>
+          ) : (
+            <p className="text-xl font-bold text-white">${job.total_price}</p>
+          )}
+        </div>
       </div>
     </div>
   );
