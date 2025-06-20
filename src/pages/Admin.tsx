@@ -6,6 +6,7 @@ import { AlertTriangle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { AdminHeader } from '@/components/admin/AdminHeader';
+import { AdminLogin } from '@/components/admin/AdminLogin';
 import { DashboardStats } from '@/components/admin/DashboardStats';
 import { BookingsManager } from '@/components/admin/BookingsManager';
 import { WorkersManager } from '@/components/admin/WorkersManager';
@@ -18,30 +19,30 @@ import { SMSLogsManager } from '@/components/admin/SMSLogsManager';
 import { BlogManager } from '@/components/admin/BlogManager';
 
 const Admin = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, loading } = useAuth();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
 
-  useEffect(() => {
-    if (!user) {
-      navigate('/');
-    } else if (profile?.role !== 'admin') {
-      navigate('/not-authorized');
-    } else {
-      setLoading(false);
-    }
-  }, [user, profile, navigate]);
+  console.log('Admin page - Auth state:', { user: user?.email, profile: profile?.role, loading });
 
+  // Show loading while auth is being checked
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-8">
+      <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
-  if (!user || profile?.role !== 'admin') {
+  // Show login form if not authenticated
+  if (!user) {
+    console.log('No user found, showing login form');
+    return <AdminLogin />;
+  }
+
+  // Show access denied if not admin
+  if (profile && profile.role !== 'admin') {
+    console.log('User is not admin:', profile.role);
     return (
       <Card className="max-w-md mx-auto mt-8">
         <CardContent className="pt-6">
@@ -56,6 +57,18 @@ const Admin = () => {
       </Card>
     );
   }
+
+  // Show loading if we have a user but no profile yet
+  if (user && !profile) {
+    console.log('User exists but no profile loaded yet');
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  console.log('Rendering admin dashboard for:', user.email);
 
   const renderContent = () => {
     switch (activeTab) {
