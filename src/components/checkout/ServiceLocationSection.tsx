@@ -40,7 +40,7 @@ export const ServiceLocationSection = ({
           onChange={(e) => onInputChange('address', e.target.value)}
           onBlur={() => onBlur('address')}
           placeholder="123 Main Street, Apartment 4B, City, State"
-          className="h-12 bg-white border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
+          className="h-12 bg-blue-50 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
         />
         {errors.address && touched.address && (
           <p className="text-sm text-red-600">{errors.address}</p>
