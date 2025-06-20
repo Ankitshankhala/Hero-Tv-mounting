@@ -1,20 +1,24 @@
-
 import React, { useState } from 'react';
 import { X, Monitor, ArrowRight, Plus, Minus, Check } from 'lucide-react';
 import { CartItem } from '@/types';
 import { Service } from '@/hooks/useServicesData';
 
 interface TvMountingModalProps {
+  open: boolean;
   onClose: () => void;
   onAddToCart: (item: CartItem) => void;
   services: Service[];
 }
 
-export const TvMountingModal: React.FC<TvMountingModalProps> = ({ onClose, onAddToCart, services }) => {
+export const TvMountingModal: React.FC<TvMountingModalProps> = ({ open, onClose, onAddToCart, services }) => {
   const [over65, setOver65] = useState(false);
   const [frameMount, setFrameMount] = useState(false);
   const [numberOfTvs, setNumberOfTvs] = useState(1);
   const [wallType, setWallType] = useState('standard');
+
+  if (!open) {
+    return null;
+  }
 
   // Find services from database
   const tvMountingService = services.find(s => s.name === 'TV Mounting');
