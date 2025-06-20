@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
@@ -8,7 +7,7 @@ import { BookingProgress } from '@/components/booking/BookingProgress';
 import { ServiceSelection } from '@/components/booking/ServiceSelection';
 import { CustomerLocationForm } from '@/components/booking/CustomerLocationForm';
 import { BookingConfirmation } from '@/components/booking/BookingConfirmation';
-import { CartItem } from './Index';
+import { CartItem } from '@/types';
 
 const Book = () => {
   const [step, setStep] = useState(1);
