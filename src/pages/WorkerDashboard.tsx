@@ -17,6 +17,7 @@ import WorkerDashboardLoading from '@/components/worker/WorkerDashboardLoading';
 import CreateBookingModal from '@/components/worker/CreateBookingModal';
 import GoogleCalendarIntegration from '@/components/GoogleCalendarIntegration';
 import BookingCalendarSync from '@/components/BookingCalendarSync';
+import TestBookingCreator from '@/components/worker/TestBookingCreator';
 import type { Database } from '@/integrations/supabase/types';
 
 type BookingStatus = Database['public']['Enums']['booking_status'];
@@ -67,10 +68,11 @@ const WorkerDashboard = () => {
         .from('bookings')
         .select(`
           *,
-          customer:users!customer_id(name, phone)
+          customer:users!customer_id(name, phone),
+          service:services!service_id(name, description, base_price, duration_minutes)
         `)
         .eq('worker_id', user.id)
-        .order('scheduled_at', { ascending: true });
+        .order('scheduled_date', { ascending: true });
 
       if (error) {
         if (process.env.NODE_ENV === 'development') {
@@ -78,7 +80,18 @@ const WorkerDashboard = () => {
         }
         throw error;
       }
-      setJobs(data || []);
+
+      // Transform data to match expected format
+      const transformedJobs = (data || []).map(job => ({
+        ...job,
+        scheduled_at: `${job.scheduled_date}T${job.scheduled_start}`,
+        customer_address: job.location_notes || 'No address provided',
+        total_price: job.service?.base_price || 0,
+        total_duration_minutes: job.service?.duration_minutes || 60,
+        services: job.service ? [job.service] : []
+      }));
+
+      setJobs(transformedJobs);
     } catch (error) {
       if (process.env.NODE_ENV === 'development') {
         console.error('Error fetching worker jobs:', error);
@@ -172,6 +185,11 @@ const WorkerDashboard = () => {
             Create Booking
           </Button>
         </div>
+
+        {/* Test booking creator for development */}
+        {process.env.NODE_ENV === 'development' && (
+          <TestBookingCreator />
+        )}
 
         <WorkerDashboardStats
           todaysJobs={todaysJobs.length}
