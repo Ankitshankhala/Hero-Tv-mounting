@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { X, Monitor, ArrowRight, Plus, Minus, Check } from 'lucide-react';
 import { CartItem } from '@/types';
@@ -27,6 +26,12 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ open, onClose,
   const frameMountService = services.find(s => s.name === 'Frame Mount Add-on');
   const stoneWallService = services.find(s => s.name === 'Stone/Brick/Tile Wall');
 
+  // Debug logging for services
+  console.log('Available services:', services.map(s => s.name));
+  console.log('Found over65Service:', over65Service);
+  console.log('Found frameMountService:', frameMountService);
+  console.log('Found stoneWallService:', stoneWallService);
+
   const calculateTvMountingPrice = (numTvs: number) => {
     let totalPrice = 0;
     
@@ -48,28 +53,32 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ open, onClose,
     let price = calculateTvMountingPrice(numberOfTvs);
 
     console.log('Base TV mounting price:', price);
+    console.log('Current state - over65:', over65, 'frameMount:', frameMount, 'wallType:', wallType);
 
-    if (over65 && over65Service) {
-      const over65Cost = over65Service.base_price * numberOfTvs;
+    if (over65) {
+      // Use fallback price if service not found
+      const over65Cost = (over65Service?.base_price || 25) * numberOfTvs;
       price += over65Cost;
       console.log('Adding Over 65" cost:', over65Cost, 'New total:', price);
     }
     
-    if (frameMount && frameMountService) {
-      const frameMountCost = frameMountService.base_price * numberOfTvs;
+    if (frameMount) {
+      // Use fallback price if service not found
+      const frameMountCost = (frameMountService?.base_price || 25) * numberOfTvs;
       price += frameMountCost;
       console.log('Adding Frame Mount cost:', frameMountCost, 'New total:', price);
     }
     
-    if (wallType !== 'standard' && stoneWallService) {
-      const wallCost = stoneWallService.base_price * numberOfTvs;
+    if (wallType !== 'standard') {
+      // Use fallback price if service not found
+      const wallCost = (stoneWallService?.base_price || 50) * numberOfTvs;
       price += wallCost;
       console.log('Adding Wall type cost:', wallCost, 'New total:', price);
     }
 
     console.log('Final calculated price:', price);
     return price;
-  }, [numberOfTvs, over65, frameMount, wallType, over65Service, frameMountService, stoneWallService]);
+  }, [numberOfTvs, over65, frameMount, wallType, over65Service?.base_price, frameMountService?.base_price, stoneWallService?.base_price]);
 
   const buildCartItemName = () => {
     let name = `TV Mounting${numberOfTvs > 1 ? ` (${numberOfTvs} TVs)` : ''}`;
@@ -98,29 +107,29 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ open, onClose,
     });
 
     // Add-on services
-    if (over65 && over65Service) {
+    if (over65) {
       selectedServices.push({
-        id: over65Service.id,
+        id: over65Service?.id || 'over65-addon',
         name: `Over 65" TV Add-on${numberOfTvs > 1 ? ` (${numberOfTvs} TVs)` : ''}`,
-        price: over65Service.base_price * numberOfTvs,
+        price: (over65Service?.base_price || 25) * numberOfTvs,
         quantity: 1
       });
     }
     
-    if (frameMount && frameMountService) {
+    if (frameMount) {
       selectedServices.push({
-        id: frameMountService.id,
+        id: frameMountService?.id || 'frame-mount-addon',
         name: `Frame Mount Add-on${numberOfTvs > 1 ? ` (${numberOfTvs} TVs)` : ''}`,
-        price: frameMountService.base_price * numberOfTvs,
+        price: (frameMountService?.base_price || 25) * numberOfTvs,
         quantity: 1
       });
     }
     
-    if (wallType !== 'standard' && stoneWallService) {
+    if (wallType !== 'standard') {
       selectedServices.push({
-        id: stoneWallService.id,
+        id: stoneWallService?.id || 'wall-type-addon',
         name: `${wallType.charAt(0).toUpperCase() + wallType.slice(1)} Wall Service${numberOfTvs > 1 ? ` (${numberOfTvs} TVs)` : ''}`,
-        price: stoneWallService.base_price * numberOfTvs,
+        price: (stoneWallService?.base_price || 50) * numberOfTvs,
         quantity: 1
       });
     }
@@ -196,7 +205,11 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ open, onClose,
             </label>
             <div className="flex items-center space-x-4">
               <button
-                onClick={decrementTvs}
+                onClick={() => {
+                  if (numberOfTvs > 1) {
+                    setNumberOfTvs(numberOfTvs - 1);
+                  }
+                }}
                 disabled={numberOfTvs <= 1}
                 className={`p-2 rounded-lg transition-colors ${
                   numberOfTvs <= 1
@@ -210,7 +223,11 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ open, onClose,
                 <span className="text-xl font-semibold text-white">{numberOfTvs}</span>
               </div>
               <button
-                onClick={incrementTvs}
+                onClick={() => {
+                  if (numberOfTvs < 5) {
+                    setNumberOfTvs(numberOfTvs + 1);
+                  }
+                }}
                 disabled={numberOfTvs >= 5}
                 className={`p-2 rounded-lg transition-colors ${
                   numberOfTvs >= 5
@@ -238,7 +255,10 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ open, onClose,
               <input
                 type="checkbox"
                 checked={over65}
-                onChange={(e) => setOver65(e.target.checked)}
+                onChange={(e) => {
+                  console.log('Over 65 checkbox changed to:', e.target.checked);
+                  setOver65(e.target.checked);
+                }}
                 className="w-5 h-5 text-blue-600 bg-slate-700 border-slate-600 rounded focus:ring-blue-500"
               />
               <div className="flex-1">
@@ -246,7 +266,7 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ open, onClose,
                   <span className="text-lg font-semibold text-white">Over 65" TV Add-on</span>
                   {over65 && (
                     <span className="text-green-400 font-semibold">
-                      +${(over65Service?.base_price || 25) * numberOfTvs}
+                      +${ (over65Service?.base_price || 25) * numberOfTvs}
                     </span>
                   )}
                 </div>
@@ -263,7 +283,10 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ open, onClose,
               <input
                 type="checkbox"
                 checked={frameMount}
-                onChange={(e) => setFrameMount(e.target.checked)}
+                onChange={(e) => {
+                  console.log('Frame Mount checkbox changed to:', e.target.checked);
+                  setFrameMount(e.target.checked);
+                }}
                 className="w-5 h-5 text-blue-600 bg-slate-700 border-slate-600 rounded focus:ring-blue-500"
               />
               <div className="flex-1">
@@ -291,7 +314,10 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ open, onClose,
               {wallTypeOptions.map((option) => (
                 <button
                   key={option.value}
-                  onClick={() => setWallType(option.value)}
+                  onClick={() => {
+                    console.log('Wall type changed to:', option.value);
+                    setWallType(option.value);
+                  }}
                   className={`relative p-3 rounded-lg border-2 transition-all ${
                     wallType === option.value
                       ? 'border-blue-500 bg-blue-500/20 text-white'
@@ -358,7 +384,27 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({ open, onClose,
               Cancel
             </button>
             <button
-              onClick={handleAddToCart}
+              onClick={() => {
+                const cartItem: CartItem = {
+                  id: `tv-mounting-configured-${Date.now()}`,
+                  name: `TV Mounting${numberOfTvs > 1 ? ` (${numberOfTvs} TVs)` : ''}${over65 ? ' + Over 65" TV' : ''}${frameMount ? ' + Frame Mount' : ''}${wallType !== 'standard' ? ` + ${wallType.charAt(0).toUpperCase() + wallType.slice(1)} Wall` : ''}`,
+                  price: totalPrice,
+                  quantity: 1,
+                  options: {
+                    over65,
+                    frameMount,
+                    numberOfTvs,
+                    wallType,
+                    services: buildServicesList()
+                  }
+                };
+
+                console.log('Adding to cart with final price:', totalPrice);
+                console.log('Cart item:', cartItem);
+                
+                onAddToCart(cartItem);
+                onClose();
+              }}
               className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 rounded-lg transition-all flex items-center justify-center space-x-2"
             >
               <span>Add to Cart - ${totalPrice}</span>
