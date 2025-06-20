@@ -1,14 +1,22 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { X } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface CreateBookingModalProps {
   onClose: () => void;
+}
+
+interface Worker {
+  id: string;
+  name: string;
+  email: string;
 }
 
 export const CreateBookingModal = ({ onClose }: CreateBookingModalProps) => {
@@ -24,6 +32,39 @@ export const CreateBookingModal = ({ onClose }: CreateBookingModalProps) => {
     worker: '',
     specialInstructions: ''
   });
+  
+  const [workers, setWorkers] = useState<Worker[]>([]);
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    fetchWorkers();
+  }, []);
+
+  const fetchWorkers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, name, email')
+        .eq('role', 'worker')
+        .eq('is_active', true)
+        .order('name');
+
+      if (error) {
+        console.error('Error fetching workers:', error);
+        throw error;
+      }
+
+      setWorkers(data || []);
+    } catch (error) {
+      console.error('Error fetching workers:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load workers",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -142,16 +183,18 @@ export const CreateBookingModal = ({ onClose }: CreateBookingModalProps) => {
               </Select>
             </div>
             <div>
-              <Label htmlFor="worker">Assign Worker (Optional)</Label>
+              <Label htmlFor="worker">Assign Worker</Label>
               <Select value={formData.worker} onValueChange={(value) => setFormData({...formData, worker: value})}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Auto-assign or select worker" />
+                  <SelectValue placeholder="Select worker assignment" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="auto">Auto-assign</SelectItem>
-                  <SelectItem value="alex">Alex Thompson</SelectItem>
-                  <SelectItem value="maria">Maria Garcia</SelectItem>
-                  <SelectItem value="david">David Lee</SelectItem>
+                  {workers.map((worker) => (
+                    <SelectItem key={worker.id} value={worker.id}>
+                      {worker.name} ({worker.email})
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
