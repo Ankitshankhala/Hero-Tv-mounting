@@ -13,8 +13,10 @@ export type Database = {
         Row: {
           created_at: string | null
           customer_id: string
+          has_modifications: boolean | null
           id: string
           location_notes: string | null
+          pending_payment_amount: number | null
           scheduled_date: string
           scheduled_start: string
           service_id: string
@@ -24,8 +26,10 @@ export type Database = {
         Insert: {
           created_at?: string | null
           customer_id: string
+          has_modifications?: boolean | null
           id?: string
           location_notes?: string | null
+          pending_payment_amount?: number | null
           scheduled_date: string
           scheduled_start: string
           service_id: string
@@ -35,8 +39,10 @@ export type Database = {
         Update: {
           created_at?: string | null
           customer_id?: string
+          has_modifications?: boolean | null
           id?: string
           location_notes?: string | null
+          pending_payment_amount?: number | null
           scheduled_date?: string
           scheduled_start?: string
           service_id?: string

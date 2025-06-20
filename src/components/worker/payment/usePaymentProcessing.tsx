@@ -36,21 +36,22 @@ export const usePaymentProcessing = ({
             amount: paymentAmount,
             status: 'completed',
             payment_method: paymentMethod,
-            processed_at: new Date().toISOString(),
           });
 
         if (transactionError) throw transactionError;
 
-        // Update booking to clear pending payment
-        const { error: bookingError } = await supabase
-          .from('bookings')
-          .update({ 
-            pending_payment_amount: 0,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', job.id);
+        // Update booking to clear pending payment using the edge function
+        const { error: updateError } = await supabase.functions.invoke('update-booking-payment', {
+          body: {
+            booking_id: job.id,
+            new_pending_amount: 0
+          }
+        });
 
-        if (bookingError) throw bookingError;
+        if (updateError) {
+          console.error('Failed to update booking:', updateError);
+          throw updateError;
+        }
 
         toast({
           title: "Cash Payment Collected",
