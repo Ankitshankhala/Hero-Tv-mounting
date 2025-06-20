@@ -4,7 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Phone, MapPin, Calendar, Edit } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Phone, MapPin, Calendar, Edit, MoreVertical, UserX } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import WorkerCalendar from '@/components/worker/WorkerCalendar';
 import WorkerScheduleManager from '@/components/worker/WorkerScheduleManager';
 
@@ -29,6 +32,8 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
   const [selectedWorker, setSelectedWorker] = useState<Worker | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [removingWorkerId, setRemovingWorkerId] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const getAvailabilityBadge = (workerAvailability: any[]) => {
     if (!workerAvailability || workerAvailability.length === 0) {
@@ -54,6 +59,40 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
   const handleViewCalendar = (worker: Worker) => {
     setSelectedWorker(worker);
     setShowCalendar(true);
+  };
+
+  const handleRemoveWorker = async (workerId: string) => {
+    try {
+      setRemovingWorkerId(workerId);
+      
+      const { error } = await supabase
+        .from('users')
+        .update({ is_active: false })
+        .eq('id', workerId);
+
+      if (error) {
+        console.error('Error removing worker:', error);
+        throw error;
+      }
+
+      toast({
+        title: "Success",
+        description: "Worker has been removed successfully",
+      });
+
+      if (onWorkerUpdate) {
+        onWorkerUpdate();
+      }
+    } catch (error) {
+      console.error('Error removing worker:', error);
+      toast({
+        title: "Error",
+        description: "Failed to remove worker",
+        variant: "destructive",
+      });
+    } finally {
+      setRemovingWorkerId(null);
+    }
   };
 
   const closeModals = () => {
@@ -119,18 +158,34 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => handleEditWorker(worker)}
-                    >
-                      <Edit className="h-4 w-4 mr-1" />
-                      Edit
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
                       onClick={() => handleViewCalendar(worker)}
                     >
                       <Calendar className="h-4 w-4" />
                     </Button>
+                    
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleEditWorker(worker)}>
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit Details
+                        </DropdownMenuItem>
+                        {worker.is_active && (
+                          <DropdownMenuItem 
+                            onClick={() => handleRemoveWorker(worker.id)}
+                            disabled={removingWorkerId === worker.id}
+                            className="text-red-600 hover:text-red-700 focus:text-red-700"
+                          >
+                            <UserX className="h-4 w-4 mr-2" />
+                            {removingWorkerId === worker.id ? 'Removing...' : 'Remove Worker'}
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </TableCell>
               </TableRow>
