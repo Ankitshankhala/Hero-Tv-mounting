@@ -24,19 +24,13 @@ export const useServicesData = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('services')
-        .select('id, name, description, base_price, duration_minutes, is_active, created_at')
+        .select('id, name, description, base_price, duration_minutes, is_active, created_at, image_url')
         .eq('is_active', true)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       
-      // Add image_url as null since it doesn't exist in the database
-      const servicesWithImageUrl = (data || []).map(service => ({
-        ...service,
-        image_url: null
-      }));
-      
-      setServices(servicesWithImageUrl);
+      setServices(data || []);
     } catch (error) {
       console.error('Error fetching services:', error);
       toast({
@@ -63,24 +57,20 @@ export const useServicesData = () => {
           name: serviceData.name,
           description: serviceData.description,
           base_price: serviceData.base_price,
-          duration_minutes: serviceData.duration_minutes
+          duration_minutes: serviceData.duration_minutes,
+          image_url: serviceData.image_url
         }])
-        .select('id, name, description, base_price, duration_minutes, is_active, created_at')
+        .select('id, name, description, base_price, duration_minutes, is_active, created_at, image_url')
         .single();
 
       if (error) throw error;
 
-      const serviceWithImageUrl = {
-        ...data,
-        image_url: null
-      };
-
-      setServices(prev => [serviceWithImageUrl, ...prev]);
+      setServices(prev => [data, ...prev]);
       toast({
         title: "Success",
         description: "Service added successfully",
       });
-      return serviceWithImageUrl;
+      return data;
     } catch (error) {
       console.error('Error adding service:', error);
       toast({
@@ -106,27 +96,23 @@ export const useServicesData = () => {
           name: serviceData.name,
           description: serviceData.description,
           base_price: serviceData.base_price,
-          duration_minutes: serviceData.duration_minutes
+          duration_minutes: serviceData.duration_minutes,
+          image_url: serviceData.image_url
         })
         .eq('id', id)
-        .select('id, name, description, base_price, duration_minutes, is_active, created_at')
+        .select('id, name, description, base_price, duration_minutes, is_active, created_at, image_url')
         .single();
 
       if (error) throw error;
 
-      const serviceWithImageUrl = {
-        ...data,
-        image_url: null
-      };
-
       setServices(prev => prev.map(service => 
-        service.id === id ? serviceWithImageUrl : service
+        service.id === id ? data : service
       ));
       toast({
         title: "Success",
         description: "Service updated successfully",
       });
-      return serviceWithImageUrl;
+      return data;
     } catch (error) {
       console.error('Error updating service:', error);
       toast({
