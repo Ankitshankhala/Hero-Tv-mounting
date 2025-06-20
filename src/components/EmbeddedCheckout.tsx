@@ -1,12 +1,14 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { X, MapPin, Clock, User, Mail, Phone } from 'lucide-react';
+import { X, MapPin, Clock, User, Mail, Phone, CheckCircle } from 'lucide-react';
 import { ValidatedInput } from '@/components/ui/ValidatedInput';
+import { ZipcodeInput } from '@/components/ui/ZipcodeInput';
 import { useFormValidation } from '@/hooks/useFormValidation';
-import { supabase } from '@/integrations/supabase/client';
+import { useBookingLogic } from '@/hooks/useBookingLogic';
 import { useToast } from '@/hooks/use-toast';
 import type { CartItem } from '@/types';
 
@@ -29,14 +31,17 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
     specialInstructions: ''
   });
   const [isProcessing, setIsProcessing] = useState(false);
+  const [zipcodeValid, setZipcodeValid] = useState(false);
+  const [cityState, setCityState] = useState('');
   const { toast } = useToast();
+  const { createBooking } = useBookingLogic();
 
   const validationRules = {
     name: { required: true, type: 'name' as const, minLength: 2, maxLength: 50 },
     email: { required: true, type: 'email' as const },
     phone: { required: true, type: 'phone' as const },
     address: { required: true, type: 'address' as const, minLength: 10, maxLength: 100 },
-    zipcode: { required: false, type: 'zipcode' as const },
+    zipcode: { required: true, type: 'zipcode' as const },
     date: { required: true },
     time: { required: true }
   };
@@ -53,6 +58,17 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
   const handleBlur = (field: string) => {
     markFieldAsTouched(field);
     validateField(field, formData[field]);
+  };
+
+  const handleZipcodeChange = (zipcode: string, cityStateData?: string) => {
+    setFormData(prev => ({ ...prev, zipcode }));
+    if (cityStateData) {
+      setCityState(cityStateData);
+    }
+  };
+
+  const handleZipcodeValidation = (isValid: boolean) => {
+    setZipcodeValid(isValid);
   };
 
   const calculateTotalDuration = () => {
@@ -77,6 +93,15 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
       return;
     }
 
+    if (!zipcodeValid) {
+      toast({
+        title: "Invalid Zipcode",
+        description: "Please enter a valid US zipcode",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const selectedDate = new Date(`${formData.date}T${formData.time}:00`);
     const now = new Date();
     if (selectedDate <= now) {
@@ -91,88 +116,35 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
     setIsProcessing(true);
 
     try {
-      console.log('Creating booking...');
+      // Create booking data with customer info and zipcode for worker assignment
+      const bookingData = {
+        customer_name: formData.name,
+        customer_email: formData.email,
+        customer_phone: formData.phone,
+        customer_zipcode: formData.zipcode,
+        service_id: cart[0].id, // Use first service as primary
+        scheduled_date: formData.date,
+        scheduled_start: formData.time,
+        location_notes: `${formData.address}\n\nServices: ${cart.map(item => `${item.name} (${item.quantity}x)`).join(', ')}\n\nSpecial Instructions: ${formData.specialInstructions}`,
+        total_price: total,
+        duration_minutes: calculateTotalDuration()
+      };
+
+      const result = await createBooking(bookingData);
       
-      // First, get or create the service (using the first service for now)
-      const firstService = cart[0];
-      let serviceId = firstService.id;
-      
-      // If the service doesn't exist in the database, create it
-      if (firstService.id === 'tv-mounting-configured') {
-        const { data: existingService } = await supabase
-          .from('services')
-          .select('id')
-          .eq('name', 'TV Mounting')
-          .single();
-          
-        if (existingService) {
-          serviceId = existingService.id;
-        }
+      if (result.status === 'confirmed' || result.status === 'pending') {
+        toast({
+          title: "Booking Confirmed",
+          description: result.message,
+        });
+
+        setTimeout(() => {
+          onSuccess();
+          onClose();
+        }, 1000);
+      } else {
+        throw new Error(result.message);
       }
-      
-      // Create customer if doesn't exist
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', formData.email)
-        .maybeSingle();
-
-      let customerId = existingUser?.id;
-
-      if (!existingUser) {
-        const { data: newUser, error: userError } = await supabase
-          .from('users')
-          .insert({
-            name: formData.name,
-            email: formData.email,
-            phone: formData.phone,
-            zip_code: formData.zipcode,
-            city: formData.address
-          })
-          .select('id')
-          .single();
-
-        if (userError) {
-          console.error('User creation failed:', userError);
-          throw new Error('Failed to create customer profile');
-        } else {
-          customerId = newUser.id;
-        }
-      }
-
-      if (!customerId) {
-        throw new Error('Failed to get customer ID');
-      }
-      
-      const { data: booking, error: bookingError } = await supabase
-        .from('bookings')
-        .insert({
-          customer_id: customerId,
-          service_id: serviceId,
-          scheduled_date: formData.date,
-          scheduled_start: formData.time,
-          location_notes: `${formData.address}. Special instructions: ${formData.specialInstructions}`,
-          status: 'pending'
-        })
-        .select()
-        .single();
-
-      if (bookingError) {
-        console.error('Booking creation error:', bookingError);
-        throw new Error(bookingError.message || 'Failed to create booking');
-      }
-
-      console.log('Booking created successfully');
-      
-      toast({
-        title: "Booking Confirmed",
-        description: "Your service has been booked! We'll contact you soon.",
-      });
-
-      setTimeout(() => {
-        onSuccess();
-        onClose();
-      }, 1000);
 
     } catch (error: any) {
       console.error('Booking error:', error);
@@ -268,14 +240,13 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
               placeholder="(555) 123-4567"
             />
             
-            <ValidatedInput
+            <ZipcodeInput
               id="zipcode"
               label="ZIP Code"
               value={formData.zipcode}
-              onChange={(value) => handleInputChange('zipcode', value)}
-              onBlur={() => handleBlur('zipcode')}
-              error={errors.zipcode}
-              touched={touched.zipcode}
+              onChange={handleZipcodeChange}
+              onValidation={handleZipcodeValidation}
+              required
               placeholder="12345"
             />
           </div>
@@ -293,6 +264,16 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
             autoFormat="address"
             placeholder="123 Main St, City, State"
           />
+
+          {cityState && (
+            <div className="bg-blue-50 p-3 rounded-lg">
+              <p className="text-sm text-blue-700 flex items-center space-x-2">
+                <MapPin className="h-4 w-4" />
+                <span>Service location: {cityState}</span>
+                {zipcodeValid && <CheckCircle className="h-4 w-4 text-green-600" />}
+              </p>
+            </div>
+          )}
 
           {/* Scheduling */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -347,7 +328,7 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
           <div className="flex space-x-4 pt-4">
             <Button
               type="submit"
-              disabled={isProcessing}
+              disabled={isProcessing || !zipcodeValid}
               className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
             >
               {isProcessing ? 'Processing...' : 'Book Service'}

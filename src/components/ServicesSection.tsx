@@ -1,106 +1,135 @@
-
 import React, { useState } from 'react';
+import { ArrowRight, Monitor, Wrench, Home, Star, CheckCircle } from 'lucide-react';
 import { ServiceCard } from './ServiceCard';
 import { TvMountingModal } from './TvMountingModal';
+import { EmbeddedCheckout } from './EmbeddedCheckout';
+import { Button } from './ui/button';
 import { CartItem } from '@/types';
-import { useServicesData } from '@/hooks/useServicesData';
-import { Loader2 } from 'lucide-react';
 
 interface ServicesSectionProps {
   onAddToCart: (item: CartItem) => void;
 }
 
-export const ServicesSection: React.FC<ServicesSectionProps> = ({ onAddToCart }) => {
-  const [isTvMountingModalOpen, setIsTvMountingModalOpen] = useState(false);
-  const { services, loading } = useServicesData();
+interface ModalService {
+  id: string;
+  name: string;
+  base_price: number;
+}
 
-  // Filter out add-on services that should be handled through the TV Mounting modal
-  const mainServices = services.filter(service => 
-    !service.name.includes('Add-on') && 
-    !service.name.includes('Over 65"') &&
-    !service.name.includes('Stone/Brick/Tile')
-  );
+export const ServicesSection = ({ onAddToCart }: ServicesSectionProps) => {
+  const [showTvModal, setShowTvModal] = useState(false);
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [cart, setCart] = useState<CartItem[]>([]);
 
-  const handleServiceClick = (service: any) => {
-    if (service.name === 'TV Mounting') {
-      setIsTvMountingModalOpen(true);
-    } else {
-      onAddToCart({
-        id: service.id,
-        name: service.name,
-        price: service.base_price,
-        quantity: 1
-      });
-    }
+  const handleAddToCart = (item: CartItem) => {
+    setCart([item]); // Replace cart with new item for immediate checkout
+    onAddToCart(item);
+    setShowCheckout(true);
   };
 
-  if (loading) {
-    return (
-      <section className="py-16 bg-slate-800/50">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-              Services
-            </h2>
-          </div>
-          <div className="flex justify-center items-center min-h-[200px]">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
-          </div>
-        </div>
-      </section>
-    );
-  }
+  const services = [
+    {
+      id: 'tv-mounting',
+      title: 'TV Wall Mounting',
+      description: 'Professional TV mounting with cable management',
+      basePrice: 90,
+      image: '/lovable-uploads/77f65da7-38bc-4d01-afdd-bb998049c77b.png',
+      features: ['Secure wall mounting', 'Cable hiding', 'Level adjustment', '30-day guarantee'],
+      buttonText: 'Configure & Book',
+      onClick: () => setShowTvModal(true)
+    },
+    {
+      id: 'furniture-assembly',
+      title: 'Furniture Assembly',
+      description: 'Expert assembly for all types of furniture',
+      basePrice: 60,
+      image: '/lovable-uploads/094e9449-a946-4941-9e0f-955113646365.png',
+      features: ['All furniture types', 'Fast and reliable', 'Tools included', 'Cleanup service'],
+      buttonText: 'Get a Quote',
+      onClick: () => alert('Furniture Assembly clicked')
+    },
+    {
+      id: 'smart-home-setup',
+      title: 'Smart Home Setup',
+      description: 'Setup and configuration of smart home devices',
+      basePrice: 75,
+      image: '/lovable-uploads/499a9999-ca36-45a1-8a91-cb98a9489443.png',
+      features: ['Device integration', 'Network setup', 'Voice control', 'Personalized training'],
+      buttonText: 'Explore Options',
+      onClick: () => alert('Smart Home Setup clicked')
+    },
+  ];
+
+  // Mock services data for TvMountingModal
+  const mockModalServices: ModalService[] = [
+    { id: '1', name: 'TV Mounting', base_price: 90 },
+    { id: '2', name: 'Over 65" TV Add-on', base_price: 25 },
+    { id: '3', name: 'Frame Mount Add-on', base_price: 25 },
+    { id: '4', name: 'Cable Management Add-on', base_price: 20 }
+  ];
+
+  const getTotalPrice = () => {
+    return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+  };
 
   return (
-    <section className="py-16 bg-slate-800/50">
+    <section className="py-20 bg-gradient-to-b from-slate-900 to-slate-800">
       <div className="container mx-auto px-4">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-            Services
+        <div className="text-center mb-16">
+          <h2 className="text-4xl font-bold text-white mb-4">
+            Professional Home Services
           </h2>
+          <p className="text-xl text-slate-300 max-w-2xl mx-auto">
+            Expert technicians, competitive pricing, and satisfaction guaranteed
+          </p>
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {mainServices.map((service) => (
-            <ServiceCard
-              key={service.id}
-              id={service.id}
-              name={service.name}
-              price={service.base_price}
-              image={getServiceImage(service.name)}
-              description={service.description || ''}
-              onAddToCart={() => handleServiceClick(service)}
-            />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
+          {services.map((service, index) => (
+            <ServiceCard key={index} {...service} />
           ))}
         </div>
+
+        <div className="text-center mt-16">
+          <div className="bg-slate-800 rounded-lg p-8 max-w-4xl mx-auto">
+            <div className="flex items-center justify-center space-x-8 text-white">
+              <div className="flex items-center space-x-2">
+                <CheckCircle className="h-6 w-6 text-green-400" />
+                <span>Licensed & Insured</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Star className="h-6 w-6 text-yellow-400" />
+                <span>4.9/5 Rating</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Home className="h-6 w-6 text-blue-400" />
+                <span>Same Day Service</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-      
-      {isTvMountingModalOpen && (
+
+      {showTvModal && (
         <TvMountingModal
-          onClose={() => setIsTvMountingModalOpen(false)}
-          onAddToCart={onAddToCart}
-          services={services}
+          open={showTvModal}
+          onClose={() => setShowTvModal(false)}
+          onAddToCart={handleAddToCart}
+          services={mockModalServices}
+        />
+      )}
+
+      {showCheckout && (
+        <EmbeddedCheckout
+          cart={cart}
+          total={getTotalPrice()}
+          onClose={() => setShowCheckout(false)}
+          onSuccess={() => {
+            setCart([]);
+            setShowCheckout(false);
+          }}
         />
       )}
     </section>
   );
 };
-
-// Helper function to map service names to their corresponding images
-const getServiceImage = (serviceName: string): string => {
-  const imageMap: { [key: string]: string } = {
-    'TV Mounting': '/lovable-uploads/d6a6d8ff-7ee8-45a6-bd82-6aa3aab9844a.png',
-    'Full Motion Mount': '/lovable-uploads/77f65da7-38bc-4d01-afdd-bb998049c77b.png',
-    'Flat Mount': '/lovable-uploads/3c8ed729-7438-43d2-88ad-328ac45775e1.png',
-    'Cover Cables': '/lovable-uploads/01571029-7b6a-4df2-9c0f-1c0b120fedff.png',
-    'Simple Cable Concealment': '/lovable-uploads/f430204b-2ef5-4727-b3ee-7f4d9d26ded4.png',
-    'Fire Safe Cable Concealment': '/lovable-uploads/71fa4731-cb99-42cb-bfd0-29236a1bc91a.png',
-    'General Mounting': '/lovable-uploads/4cc7c28c-dd34-4b03-82ef-6b8280bc616f.png',
-    'Furniture Assembly': '/lovable-uploads/15729bed-70cc-4a81-afe5-f295b900175d.png',
-    'Hire Second Technician': '/lovable-uploads/9ffb6618-666e-44a7-a41b-bb031fd291b9.png'
-  };
-  
-  return imageMap[serviceName] || '/lovable-uploads/d6a6d8ff-7ee8-45a6-bd82-6aa3aab9844a.png';
-};
-
-export default ServicesSection;
