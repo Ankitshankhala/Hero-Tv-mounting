@@ -76,7 +76,7 @@ export const ServicesSection = ({ onAddToCart }: ServicesSectionProps) => {
               id={service.id}
               name={service.name}
               price={service.base_price}
-              image="/lovable-uploads/77f65da7-38bc-4d01-afdd-bb998049c77b.png"
+              image={service.image_url || "/lovable-uploads/77f65da7-38bc-4d01-afdd-bb998049c77b.png"}
               description={service.description || `Professional ${service.name.toLowerCase()} service`}
               onAddToCart={() => handleServiceClick(service.id, service.name)}
             />
