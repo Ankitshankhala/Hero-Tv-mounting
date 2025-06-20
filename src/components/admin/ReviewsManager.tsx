@@ -5,8 +5,9 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Star, Image, Edit, Trash2, Eye } from 'lucide-react';
+import { Star, Image, Edit, Trash2, Eye, Plus } from 'lucide-react';
 import { ReviewModal } from './ReviewModal';
+import { CreateReviewModal } from './CreateReviewModal';
 import { useToast } from '@/hooks/use-toast';
 
 interface Review {
@@ -27,6 +28,7 @@ export const ReviewsManager = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
 
   const [reviews, setReviews] = useState<Review[]>([
@@ -92,6 +94,18 @@ export const ReviewsManager = () => {
     setReviews(prev => prev.map(review => 
       review.id === updatedReview.id ? updatedReview : review
     ));
+  };
+
+  const handleCreateReview = (newReview: Omit<Review, 'id'>) => {
+    const reviewWithId = {
+      ...newReview,
+      id: `REV${String(reviews.length + 1).padStart(3, '0')}`,
+    };
+    setReviews(prev => [reviewWithId, ...prev]);
+    toast({
+      title: "Success",
+      description: "Review created successfully",
+    });
   };
 
   const filteredReviews = reviews.filter(review => {
@@ -174,10 +188,16 @@ export const ReviewsManager = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Star className="h-5 w-5" />
-            <span>Reviews Management</span>
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center space-x-2">
+              <Star className="h-5 w-5" />
+              <span>Reviews Management</span>
+            </CardTitle>
+            <Button onClick={() => setShowCreateModal(true)} className="bg-blue-600 hover:bg-blue-700">
+              <Plus className="h-4 w-4 mr-2" />
+              Add New Review
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -286,6 +306,12 @@ export const ReviewsManager = () => {
         onClose={() => setShowModal(false)}
         onSave={handleSaveReview}
         review={selectedReview}
+      />
+
+      <CreateReviewModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onCreate={handleCreateReview}
       />
     </div>
   );
