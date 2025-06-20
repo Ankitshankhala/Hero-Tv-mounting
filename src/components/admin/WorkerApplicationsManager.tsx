@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { CheckCircle, XCircle, Clock, Phone, Mail, MapPin, User, Briefcase } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { CheckCircle, XCircle, Clock, Phone, Mail, MapPin, User, Briefcase, Copy, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Tables } from '@/integrations/supabase/types';
@@ -11,11 +12,46 @@ import { Tables } from '@/integrations/supabase/types';
 // Use the Supabase generated type instead of defining our own
 type WorkerApplication = Tables<'worker_applications'>;
 
+interface ApprovalResult {
+  email: string;
+  temporaryPassword: string;
+}
+
 export const WorkerApplicationsManager = () => {
   const [applications, setApplications] = useState<WorkerApplication[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [approvalResult, setApprovalResult] = useState<ApprovalResult | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const { toast } = useToast();
+
+  // Generate a secure temporary password
+  const generateTemporaryPassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+    let password = '';
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({
+        title: "Copied!",
+        description: "Password copied to clipboard",
+      });
+    } catch (error) {
+      console.error('Failed to copy:', error);
+      toast({
+        title: "Error",
+        description: "Failed to copy password",
+        variant: "destructive",
+      });
+    }
+  };
 
   const fetchApplications = async () => {
     try {
@@ -51,6 +87,9 @@ export const WorkerApplicationsManager = () => {
         }
 
         console.log('Creating worker profile for:', application.email);
+        
+        // Generate temporary password
+        const temporaryPassword = generateTemporaryPassword();
         
         // First check if a user with this email already exists
         const { data: existingUser, error: checkError } = await supabase
@@ -93,10 +132,23 @@ export const WorkerApplicationsManager = () => {
             console.log('Existing user updated to worker role');
           }
         } else {
-          // Create new user profile
+          // Create auth user with temporary password
+          const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+            email: application.email,
+            password: temporaryPassword,
+            email_confirm: true
+          });
+
+          if (authError) {
+            console.error('Error creating auth user:', authError);
+            throw authError;
+          }
+
+          // Create user profile
           const { error: userError } = await supabase
             .from('users')
             .insert({
+              id: authData.user.id,
               email: application.email,
               name: application.name,
               phone: application.phone,
@@ -111,6 +163,13 @@ export const WorkerApplicationsManager = () => {
           }
 
           console.log('New worker profile created successfully');
+          
+          // Show the temporary password to admin
+          setApprovalResult({
+            email: application.email,
+            temporaryPassword: temporaryPassword
+          });
+          setShowPasswordModal(true);
         }
       }
 
@@ -128,7 +187,7 @@ export const WorkerApplicationsManager = () => {
       toast({
         title: "Success",
         description: status === 'approved' 
-          ? `Application approved! Worker can now sign up using their email address.`
+          ? `Application approved! Worker account created.`
           : `Application ${status} successfully`,
       });
 
@@ -334,6 +393,65 @@ export const WorkerApplicationsManager = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Temporary Password Modal */}
+      <Dialog open={showPasswordModal} onOpenChange={setShowPasswordModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Worker Account Created</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <p className="text-sm text-green-800 mb-3">
+                Worker account has been successfully created for:
+              </p>
+              <div className="space-y-2">
+                <div>
+                  <label className="text-xs font-medium text-gray-600">Email:</label>
+                  <p className="font-medium">{approvalResult?.email}</p>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600">Temporary Password:</label>
+                  <div className="flex items-center space-x-2 mt-1">
+                    <div className="flex-1 p-2 bg-gray-100 rounded border font-mono text-sm">
+                      {showPassword ? approvalResult?.temporaryPassword : '••••••••••••'}
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => copyToClipboard(approvalResult?.temporaryPassword || '')}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <p className="text-sm text-yellow-800">
+                <strong>Important:</strong> Share these credentials with the worker securely. 
+                They should change their password on first login.
+              </p>
+            </div>
+            <div className="flex justify-end">
+              <Button onClick={() => {
+                setShowPasswordModal(false);
+                setApprovalResult(null);
+                setShowPassword(false);
+              }}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

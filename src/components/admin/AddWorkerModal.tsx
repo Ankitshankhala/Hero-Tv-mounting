@@ -3,7 +3,8 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { X, Copy, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -12,110 +13,143 @@ interface AddWorkerModalProps {
   onSuccess: () => void;
 }
 
-const DAYS_OF_WEEK = [
-  'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
-] as const;
+interface WorkerCreationResult {
+  email: string;
+  temporaryPassword: string;
+}
 
 export const AddWorkerModal = ({ onClose, onSuccess }: AddWorkerModalProps) => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
-    city: ''
+    city: '',
+    zipCode: ''
   });
-  const [availability, setAvailability] = useState<Array<{
-    day_of_week: typeof DAYS_OF_WEEK[number];
-    start_time: string;
-    end_time: string;
-  }>>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [workerCreationResult, setWorkerCreationResult] = useState<WorkerCreationResult | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const { toast } = useToast();
 
-  const handleAddAvailability = () => {
-    setAvailability([...availability, {
-      day_of_week: 'Monday',
-      start_time: '09:00',
-      end_time: '17:00'
-    }]);
+  // Generate a secure temporary password
+  const generateTemporaryPassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+    let password = '';
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
   };
 
-  const handleRemoveAvailability = (index: number) => {
-    setAvailability(availability.filter((_, i) => i !== index));
-  };
-
-  const handleAvailabilityChange = (index: number, field: string, value: string) => {
-    const updated = [...availability];
-    updated[index] = { ...updated[index], [field]: value };
-    setAvailability(updated);
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({
+        title: "Copied!",
+        description: "Password copied to clipboard",
+      });
+    } catch (error) {
+      console.error('Failed to copy:', error);
+      toast({
+        title: "Error",
+        description: "Failed to copy password",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
+    setLoading(true);
 
     try {
-      // Create the worker user
-      const { data: worker, error: workerError } = await supabase
+      // Generate temporary password
+      const temporaryPassword = generateTemporaryPassword();
+
+      // Create auth user with temporary password
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email: formData.email,
+        password: temporaryPassword,
+        email_confirm: true
+      });
+
+      if (authError) {
+        console.error('Error creating auth user:', authError);
+        throw authError;
+      }
+
+      // Create user profile
+      const { error: userError } = await supabase
         .from('users')
         .insert({
-          name: formData.name,
+          id: authData.user.id,
           email: formData.email,
+          name: formData.name,
           phone: formData.phone,
           city: formData.city,
-          role: 'worker'
-        })
-        .select()
-        .single();
+          zip_code: formData.zipCode,
+          role: 'worker',
+          is_active: true,
+        });
 
-      if (workerError) throw workerError;
-
-      // Add availability records with correct day_of_week format
-      if (availability.length > 0) {
-        const availabilityRecords = availability.map(avail => ({
-          worker_id: worker.id,
-          day_of_week: avail.day_of_week,
-          start_time: avail.start_time,
-          end_time: avail.end_time
-        }));
-
-        const { error: availabilityError } = await supabase
-          .from('worker_availability')
-          .insert(availabilityRecords);
-
-        if (availabilityError) throw availabilityError;
+      if (userError) {
+        console.error('Error creating user profile:', userError);
+        throw userError;
       }
+
+      // Show success and temporary password
+      setWorkerCreationResult({
+        email: formData.email,
+        temporaryPassword: temporaryPassword
+      });
+      setShowPasswordModal(true);
 
       toast({
         title: "Success",
-        description: "Worker added successfully",
+        description: "Worker has been added successfully",
       });
 
       onSuccess();
-      onClose();
     } catch (error: any) {
       console.error('Error adding worker:', error);
+      
+      let errorMessage = "Failed to add worker";
+      if (error?.message?.includes('duplicate key')) {
+        errorMessage = "A user with this email already exists";
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Error",
-        description: error.message || "Failed to add worker",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-          <h2 className="text-xl font-semibold">Add New Worker</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X className="h-6 w-6" />
-          </button>
-        </div>
+  const handleClosePasswordModal = () => {
+    setShowPasswordModal(false);
+    setWorkerCreationResult(null);
+    setShowPassword(false);
+    onClose();
+  };
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+  return (
+    <>
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 w-full max-w-md">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-bold">Add New Worker</h2>
+            <Button variant="ghost" size="sm" onClick={onClose}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Label htmlFor="name">Full Name</Label>
               <Input
@@ -153,68 +187,86 @@ export const AddWorkerModal = ({ onClose, onSuccess }: AddWorkerModalProps) => {
                 required
               />
             </div>
-          </div>
-
-          <div>
-            <div className="flex justify-between items-center mb-4">
-              <Label>Availability Schedule</Label>
-              <Button
-                type="button"
-                onClick={handleAddAvailability}
-                variant="outline"
-                size="sm"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Schedule
-              </Button>
+            <div>
+              <Label htmlFor="zipCode">Zip Code</Label>
+              <Input
+                id="zipCode"
+                value={formData.zipCode}
+                onChange={(e) => setFormData({...formData, zipCode: e.target.value})}
+                required
+              />
             </div>
 
-            {availability.map((avail, index) => (
-              <div key={index} className="flex items-center space-x-2 mb-2">
-                <select
-                  value={avail.day_of_week}
-                  onChange={(e) => handleAvailabilityChange(index, 'day_of_week', e.target.value)}
-                  className="border rounded px-3 py-2"
-                >
-                  {DAYS_OF_WEEK.map(day => (
-                    <option key={day} value={day}>{day}</option>
-                  ))}
-                </select>
-                <Input
-                  type="time"
-                  value={avail.start_time}
-                  onChange={(e) => handleAvailabilityChange(index, 'start_time', e.target.value)}
-                  className="w-32"
-                />
-                <span>to</span>
-                <Input
-                  type="time"
-                  value={avail.end_time}
-                  onChange={(e) => handleAvailabilityChange(index, 'end_time', e.target.value)}
-                  className="w-32"
-                />
-                <Button
-                  type="button"
-                  onClick={() => handleRemoveAvailability(index)}
-                  variant="outline"
-                  size="sm"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
-          </div>
-
-          <div className="flex space-x-4">
-            <Button type="submit" disabled={isSubmitting} className="flex-1">
-              {isSubmitting ? 'Adding...' : 'Add Worker'}
-            </Button>
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-          </div>
-        </form>
+            <div className="flex space-x-4 pt-4">
+              <Button 
+                type="submit" 
+                className="flex-1 bg-blue-600 hover:bg-blue-700"
+                disabled={loading}
+              >
+                {loading ? 'Adding...' : 'Add Worker'}
+              </Button>
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+            </div>
+          </form>
+        </div>
       </div>
-    </div>
+
+      {/* Temporary Password Modal */}
+      <Dialog open={showPasswordModal} onOpenChange={setShowPasswordModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Worker Account Created</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <p className="text-sm text-green-800 mb-3">
+                Worker account has been successfully created for:
+              </p>
+              <div className="space-y-2">
+                <div>
+                  <label className="text-xs font-medium text-gray-600">Email:</label>
+                  <p className="font-medium">{workerCreationResult?.email}</p>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600">Temporary Password:</label>
+                  <div className="flex items-center space-x-2 mt-1">
+                    <div className="flex-1 p-2 bg-gray-100 rounded border font-mono text-sm">
+                      {showPassword ? workerCreationResult?.temporaryPassword : '••••••••••••'}
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => copyToClipboard(workerCreationResult?.temporaryPassword || '')}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <p className="text-sm text-yellow-800">
+                <strong>Important:</strong> Share these credentials with the worker securely. 
+                They should change their password on first login.
+              </p>
+            </div>
+            <div className="flex justify-end">
+              <Button onClick={handleClosePasswordModal}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
