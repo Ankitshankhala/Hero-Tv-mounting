@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -219,6 +220,7 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
               </h3>
               
               <div className="bg-white border-2 border-gray-100 rounded-xl p-6 space-y-6">
+                {/* First Row: Full Name and Email */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label htmlFor="name" className="flex items-center text-sm font-medium text-gray-700 after:content-['*'] after:ml-0.5 after:text-red-500">
@@ -261,6 +263,7 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
                   </div>
                 </div>
 
+                {/* Second Row: Phone Number and ZIP Code */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label htmlFor="phone" className="flex items-center text-sm font-medium text-gray-700 after:content-['*'] after:ml-0.5 after:text-red-500">
