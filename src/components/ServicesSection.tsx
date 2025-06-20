@@ -12,21 +12,6 @@ interface ServicesSectionProps {
   onAddToCart: (item: CartItem) => void;
 }
 
-const getServiceImage = (serviceName: string): string => {
-  const serviceImages: { [key: string]: string } = {
-    'TV Mounting': '/lovable-uploads/77f65da7-38bc-4d01-afdd-bb998049c77b.png',
-    'Furniture Assembly': '/lovable-uploads/012bbdab-1222-48ae-aa4b-d7bb3c3aa632.png',
-    'Plumbing': '/lovable-uploads/01571029-7b6a-4df2-9c0f-1c0b120fedff.png',
-    'Electrical Work': '/lovable-uploads/15729bed-70cc-4a81-afe5-f295b900175d.png',
-    'Home Repair': '/lovable-uploads/1cdefbf0-13c5-4f66-bb5c-761861d66f74.png',
-    'Appliance Installation': '/lovable-uploads/27ce8bb9-eb88-4dd3-bd04-4525238f4f77.png',
-    'Handyman Services': '/lovable-uploads/2ca84624-6945-44f1-8cf1-e35c574b9a1f.png',
-    'Cleaning': '/lovable-uploads/30e56e23-dec2-4e93-a794-d7575b2e1bd5.png'
-  };
-  
-  return serviceImages[serviceName] || '/lovable-uploads/77f65da7-38bc-4d01-afdd-bb998049c77b.png';
-};
-
 export const ServicesSection = ({ onAddToCart }: ServicesSectionProps) => {
   const [showTvModal, setShowTvModal] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
@@ -91,11 +76,30 @@ export const ServicesSection = ({ onAddToCart }: ServicesSectionProps) => {
               id={service.id}
               name={service.name}
               price={service.base_price}
-              image={getServiceImage(service.name)}
+              image="/lovable-uploads/77f65da7-38bc-4d01-afdd-bb998049c77b.png"
               description={service.description || `Professional ${service.name.toLowerCase()} service`}
               onAddToCart={() => handleServiceClick(service.id, service.name)}
             />
           ))}
+        </div>
+
+        <div className="text-center mt-16">
+          <div className="bg-slate-800 rounded-lg p-8 max-w-4xl mx-auto">
+            <div className="flex items-center justify-center space-x-8 text-white">
+              <div className="flex items-center space-x-2">
+                <CheckCircle className="h-6 w-6 text-green-400" />
+                <span>Licensed & Insured</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Star className="h-6 w-6 text-yellow-400" />
+                <span>4.9/5 Rating</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Home className="h-6 w-6 text-blue-400" />
+                <span>Same Day Service</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
