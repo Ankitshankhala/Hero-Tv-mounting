@@ -50,15 +50,13 @@ export const SortableServiceItem: React.FC<SortableServiceItemProps> = ({
     return `${mins}m`;
   };
 
-  const isVisible = service.is_visible !== false;
-
   return (
     <TableRow
       ref={setNodeRef}
       style={style}
       className={`hover:bg-blue-50 transition-colors duration-200 ${
         isDragging ? 'opacity-50 shadow-lg' : ''
-      } ${!isVisible ? 'opacity-50 bg-gray-50' : ''}`}
+      } ${!service.is_visible ? 'opacity-50 bg-gray-50' : ''}`}
     >
       <TableCell>
         <div className="flex items-center gap-2">
@@ -89,7 +87,7 @@ export const SortableServiceItem: React.FC<SortableServiceItemProps> = ({
       </TableCell>
       <TableCell className="font-medium text-gray-900">
         {service.name}
-        {!isVisible && <span className="ml-2 text-xs text-gray-500">(Hidden)</span>}
+        {!service.is_visible && <span className="ml-2 text-xs text-gray-500">(Hidden)</span>}
       </TableCell>
       <TableCell className="max-w-xs">
         <p className="text-sm text-gray-600 truncate">
@@ -119,11 +117,11 @@ export const SortableServiceItem: React.FC<SortableServiceItemProps> = ({
             size="sm"
             onClick={() => onToggleVisibility(service.id)}
             className={`hover:bg-gray-100 hover:border-gray-300 ${
-              !isVisible ? 'text-gray-500' : 'text-blue-600'
+              !service.is_visible ? 'text-gray-500' : 'text-blue-600'
             }`}
-            title={isVisible ? 'Hide service' : 'Show service'}
+            title={service.is_visible ? 'Hide service' : 'Show service'}
           >
-            {isVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+            {service.is_visible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
           </Button>
           <Button
             variant="outline"

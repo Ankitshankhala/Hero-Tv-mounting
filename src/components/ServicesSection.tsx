@@ -6,7 +6,7 @@ import { TvMountingModal } from './TvMountingModal';
 import { EmbeddedCheckout } from './EmbeddedCheckout';
 import { Button } from './ui/button';
 import { CartItem } from '@/types';
-import { useServicesData } from '@/hooks/useServicesData';
+import { usePublicServicesData } from '@/hooks/usePublicServicesData';
 
 interface ServicesSectionProps {
   onAddToCart: (item: CartItem) => void;
@@ -16,7 +16,7 @@ export const ServicesSection = ({ onAddToCart }: ServicesSectionProps) => {
   const [showTvModal, setShowTvModal] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const { services, loading } = useServicesData();
+  const { services, loading } = usePublicServicesData();
 
   const handleAddToCart = (item: CartItem) => {
     setCart([item]); // Replace cart with new item for immediate checkout

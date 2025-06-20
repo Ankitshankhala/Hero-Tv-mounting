@@ -12,7 +12,7 @@ export interface Service {
   created_at: string;
   image_url: string | null;
   sort_order: number;
-  is_visible?: boolean;
+  is_visible: boolean;
 }
 
 export const useServicesData = () => {
@@ -25,19 +25,13 @@ export const useServicesData = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('services')
-        .select('id, name, description, base_price, duration_minutes, is_active, created_at, image_url, sort_order')
+        .select('id, name, description, base_price, duration_minutes, is_active, created_at, image_url, sort_order, is_visible')
         .eq('is_active', true)
         .order('sort_order', { ascending: true });
 
       if (error) throw error;
       
-      // Add is_visible property to each service (defaulting to true)
-      const servicesWithVisibility = (data || []).map(service => ({
-        ...service,
-        is_visible: true
-      }));
-      
-      setServices(servicesWithVisibility);
+      setServices(data || []);
     } catch (error) {
       console.error('Error fetching services:', error);
       toast({
@@ -50,12 +44,38 @@ export const useServicesData = () => {
     }
   };
 
-  const toggleServiceVisibility = (serviceId: string) => {
-    setServices(prev => prev.map(service => 
-      service.id === serviceId 
-        ? { ...service, is_visible: !service.is_visible }
-        : service
-    ));
+  const toggleServiceVisibility = async (serviceId: string) => {
+    try {
+      const service = services.find(s => s.id === serviceId);
+      if (!service) return;
+
+      const newVisibility = !service.is_visible;
+
+      const { error } = await supabase
+        .from('services')
+        .update({ is_visible: newVisibility })
+        .eq('id', serviceId);
+
+      if (error) throw error;
+
+      setServices(prev => prev.map(service => 
+        service.id === serviceId 
+          ? { ...service, is_visible: newVisibility }
+          : service
+      ));
+
+      toast({
+        title: "Success",
+        description: `Service ${newVisibility ? 'shown' : 'hidden'} successfully`,
+      });
+    } catch (error) {
+      console.error('Error toggling service visibility:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update service visibility",
+        variant: "destructive",
+      });
+    }
   };
 
   const addService = async (serviceData: {

@@ -212,6 +212,7 @@ export type Database = {
           id: string
           image_url: string | null
           is_active: boolean | null
+          is_visible: boolean
           name: string
           sort_order: number
         }
@@ -223,6 +224,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_active?: boolean | null
+          is_visible?: boolean
           name: string
           sort_order?: number
         }
@@ -234,6 +236,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_active?: boolean | null
+          is_visible?: boolean
           name?: string
           sort_order?: number
         }
