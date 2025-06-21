@@ -5,8 +5,7 @@ import { CartItem } from '@/types';
 import { PublicService } from '@/hooks/usePublicServicesData';
 import { useTvMountingModal } from '@/hooks/useTvMountingModal';
 import { TvQuantitySelector } from './tv-mounting/TvQuantitySelector';
-import { TvAddOns } from './tv-mounting/TvAddOns';
-import { WallTypeSelector } from './tv-mounting/WallTypeSelector';
+import { IndividualTvConfig } from './tv-mounting/IndividualTvConfig';
 import { ServicesSummary } from './tv-mounting/ServicesSummary';
 
 interface TvMountingModalProps {
@@ -23,14 +22,10 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({
   services 
 }) => {
   const {
-    over65,
-    setOver65,
-    frameMount,
-    setFrameMount,
     numberOfTvs,
     setNumberOfTvs,
-    wallType,
-    setWallType,
+    tvConfigurations,
+    updateTvConfiguration,
     over65Service,
     frameMountService,
     stoneWallService,
@@ -63,10 +58,8 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({
       price: totalPrice,
       quantity: 1,
       options: {
-        over65,
-        frameMount,
         numberOfTvs,
-        wallType,
+        tvConfigurations,
         services: buildServicesList()
       }
     };
@@ -77,14 +70,14 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-slate-900 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-slate-900 rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-slate-700 flex justify-between items-center sticky top-0 bg-slate-900 z-10">
           <div>
             <h2 className="text-2xl font-bold text-white flex items-center">
               <Monitor className="mr-3 h-6 w-6 text-blue-400" />
               TV Mounting Configuration
             </h2>
-            <p className="text-slate-400 mt-1">Customize your TV mounting service</p>
+            <p className="text-slate-400 mt-1">Customize your TV mounting service for each TV</p>
           </div>
           <button
             onClick={onClose}
@@ -102,22 +95,21 @@ export const TvMountingModal: React.FC<TvMountingModalProps> = ({
             calculateTvMountingPrice={calculateTvMountingPrice}
           />
 
-          <TvAddOns
-            over65={over65}
-            setOver65={setOver65}
-            frameMount={frameMount}
-            setFrameMount={setFrameMount}
-            numberOfTvs={numberOfTvs}
-            over65Service={over65Service}
-            frameMountService={frameMountService}
-          />
-
-          <WallTypeSelector
-            wallType={wallType}
-            setWallType={setWallType}
-            numberOfTvs={numberOfTvs}
-            stoneWallService={stoneWallService}
-          />
+          {/* Individual TV Configurations */}
+          <div className="space-y-4">
+            <h3 className="text-xl font-semibold text-white">Configure Each TV</h3>
+            {tvConfigurations.map((config, index) => (
+              <IndividualTvConfig
+                key={config.id}
+                tvConfig={config}
+                tvNumber={index + 1}
+                onUpdateConfig={updateTvConfiguration}
+                over65Service={over65Service}
+                frameMountService={frameMountService}
+                stoneWallService={stoneWallService}
+              />
+            ))}
+          </div>
 
           <ServicesSummary
             services={buildServicesList()}

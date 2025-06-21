@@ -2,11 +2,18 @@
 import { useState, useMemo } from 'react';
 import { PublicService } from '@/hooks/usePublicServicesData';
 
+interface TvConfiguration {
+  id: string;
+  over65: boolean;
+  frameMount: boolean;
+  wallType: string;
+}
+
 export const useTvMountingModal = (services: PublicService[]) => {
-  const [over65, setOver65] = useState(false);
-  const [frameMount, setFrameMount] = useState(false);
   const [numberOfTvs, setNumberOfTvs] = useState(1);
-  const [wallType, setWallType] = useState('standard');
+  const [tvConfigurations, setTvConfigurations] = useState<TvConfiguration[]>([
+    { id: '1', over65: false, frameMount: false, wallType: 'standard' }
+  ]);
 
   // Find services from database
   const tvMountingService = services.find(s => s.name === 'TV Mounting');
@@ -30,26 +37,57 @@ export const useTvMountingModal = (services: PublicService[]) => {
     return totalPrice;
   };
 
+  // Update TV configurations when number of TVs changes
+  const updateNumberOfTvs = (newNumber: number) => {
+    setNumberOfTvs(newNumber);
+    
+    const newConfigurations = [...tvConfigurations];
+    
+    // Add new configurations if increasing
+    while (newConfigurations.length < newNumber) {
+      newConfigurations.push({
+        id: (newConfigurations.length + 1).toString(),
+        over65: false,
+        frameMount: false,
+        wallType: 'standard'
+      });
+    }
+    
+    // Remove configurations if decreasing
+    while (newConfigurations.length > newNumber) {
+      newConfigurations.pop();
+    }
+    
+    setTvConfigurations(newConfigurations);
+  };
+
+  const updateTvConfiguration = (tvId: string, updates: Partial<Omit<TvConfiguration, 'id'>>) => {
+    setTvConfigurations(prev => 
+      prev.map(config => 
+        config.id === tvId ? { ...config, ...updates } : config
+      )
+    );
+  };
+
   const totalPrice = useMemo(() => {
     let price = calculateTvMountingPrice(numberOfTvs);
 
-    if (over65) {
-      const over65Cost = (over65Service?.base_price || 25) * numberOfTvs;
-      price += over65Cost;
-    }
-    
-    if (frameMount) {
-      const frameMountCost = (frameMountService?.base_price || 25) * numberOfTvs;
-      price += frameMountCost;
-    }
-    
-    if (wallType !== 'standard') {
-      const wallCost = (stoneWallService?.base_price || 50) * numberOfTvs;
-      price += wallCost;
-    }
+    tvConfigurations.forEach((config) => {
+      if (config.over65) {
+        price += (over65Service?.base_price || 25);
+      }
+      
+      if (config.frameMount) {
+        price += (frameMountService?.base_price || 25);
+      }
+      
+      if (config.wallType !== 'standard') {
+        price += (stoneWallService?.base_price || 50);
+      }
+    });
 
     return price;
-  }, [numberOfTvs, over65, frameMount, wallType, over65Service?.base_price, frameMountService?.base_price, stoneWallService?.base_price]);
+  }, [numberOfTvs, tvConfigurations, over65Service?.base_price, frameMountService?.base_price, stoneWallService?.base_price]);
 
   const buildServicesList = () => {
     const selectedServices = [];
@@ -61,29 +99,33 @@ export const useTvMountingModal = (services: PublicService[]) => {
       quantity: 1
     });
 
-    if (over65) {
+    const over65Count = tvConfigurations.filter(config => config.over65).length;
+    if (over65Count > 0) {
       selectedServices.push({
         id: over65Service?.id || 'over65-addon',
-        name: `Over 65" TV Add-on${numberOfTvs > 1 ? ` (${numberOfTvs} TVs)` : ''}`,
-        price: (over65Service?.base_price || 25) * numberOfTvs,
+        name: `Over 65" TV Add-on${over65Count > 1 ? ` (${over65Count} TVs)` : ''}`,
+        price: (over65Service?.base_price || 25) * over65Count,
         quantity: 1
       });
     }
     
-    if (frameMount) {
+    const frameMountCount = tvConfigurations.filter(config => config.frameMount).length;
+    if (frameMountCount > 0) {
       selectedServices.push({
         id: frameMountService?.id || 'frame-mount-addon',
-        name: `Frame Mount Add-on${numberOfTvs > 1 ? ` (${numberOfTvs} TVs)` : ''}`,
-        price: (frameMountService?.base_price || 25) * numberOfTvs,
+        name: `Frame Mount Add-on${frameMountCount > 1 ? ` (${frameMountCount} TVs)` : ''}`,
+        price: (frameMountService?.base_price || 25) * frameMountCount,
         quantity: 1
       });
     }
     
-    if (wallType !== 'standard') {
+    const specialWallCount = tvConfigurations.filter(config => config.wallType !== 'standard').length;
+    if (specialWallCount > 0) {
+      const wallTypes = [...new Set(tvConfigurations.filter(config => config.wallType !== 'standard').map(config => config.wallType))];
       selectedServices.push({
         id: stoneWallService?.id || 'wall-type-addon',
-        name: `${wallType.charAt(0).toUpperCase() + wallType.slice(1)} Wall Service${numberOfTvs > 1 ? ` (${numberOfTvs} TVs)` : ''}`,
-        price: (stoneWallService?.base_price || 50) * numberOfTvs,
+        name: `Special Wall Service (${wallTypes.join(', ')})${specialWallCount > 1 ? ` (${specialWallCount} TVs)` : ''}`,
+        price: (stoneWallService?.base_price || 50) * specialWallCount,
         quantity: 1
       });
     }
@@ -95,9 +137,13 @@ export const useTvMountingModal = (services: PublicService[]) => {
     let name = `TV Mounting${numberOfTvs > 1 ? ` (${numberOfTvs} TVs)` : ''}`;
     const addOns = [];
     
-    if (over65) addOns.push('Over 65" TV');
-    if (frameMount) addOns.push('Frame Mount');
-    if (wallType !== 'standard') addOns.push(`${wallType.charAt(0).toUpperCase() + wallType.slice(1)} Wall`);
+    const over65Count = tvConfigurations.filter(config => config.over65).length;
+    const frameMountCount = tvConfigurations.filter(config => config.frameMount).length;
+    const specialWallCount = tvConfigurations.filter(config => config.wallType !== 'standard').length;
+    
+    if (over65Count > 0) addOns.push(`Over 65" TV (${over65Count})`);
+    if (frameMountCount > 0) addOns.push(`Frame Mount (${frameMountCount})`);
+    if (specialWallCount > 0) addOns.push(`Special Wall (${specialWallCount})`);
     
     if (addOns.length > 0) {
       name += ` + ${addOns.join(' + ')}`;
@@ -107,14 +153,10 @@ export const useTvMountingModal = (services: PublicService[]) => {
   };
 
   return {
-    over65,
-    setOver65,
-    frameMount,
-    setFrameMount,
     numberOfTvs,
-    setNumberOfTvs,
-    wallType,
-    setWallType,
+    setNumberOfTvs: updateNumberOfTvs,
+    tvConfigurations,
+    updateTvConfiguration,
     over65Service,
     frameMountService,
     stoneWallService,
