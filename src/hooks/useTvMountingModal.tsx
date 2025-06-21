@@ -7,12 +7,13 @@ interface TvConfiguration {
   over65: boolean;
   frameMount: boolean;
   wallType: string;
+  soundbar: boolean;
 }
 
 export const useTvMountingModal = (services: PublicService[]) => {
   const [numberOfTvs, setNumberOfTvs] = useState(1);
   const [tvConfigurations, setTvConfigurations] = useState<TvConfiguration[]>([
-    { id: '1', over65: false, frameMount: false, wallType: 'standard' }
+    { id: '1', over65: false, frameMount: false, wallType: 'standard', soundbar: false }
   ]);
 
   // Find services from database
@@ -49,7 +50,8 @@ export const useTvMountingModal = (services: PublicService[]) => {
         id: (newConfigurations.length + 1).toString(),
         over65: false,
         frameMount: false,
-        wallType: 'standard'
+        wallType: 'standard',
+        soundbar: false
       });
     }
     
@@ -83,6 +85,10 @@ export const useTvMountingModal = (services: PublicService[]) => {
       
       if (config.wallType !== 'standard') {
         price += (stoneWallService?.base_price || 50);
+      }
+
+      if (config.soundbar) {
+        price += 40; // Soundbar mounting: $40
       }
     });
 
@@ -130,6 +136,16 @@ export const useTvMountingModal = (services: PublicService[]) => {
       });
     }
 
+    const soundbarCount = tvConfigurations.filter(config => config.soundbar).length;
+    if (soundbarCount > 0) {
+      selectedServices.push({
+        id: 'soundbar-mount-addon',
+        name: `Soundbar Mount${soundbarCount > 1 ? ` (${soundbarCount} soundbars)` : ''}`,
+        price: 40 * soundbarCount,
+        quantity: 1
+      });
+    }
+
     return selectedServices;
   };
 
@@ -140,10 +156,12 @@ export const useTvMountingModal = (services: PublicService[]) => {
     const over65Count = tvConfigurations.filter(config => config.over65).length;
     const frameMountCount = tvConfigurations.filter(config => config.frameMount).length;
     const specialWallCount = tvConfigurations.filter(config => config.wallType !== 'standard').length;
+    const soundbarCount = tvConfigurations.filter(config => config.soundbar).length;
     
     if (over65Count > 0) addOns.push(`Over 65" TV (${over65Count})`);
     if (frameMountCount > 0) addOns.push(`Frame Mount (${frameMountCount})`);
     if (specialWallCount > 0) addOns.push(`Special Wall (${specialWallCount})`);
+    if (soundbarCount > 0) addOns.push(`Soundbar Mount (${soundbarCount})`);
     
     if (addOns.length > 0) {
       name += ` + ${addOns.join(' + ')}`;

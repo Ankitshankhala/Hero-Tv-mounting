@@ -4,6 +4,7 @@ interface TvConfiguration {
   over65: boolean;
   frameMount: boolean;
   wallType: string;
+  soundbar: boolean;
 }
 
 export interface CartItem {
@@ -16,6 +17,7 @@ export interface CartItem {
     frameMount?: boolean;
     numberOfTvs?: number;
     wallType?: string;
+    soundbar?: boolean;
     tvConfigurations?: TvConfiguration[];
     services?: Array<{
       id: string;

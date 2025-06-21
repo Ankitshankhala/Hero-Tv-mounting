@@ -8,6 +8,7 @@ interface TvConfiguration {
   over65: boolean;
   frameMount: boolean;
   wallType: string;
+  soundbar: boolean;
 }
 
 interface IndividualTvConfigProps {
@@ -104,6 +105,31 @@ export const IndividualTvConfig: React.FC<IndividualTvConfigProps> = ({
               </div>
               <p className="text-slate-400 text-xs">
                 Additional charge for specialty wall surfaces (+${stoneWallService?.base_price || 50})
+              </p>
+            </div>
+          </label>
+        </div>
+
+        {/* Mount Soundbar Add-on */}
+        <div className="bg-slate-800 rounded-lg p-3">
+          <label className="flex items-center space-x-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={tvConfig.soundbar}
+              onChange={(e) => onUpdateConfig(tvConfig.id, { soundbar: e.target.checked })}
+              className="w-4 h-4 text-blue-600 bg-slate-700 border-slate-600 rounded focus:ring-blue-500"
+            />
+            <div className="flex-1">
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-white">Mount Soundbar</span>
+                {tvConfig.soundbar && (
+                  <span className="text-green-400 font-semibold">
+                    +$40
+                  </span>
+                )}
+              </div>
+              <p className="text-slate-400 text-xs">
+                Professional soundbar mounting service (+$40)
               </p>
             </div>
           </label>
