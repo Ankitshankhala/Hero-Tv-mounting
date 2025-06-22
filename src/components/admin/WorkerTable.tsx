@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -47,8 +46,12 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
       return 'Not specified';
     }
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const availableDays = workerAvailability.map(a => days[a.day_of_week]);
-    return availableDays.join(', ');
+    const availableDays = workerAvailability
+      .map(a => days[a.day_of_week])
+      .filter(day => day) // Remove any undefined/null values
+      .filter(day => day.trim() !== ''); // Remove empty strings
+    
+    return availableDays.length > 0 ? availableDays.join(', ') : 'Not specified';
   };
 
   const handleEditWorker = (worker: Worker) => {
