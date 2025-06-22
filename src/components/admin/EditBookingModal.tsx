@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { usePublicServicesData } from '@/hooks/usePublicServicesData';
 
 interface EditBookingModalProps {
   booking: any;
@@ -18,33 +19,81 @@ interface EditBookingModalProps {
 
 export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }: EditBookingModalProps) => {
   const [formData, setFormData] = useState({
-    status: booking?.status || '',
-    scheduled_at: booking?.scheduled_at || '',
-    customer_address: booking?.customer_address || '',
-    special_instructions: booking?.special_instructions || '',
-    total_price: booking?.total_price || 0
+    status: '',
+    scheduled_date: '',
+    scheduled_start: '',
+    service_id: '',
+    location_notes: '',
+    customer_name: '',
+    customer_email: '',
+    customer_phone: ''
   });
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { services } = usePublicServicesData();
+
+  // Initialize form data when booking changes
+  useEffect(() => {
+    if (booking && isOpen) {
+      console.log('Initializing form with booking:', booking);
+      
+      setFormData({
+        status: booking.status || '',
+        scheduled_date: booking.scheduled_date || '',
+        scheduled_start: booking.scheduled_start || '',
+        service_id: booking.service_id || booking.service?.id || '',
+        location_notes: booking.location_notes || '',
+        customer_name: booking.customer?.name || '',
+        customer_email: booking.customer?.email || '',
+        customer_phone: booking.customer?.phone || ''
+      });
+    }
+  }, [booking, isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const { error } = await supabase
+      console.log('Updating booking with data:', formData);
+
+      // Update customer information if changed
+      if (booking.customer_id && (
+        formData.customer_name !== booking.customer?.name ||
+        formData.customer_email !== booking.customer?.email ||
+        formData.customer_phone !== booking.customer?.phone
+      )) {
+        const { error: customerError } = await supabase
+          .from('users')
+          .update({
+            name: formData.customer_name,
+            email: formData.customer_email,
+            phone: formData.customer_phone
+          })
+          .eq('id', booking.customer_id);
+
+        if (customerError) {
+          console.error('Error updating customer:', customerError);
+          throw customerError;
+        }
+      }
+
+      // Update booking information
+      const { error: bookingError } = await supabase
         .from('bookings')
         .update({
           status: formData.status,
-          scheduled_at: formData.scheduled_at,
-          customer_address: formData.customer_address,
-          special_instructions: formData.special_instructions,
-          total_price: parseFloat(formData.total_price.toString()),
-          updated_at: new Date().toISOString()
+          scheduled_date: formData.scheduled_date,
+          scheduled_start: formData.scheduled_start,
+          service_id: formData.service_id,
+          location_notes: formData.location_notes
         })
         .eq('id', booking.id);
 
-      if (error) throw error;
+      if (bookingError) {
+        console.error('Error updating booking:', bookingError);
+        throw bookingError;
+      }
 
       toast({
         title: "Success",
@@ -57,7 +106,7 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
       console.error('Error updating booking:', error);
       toast({
         title: "Error",
-        description: "Failed to update booking",
+        description: "Failed to update booking. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -71,15 +120,45 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
 
   if (!booking) return null;
 
+  const selectedService = services.find(s => s.id === formData.service_id);
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Booking #{booking.id.slice(0, 8)}</DialogTitle>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          {/* Customer Information */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="customer_name">Customer Name</Label>
+              <Input
+                id="customer_name"
+                value={formData.customer_name}
+                onChange={(e) => handleInputChange('customer_name', e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="customer_email">Customer Email</Label>
+              <Input
+                id="customer_email"
+                type="email"
+                value={formData.customer_email}
+                onChange={(e) => handleInputChange('customer_email', e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="customer_phone">Customer Phone</Label>
+              <Input
+                id="customer_phone"
+                value={formData.customer_phone}
+                onChange={(e) => handleInputChange('customer_phone', e.target.value)}
+              />
+            </div>
             <div>
               <Label htmlFor="status">Status</Label>
               <Select onValueChange={(value) => handleInputChange('status', value)} value={formData.status}>
@@ -95,45 +174,66 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
                 </SelectContent>
               </Select>
             </div>
-            
+          </div>
+
+          {/* Service and Scheduling */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="total_price">Total Price</Label>
+              <Label htmlFor="service_id">Service</Label>
+              <Select onValueChange={(value) => handleInputChange('service_id', value)} value={formData.service_id}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select service" />
+                </SelectTrigger>
+                <SelectContent>
+                  {services.map((service) => (
+                    <SelectItem key={service.id} value={service.id}>
+                      {service.name} - ${service.base_price}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="scheduled_date">Scheduled Date</Label>
               <Input
-                id="total_price"
-                type="number"
-                step="0.01"
-                value={formData.total_price}
-                onChange={(e) => handleInputChange('total_price', e.target.value)}
+                id="scheduled_date"
+                type="date"
+                value={formData.scheduled_date}
+                onChange={(e) => handleInputChange('scheduled_date', e.target.value)}
+                required
               />
             </div>
+            <div>
+              <Label htmlFor="scheduled_start">Scheduled Time</Label>
+              <Input
+                id="scheduled_start"
+                type="time"
+                value={formData.scheduled_start}
+                onChange={(e) => handleInputChange('scheduled_start', e.target.value)}
+                required
+              />
+            </div>
+            {selectedService && (
+              <div className="flex flex-col justify-end">
+                <div className="text-sm text-gray-600">
+                  <span className="font-medium">Duration:</span> {selectedService.duration_minutes} minutes
+                </div>
+                <div className="text-sm text-gray-600">
+                  <span className="font-medium">Price:</span> ${selectedService.base_price}
+                </div>
+              </div>
+            )}
           </div>
 
+          {/* Location Notes */}
           <div>
-            <Label htmlFor="scheduled_at">Scheduled Date & Time</Label>
-            <Input
-              id="scheduled_at"
-              type="datetime-local"
-              value={formData.scheduled_at ? new Date(formData.scheduled_at).toISOString().slice(0, 16) : ''}
-              onChange={(e) => handleInputChange('scheduled_at', e.target.value)}
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="customer_address">Customer Address</Label>
-            <Input
-              id="customer_address"
-              value={formData.customer_address}
-              onChange={(e) => handleInputChange('customer_address', e.target.value)}
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="special_instructions">Special Instructions</Label>
+            <Label htmlFor="location_notes">Location & Instructions</Label>
             <Textarea
-              id="special_instructions"
-              value={formData.special_instructions || ''}
-              onChange={(e) => handleInputChange('special_instructions', e.target.value)}
-              rows={3}
+              id="location_notes"
+              value={formData.location_notes || ''}
+              onChange={(e) => handleInputChange('location_notes', e.target.value)}
+              rows={4}
+              placeholder="Service address and special instructions..."
             />
           </div>
 

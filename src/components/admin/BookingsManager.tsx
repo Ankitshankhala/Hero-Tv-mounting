@@ -31,7 +31,14 @@ export const BookingsManager = () => {
   const { isConnected } = useRealtimeBookings({
     userId: user?.id,
     userRole: 'admin',
-    onBookingUpdate: handleBookingUpdate
+    onBookingUpdate: (updatedBooking) => {
+      console.log('Real-time booking update received:', updatedBooking);
+      handleBookingUpdate(updatedBooking);
+      // Force a fresh fetch to ensure we have the latest data with all relations
+      setTimeout(() => {
+        fetchBookings();
+      }, 1000);
+    }
   });
 
   // Update calendar connection state
@@ -68,6 +75,11 @@ export const BookingsManager = () => {
 
   const handleBookingCreated = () => {
     console.log('Booking created, refreshing list');
+    fetchBookings();
+  };
+
+  const handleBookingUpdated = () => {
+    console.log('Booking updated, refreshing list');
     fetchBookings();
   };
 
@@ -121,7 +133,7 @@ export const BookingsManager = () => {
 
                 <BookingTable 
                   bookings={filteredBookings} 
-                  onBookingUpdate={fetchBookings}
+                  onBookingUpdate={handleBookingUpdated}
                 />
               </>
             )}
