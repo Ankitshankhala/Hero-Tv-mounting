@@ -17,9 +17,11 @@ interface EditBookingModalProps {
   onBookingUpdated: () => void;
 }
 
+type BookingStatus = 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
+
 export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }: EditBookingModalProps) => {
   const [formData, setFormData] = useState({
-    status: '',
+    status: '' as BookingStatus,
     scheduled_date: '',
     scheduled_start: '',
     service_id: '',
@@ -32,13 +34,19 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
   const { toast } = useToast();
   const { services } = usePublicServicesData();
 
+  // Helper function to validate booking status
+  const validateBookingStatus = (status: string): BookingStatus => {
+    const validStatuses: BookingStatus[] = ['pending', 'confirmed', 'in_progress', 'completed', 'cancelled'];
+    return validStatuses.includes(status as BookingStatus) ? status as BookingStatus : 'pending';
+  };
+
   // Initialize form data when booking changes
   useEffect(() => {
     if (booking && isOpen) {
       console.log('Initializing form with booking:', booking);
       
       setFormData({
-        status: booking.status || '',
+        status: validateBookingStatus(booking.status || 'pending'),
         scheduled_date: booking.scheduled_date || '',
         scheduled_start: booking.scheduled_start || '',
         service_id: booking.service_id || booking.service?.id || '',
@@ -161,7 +169,7 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
             </div>
             <div>
               <Label htmlFor="status">Status</Label>
-              <Select onValueChange={(value) => handleInputChange('status', value)} value={formData.status}>
+              <Select onValueChange={(value) => handleInputChange('status', value as BookingStatus)} value={formData.status}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
