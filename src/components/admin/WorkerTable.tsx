@@ -110,7 +110,7 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
               <TableHead>Name</TableHead>
               <TableHead>Contact</TableHead>
               <TableHead>Location</TableHead>
-              <TableHead>Availability</TableHead>
+              <TableHead>Availabilit</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Joined</TableHead>
               <TableHead>Actions</TableHead>
@@ -138,9 +138,6 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
                 <TableCell>
                   <div>
                     {getAvailabilityBadge(worker.worker_availability)}
-                    <div className="text-xs text-gray-600 mt-1">
-                      {formatAvailability(worker.worker_availability)}
-                    </div>
                   </div>
                 </TableCell>
                 <TableCell>
