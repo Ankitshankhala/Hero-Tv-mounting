@@ -1,6 +1,8 @@
+
 import { useState, useCallback, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useGoogleCalendarPersistence } from './useGoogleCalendarPersistence';
 
 interface CalendarEvent {
   id?: string;
@@ -17,17 +19,51 @@ interface CalendarEvent {
   location?: string;
 }
 
+const GOOGLE_CALENDAR_STORAGE_KEY = 'google_calendar_connection';
+const GOOGLE_ACCESS_TOKEN_KEY = 'google_access_token';
+
 export const useGoogleCalendar = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [configurationError, setConfigurationError] = useState<string | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const { toast } = useToast();
+  const { validateStoredToken, clearStoredConnection } = useGoogleCalendarPersistence();
 
-  // Check configuration on mount
+  // Load persisted state on mount
   useEffect(() => {
+    const initializePersistedConnection = async () => {
+      const savedConnection = localStorage.getItem(GOOGLE_CALENDAR_STORAGE_KEY);
+      const savedToken = localStorage.getItem(GOOGLE_ACCESS_TOKEN_KEY);
+      
+      if (savedConnection === 'true' && savedToken) {
+        // Validate the stored token
+        const isValid = await validateStoredToken(savedToken);
+        
+        if (isValid) {
+          setIsConnected(true);
+          setAccessToken(savedToken);
+        } else {
+          // Clear invalid stored connection
+          clearStoredConnection();
+        }
+      }
+    };
+    
+    initializePersistedConnection();
     checkConfiguration();
-  }, []);
+  }, [validateStoredToken, clearStoredConnection]);
+
+  // Persist connection state changes
+  useEffect(() => {
+    if (isConnected && accessToken) {
+      localStorage.setItem(GOOGLE_CALENDAR_STORAGE_KEY, 'true');
+      localStorage.setItem(GOOGLE_ACCESS_TOKEN_KEY, accessToken);
+    } else {
+      localStorage.removeItem(GOOGLE_CALENDAR_STORAGE_KEY);
+      localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
+    }
+  }, [isConnected, accessToken]);
 
   const checkConfiguration = useCallback(async () => {
     try {
@@ -166,7 +202,7 @@ export const useGoogleCalendar = () => {
           
           toast({
             title: "Success",
-            description: "Connected to Google Calendar",
+            description: "Connected to Google Calendar - connection will persist across page refreshes",
           });
         },
       });
@@ -420,6 +456,7 @@ export const useGoogleCalendar = () => {
       
       setIsConnected(false);
       setAccessToken(null);
+      clearStoredConnection();
       
       toast({
         title: "Success",
@@ -430,6 +467,7 @@ export const useGoogleCalendar = () => {
       // Even if disconnect fails, reset the local state
       setIsConnected(false);
       setAccessToken(null);
+      clearStoredConnection();
       
       toast({
         title: "Warning",
@@ -437,7 +475,7 @@ export const useGoogleCalendar = () => {
         variant: "destructive",
       });
     }
-  }, [accessToken, toast]);
+  }, [accessToken, toast, clearStoredConnection]);
 
   return {
     isConnected,
