@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -33,26 +34,6 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [removingWorkerId, setRemovingWorkerId] = useState<string | null>(null);
   const { toast } = useToast();
-
-  const getAvailabilityBadge = (workerAvailability: any[]) => {
-    if (!workerAvailability || workerAvailability.length === 0) {
-      return <Badge variant="secondary">Not Set</Badge>;
-    }
-    return <Badge variant="default">Available</Badge>;
-  };
-
-  const formatAvailability = (workerAvailability: any[]) => {
-    if (!workerAvailability || workerAvailability.length === 0) {
-      return 'Not specified';
-    }
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const availableDays = workerAvailability
-      .map(a => days[a.day_of_week])
-      .filter(day => day) // Remove any undefined/null values
-      .filter(day => day.trim() !== ''); // Remove empty strings
-    
-    return availableDays.length > 0 ? availableDays.join(', ') : 'Not specified';
-  };
 
   const handleEditWorker = (worker: Worker) => {
     setSelectedWorker(worker);
@@ -113,7 +94,6 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
               <TableHead>Name</TableHead>
               <TableHead>Contact</TableHead>
               <TableHead>Location</TableHead>
-              <TableHead>Availability</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Joined</TableHead>
               <TableHead>Actions</TableHead>
@@ -136,14 +116,6 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
                   <div className="flex items-center space-x-2 text-sm">
                     <MapPin className="h-3 w-3" />
                     <span>{worker.city}, {worker.region}</span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div>
-                    {getAvailabilityBadge(worker.worker_availability)}
-                    <div className="text-xs text-gray-600 mt-1">
-                      {formatAvailability(worker.worker_availability)}
-                    </div>
                   </div>
                 </TableCell>
                 <TableCell>
