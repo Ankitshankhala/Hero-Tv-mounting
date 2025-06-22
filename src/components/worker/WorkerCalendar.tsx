@@ -47,7 +47,7 @@ const WorkerCalendar = () => {
         .select(`
           *,
           customer:users!customer_id(name, phone),
-          service:services!service_id(name, description)
+          service:services!service_id(name, description, duration_minutes, base_price)
         `)
         .eq('worker_id', user.id)
         .eq('scheduled_date', date.toISOString().split('T')[0])
@@ -102,7 +102,7 @@ const WorkerCalendar = () => {
         .select(`
           *,
           customer:users!customer_id(name, phone),
-          service:services!service_id(name, description)
+          service:services!service_id(name, description, duration_minutes, base_price)
         `)
         .eq('worker_id', user.id)
         .order('scheduled_date', { ascending: true })
