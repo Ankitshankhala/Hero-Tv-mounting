@@ -8,9 +8,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { usePublicServicesData } from '@/hooks/usePublicServicesData';
+import { useBookingOperations } from '@/hooks/useBookingOperations';
 
 interface CreateBookingModalProps {
   onClose: () => void;
+  onBookingCreated?: () => void;
 }
 
 interface Worker {
@@ -19,7 +22,7 @@ interface Worker {
   email: string;
 }
 
-export const CreateBookingModal = ({ onClose }: CreateBookingModalProps) => {
+export const CreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingModalProps) => {
   const [formData, setFormData] = useState({
     customerName: '',
     customerEmail: '',
@@ -36,6 +39,8 @@ export const CreateBookingModal = ({ onClose }: CreateBookingModalProps) => {
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { services, loading: servicesLoading } = usePublicServicesData();
+  const { createBooking } = useBookingOperations();
 
   useEffect(() => {
     fetchWorkers();
@@ -66,11 +71,76 @@ export const CreateBookingModal = ({ onClose }: CreateBookingModalProps) => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Creating booking:', formData);
-    // TODO: Integrate with Supabase
-    onClose();
+    
+    if (!formData.service || !formData.date || !formData.time) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      console.log('Creating booking with data:', formData);
+
+      // Create customer first
+      const { data: customerData, error: customerError } = await supabase
+        .from('users')
+        .insert({
+          name: formData.customerName,
+          email: formData.customerEmail,
+          phone: formData.customerPhone,
+          role: 'customer' as const
+        })
+        .select()
+        .single();
+
+      if (customerError) {
+        console.error('Customer creation error:', customerError);
+        throw customerError;
+      }
+
+      console.log('Customer created:', customerData);
+
+      // Create booking data
+      const bookingData = {
+        customer_id: customerData.id,
+        service_id: formData.service,
+        scheduled_date: formData.date,
+        scheduled_start: formData.time,
+        location_notes: `${formData.address}\n\nRegion: ${formData.region}\n\nSpecial Instructions: ${formData.specialInstructions}`,
+        status: 'confirmed' as const,
+        ...(formData.worker && formData.worker !== 'auto' && { worker_id: formData.worker })
+      };
+
+      console.log('Creating booking with:', bookingData);
+
+      const booking = await createBooking(bookingData);
+      console.log('Booking created:', booking);
+
+      toast({
+        title: "Success",
+        description: "Booking created successfully",
+      });
+
+      if (onBookingCreated) {
+        onBookingCreated();
+      }
+      onClose();
+    } catch (error) {
+      console.error('Error creating booking:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create booking. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -86,7 +156,7 @@ export const CreateBookingModal = ({ onClose }: CreateBookingModalProps) => {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="customerName">Customer Name</Label>
+              <Label htmlFor="customerName">Customer Name *</Label>
               <Input
                 id="customerName"
                 value={formData.customerName}
@@ -95,7 +165,7 @@ export const CreateBookingModal = ({ onClose }: CreateBookingModalProps) => {
               />
             </div>
             <div>
-              <Label htmlFor="customerEmail">Customer Email</Label>
+              <Label htmlFor="customerEmail">Customer Email *</Label>
               <Input
                 id="customerEmail"
                 type="email"
@@ -105,7 +175,7 @@ export const CreateBookingModal = ({ onClose }: CreateBookingModalProps) => {
               />
             </div>
             <div>
-              <Label htmlFor="customerPhone">Customer Phone</Label>
+              <Label htmlFor="customerPhone">Customer Phone *</Label>
               <Input
                 id="customerPhone"
                 value={formData.customerPhone}
@@ -114,20 +184,26 @@ export const CreateBookingModal = ({ onClose }: CreateBookingModalProps) => {
               />
             </div>
             <div>
-              <Label htmlFor="service">Service</Label>
+              <Label htmlFor="service">Service *</Label>
               <Select value={formData.service} onValueChange={(value) => setFormData({...formData, service: value})}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select service" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="tv-mounting">TV Mounting ($99)</SelectItem>
-                  <SelectItem value="tv-mounting-cables">TV Mounting + Hide Cables ($149)</SelectItem>
-                  <SelectItem value="furniture-assembly">Furniture Assembly ($89)</SelectItem>
+                  {servicesLoading ? (
+                    <SelectItem value="loading" disabled>Loading services...</SelectItem>
+                  ) : (
+                    services.map((service) => (
+                      <SelectItem key={service.id} value={service.id}>
+                        {service.name} - ${service.base_price}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label htmlFor="date">Date</Label>
+              <Label htmlFor="date">Date *</Label>
               <Input
                 id="date"
                 type="date"
@@ -137,7 +213,7 @@ export const CreateBookingModal = ({ onClose }: CreateBookingModalProps) => {
               />
             </div>
             <div>
-              <Label htmlFor="time">Time</Label>
+              <Label htmlFor="time">Time *</Label>
               <Select value={formData.time} onValueChange={(value) => setFormData({...formData, time: value})}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select time" />
@@ -157,7 +233,7 @@ export const CreateBookingModal = ({ onClose }: CreateBookingModalProps) => {
           </div>
 
           <div>
-            <Label htmlFor="address">Address</Label>
+            <Label htmlFor="address">Service Address *</Label>
             <Input
               id="address"
               value={formData.address}
@@ -211,8 +287,12 @@ export const CreateBookingModal = ({ onClose }: CreateBookingModalProps) => {
           </div>
 
           <div className="flex space-x-4 pt-4">
-            <Button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700">
-              Create Booking
+            <Button 
+              type="submit" 
+              className="flex-1 bg-blue-600 hover:bg-blue-700"
+              disabled={loading || servicesLoading}
+            >
+              {loading ? 'Creating...' : 'Create Booking'}
             </Button>
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel

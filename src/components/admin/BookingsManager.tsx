@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Calendar, Plus } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRealtimeBookings } from '@/hooks/useRealtimeBookings';
 import { useBookingCalendarSync } from '@/hooks/useBookingCalendarSync';
@@ -9,6 +10,7 @@ import GoogleCalendarIntegration from '@/components/GoogleCalendarIntegration';
 import { BookingFilters } from './BookingFilters';
 import { BookingTable } from './BookingTable';
 import { BookingCalendarSyncList } from './BookingCalendarSyncList';
+import { CreateBookingModal } from './CreateBookingModal';
 import { useBookingManager } from '@/hooks/useBookingManager';
 import { AuthGuard } from '@/components/AuthGuard';
 
@@ -18,6 +20,7 @@ export const BookingsManager = () => {
   const [filterRegion, setFilterRegion] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [isCalendarConnected, setIsCalendarConnected] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const { user } = useAuth();
   const { isCalendarConnected: calendarConnected } = useBookingCalendarSync();
 
@@ -63,6 +66,11 @@ export const BookingsManager = () => {
     setFilteredBookings(filtered);
   }, [bookings, filterStatus, filterRegion, searchTerm]);
 
+  const handleBookingCreated = () => {
+    console.log('Booking created, refreshing list');
+    fetchBookings();
+  };
+
   return (
     <AuthGuard allowedRoles={['admin']}>
       <div className="space-y-6">
@@ -79,6 +87,13 @@ export const BookingsManager = () => {
                 <span>Bookings Management</span>
               </CardTitle>
               <div className="flex items-center space-x-4">
+                <Button
+                  onClick={() => setShowCreateModal(true)}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Booking
+                </Button>
                 {isConnected && (
                   <span className="text-sm text-green-600">● Live updates enabled</span>
                 )}
@@ -118,6 +133,14 @@ export const BookingsManager = () => {
           bookings={filteredBookings}
           isCalendarConnected={isCalendarConnected}
         />
+
+        {/* Create Booking Modal */}
+        {showCreateModal && (
+          <CreateBookingModal
+            onClose={() => setShowCreateModal(false)}
+            onBookingCreated={handleBookingCreated}
+          />
+        )}
       </div>
     </AuthGuard>
   );
