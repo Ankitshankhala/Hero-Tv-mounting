@@ -382,14 +382,14 @@ export const InlineBookingFlow = ({ isOpen, onClose, onSubmit, selectedServices 
                       classNames={{
                         months: "flex w-full flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
                         month: "space-y-4 w-full flex flex-col",
-                        caption: "flex justify-center pt-1 relative items-center",
+                        caption: "flex justify-center pt-1 relative items-center text-black",
                         caption_label: "text-sm font-medium",
                         table: "w-full border-collapse space-y-1",
                         head_row: "flex w-full",
                         head_cell: "text-muted-foreground rounded-md w-8 font-normal text-[0.8rem] flex-1 text-center",
                         row: "flex w-full mt-2",
                         cell: "relative p-0 text-center text-sm focus-within:relative focus-within:z-20 flex-1",
-                        day: "h-8 w-8 p-0 font-normal aria-selected:opacity-100 mx-auto hover:bg-purple-100 rounded-md transition-colors",
+                        day: "h-8 w-8 p-0 text-black font-normal aria-selected:opacity-100 mx-auto hover:bg-purple-100 rounded-md transition-colors",
                         day_selected: "bg-purple-600 text-purple-foreground hover:bg-purple-600 hover:text-purple-foreground focus:bg-purple-600 focus:text-purple-foreground",
                         day_today: "bg-purple-100 text-purple-900 font-semibold",
                         day_outside: "text-muted-foreground opacity-50",
@@ -430,7 +430,7 @@ export const InlineBookingFlow = ({ isOpen, onClose, onSubmit, selectedServices 
                           <p className="text-xs text-gray-500">Times shown are based on worker availability in your area (ZIP: {formData.zipcode})</p>
                         </div>
                         
-                        <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto">
+                        <div className="grid grid-cols-3 gap-2 text-black max-h-64 overflow-y-auto">
                           {timeSlots.map((time) => {
                             const isBlocked = blockedSlots.includes(time);
                             const isSelected = formData.selectedTime === time;
@@ -444,18 +444,18 @@ export const InlineBookingFlow = ({ isOpen, onClose, onSubmit, selectedServices 
                                 disabled={isBlocked}
                                 onClick={() => setFormData(prev => ({ ...prev, selectedTime: time }))}
                                 className={cn(
-                                  "h-12 text-sm font-medium transition-all duration-200 relative",
+                                  "h-12 text-sm text-black font-medium transition-all duration-200 relative",
                                   isBlocked && "bg-red-50 text-red-600 border-red-200 cursor-not-allowed hover:bg-red-50",
                                   isSelected && "bg-purple-600 text-white border-purple-600 shadow-md",
                                   !isBlocked && !isSelected && "hover:bg-purple-50 hover:border-purple-300 bg-white border-gray-200"
                                 )}
                               >
-                                <div className="flex items-center space-x-2">
+                                <div className="flex items-center text-black space-x-2">
                                   <div className={cn(
                                     "w-2 h-2 rounded-full",
                                     isBlocked ? "bg-red-500" : "bg-green-500"
                                   )} />
-                                  <span>{time}</span>
+                                  <span className={isSelected ? "text-white" : 'text-black'}>{time}</span>
                                 </div>
                                 {isBlocked && (
                                   <div className="absolute inset-0 bg-red-100/50 rounded flex items-center justify-center">

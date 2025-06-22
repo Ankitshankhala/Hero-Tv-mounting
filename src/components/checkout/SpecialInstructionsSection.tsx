@@ -24,7 +24,7 @@ export const SpecialInstructionsSection = ({
         value={formData.specialInstructions}
         onChange={(e) => onInputChange('specialInstructions', e.target.value)}
         placeholder="Any special instructions, access codes, parking info, or specific requests..."
-        className="min-h-[100px] border-2 border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 rounded-lg resize-none bg-white/80 transition-all duration-200"
+        className="min-h-[100px] text-black border-2 border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 rounded-lg resize-none bg-white/80 transition-all duration-200"
         rows={4}
       />
     </div>

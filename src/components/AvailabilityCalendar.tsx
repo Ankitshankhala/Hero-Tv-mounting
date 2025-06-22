@@ -186,7 +186,7 @@ export const AvailabilityCalendar = ({
                 classNames={{
                   months: "flex flex-col space-y-4 w-full",
                   month: "space-y-4 w-full",
-                  caption: "flex justify-center pt-1 relative items-center text-white",
+                  caption: "flex justify-center pt-1 relative items-center text-black",
                   caption_label: "text-sm font-medium text-white",
                   nav: "space-x-1 flex items-center",
                   nav_button: "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 border border-slate-500 rounded text-white hover:bg-slate-600",
@@ -197,7 +197,7 @@ export const AvailabilityCalendar = ({
                   head_cell: "text-slate-400 rounded-md flex-1 font-normal text-[0.8rem] text-center p-0 min-w-0",
                   row: "flex w-full mt-1",
                   cell: "text-center text-sm p-0 relative flex-1 min-w-0",
-                  day: "h-9 w-full p-0 font-normal hover:bg-slate-600 rounded-md transition-colors mx-auto flex items-center justify-center text-white",
+                  day: "h-9 w-full text-black p-0 font-normal hover:bg-slate-600 rounded-md transition-colors mx-auto flex items-center justify-center text-white",
                   day_selected: "bg-blue-600 text-white hover:bg-blue-700",
                   day_today: "bg-slate-600 text-white font-semibold",
                   day_outside: "text-slate-500 opacity-50",

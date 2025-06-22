@@ -66,14 +66,14 @@ export const ScheduleSection = ({
               classNames={{
                 months: "flex w-full flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
                 month: "space-y-4 w-full flex flex-col",
-                caption: "flex justify-center pt-1 relative items-center",
+                caption: "flex justify-center pt-1 relative items-center text-black",
                 caption_label: "text-sm font-medium",
                 table: "w-full border-collapse space-y-1",
                 head_row: "flex w-full",
                 head_cell: "text-muted-foreground rounded-md w-8 font-normal text-[0.8rem] flex-1 text-center",
                 row: "flex w-full mt-2",
                 cell: "relative p-0 text-center text-sm focus-within:relative focus-within:z-20 flex-1",
-                day: "h-8 w-8 p-0 font-normal aria-selected:opacity-100 mx-auto hover:bg-purple-100 rounded-md transition-colors",
+                day: "h-8 w-8 text-black p-0 font-normal aria-selected:opacity-100 mx-auto hover:bg-purple-100 rounded-md transition-colors",
                 day_selected: "bg-purple-600 text-purple-foreground hover:bg-purple-600 hover:text-purple-foreground focus:bg-purple-600 focus:text-purple-foreground",
                 day_today: "bg-purple-100 text-purple-900 font-semibold",
                 day_outside: "text-muted-foreground opacity-50",
@@ -139,7 +139,7 @@ export const ScheduleSection = ({
                             "w-2 h-2 rounded-full",
                             isBlocked ? "bg-red-500" : "bg-green-500"
                           )} />
-                          <span>{time}</span>
+                          <span className={isSelected ? "text-white" : 'text-black'}>{time}</span>
                         </div>
                         {isBlocked && (
                           <div className="absolute inset-0 bg-red-100/50 rounded flex items-center justify-center">

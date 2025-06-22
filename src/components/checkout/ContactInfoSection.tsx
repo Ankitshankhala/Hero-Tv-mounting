@@ -51,7 +51,7 @@ export const ContactInfoSection = ({
             onChange={(e) => onInputChange('name', e.target.value)}
             onBlur={() => onBlur('name')}
             placeholder="Enter your full name"
-            className="h-12 bg-white border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
+            className="text-black h-12 bg-white border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
           />
           {errors.name && touched.name && (
             <p className="text-sm text-red-600">{errors.name}</p>
@@ -71,7 +71,7 @@ export const ContactInfoSection = ({
             onChange={(e) => onInputChange('email', e.target.value)}
             onBlur={() => onBlur('email')}
             placeholder="your.email@example.com"
-            className="h-12 bg-white border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
+            className="text-black h-12 bg-white border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
           />
           {errors.email && touched.email && (
             <p className="text-sm text-red-600">{errors.email}</p>
@@ -91,7 +91,7 @@ export const ContactInfoSection = ({
             onChange={(e) => onInputChange('phone', e.target.value)}
             onBlur={() => onBlur('phone')}
             placeholder="(555) 123-4567"
-            className="h-12 bg-white border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
+            className="text-black h-12 bg-white border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
           />
           {errors.phone && touched.phone && (
             <p className="text-sm text-red-600">{errors.phone}</p>
@@ -110,7 +110,7 @@ export const ContactInfoSection = ({
             onChange={(e) => onZipcodeChange(e.target.value)}
             placeholder="Enter 5-digit ZIP code"
             maxLength={5}
-            className="h-12 bg-white border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
+            className="text-black h-12 bg-white border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
           />
         </div>
       </div>

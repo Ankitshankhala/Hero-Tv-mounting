@@ -114,7 +114,7 @@ const WorkerCalendar = ({ onDateSelect }: WorkerCalendarProps) => {
                 classNames={{
                   months: "flex flex-col space-y-4 w-full",
                   month: "space-y-4 w-full",
-                  caption: "flex justify-center pt-1 relative items-center",
+                  caption: "flex justify-center pt-1 relative items-center text-black",
                   caption_label: "text-sm font-medium",
                   nav: "space-x-1 flex items-center",
                   nav_button: "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 border rounded",
@@ -125,7 +125,7 @@ const WorkerCalendar = ({ onDateSelect }: WorkerCalendarProps) => {
                   head_cell: "text-muted-foreground rounded-md flex-1 font-normal text-[0.8rem] text-center p-0 min-w-0",
                   row: "flex w-full mt-1",
                   cell: "text-center text-sm p-0 relative flex-1 min-w-0 aspect-square",
-                  day: "h-8 w-8 p-0 font-normal hover:bg-accent rounded-md transition-colors mx-auto flex items-center justify-center text-xs",
+                  day: "h-8 w-8 text-black p-0 font-normal hover:bg-accent rounded-md transition-colors mx-auto flex items-center justify-center text-xs",
                   day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground",
                   day_today: "bg-accent text-accent-foreground font-semibold",
                   day_outside: "text-muted-foreground opacity-50",

@@ -37,57 +37,57 @@ export const ContactForm = ({
     <div className="max-w-2xl mx-auto">
       <Card className="bg-slate-800 border-slate-700">
         <CardHeader>
-          <CardTitle className="text-white">Contact Information</CardTitle>
+          <CardTitle className="text-black">Contact Information</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           <div>
-            <Label htmlFor="name" className="text-white">Full Name</Label>
+            <Label htmlFor="name" className="text-black">Full Name</Label>
             <Input
               id="name"
               value={bookingData.customerName}
               onChange={(e) => onUpdateBookingData({ customerName: e.target.value })}
               placeholder="John Smith"
-              className="bg-slate-700 border-slate-600 text-white"
+              className="bg-slate-700 border-slate-600 text-black"
             />
           </div>
 
           <div>
-            <Label htmlFor="email" className="text-white">Email Address</Label>
+            <Label htmlFor="email" className="text-black">Email Address</Label>
             <Input
               id="email"
               type="email"
               value={bookingData.customerEmail}
               onChange={(e) => onUpdateBookingData({ customerEmail: e.target.value })}
               placeholder="john@example.com"
-              className="bg-slate-700 border-slate-600 text-white"
+              className="bg-slate-700 border-slate-600 text-black"
             />
           </div>
 
           <div>
-            <Label htmlFor="phone" className="text-white">Phone Number</Label>
+            <Label htmlFor="phone" className="text-black">Phone Number</Label>
             <Input
               id="phone"
               type="tel"
               value={bookingData.customerPhone}
               onChange={(e) => onUpdateBookingData({ customerPhone: e.target.value })}
               placeholder="(555) 123-4567"
-              className="bg-slate-700 border-slate-600 text-white"
+              className="bg-slate-700 border-slate-600 text-black"
             />
           </div>
 
           <div>
-            <Label htmlFor="instructions" className="text-white">Special Instructions</Label>
+            <Label htmlFor="instructions" className="text-black">Special Instructions</Label>
             <Textarea
               id="instructions"
               value={bookingData.specialInstructions}
               onChange={(e) => onUpdateBookingData({ specialInstructions: e.target.value })}
               placeholder="Any special instructions for our technician..."
-              className="bg-slate-700 border-slate-600 text-white"
+              className="bg-slate-700 border-slate-600 text-black"
             />
           </div>
 
           <div className="bg-slate-700/50 p-4 rounded-lg">
-            <h3 className="text-white font-medium mb-2">Booking Summary</h3>
+            <h3 className="text-black font-medium mb-2">Booking Summary</h3>
             <div className="space-y-2 text-slate-300">
               <div className="flex items-center space-x-2">
                 <Calendar className="h-4 w-4" />
@@ -106,7 +106,7 @@ export const ContactForm = ({
                 <span>{bookingData.address}, {bookingData.city}</span>
               </div>
               <div className="border-t border-slate-600 pt-2 mt-2">
-                <div className="flex justify-between text-white font-medium">
+                <div className="flex justify-between text-black font-medium">
                   <span>Total: ${getTotalPrice()}</span>
                 </div>
               </div>

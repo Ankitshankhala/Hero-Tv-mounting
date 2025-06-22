@@ -50,7 +50,7 @@ export const CheckoutActions = ({
         type="button"
         variant="outline"
         onClick={handleClose}
-        className="px-8 py-3 text-lg font-semibold border-2 border-gray-300 hover:border-gray-400 rounded-xl transition-colors h-14"
+        className="px-8 py-3 text-lg text-black font-semibold border-2 border-gray-300 hover:border-gray-400 rounded-xl transition-colors h-14"
         disabled={isProcessing}
       >
         Cancel

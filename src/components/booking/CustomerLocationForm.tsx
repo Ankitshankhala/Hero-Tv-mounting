@@ -212,7 +212,7 @@ export const CustomerLocationForm = ({ bookingData, onUpdateBookingData, onBack,
                 value={bookingData.specialInstructions}
                 onChange={(e) => onUpdateBookingData({ specialInstructions: e.target.value })}
                 placeholder="Any special instructions, access codes, parking info, or specific requests for our technician..."
-                className="min-h-[120px] text-lg border-2 border-gray-200 focus:border-green-500 focus:ring-green-500/20 rounded-xl bg-gray-50/50 resize-none transition-all duration-200"
+                className="min-h-[120px] text-black text-lg border-2 border-gray-200 focus:border-green-500 focus:ring-green-500/20 rounded-xl bg-gray-50/50 resize-none transition-all duration-200"
                 rows={4}
               />
             </div>
