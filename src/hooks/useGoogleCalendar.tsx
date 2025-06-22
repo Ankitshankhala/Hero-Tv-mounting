@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,51 +18,48 @@ interface CalendarEvent {
   location?: string;
 }
 
-const GOOGLE_CALENDAR_STORAGE_KEY = 'google_calendar_connection';
-const GOOGLE_ACCESS_TOKEN_KEY = 'google_access_token';
-
 export const useGoogleCalendar = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [configurationError, setConfigurationError] = useState<string | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const { toast } = useToast();
-  const { validateStoredToken, clearStoredConnection } = useGoogleCalendarPersistence();
+  const { validateStoredToken, saveConnection, getStoredConnection, clearStoredConnection } = useGoogleCalendarPersistence();
 
   // Load persisted state on mount
   useEffect(() => {
     const initializePersistedConnection = async () => {
-      const savedConnection = localStorage.getItem(GOOGLE_CALENDAR_STORAGE_KEY);
-      const savedToken = localStorage.getItem(GOOGLE_ACCESS_TOKEN_KEY);
+      console.log('Initializing persisted Google Calendar connection...');
+      const { isConnected: storedConnected, accessToken: storedToken } = getStoredConnection();
       
-      if (savedConnection === 'true' && savedToken) {
+      if (storedConnected && storedToken) {
+        console.log('Found stored connection, validating token...');
         // Validate the stored token
-        const isValid = await validateStoredToken(savedToken);
+        const isValid = await validateStoredToken(storedToken);
         
         if (isValid) {
+          console.log('Stored token is valid, restoring connection');
           setIsConnected(true);
-          setAccessToken(savedToken);
+          setAccessToken(storedToken);
+          toast({
+            title: "Google Calendar Connected",
+            description: "Your Google Calendar connection has been restored",
+          });
         } else {
+          console.log('Stored token is invalid, clearing connection');
           // Clear invalid stored connection
           clearStoredConnection();
+          setIsConnected(false);
+          setAccessToken(null);
         }
+      } else {
+        console.log('No stored connection found');
       }
     };
     
     initializePersistedConnection();
     checkConfiguration();
-  }, [validateStoredToken, clearStoredConnection]);
-
-  // Persist connection state changes
-  useEffect(() => {
-    if (isConnected && accessToken) {
-      localStorage.setItem(GOOGLE_CALENDAR_STORAGE_KEY, 'true');
-      localStorage.setItem(GOOGLE_ACCESS_TOKEN_KEY, accessToken);
-    } else {
-      localStorage.removeItem(GOOGLE_CALENDAR_STORAGE_KEY);
-      localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
-    }
-  }, [isConnected, accessToken]);
+  }, [validateStoredToken, clearStoredConnection, getStoredConnection, toast]);
 
   const checkConfiguration = useCallback(async () => {
     try {
@@ -196,9 +192,13 @@ export const useGoogleCalendar = () => {
             throw new Error(`OAuth failed: ${response.error}`);
           }
           
+          console.log('OAuth successful, saving connection...');
           setAccessToken(response.access_token);
           setIsConnected(true);
           setConfigurationError(null);
+          
+          // Persist the connection
+          saveConnection(response.access_token);
           
           toast({
             title: "Success",
@@ -236,7 +236,7 @@ export const useGoogleCalendar = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [initializeGoogleServices, toast]);
+  }, [initializeGoogleServices, toast, saveConnection]);
 
   const makeAuthorizedRequest = useCallback(async (requestFunction: () => Promise<any>) => {
     if (!accessToken) {
