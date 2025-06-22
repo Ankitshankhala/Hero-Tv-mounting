@@ -27,14 +27,15 @@ const WorkerDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [showCreateBooking, setShowCreateBooking] = useState(false);
   const [isCalendarConnected, setIsCalendarConnected] = useState(false);
-  const { user, profile } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const { toast } = useToast();
 
-  // Set up real-time subscriptions
+  // Set up real-time subscriptions only when user data is available
   const { isConnected } = useRealtimeBookings({
     userId: user?.id,
     userRole: 'worker',
     onBookingUpdate: (updatedBooking) => {
+      console.log('Real-time booking update received:', updatedBooking);
       setJobs(currentJobs => {
         const existingJobIndex = currentJobs.findIndex(job => job.id === updatedBooking.id);
         
@@ -42,9 +43,11 @@ const WorkerDashboard = () => {
           // Update existing job
           const updatedJobs = [...currentJobs];
           updatedJobs[existingJobIndex] = { ...updatedJobs[existingJobIndex], ...updatedBooking };
+          console.log('Updated existing job:', updatedJobs[existingJobIndex]);
           return updatedJobs;
         } else if (updatedBooking.worker_id === user?.id) {
           // Add new job if it's assigned to this worker
+          console.log('New job assigned, refetching jobs');
           fetchWorkerJobs(); // Refetch to get complete data with relations
           return currentJobs;
         }
@@ -54,16 +57,46 @@ const WorkerDashboard = () => {
     }
   });
 
+  // Fetch jobs when user and profile are loaded
   useEffect(() => {
-    if (user && profile?.role === 'worker') {
-      fetchWorkerJobs();
-    } else {
-      setLoading(false);
+    console.log('Auth state changed:', { user: !!user, profile: profile?.role, authLoading });
+    
+    if (authLoading) {
+      console.log('Still loading auth, waiting...');
+      return;
     }
-  }, [user, profile]);
+
+    if (!user) {
+      console.log('No user found, stopping loading');
+      setLoading(false);
+      return;
+    }
+
+    if (!profile) {
+      console.log('No profile found, waiting for profile to load...');
+      return;
+    }
+
+    if (profile.role !== 'worker') {
+      console.log('User is not a worker, stopping loading');
+      setLoading(false);
+      return;
+    }
+
+    console.log('User and profile loaded, fetching jobs...');
+    fetchWorkerJobs();
+  }, [user, profile, authLoading]);
 
   const fetchWorkerJobs = async () => {
+    if (!user || !profile || profile.role !== 'worker') {
+      console.log('Cannot fetch jobs: missing user or invalid role');
+      return;
+    }
+
     try {
+      setLoading(true);
+      console.log('Fetching jobs for worker:', user.id);
+
       const { data, error } = await supabase
         .from('bookings')
         .select(`
@@ -75,11 +108,11 @@ const WorkerDashboard = () => {
         .order('scheduled_date', { ascending: true });
 
       if (error) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('Supabase error:', error);
-        }
+        console.error('Supabase error:', error);
         throw error;
       }
+
+      console.log('Raw jobs data:', data);
 
       // Transform data to match expected format
       const transformedJobs = (data || []).map(job => ({
@@ -91,11 +124,15 @@ const WorkerDashboard = () => {
         services: job.service ? [job.service] : []
       }));
 
+      console.log('Transformed jobs:', transformedJobs);
       setJobs(transformedJobs);
+
+      toast({
+        title: "Jobs Loaded",
+        description: `Loaded ${transformedJobs.length} jobs successfully`,
+      });
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Error fetching worker jobs:', error);
-      }
+      console.error('Error fetching worker jobs:', error);
       toast({
         title: "Error",
         description: "Failed to load your jobs",
@@ -108,6 +145,8 @@ const WorkerDashboard = () => {
 
   const updateJobStatus = async (jobId: string, newStatus: BookingStatus) => {
     try {
+      console.log('Updating job status:', jobId, newStatus);
+
       const { error } = await supabase
         .from('bookings')
         .update({ status: newStatus })
@@ -125,9 +164,7 @@ const WorkerDashboard = () => {
         description: `Job status updated to ${newStatus}`,
       });
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Error updating job status:', error);
-      }
+      console.error('Error updating job status:', error);
       toast({
         title: "Error",
         description: "Failed to update job status",
@@ -137,12 +174,12 @@ const WorkerDashboard = () => {
   };
 
   const handleJobCancelled = () => {
-    // Refresh the jobs list when a job is cancelled
+    console.log('Job cancelled, refreshing jobs list');
     fetchWorkerJobs();
   };
 
   const handleBookingCreated = () => {
-    // Refresh the jobs list when a new booking is created
+    console.log('New booking created, refreshing jobs list');
     fetchWorkerJobs();
     toast({
       title: "Success",
@@ -150,14 +187,25 @@ const WorkerDashboard = () => {
     });
   };
 
+  // Show loading while auth is initializing
+  if (authLoading) {
+    console.log('Showing auth loading state');
+    return <WorkerDashboardLoading />;
+  }
+
   // Show login form if not authenticated or not a worker
-  if (!user || profile?.role !== 'worker') {
+  if (!user || !profile || profile.role !== 'worker') {
+    console.log('Showing login form - user:', !!user, 'profile role:', profile?.role);
     return <WorkerLoginForm />;
   }
 
+  // Show loading while jobs are being fetched
   if (loading) {
+    console.log('Showing jobs loading state');
     return <WorkerDashboardLoading />;
   }
+
+  console.log('Rendering dashboard with', jobs.length, 'jobs');
 
   const today = new Date().toDateString();
   const todaysJobs = jobs.filter(job => new Date(job.scheduled_at).toDateString() === today);
@@ -176,6 +224,7 @@ const WorkerDashboard = () => {
             {isConnected && (
               <p className="text-sm text-green-400">● Live updates enabled</p>
             )}
+            <p className="text-sm text-gray-400">Loaded {jobs.length} jobs</p>
           </div>
           <Button 
             onClick={() => setShowCreateBooking(true)}
@@ -252,9 +301,7 @@ const WorkerDashboard = () => {
           }}
           action="create"
           onEventCreated={(eventId) => {
-            if (process.env.NODE_ENV === 'development') {
-              console.log(`Calendar event created for job ${job.id}: ${eventId}`);
-            }
+            console.log(`Calendar event created for job ${job.id}: ${eventId}`);
           }}
         />
       ))}
