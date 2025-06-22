@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -17,7 +16,7 @@ interface EditBookingModalProps {
   onBookingUpdated: () => void;
 }
 
-type BookingStatus = 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
+type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
 
 export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }: EditBookingModalProps) => {
   const [formData, setFormData] = useState({
@@ -36,7 +35,7 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
 
   // Helper function to validate booking status
   const validateBookingStatus = (status: string): BookingStatus => {
-    const validStatuses: BookingStatus[] = ['pending', 'confirmed', 'in_progress', 'completed', 'cancelled'];
+    const validStatuses: BookingStatus[] = ['pending', 'confirmed', 'completed', 'cancelled'];
     return validStatuses.includes(status as BookingStatus) ? status as BookingStatus : 'pending';
   };
 
@@ -176,7 +175,6 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
                 <SelectContent>
                   <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="confirmed">Confirmed</SelectItem>
-                  <SelectItem value="in_progress">In Progress</SelectItem>
                   <SelectItem value="completed">Completed</SelectItem>
                   <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>
