@@ -5,11 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { X } from 'lucide-react';
+import { X, Settings } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { usePublicServicesData } from '@/hooks/usePublicServicesData';
 import { useBookingOperations } from '@/hooks/useBookingOperations';
+import { TvMountingConfigModal } from './TvMountingConfigModal';
 
 interface CreateBookingModalProps {
   onClose: () => void;
@@ -20,6 +21,24 @@ interface Worker {
   id: string;
   name: string;
   email: string;
+}
+
+interface TvMountingConfig {
+  numberOfTvs: number;
+  tvConfigurations: Array<{
+    id: string;
+    over65: boolean;
+    frameMount: boolean;
+    wallType: string;
+    soundbar: boolean;
+  }>;
+  totalPrice: number;
+  services: Array<{
+    id: string;
+    name: string;
+    price: number;
+    quantity: number;
+  }>;
 }
 
 export const CreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingModalProps) => {
@@ -38,9 +57,15 @@ export const CreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingM
   
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showTvConfig, setShowTvConfig] = useState(false);
+  const [tvMountingConfig, setTvMountingConfig] = useState<TvMountingConfig | null>(null);
   const { toast } = useToast();
   const { services, loading: servicesLoading } = usePublicServicesData();
   const { createBooking } = useBookingOperations();
+
+  // Find TV mounting service
+  const tvMountingService = services.find(s => s.name === 'TV Mounting');
+  const isSelectedServiceTvMounting = formData.service === tvMountingService?.id;
 
   useEffect(() => {
     fetchWorkers();
@@ -71,6 +96,35 @@ export const CreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingM
     }
   };
 
+  const handleServiceChange = (serviceId: string) => {
+    setFormData({...formData, service: serviceId});
+    // Reset TV mounting config if switching away from TV mounting
+    if (serviceId !== tvMountingService?.id) {
+      setTvMountingConfig(null);
+    }
+  };
+
+  const handleTvConfigComplete = (config: TvMountingConfig) => {
+    setTvMountingConfig(config);
+    setShowTvConfig(false);
+  };
+
+  const getServicePrice = () => {
+    if (isSelectedServiceTvMounting && tvMountingConfig) {
+      return tvMountingConfig.totalPrice;
+    }
+    const selectedService = services.find(s => s.id === formData.service);
+    return selectedService?.base_price || 0;
+  };
+
+  const getServiceDisplayName = () => {
+    if (isSelectedServiceTvMounting && tvMountingConfig) {
+      return `TV Mounting (${tvMountingConfig.numberOfTvs} TV${tvMountingConfig.numberOfTvs > 1 ? 's' : ''}) + Add-ons`;
+    }
+    const selectedService = services.find(s => s.id === formData.service);
+    return selectedService?.name || '';
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -78,6 +132,15 @@ export const CreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingM
       toast({
         title: "Error",
         description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (isSelectedServiceTvMounting && !tvMountingConfig) {
+      toast({
+        title: "Error",
+        description: "Please configure TV mounting options",
         variant: "destructive",
       });
       return;
@@ -106,13 +169,27 @@ export const CreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingM
 
       console.log('Customer created:', customerData);
 
+      // Build location notes with TV mounting config if applicable
+      let locationNotes = `${formData.address}\n\nRegion: ${formData.region}`;
+      
+      if (formData.specialInstructions) {
+        locationNotes += `\n\nSpecial Instructions: ${formData.specialInstructions}`;
+      }
+
+      if (isSelectedServiceTvMounting && tvMountingConfig) {
+        locationNotes += `\n\nTV Mounting Configuration:\n`;
+        locationNotes += `- Number of TVs: ${tvMountingConfig.numberOfTvs}\n`;
+        locationNotes += `- Total Price: $${tvMountingConfig.totalPrice}\n`;
+        locationNotes += `- Services: ${tvMountingConfig.services.map(s => s.name).join(', ')}`;
+      }
+
       // Create booking data
       const bookingData = {
         customer_id: customerData.id,
         service_id: formData.service,
         scheduled_date: formData.date,
         scheduled_start: formData.time,
-        location_notes: `${formData.address}\n\nRegion: ${formData.region}\n\nSpecial Instructions: ${formData.specialInstructions}`,
+        location_notes: locationNotes,
         status: 'confirmed' as const,
         ...(formData.worker && formData.worker !== 'auto' && { worker_id: formData.worker })
       };
@@ -144,162 +221,206 @@ export const CreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingM
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold">Create New Booking</h2>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
+    <>
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-bold">Create New Booking</h2>
+            <Button variant="ghost" size="sm" onClick={onClose}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="customerName">Customer Name *</Label>
+                <Input
+                  id="customerName"
+                  value={formData.customerName}
+                  onChange={(e) => setFormData({...formData, customerName: e.target.value})}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="customerEmail">Customer Email *</Label>
+                <Input
+                  id="customerEmail"
+                  type="email"
+                  value={formData.customerEmail}
+                  onChange={(e) => setFormData({...formData, customerEmail: e.target.value})}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="customerPhone">Customer Phone *</Label>
+                <Input
+                  id="customerPhone"
+                  value={formData.customerPhone}
+                  onChange={(e) => setFormData({...formData, customerPhone: e.target.value})}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="service">Service *</Label>
+                <Select value={formData.service} onValueChange={handleServiceChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select service" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {servicesLoading ? (
+                      <SelectItem value="loading" disabled>Loading services...</SelectItem>
+                    ) : (
+                      services.map((service) => (
+                        <SelectItem key={service.id} value={service.id}>
+                          {service.name} - ${service.base_price}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* TV Mounting Configuration */}
+            {isSelectedServiceTvMounting && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-blue-800 font-semibold">TV Mounting Configuration</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowTvConfig(true)}
+                    className="text-blue-600 border-blue-300 hover:bg-blue-100"
+                  >
+                    <Settings className="h-4 w-4 mr-2" />
+                    Configure
+                  </Button>
+                </div>
+                {tvMountingConfig ? (
+                  <div className="text-sm text-blue-700">
+                    <p><strong>Service:</strong> {getServiceDisplayName()}</p>
+                    <p><strong>Total Price:</strong> ${getServicePrice()}</p>
+                    <p><strong>Configuration:</strong> {tvMountingConfig.services.map(s => s.name).join(', ')}</p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-blue-600">Click "Configure" to set up TV mounting options</p>
+                )}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="date">Date *</Label>
+                <Input
+                  id="date"
+                  type="date"
+                  value={formData.date}
+                  onChange={(e) => setFormData({...formData, date: e.target.value})}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="time">Time *</Label>
+                <Select value={formData.time} onValueChange={(value) => setFormData({...formData, time: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select time" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="09:00">9:00 AM</SelectItem>
+                    <SelectItem value="10:00">10:00 AM</SelectItem>
+                    <SelectItem value="11:00">11:00 AM</SelectItem>
+                    <SelectItem value="12:00">12:00 PM</SelectItem>
+                    <SelectItem value="13:00">1:00 PM</SelectItem>
+                    <SelectItem value="14:00">2:00 PM</SelectItem>
+                    <SelectItem value="15:00">3:00 PM</SelectItem>
+                    <SelectItem value="16:00">4:00 PM</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             <div>
-              <Label htmlFor="customerName">Customer Name *</Label>
+              <Label htmlFor="address">Service Address *</Label>
               <Input
-                id="customerName"
-                value={formData.customerName}
-                onChange={(e) => setFormData({...formData, customerName: e.target.value})}
+                id="address"
+                value={formData.address}
+                onChange={(e) => setFormData({...formData, address: e.target.value})}
+                placeholder="Full service address"
                 required
               />
             </div>
-            <div>
-              <Label htmlFor="customerEmail">Customer Email *</Label>
-              <Input
-                id="customerEmail"
-                type="email"
-                value={formData.customerEmail}
-                onChange={(e) => setFormData({...formData, customerEmail: e.target.value})}
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="customerPhone">Customer Phone *</Label>
-              <Input
-                id="customerPhone"
-                value={formData.customerPhone}
-                onChange={(e) => setFormData({...formData, customerPhone: e.target.value})}
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="service">Service *</Label>
-              <Select value={formData.service} onValueChange={(value) => setFormData({...formData, service: value})}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select service" />
-                </SelectTrigger>
-                <SelectContent>
-                  {servicesLoading ? (
-                    <SelectItem value="loading" disabled>Loading services...</SelectItem>
-                  ) : (
-                    services.map((service) => (
-                      <SelectItem key={service.id} value={service.id}>
-                        {service.name} - ${service.base_price}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="region">Region</Label>
+                <Select value={formData.region} onValueChange={(value) => setFormData({...formData, region: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select region" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="downtown">Downtown</SelectItem>
+                    <SelectItem value="north-side">North Side</SelectItem>
+                    <SelectItem value="west-end">West End</SelectItem>
+                    <SelectItem value="east-side">East Side</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="worker">Assign Worker</Label>
+                <Select value={formData.worker} onValueChange={(value) => setFormData({...formData, worker: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select worker assignment" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">Auto-assign</SelectItem>
+                    {workers.map((worker) => (
+                      <SelectItem key={worker.id} value={worker.id}>
+                        {worker.name} ({worker.email})
                       </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+
             <div>
-              <Label htmlFor="date">Date *</Label>
-              <Input
-                id="date"
-                type="date"
-                value={formData.date}
-                onChange={(e) => setFormData({...formData, date: e.target.value})}
-                required
+              <Label htmlFor="specialInstructions">Special Instructions</Label>
+              <Textarea
+                id="specialInstructions"
+                value={formData.specialInstructions}
+                onChange={(e) => setFormData({...formData, specialInstructions: e.target.value})}
+                placeholder="Any special instructions for the technician..."
               />
             </div>
-            <div>
-              <Label htmlFor="time">Time *</Label>
-              <Select value={formData.time} onValueChange={(value) => setFormData({...formData, time: value})}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select time" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="09:00">9:00 AM</SelectItem>
-                  <SelectItem value="10:00">10:00 AM</SelectItem>
-                  <SelectItem value="11:00">11:00 AM</SelectItem>
-                  <SelectItem value="12:00">12:00 PM</SelectItem>
-                  <SelectItem value="13:00">1:00 PM</SelectItem>
-                  <SelectItem value="14:00">2:00 PM</SelectItem>
-                  <SelectItem value="15:00">3:00 PM</SelectItem>
-                  <SelectItem value="16:00">4:00 PM</SelectItem>
-                </SelectContent>
-              </Select>
+
+            <div className="flex space-x-4 pt-4">
+              <Button 
+                type="submit" 
+                className="flex-1 bg-blue-600 hover:bg-blue-700"
+                disabled={loading || servicesLoading}
+              >
+                {loading ? 'Creating...' : 'Create Booking'}
+              </Button>
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
             </div>
-          </div>
-
-          <div>
-            <Label htmlFor="address">Service Address *</Label>
-            <Input
-              id="address"
-              value={formData.address}
-              onChange={(e) => setFormData({...formData, address: e.target.value})}
-              placeholder="Full service address"
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="region">Region</Label>
-              <Select value={formData.region} onValueChange={(value) => setFormData({...formData, region: value})}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select region" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="downtown">Downtown</SelectItem>
-                  <SelectItem value="north-side">North Side</SelectItem>
-                  <SelectItem value="west-end">West End</SelectItem>
-                  <SelectItem value="east-side">East Side</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="worker">Assign Worker</Label>
-              <Select value={formData.worker} onValueChange={(value) => setFormData({...formData, worker: value})}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select worker assignment" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="auto">Auto-assign</SelectItem>
-                  {workers.map((worker) => (
-                    <SelectItem key={worker.id} value={worker.id}>
-                      {worker.name} ({worker.email})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor="specialInstructions">Special Instructions</Label>
-            <Textarea
-              id="specialInstructions"
-              value={formData.specialInstructions}
-              onChange={(e) => setFormData({...formData, specialInstructions: e.target.value})}
-              placeholder="Any special instructions for the technician..."
-            />
-          </div>
-
-          <div className="flex space-x-4 pt-4">
-            <Button 
-              type="submit" 
-              className="flex-1 bg-blue-600 hover:bg-blue-700"
-              disabled={loading || servicesLoading}
-            >
-              {loading ? 'Creating...' : 'Create Booking'}
-            </Button>
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-          </div>
-        </form>
+          </form>
+        </div>
       </div>
-    </div>
+
+      {/* TV Mounting Configuration Modal */}
+      {showTvConfig && tvMountingService && (
+        <TvMountingConfigModal
+          open={showTvConfig}
+          onClose={() => setShowTvConfig(false)}
+          onConfigComplete={handleTvConfigComplete}
+          services={services}
+          initialConfig={tvMountingConfig}
+        />
+      )}
+    </>
   );
 };
