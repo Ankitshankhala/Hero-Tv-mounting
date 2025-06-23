@@ -11,11 +11,11 @@ export const validateStripeConfig = () => {
   const errors: string[] = [];
 
   if (!STRIPE_CONFIG.publishableKey) {
-    errors.push('VITE_STRIPE_PUBLISHABLE_KEY environment variable is required');
+    errors.push('Stripe publishable key is not configured. Please set up your Stripe key in project settings.');
   }
 
   if (STRIPE_CONFIG.publishableKey && !STRIPE_CONFIG.publishableKey.startsWith('pk_')) {
-    errors.push('VITE_STRIPE_PUBLISHABLE_KEY must be a valid Stripe publishable key (starts with pk_)');
+    errors.push('Invalid Stripe publishable key format. Key must start with pk_');
   }
 
   if (errors.length > 0) {

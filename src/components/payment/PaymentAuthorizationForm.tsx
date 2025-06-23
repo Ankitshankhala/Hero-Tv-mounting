@@ -30,6 +30,7 @@ export const PaymentAuthorizationForm = ({
   const [stripe, setStripe] = useState<any>(null);
   const [elements, setElements] = useState<any>(null);
   const [cardElement, setCardElement] = useState<any>(null);
+  const [formError, setFormError] = useState('');
   const { createPaymentAuthorization, processing } = usePaymentAuthorization();
 
   const handleStripeReady = (stripeInstance: any, elementsInstance: any, cardElementInstance: any) => {
@@ -38,23 +39,33 @@ export const PaymentAuthorizationForm = ({
     setElements(elementsInstance);
     setCardElement(cardElementInstance);
     setStripeReady(true);
+    setFormError(''); // Clear any form errors when Stripe is ready
   };
 
   const handleStripeError = (error: string) => {
     console.error('Stripe error:', error);
     setCardError(error);
+    setFormError(error);
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
+    // Clear previous errors
+    setCardError('');
+    setFormError('');
+
     if (!stripe || !elements || !cardElement) {
-      onAuthorizationFailure('Payment form not ready. Please wait or refresh the page.');
+      const error = 'Payment form not ready. Please wait or refresh the page.';
+      setFormError(error);
+      onAuthorizationFailure(error);
       return;
     }
 
     if (!stripeReady) {
-      onAuthorizationFailure('Payment system is still loading. Please wait.');
+      const error = 'Payment system is still loading. Please wait.';
+      setFormError(error);
+      onAuthorizationFailure(error);
       return;
     }
 
@@ -70,7 +81,9 @@ export const PaymentAuthorizationForm = ({
       });
 
       if (!result.success || !result.client_secret) {
-        onAuthorizationFailure(result.error || 'Failed to create payment authorization');
+        const error = result.error || 'Failed to create payment authorization';
+        setFormError(error);
+        onAuthorizationFailure(error);
         return;
       }
 
@@ -89,7 +102,9 @@ export const PaymentAuthorizationForm = ({
 
       if (confirmResult.error) {
         console.error('Payment confirmation error:', confirmResult.error);
-        onAuthorizationFailure(confirmResult.error.message || 'Payment authorization failed');
+        const error = confirmResult.error.message || 'Payment authorization failed';
+        setFormError(error);
+        onAuthorizationFailure(error);
         return;
       }
 
@@ -112,11 +127,14 @@ export const PaymentAuthorizationForm = ({
 
         onAuthorizationSuccess();
       } else {
-        onAuthorizationFailure('Payment authorization was not successful');
+        const error = 'Payment authorization was not successful';
+        setFormError(error);
+        onAuthorizationFailure(error);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Payment authorization failed';
       console.error('Payment authorization error:', error);
+      setFormError(errorMessage);
       onAuthorizationFailure(errorMessage);
     }
   };
@@ -138,6 +156,12 @@ export const PaymentAuthorizationForm = ({
         </AlertDescription>
       </Alert>
 
+      {formError && (
+        <Alert variant="destructive">
+          <AlertDescription>{formError}</AlertDescription>
+        </Alert>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
@@ -157,7 +181,7 @@ export const PaymentAuthorizationForm = ({
               />
             </div>
             
-            {cardError && (
+            {cardError && !formError && (
               <Alert variant="destructive">
                 <AlertDescription>{cardError}</AlertDescription>
               </Alert>
@@ -170,7 +194,7 @@ export const PaymentAuthorizationForm = ({
 
             <Button 
               type="submit"
-              disabled={!stripeReady || processing || !!cardError}
+              disabled={!stripeReady || processing || !!cardError || !!formError}
               className="w-full"
               size="lg"
             >

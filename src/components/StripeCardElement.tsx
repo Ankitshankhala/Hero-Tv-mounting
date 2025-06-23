@@ -15,6 +15,7 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
   const [isInitialized, setIsInitialized] = useState(false);
   const [configError, setConfigError] = useState<string>('');
   const initializationRef = useRef(false);
+  const mountTimeoutRef = useRef<NodeJS.Timeout>();
   const { logStripeError } = useErrorMonitoring();
 
   useEffect(() => {
@@ -35,11 +36,11 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
         setIsLoading(true);
         setConfigError('');
         
-        console.log('Starting Stripe initialization with key:', STRIPE_CONFIG.publishableKey?.substring(0, 12) + '...');
+        console.log('Starting Stripe initialization...');
         
-        // Create a timeout promise that rejects after 15 seconds
+        // Create a timeout promise that rejects after 10 seconds
         const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error('Stripe initialization timeout after 15 seconds')), 15000);
+          setTimeout(() => reject(new Error('Stripe initialization timeout')), 10000);
         });
 
         // Race between loadStripe and timeout
@@ -49,7 +50,7 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
         ]);
 
         if (!stripe) {
-          throw new Error('Failed to load Stripe - received null response');
+          throw new Error('Failed to load Stripe');
         }
 
         console.log('Stripe loaded successfully, creating elements...');
@@ -83,15 +84,35 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
           hidePostalCode: true,
         });
 
-        if (cardElementRef.current) {
-          console.log('Mounting card element...');
-          await cardElement.mount(cardElementRef.current);
-          setIsInitialized(true);
-          console.log('Card element mounted successfully');
-          onReady(stripe, elements, cardElement);
-        } else {
-          throw new Error('Card element container not found');
-        }
+        // Wait for DOM element to be ready with timeout
+        const waitForElement = () => {
+          return new Promise<void>((resolve, reject) => {
+            const checkElement = () => {
+              if (cardElementRef.current) {
+                resolve();
+              } else {
+                mountTimeoutRef.current = setTimeout(checkElement, 100);
+              }
+            };
+            
+            checkElement();
+            
+            // Timeout after 5 seconds
+            setTimeout(() => {
+              if (mountTimeoutRef.current) {
+                clearTimeout(mountTimeoutRef.current);
+              }
+              reject(new Error('DOM element not found'));
+            }, 5000);
+          });
+        };
+
+        await waitForElement();
+        console.log('DOM element found, mounting card element...');
+        
+        await cardElement.mount(cardElementRef.current!);
+        setIsInitialized(true);
+        console.log('Card element mounted successfully');
 
         cardElement.on('change', ({ error, complete }: any) => {
           if (error) {
@@ -110,6 +131,7 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
           console.log('Stripe card element is ready for input');
         });
 
+        onReady(stripe, elements, cardElement);
         setIsLoading(false);
         console.log('Stripe initialization complete');
       } catch (error: any) {
@@ -124,7 +146,9 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
         let errorMessage = 'Failed to initialize payment form. ';
         if (error.message.includes('timeout')) {
           errorMessage += 'The payment system is taking too long to load. Please refresh and try again.';
-        } else if (error.message.includes('key')) {
+        } else if (error.message.includes('DOM element not found')) {
+          errorMessage += 'Payment form container not ready. Please try again.';
+        } else if (error.message.includes('key') || error.message.includes('publishable')) {
           errorMessage += 'Payment system configuration error. Please contact support.';
         } else {
           errorMessage += 'Please check your internet connection and try again.';
@@ -135,13 +159,23 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
       }
     };
 
-    // Add a small delay to prevent immediate execution
-    const timer = setTimeout(initializeStripe, 100);
+    // Add a small delay to ensure DOM is ready
+    const timer = setTimeout(initializeStripe, 200);
     
     return () => {
       clearTimeout(timer);
+      if (mountTimeoutRef.current) {
+        clearTimeout(mountTimeoutRef.current);
+      }
     };
   }, [onReady, onError, isInitialized, logStripeError]);
+
+  const handleRetry = () => {
+    setConfigError('');
+    setIsLoading(true);
+    initializationRef.current = false;
+    setIsInitialized(false);
+  };
 
   if (configError) {
     return (
@@ -151,11 +185,7 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
         </div>
         <div className="text-red-600 text-sm mt-1">{configError}</div>
         <button 
-          onClick={() => {
-            setConfigError('');
-            initializationRef.current = false;
-            window.location.reload();
-          }}
+          onClick={handleRetry}
           className="mt-2 text-sm text-red-700 hover:text-red-800 underline"
         >
           Retry
