@@ -74,6 +74,26 @@ export const EnhancedInlineBookingFlow = ({
     }
   };
 
+  const handleScheduleToPayment = async () => {
+    console.log('Creating booking before payment step...');
+    try {
+      const newBookingId = await handleBookingSubmit();
+      if (newBookingId) {
+        console.log('Booking created successfully:', newBookingId);
+        setCurrentStep(4);
+      } else {
+        throw new Error('Failed to create booking');
+      }
+    } catch (error) {
+      console.error('Failed to create booking:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create booking. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handlePaymentAuthorizationSuccess = () => {
     setShowSuccess(true);
     
@@ -176,21 +196,28 @@ export const EnhancedInlineBookingFlow = ({
               )}
 
               {/* Step 4: Payment Authorization */}
-              {currentStep === 4 && bookingId && (
+              {currentStep === 4 && (
                 <div className="space-y-6">
                   <div className="text-center">
                     <h3 className="text-2xl font-bold text-white mb-2">Payment Authorization</h3>
                     <p className="text-slate-300">Authorize payment - you'll only be charged after service completion</p>
                   </div>
 
-                  <PaymentAuthorizationForm
-                    amount={getTotalPrice()}
-                    bookingId={bookingId}
-                    customerEmail={formData.customerEmail || user?.email}
-                    customerName={formData.customerName}
-                    onAuthorizationSuccess={handlePaymentAuthorizationSuccess}
-                    onAuthorizationFailure={handlePaymentAuthorizationFailure}
-                  />
+                  {bookingId ? (
+                    <PaymentAuthorizationForm
+                      amount={getTotalPrice()}
+                      bookingId={bookingId}
+                      customerEmail={formData.customerEmail || user?.email}
+                      customerName={formData.customerName}
+                      onAuthorizationSuccess={handlePaymentAuthorizationSuccess}
+                      onAuthorizationFailure={handlePaymentAuthorizationFailure}
+                    />
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+                      <p className="text-slate-300">Preparing payment form...</p>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -239,7 +266,7 @@ export const EnhancedInlineBookingFlow = ({
 
                   {currentStep === 3 && (
                     <Button
-                      onClick={handleBookingSubmit}
+                      onClick={handleScheduleToPayment}
                       disabled={!isStep3Valid || loading}
                       className="flex-1 sm:flex-none bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 text-white border-0"
                     >
@@ -250,7 +277,7 @@ export const EnhancedInlineBookingFlow = ({
                         </>
                       ) : (
                         <>
-                          Create Booking
+                          Continue to Payment
                           <ArrowRight className="h-4 w-4 ml-2" />
                         </>
                       )}
