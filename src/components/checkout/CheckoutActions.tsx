@@ -31,9 +31,12 @@ export const CheckoutActions = ({
 
   return (
     <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t-2 border-gray-200">
-      <Button
+{
+  total < 75 &&       <p className='text-black'>Your cart total is ${total.toFixed(2)}. Please add ${75 - total } more to reach the $75 minimum order amount.</p>
+
+}      <Button
         type="submit"
-        disabled={isProcessing || !zipcodeValid || !selectedDate || !formData.time}
+        disabled={isProcessing || !zipcodeValid || !selectedDate || !formData.time || total < 75}
         onClick={onSubmit}
         className="flex-1 h-14 text-lg font-bold bg-gradient-to-r from-indigo-600 via-blue-600 to-purple-600 hover:from-indigo-700 hover:via-blue-700 hover:to-purple-700 text-white rounded-xl shadow-xl hover:shadow-2xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] disabled:transform-none"
       >

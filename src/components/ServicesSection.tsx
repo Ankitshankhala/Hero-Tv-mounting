@@ -62,11 +62,8 @@ export const ServicesSection = ({ onAddToCart }: ServicesSectionProps) => {
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
           <h2 className="text-4xl font-bold text-white mb-4">
-            Professional Home Services
+            Our Services
           </h2>
-          <p className="text-xl text-slate-300 max-w-2xl mx-auto">
-            Expert technicians, competitive pricing, and satisfaction guaranteed
-          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
