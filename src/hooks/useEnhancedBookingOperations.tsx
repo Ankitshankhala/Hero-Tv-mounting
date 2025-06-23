@@ -110,11 +110,13 @@ export const useEnhancedBookingOperations = () => {
 
   const sendCoverageNotifications = async (bookingId: string, urgent: boolean = false) => {
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
       const response = await fetch('/functions/v1/notify-workers-coverage', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabase.auth.session()?.access_token}`,
+          'Authorization': `Bearer ${session?.access_token}`,
         },
         body: JSON.stringify({
           booking_id: bookingId,
