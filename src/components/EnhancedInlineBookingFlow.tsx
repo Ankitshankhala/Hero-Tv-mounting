@@ -116,8 +116,8 @@ export const EnhancedInlineBookingFlow = ({
           <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-y-auto border border-slate-700/50 backdrop-blur-xl">
             <BookingFlowHeader currentStep={currentStep} onClose={onClose} />
 
-            {/* Progress Steps moved to content area */}
-            <div className="px-4 sm:px-6 pt-6">
+            {/* Progress Steps with improved spacing */}
+            <div className="px-4 sm:px-6 pt-4 pb-2">
               <BookingProgressSteps currentStep={currentStep} />
             </div>
 

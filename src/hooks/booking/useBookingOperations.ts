@@ -1,91 +1,95 @@
 
 import { useState } from 'react';
-import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { ServiceItem, FormData } from './types';
 
 export const useBookingOperations = () => {
+  const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [bookingId, setBookingId] = useState<string>('');
+  const [bookingId, setBookingId] = useState<string>();
   const [showSuccess, setShowSuccess] = useState(false);
-  const [paymentCompleted, setPaymentCompleted] = useState(false);
   const [successAnimation, setSuccessAnimation] = useState(false);
-
-  const { user } = useAuth();
   const { toast } = useToast();
 
   const handleBookingSubmit = async (services: ServiceItem[], formData: FormData) => {
-    if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please log in to complete your booking.",
-        variant: "destructive",
-      });
-      return;
-    }
-
+    setLoading(true);
     try {
-      setLoading(true);
-
-      const primaryServiceId = services.length > 0 ? services[0].id : null;
+      console.log('Creating booking with data:', { services, formData });
       
-      if (!primaryServiceId) {
-        throw new Error('No services selected');
-      }
-
-      const bookingData = {
-        customer_id: user.id,
-        service_id: primaryServiceId,
-        scheduled_date: format(formData.selectedDate!, 'yyyy-MM-dd'),
-        scheduled_start: formData.selectedTime,
-        location_notes: `${formData.address}, ${formData.city}\nContact: ${formData.customerName}\nPhone: ${formData.customerPhone}\nEmail: ${formData.customerEmail}\nZIP: ${formData.zipcode}\nSpecial Instructions: ${formData.specialInstructions}`,
-        status: 'pending' as const,
-        requires_manual_payment: true
-      };
-
-      const { data, error } = await supabase
+      // Create the booking
+      const { data: booking, error: bookingError } = await supabase
         .from('bookings')
-        .insert(bookingData)
+        .insert({
+          customer_name: formData.customerName,
+          customer_email: formData.customerEmail,
+          customer_phone: formData.customerPhone,
+          service_address: formData.address,
+          zip_code: formData.zipcode,
+          city: formData.city,
+          region: formData.region,
+          scheduled_date: formData.selectedDate?.toISOString().split('T')[0],
+          scheduled_start: formData.selectedTime,
+          special_instructions: formData.specialInstructions,
+          status: 'pending_payment',
+          total_amount: services.reduce((total, service) => total + (service.price * service.quantity), 0)
+        })
         .select()
         .single();
 
-      if (error) throw error;
+      if (bookingError) {
+        throw bookingError;
+      }
 
-      setBookingId(data.id);
-      
+      // Add services to the booking
+      for (const service of services) {
+        const { error: serviceError } = await supabase
+          .from('booking_services')
+          .insert({
+            booking_id: booking.id,
+            service_id: service.id,
+            quantity: service.quantity,
+            unit_price: service.price,
+            total_price: service.price * service.quantity,
+            service_options: service.options || {}
+          });
+
+        if (serviceError) {
+          throw serviceError;
+        }
+      }
+
+      setBookingId(booking.id);
       toast({
-        title: "Booking Created",
-        description: "Your booking has been created. Please complete payment.",
+        title: "Booking Created! 🎉",
+        description: "Your booking has been created successfully. Proceed to payment.",
       });
 
-      return data.id;
+      return booking.id;
     } catch (error) {
       console.error('Error creating booking:', error);
       toast({
-        title: "Error",
-        description: "Failed to create booking. Please try again.",
+        title: "Booking Failed",
+        description: "There was an error creating your booking. Please try again.",
         variant: "destructive",
       });
-      throw error;
+      return null;
     } finally {
       setLoading(false);
     }
   };
 
   return {
+    currentStep,
+    setCurrentStep,
     loading,
     setLoading,
     bookingId,
     setBookingId,
     showSuccess,
     setShowSuccess,
-    paymentCompleted,
-    setPaymentCompleted,
     successAnimation,
     setSuccessAnimation,
-    handleBookingSubmit,
-    user
+    handleBookingSubmit
   };
 };
