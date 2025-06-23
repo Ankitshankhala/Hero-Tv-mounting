@@ -100,12 +100,16 @@ export const EnhancedInlineBookingFlow = ({
 
   if (!isOpen) return null;
 
+  // Convert to proper boolean values for the modal
+  const isSuccessOpen = Boolean(showSuccess);
+  const hasSuccessAnimation = Boolean(successAnimation);
+
   return (
     <>
       <BookingSuccessModal
-        isOpen={Boolean(showSuccess)}
+        isOpen={isSuccessOpen}
         onClose={onClose}
-        successAnimation={Boolean(successAnimation)}
+        successAnimation={hasSuccessAnimation}
         formData={formData}
         getTotalPrice={getTotalPrice}
         bookingId={bookingId || ''}
