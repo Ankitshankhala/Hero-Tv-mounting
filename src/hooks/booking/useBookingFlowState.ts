@@ -47,6 +47,9 @@ export const useBookingFlowState = (selectedServices: ServiceItem[] = []) => {
     ...workerAvailability,
     ...bookingOperations,
     user,
-    handleBookingSubmit
+    handleBookingSubmit,
+    // Ensure these are properly typed as booleans
+    showSuccess: Boolean(bookingOperations.showSuccess),
+    successAnimation: Boolean(bookingOperations.successAnimation)
   };
 };
