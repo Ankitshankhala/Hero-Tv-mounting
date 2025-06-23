@@ -18,12 +18,10 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
   const initializationRef = useRef(false);
   const mountedRef = useRef(false);
   const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
   const [autoRetryCount, setAutoRetryCount] = useState(0);
   const { logStripeError } = useErrorMonitoring();
 
-  const MAX_AUTO_RETRIES = 3;
-  const MAX_DOM_ATTEMPTS = 10;
+  const MAX_AUTO_RETRIES = 2;
 
   // Cleanup function
   const cleanup = () => {
@@ -33,49 +31,12 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
     }
   };
 
-  // Simplified DOM element readiness check
+  // Simplified DOM element readiness check - much less strict
   const isDOMElementReady = (element: HTMLElement | null): boolean => {
     if (!element) return false;
     
-    // Basic checks: element exists and is connected to DOM
-    if (!element.isConnected) return false;
-    
-    // Simple visibility check
-    const style = window.getComputedStyle(element);
-    if (style.display === 'none' || style.visibility === 'hidden') return false;
-    
-    return true;
-  };
-
-  const waitForDOMElement = async (): Promise<boolean> => {
-    return new Promise((resolve) => {
-      let attempts = 0;
-      
-      const checkElement = () => {
-        if (!mountedRef.current) {
-          resolve(false);
-          return;
-        }
-
-        if (isDOMElementReady(cardElementRef.current)) {
-          resolve(true);
-          return;
-        }
-
-        attempts++;
-        if (attempts >= MAX_DOM_ATTEMPTS) {
-          console.log('DOM attempts exhausted, trying initialization anyway as fallback');
-          resolve(!!cardElementRef.current); // Fallback: try if element exists
-          return;
-        }
-
-        // Use longer delay between checks
-        setTimeout(checkElement, 200);
-      };
-
-      // Start checking after a brief initial delay
-      setTimeout(checkElement, 100);
-    });
+    // Only check if element exists and is connected to DOM
+    return element.isConnected;
   };
 
   const initializeStripe = async () => {
@@ -91,11 +52,14 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
       
       console.log(`Starting Stripe initialization... (attempt ${autoRetryCount + 1})`);
       
-      // Wait for DOM element to be ready
-      const domReady = await waitForDOMElement();
-      
-      if (!domReady || !mountedRef.current || !cardElementRef.current) {
-        throw new Error('Payment form container not ready after waiting. Please try again.');
+      // Simple check - just ensure element exists and is connected
+      if (!cardElementRef.current || !isDOMElementReady(cardElementRef.current)) {
+        // Wait a bit for DOM to be ready, then try anyway
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        if (!cardElementRef.current && mountedRef.current) {
+          throw new Error('Payment form container not found. Please refresh the page.');
+        }
       }
 
       initializationRef.current = true;
@@ -178,18 +142,17 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
       logStripeError(error, 'initialization', {
         stripeKey: STRIPE_CONFIG.publishableKey ? 'present' : 'missing',
         errorDetails: error.message,
-        autoRetryCount,
-        retryCount
+        autoRetryCount
       });
       
       initializationRef.current = false; // Allow retry
       
       if (!mountedRef.current) return;
 
-      // Attempt automatic retry with exponential backoff
+      // Attempt automatic retry with exponential backoff - but limit retries
       if (autoRetryCount < MAX_AUTO_RETRIES) {
         const nextRetryCount = autoRetryCount + 1;
-        const retryDelay = Math.min(1000 * Math.pow(1.5, autoRetryCount), 3000); // Slower exponential backoff, max 3s
+        const retryDelay = 1000 * Math.pow(2, autoRetryCount); // 1s, 2s, 4s
         
         setAutoRetryCount(nextRetryCount);
         
@@ -206,7 +169,7 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
       setIsLoading(false);
       
       let errorMessage = 'Failed to initialize payment form. ';
-      if (error.message.includes('container not ready')) {
+      if (error.message.includes('container not')) {
         errorMessage += 'Please refresh the page and try again.';
       } else if (error.message.includes('key') || error.message.includes('publishable')) {
         errorMessage += 'Payment system configuration error. Please contact support.';
@@ -236,7 +199,7 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
       if (mountedRef.current) {
         initializeStripe();
       }
-    }, 150);
+    }, 100);
     
     return () => {
       mountedRef.current = false;
@@ -252,7 +215,6 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
     setIsInitialized(false);
     setAutoRetryCount(0);
     initializationRef.current = false;
-    setRetryCount(prev => prev + 1);
     setLoadingMessage('Initializing payment form...');
     
     // Small delay before retry to ensure clean state
