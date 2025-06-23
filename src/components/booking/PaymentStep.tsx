@@ -2,8 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Shield, Lock, CreditCard, Info } from 'lucide-react';
 import { PaymentAuthorizationForm } from '@/components/payment/PaymentAuthorizationForm';
 import { useToast } from '@/hooks/use-toast';
 
@@ -14,6 +12,7 @@ interface PaymentStepProps {
   customerName: string;
   onPaymentAuthorized: () => void;
   onBack: () => void;
+  requireAuth?: boolean; // New prop to control authentication requirement
 }
 
 export const PaymentStep = ({
@@ -22,7 +21,8 @@ export const PaymentStep = ({
   customerEmail,
   customerName,
   onPaymentAuthorized,
-  onBack
+  onBack,
+  requireAuth = false // Default to false for guest checkout
 }: PaymentStepProps) => {
   const [authorizationError, setAuthorizationError] = useState('');
   const { toast } = useToast();
@@ -76,7 +76,10 @@ export const PaymentStep = ({
       <div className="text-center">
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Payment Authorization</h2>
         <p className="text-gray-600">
-          Authorize your payment method. You will be charged ${totalPrice.toFixed(2)} after service completion.
+          {requireAuth 
+            ? `Authorize your payment method. You will be charged $${totalPrice.toFixed(2)} after service completion.`
+            : `Authorize your payment method as a guest. You will be charged $${totalPrice.toFixed(2)} after service completion.`
+          }
         </p>
       </div>
 
@@ -93,6 +96,7 @@ export const PaymentStep = ({
         customerName={customerName}
         onAuthorizationSuccess={handleAuthorizationSuccess}
         onAuthorizationFailure={handleAuthorizationFailure}
+        requireAuth={requireAuth}
       />
 
       <div className="flex space-x-4">

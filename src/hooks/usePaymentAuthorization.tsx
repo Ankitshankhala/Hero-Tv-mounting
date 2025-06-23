@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -8,6 +7,7 @@ interface PaymentAuthorizationData {
   amount: number;
   customerEmail?: string;
   customerName?: string;
+  requireAuth?: boolean; // New prop to control authentication requirement
 }
 
 interface PaymentAuthorizationResult {
@@ -30,7 +30,13 @@ export const usePaymentAuthorization = () => {
       console.log('Creating payment authorization:', data);
 
       const { data: result, error } = await supabase.functions.invoke('create-payment-intent', {
-        body: data
+        body: {
+          bookingId: data.bookingId,
+          amount: data.amount,
+          customerEmail: data.customerEmail,
+          customerName: data.customerName,
+          requireAuth: data.requireAuth || false,
+        }
       });
 
       if (error) {
@@ -125,7 +131,6 @@ export const usePaymentAuthorization = () => {
 
   return {
     createPaymentAuthorization,
-    capturePayment,
     processing
   };
 };

@@ -6,7 +6,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Shield, Lock, CreditCard, Info } from 'lucide-react';
 import { usePaymentAuthorization } from '@/hooks/usePaymentAuthorization';
 import { StripeCardElement } from '@/components/StripeCardElement';
-import { supabase } from '@/integrations/supabase/client';
 
 interface PaymentAuthorizationFormProps {
   amount: number;
@@ -15,6 +14,7 @@ interface PaymentAuthorizationFormProps {
   customerName?: string;
   onAuthorizationSuccess: () => void;
   onAuthorizationFailure: (error: string) => void;
+  requireAuth?: boolean; // New prop to control authentication requirement
 }
 
 export const PaymentAuthorizationForm = ({
@@ -24,6 +24,7 @@ export const PaymentAuthorizationForm = ({
   customerName,
   onAuthorizationSuccess,
   onAuthorizationFailure,
+  requireAuth = false, // Default to false for guest checkout
 }: PaymentAuthorizationFormProps) => {
   const [cardError, setCardError] = useState('');
   const [stripeReady, setStripeReady] = useState(false);
@@ -39,21 +40,20 @@ export const PaymentAuthorizationForm = ({
     setElements(elementsInstance);
     setCardElement(cardElementInstance);
     setStripeReady(true);
-    setFormError(''); // Clear any form errors when Stripe is ready
-    setCardError(''); // Clear any card errors
+    setFormError('');
+    setCardError('');
   };
 
   const handleStripeError = (error: string) => {
     console.error('Stripe error:', error);
     setCardError(error);
     setFormError(error);
-    setStripeReady(false); // Reset ready state on error
+    setStripeReady(false);
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    // Clear previous errors
     setCardError('');
     setFormError('');
 
@@ -71,15 +71,24 @@ export const PaymentAuthorizationForm = ({
       return;
     }
 
+    // For guest checkout, ensure we have customer details
+    if (!requireAuth && (!customerEmail || !customerName)) {
+      const error = 'Customer information is required for payment.';
+      setFormError(error);
+      onAuthorizationFailure(error);
+      return;
+    }
+
     try {
       console.log('Starting payment authorization process...');
 
-      // Create payment authorization
+      // Create payment authorization (works for both authenticated and guest users)
       const result = await createPaymentAuthorization({
         bookingId,
         amount,
         customerEmail,
         customerName,
+        requireAuth,
       });
 
       if (!result.success || !result.client_secret) {
@@ -111,22 +120,7 @@ export const PaymentAuthorizationForm = ({
       }
 
       if (confirmResult.paymentIntent?.status === 'requires_capture') {
-        console.log('Payment authorized successfully, updating booking status...');
-        
-        // Update booking status to authorized
-        const { error: updateError } = await supabase
-          .from('bookings')
-          .update({ 
-            status: 'authorized',
-            payment_status: 'authorized'
-          })
-          .eq('id', bookingId);
-
-        if (updateError) {
-          console.error('Failed to update booking status:', updateError);
-          // Still call success since payment was authorized
-        }
-
+        console.log('Payment authorized successfully');
         onAuthorizationSuccess();
       } else {
         const error = 'Payment authorization was not successful';
@@ -146,7 +140,10 @@ export const PaymentAuthorizationForm = ({
       <Alert>
         <Info className="h-4 w-4" />
         <AlertDescription>
-          Your card will be authorized for ${amount.toFixed(2)} but not charged until after service completion.
+          {requireAuth 
+            ? `Your card will be authorized for $${amount.toFixed(2)} but not charged until after service completion.`
+            : `Your card will be authorized for $${amount.toFixed(2)} but not charged until after service completion. No account required.`
+          }
         </AlertDescription>
       </Alert>
 
