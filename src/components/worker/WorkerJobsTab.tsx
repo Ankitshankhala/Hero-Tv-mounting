@@ -30,7 +30,6 @@ const WorkerJobsTab = ({ jobs, onStatusUpdate, onJobCancelled }: WorkerJobsTabPr
                 key={job.id}
                 job={job}
                 onStatusUpdate={onJobCancelled}
-                onJobCancelled={onJobCancelled}
               />
             ))}
           </div>
