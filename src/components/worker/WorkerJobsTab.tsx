@@ -29,7 +29,7 @@ const WorkerJobsTab = ({ jobs, onStatusUpdate, onJobCancelled }: WorkerJobsTabPr
               <WorkerJobCard
                 key={job.id}
                 job={job}
-                onStatusUpdate={onStatusUpdate}
+                onStatusUpdate={onJobCancelled}
                 onJobCancelled={onJobCancelled}
               />
             ))}
