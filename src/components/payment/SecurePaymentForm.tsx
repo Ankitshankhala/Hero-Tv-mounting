@@ -1,27 +1,33 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Shield, Lock, CreditCard } from 'lucide-react';
+import { Shield, Lock, CreditCard, Info } from 'lucide-react';
 import { StripeCardElement } from '@/components/StripeCardElement';
 import { PaymentMethodSelector } from './PaymentMethodSelector';
 import { usePaymentProcessing } from '@/hooks/usePaymentProcessing';
+import { usePaymentMethodCollection } from '@/hooks/usePaymentMethodCollection';
 
 interface SecurePaymentFormProps {
   amount: number;
   bookingId?: string;
   customerId?: string;
+  customerEmail?: string;
+  customerName?: string;
   onPaymentSuccess: () => void;
   onPaymentFailure: (error: string) => void;
+  collectOnly?: boolean; // New prop to indicate we're only collecting, not charging
 }
 
 export const SecurePaymentForm = ({
   amount,
   bookingId,
   customerId,
+  customerEmail,
+  customerName,
   onPaymentSuccess,
-  onPaymentFailure
+  onPaymentFailure,
+  collectOnly = false
 }: SecurePaymentFormProps) => {
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'digital_wallet' | 'cash'>('card');
   const [stripeElements, setStripeElements] = useState<any>(null);
@@ -30,6 +36,7 @@ export const SecurePaymentForm = ({
   const [cardError, setCardError] = useState('');
   
   const { processOnlinePayment, processing, retryPayment } = usePaymentProcessing();
+  const { savePaymentMethod } = usePaymentMethodCollection();
 
   const handleStripeReady = (stripeInstance: any, elements: any, cardEl: any) => {
     setStripe(stripeInstance);
@@ -54,44 +61,74 @@ export const SecurePaymentForm = ({
       return;
     }
 
-    try {
-      let paymentMethodId = '';
+    if (collectOnly && paymentMethod === 'card') {
+      // Only collect payment method without charging
+      if (!customerEmail || !customerName) {
+        onPaymentFailure('Customer information is required');
+        return;
+      }
 
-      if (paymentMethod === 'card') {
-        // Create payment method with Stripe
-        const { error, paymentMethod: stripePaymentMethod } = await stripe.createPaymentMethod({
-          type: 'card',
-          card: cardElement,
-        });
+      try {
+        const result = await savePaymentMethod(
+          {
+            bookingId,
+            customerEmail,
+            customerName
+          },
+          stripe,
+          cardElement
+        );
 
-        if (error) {
-          onPaymentFailure(error.message);
-          return;
+        if (result.success) {
+          onPaymentSuccess();
+        } else {
+          onPaymentFailure(result.error || 'Failed to save payment method');
         }
-
-        paymentMethodId = stripePaymentMethod.id;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Payment setup failed';
+        onPaymentFailure(errorMessage);
       }
-
-      // Process the payment
-      const paymentFunction = () => processOnlinePayment({
-        bookingId,
-        customerId,
-        amount,
-        paymentMethodId,
-        description: `Booking payment - $${amount.toFixed(2)}`
-      });
-
-      const result = await retryPayment(paymentFunction);
-
-      if (result.success) {
-        onPaymentSuccess();
-      } else {
-        onPaymentFailure(result.error || 'Payment failed');
+    } else {
+      // Handle immediate payment (existing logic)
+      try {
+        let paymentMethodId = '';
+  
+        if (paymentMethod === 'card') {
+          // Create payment method with Stripe
+          const { error, paymentMethod: stripePaymentMethod } = await stripe.createPaymentMethod({
+            type: 'card',
+            card: cardElement,
+          });
+  
+          if (error) {
+            onPaymentFailure(error.message);
+            return;
+          }
+  
+          paymentMethodId = stripePaymentMethod.id;
+        }
+  
+        // Process the payment
+        const paymentFunction = () => processOnlinePayment({
+          bookingId,
+          customerId,
+          amount,
+          paymentMethodId,
+          description: `Booking payment - $${amount.toFixed(2)}`
+        });
+  
+        const result = await retryPayment(paymentFunction);
+  
+        if (result.success) {
+          onPaymentSuccess();
+        } else {
+          onPaymentFailure(result.error || 'Payment failed');
+        }
+  
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Payment processing failed';
+        onPaymentFailure(errorMessage);
       }
-
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Payment processing failed';
-      onPaymentFailure(errorMessage);
     }
   };
 
@@ -105,6 +142,15 @@ export const SecurePaymentForm = ({
           <span>Your payment information is encrypted and secure</span>
         </AlertDescription>
       </Alert>
+
+      {collectOnly && (
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            Your credit card will be securely saved and charged manually by the technician after service completion. No charge will be made at this time.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <PaymentMethodSelector 
         selectedMethod={paymentMethod}
@@ -154,9 +200,16 @@ export const SecurePaymentForm = ({
       <Card>
         <CardContent className="p-4">
           <div className="flex justify-between items-center">
-            <span className="font-semibold">Total Amount:</span>
+            <span className="font-semibold">
+              {collectOnly ? 'Estimated Amount:' : 'Total Amount:'}
+            </span>
             <span className="text-2xl font-bold text-green-600">${amount.toFixed(2)}</span>
           </div>
+          {collectOnly && (
+            <p className="text-sm text-gray-600 mt-1">
+              Final amount may vary based on services provided
+            </p>
+          )}
         </CardContent>
       </Card>
 
@@ -168,6 +221,7 @@ export const SecurePaymentForm = ({
       >
         {processing ? 'Processing...' : 
          paymentMethod === 'cash' ? 'Confirm Booking' : 
+         collectOnly ? 'Save Payment Method & Confirm Booking' :
          `Pay $${amount.toFixed(2)}`}
       </Button>
     </div>

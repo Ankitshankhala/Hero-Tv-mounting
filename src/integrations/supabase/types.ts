@@ -9,44 +9,103 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      booking_service_modifications: {
+        Row: {
+          booking_id: string
+          created_at: string | null
+          description: string | null
+          id: string
+          modification_type: string
+          price_change: number
+          service_name: string
+          worker_id: string
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          modification_type: string
+          price_change: number
+          service_name: string
+          worker_id: string
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          modification_type?: string
+          price_change?: number
+          service_name?: string
+          worker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_service_modifications_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookings: {
         Row: {
+          cancellation_deadline: string | null
           created_at: string | null
           customer_id: string
           has_modifications: boolean | null
           id: string
+          late_fee_amount: number | null
+          late_fee_charged: boolean | null
           location_notes: string | null
           pending_payment_amount: number | null
+          requires_manual_payment: boolean | null
           scheduled_date: string
           scheduled_start: string
           service_id: string
           status: Database["public"]["Enums"]["booking_status"] | null
+          stripe_customer_id: string | null
+          stripe_payment_method_id: string | null
           worker_id: string | null
         }
         Insert: {
+          cancellation_deadline?: string | null
           created_at?: string | null
           customer_id: string
           has_modifications?: boolean | null
           id?: string
+          late_fee_amount?: number | null
+          late_fee_charged?: boolean | null
           location_notes?: string | null
           pending_payment_amount?: number | null
+          requires_manual_payment?: boolean | null
           scheduled_date: string
           scheduled_start: string
           service_id: string
           status?: Database["public"]["Enums"]["booking_status"] | null
+          stripe_customer_id?: string | null
+          stripe_payment_method_id?: string | null
           worker_id?: string | null
         }
         Update: {
+          cancellation_deadline?: string | null
           created_at?: string | null
           customer_id?: string
           has_modifications?: boolean | null
           id?: string
+          late_fee_amount?: number | null
+          late_fee_charged?: boolean | null
           location_notes?: string | null
           pending_payment_amount?: number | null
+          requires_manual_payment?: boolean | null
           scheduled_date?: string
           scheduled_start?: string
           service_id?: string
           status?: Database["public"]["Enums"]["booking_status"] | null
+          stripe_customer_id?: string | null
+          stripe_payment_method_id?: string | null
           worker_id?: string | null
         }
         Relationships: [
@@ -69,6 +128,53 @@ export type Database = {
             columns: ["worker_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      manual_charges: {
+        Row: {
+          amount: number
+          booking_id: string
+          charge_type: string
+          charged_by: string
+          created_at: string | null
+          description: string | null
+          id: string
+          processed_at: string | null
+          status: string | null
+          stripe_payment_intent_id: string | null
+        }
+        Insert: {
+          amount: number
+          booking_id: string
+          charge_type: string
+          charged_by: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          processed_at?: string | null
+          status?: string | null
+          stripe_payment_intent_id?: string | null
+        }
+        Update: {
+          amount?: number
+          booking_id?: string
+          charge_type?: string
+          charged_by?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          processed_at?: string | null
+          status?: string | null
+          stripe_payment_intent_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manual_charges_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
             referencedColumns: ["id"]
           },
         ]
@@ -632,6 +738,10 @@ export type Database = {
           assignment_status: string
           notifications_sent: number
         }[]
+      }
+      calculate_cancellation_deadline: {
+        Args: { scheduled_date: string; scheduled_start: string }
+        Returns: string
       }
       find_available_workers: {
         Args: {
