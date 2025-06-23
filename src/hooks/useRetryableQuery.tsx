@@ -60,8 +60,8 @@ export const useRetryableQuery = () => {
   }, [logError]);
 
   const retryWithExponentialBackoff = useCallback(async <T>(
-    operation: () => Promise<T>,
-    operationName: string
+    operationName: string,
+    operation: () => Promise<T>
   ): Promise<T> => {
     return executeWithRetry(operation, operationName, {
       maxRetries: 3,
