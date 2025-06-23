@@ -12,25 +12,28 @@ interface ScheduleData {
   notes?: string;
 }
 
-export const useWorkerScheduleOperations = () => {
+export const useWorkerScheduleOperations = (workerId?: string) => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
+  // Use provided workerId or fall back to authenticated user
+  const targetWorkerId = workerId || user?.id;
+
   const createOrUpdateSchedule = async (scheduleData: ScheduleData) => {
-    if (!user) {
-      throw new Error('User not authenticated');
+    if (!targetWorkerId) {
+      throw new Error('No worker ID available');
     }
 
     setLoading(true);
     try {
-      console.log('Creating/updating schedule:', scheduleData);
+      console.log('Creating/updating schedule for worker:', targetWorkerId, scheduleData);
 
       // Since the RPC function doesn't exist, we'll use a direct insert/update approach
       const { data: existingSchedule } = await supabase
         .from('worker_schedule')
         .select('*')
-        .eq('worker_id', user.id)
+        .eq('worker_id', targetWorkerId)
         .eq('work_date', scheduleData.date)
         .eq('start_time', scheduleData.startTime)
         .single();
@@ -50,7 +53,7 @@ export const useWorkerScheduleOperations = () => {
         result = await supabase
           .from('worker_schedule')
           .insert({
-            worker_id: user.id,
+            worker_id: targetWorkerId,
             work_date: scheduleData.date,
             start_time: scheduleData.startTime,
             end_time: scheduleData.endTime
@@ -146,17 +149,17 @@ export const useWorkerScheduleOperations = () => {
 
   const fetchSchedulesForDate = async (date: Date) => {
     try {
-      if (!user) {
-        throw new Error('User not authenticated');
+      if (!targetWorkerId) {
+        throw new Error('No worker ID available');
       }
 
       const formattedDate = date.toISOString().split('T')[0];
-      console.log('Fetching schedules for date:', formattedDate);
+      console.log('Fetching schedules for worker:', targetWorkerId, 'date:', formattedDate);
 
       const { data, error } = await supabase
         .from('worker_schedule')
         .select('*')
-        .eq('worker_id', user.id)
+        .eq('worker_id', targetWorkerId)
         .eq('work_date', formattedDate)
         .order('start_time', { ascending: true });
 

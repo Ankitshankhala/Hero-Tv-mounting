@@ -10,9 +10,10 @@ import { ScheduleConnectionStatus } from './schedule/ScheduleConnectionStatus';
 
 interface WorkerScheduleManagerProps {
   onScheduleUpdate?: () => void;
+  workerId?: string; // Optional workerId for admin viewing other workers
 }
 
-const WorkerScheduleManager = ({ onScheduleUpdate }: WorkerScheduleManagerProps) => {
+const WorkerScheduleManager = ({ onScheduleUpdate, workerId }: WorkerScheduleManagerProps) => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [schedules, setSchedules] = useState<any[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -27,11 +28,15 @@ const WorkerScheduleManager = ({ onScheduleUpdate }: WorkerScheduleManagerProps)
   });
   
   const { user } = useAuth();
-  const { createOrUpdateSchedule, deleteSchedule, fetchSchedulesForDate, loading } = useWorkerScheduleOperations();
+  
+  // Use the provided workerId or fall back to authenticated user
+  const targetWorkerId = workerId || user?.id;
+  
+  const { createOrUpdateSchedule, deleteSchedule, fetchSchedulesForDate, loading } = useWorkerScheduleOperations(workerId);
 
   // Use calendar sync for real-time updates
   const { isConnected } = useCalendarSync({
-    userId: user?.id,
+    userId: targetWorkerId,
     userRole: 'worker',
     onScheduleUpdate: () => {
       loadSchedulesForDate(selectedDate);
@@ -54,10 +59,10 @@ const WorkerScheduleManager = ({ onScheduleUpdate }: WorkerScheduleManagerProps)
   }, []);
 
   useEffect(() => {
-    if (user && isOnline) {
+    if (targetWorkerId && isOnline) {
       loadSchedulesForDate(selectedDate);
     }
-  }, [selectedDate, user, isOnline]);
+  }, [selectedDate, targetWorkerId, isOnline]);
 
   const loadSchedulesForDate = async (date: Date) => {
     setFetchError(null);
@@ -72,7 +77,7 @@ const WorkerScheduleManager = ({ onScheduleUpdate }: WorkerScheduleManagerProps)
   };
 
   const handleSaveSchedule = async () => {
-    if (!user || !isOnline) return;
+    if (!targetWorkerId || !isOnline) return;
     
     try {
       const formattedDate = selectedDate.toISOString().split('T')[0];
@@ -143,6 +148,9 @@ const WorkerScheduleManager = ({ onScheduleUpdate }: WorkerScheduleManagerProps)
   // Update connection status to show both network and real-time status
   const enhancedIsOnline = isOnline && isConnected;
 
+  // Determine if we should show edit controls (only if it's the user's own schedule or admin)
+  const canEdit = !workerId || user?.id === workerId;
+
   return (
     <div className="w-full max-w-7xl mx-auto">
       <ScheduleConnectionStatus isOnline={enhancedIsOnline} fetchError={fetchError} />
@@ -159,23 +167,25 @@ const WorkerScheduleManager = ({ onScheduleUpdate }: WorkerScheduleManagerProps)
           schedules={schedules}
           fetchError={fetchError}
           isOnline={enhancedIsOnline}
-          onAddSchedule={handleAddSchedule}
-          onEditSchedule={handleEditSchedule}
-          onDeleteSchedule={handleDeleteSchedule}
+          onAddSchedule={canEdit ? handleAddSchedule : undefined}
+          onEditSchedule={canEdit ? handleEditSchedule : undefined}
+          onDeleteSchedule={canEdit ? handleDeleteSchedule : undefined}
           onRetryLoad={() => loadSchedulesForDate(selectedDate)}
         />
       </div>
 
-      <ScheduleFormModal
-        isOpen={showAddModal}
-        onClose={handleCloseModal}
-        isEditing={!!editingSchedule}
-        formData={formData}
-        onFormDataChange={setFormData}
-        onSave={handleSaveSchedule}
-        loading={loading}
-        isOnline={enhancedIsOnline}
-      />
+      {canEdit && (
+        <ScheduleFormModal
+          isOpen={showAddModal}
+          onClose={handleCloseModal}
+          isEditing={!!editingSchedule}
+          formData={formData}
+          onFormDataChange={setFormData}
+          onSave={handleSaveSchedule}
+          loading={loading}
+          isOnline={enhancedIsOnline}
+        />
+      )}
     </div>
   );
 };

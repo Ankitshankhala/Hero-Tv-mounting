@@ -3,25 +3,17 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Plus, Edit, Trash2, Clock, WifiOff, RefreshCw } from 'lucide-react';
-
-interface Schedule {
-  id: string;
-  start_time: string;
-  end_time: string;
-  is_available: boolean;
-  notes?: string;
-}
+import { Plus, Edit, Trash2, RefreshCw, AlertCircle } from 'lucide-react';
+import { format } from 'date-fns';
 
 interface ScheduleListProps {
   selectedDate: Date;
-  schedules: Schedule[];
+  schedules: any[];
   fetchError: string | null;
   isOnline: boolean;
-  onAddSchedule: () => void;
-  onEditSchedule: (schedule: Schedule) => void;
-  onDeleteSchedule: (scheduleId: string) => void;
+  onAddSchedule?: () => void;
+  onEditSchedule?: (schedule: any) => void;
+  onDeleteSchedule?: (scheduleId: string) => void;
   onRetryLoad: () => void;
 }
 
@@ -30,112 +22,102 @@ export const ScheduleList = ({
   schedules, 
   fetchError, 
   isOnline, 
-  onAddSchedule, 
-  onEditSchedule, 
+  onAddSchedule,
+  onEditSchedule,
   onDeleteSchedule,
   onRetryLoad 
 }: ScheduleListProps) => {
-  const formatTime = (timeString: string) => {
-    return new Date(`2000-01-01T${timeString}`).toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
-  };
+  const formattedDate = format(selectedDate, 'EEEE, MMMM d, yyyy');
 
   return (
     <Card className="w-full">
-      <CardHeader className="bg-gradient-to-r from-green-600 to-green-700 text-white rounded-t-lg">
-        <div className="flex justify-between items-center">
+      <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-t-lg">
+        <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-lg font-semibold">
-              Schedule for {selectedDate.toLocaleDateString()}
-            </CardTitle>
-            {!isOnline && (
-              <div className="flex items-center text-sm text-green-200 mt-1">
-                <WifiOff className="h-3 w-3 mr-1" />
-                Offline
-              </div>
-            )}
+            <CardTitle className="text-lg font-semibold">Schedule for {formattedDate}</CardTitle>
+            <p className="text-sm text-blue-100">Manage your availability for this day</p>
           </div>
-          <Button
-            onClick={onAddSchedule}
-            disabled={!isOnline}
-            size="sm"
-            variant="secondary"
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            Add Schedule
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="p-6">
-        {fetchError ? (
-          <Alert variant="destructive" className="mb-4">
-            <AlertDescription className="flex items-center justify-between">
-              <span>Failed to load schedules: {fetchError}</span>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={onRetryLoad}
-                disabled={!isOnline}
-              >
-                <RefreshCw className="h-4 w-4 mr-1" />
-                Retry
-              </Button>
-            </AlertDescription>
-          </Alert>
-        ) : schedules.length === 0 ? (
-          <div className="text-center py-8">
-            <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500 mb-4">No schedule set for this date</p>
+          {onAddSchedule && (
             <Button
               onClick={onAddSchedule}
               disabled={!isOnline}
               size="sm"
+              className="bg-white text-blue-600 hover:bg-blue-50"
             >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Your First Schedule
+              <Plus className="h-4 w-4 mr-1" />
+              Add Schedule
             </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="p-6">
+        {fetchError ? (
+          <div className="text-center py-6">
+            <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Schedules</h3>
+            <p className="text-gray-600 mb-4">{fetchError}</p>
+            <Button onClick={onRetryLoad} variant="outline" disabled={!isOnline}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry
+            </Button>
+          </div>
+        ) : schedules.length === 0 ? (
+          <div className="text-center py-8">
+            <div className="text-gray-400 mb-4">
+              <svg className="h-16 w-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No Schedule Set</h3>
+            <p className="text-gray-600 mb-4">You haven't set your availability for this day yet.</p>
+            {onAddSchedule && (
+              <Button onClick={onAddSchedule} disabled={!isOnline}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Your First Schedule
+              </Button>
+            )}
           </div>
         ) : (
           <div className="space-y-3">
             {schedules.map((schedule) => (
               <div
                 key={schedule.id}
-                className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 <div className="flex items-center space-x-4">
-                  <div className="text-sm font-medium">
-                    {formatTime(schedule.start_time)} - {formatTime(schedule.end_time)}
+                  <div className="flex items-center space-x-2">
+                    <Badge variant="outline" className="text-xs">
+                      {format(new Date(`2000-01-01T${schedule.start_time}`), 'h:mm a')} - {format(new Date(`2000-01-01T${schedule.end_time}`), 'h:mm a')}
+                    </Badge>
                   </div>
-                  <Badge variant={schedule.is_available ? "default" : "secondary"}>
-                    {schedule.is_available ? "Available" : "Unavailable"}
-                  </Badge>
-                  {schedule.notes && (
-                    <div className="text-xs text-gray-600 italic">
-                      {schedule.notes}
-                    </div>
-                  )}
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => onEditSchedule(schedule)}
-                    disabled={!isOnline}
-                  >
-                    <Edit className="h-3 w-3" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => onDeleteSchedule(schedule.id)}
-                    disabled={!isOnline}
-                    className="text-red-600 hover:bg-red-50"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
+                
+                {(onEditSchedule || onDeleteSchedule) && (
+                  <div className="flex items-center space-x-2">
+                    {onEditSchedule && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onEditSchedule(schedule)}
+                        disabled={!isOnline}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {onDeleteSchedule && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onDeleteSchedule(schedule.id)}
+                        disabled={!isOnline}
+                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>

@@ -35,14 +35,21 @@ interface Job {
   service?: any;
 }
 
-const WorkerCalendar = () => {
+interface WorkerCalendarProps {
+  workerId?: string; // Optional workerId for admin viewing other workers
+}
+
+const WorkerCalendar = ({ workerId }: WorkerCalendarProps) => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const { toast } = useToast();
 
+  // Use the provided workerId or fall back to authenticated user
+  const targetWorkerId = workerId || user?.id;
+
   const { isConnected, isRefreshing, forceRefresh } = useCalendarSync({
-    userId: user?.id,
+    userId: targetWorkerId,
     userRole: 'worker',
     onBookingUpdate: () => {
       fetchAllJobs();
@@ -54,11 +61,11 @@ const WorkerCalendar = () => {
   });
 
   const fetchAllJobs = async () => {
-    if (!user) return;
+    if (!targetWorkerId) return;
 
     try {
       setLoading(true);
-      console.log('Fetching all jobs for worker:', user.id);
+      console.log('Fetching all jobs for worker:', targetWorkerId);
 
       const { data, error } = await supabase
         .from('bookings')
@@ -67,7 +74,7 @@ const WorkerCalendar = () => {
           customer:users!customer_id(name, phone),
           service:services!service_id(name, description, duration_minutes, base_price)
         `)
-        .eq('worker_id', user.id)
+        .eq('worker_id', targetWorkerId)
         .order('scheduled_date', { ascending: true })
         .order('scheduled_start', { ascending: true });
 
@@ -108,8 +115,10 @@ const WorkerCalendar = () => {
   };
 
   useEffect(() => {
-    fetchAllJobs();
-  }, [user]);
+    if (targetWorkerId) {
+      fetchAllJobs();
+    }
+  }, [targetWorkerId]);
 
   const eventStyleGetter = (event: Job) => {
     let backgroundColor = '#3174ad';
@@ -159,7 +168,7 @@ const WorkerCalendar = () => {
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center space-x-2">
             <CalendarIcon className="h-5 w-5" />
-            <span>My Schedule</span>
+            <span>{workerId ? 'Worker Schedule' : 'My Schedule'}</span>
             {isConnected && (
               <Badge variant="outline" className="text-green-600">
                 ● Live

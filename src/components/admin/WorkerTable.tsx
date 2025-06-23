@@ -209,7 +209,7 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
                     <p className="text-sm text-muted-foreground">View scheduled jobs and appointments</p>
                   </div>
                   <div className="p-4">
-                    <WorkerCalendar />
+                    <WorkerCalendar workerId={selectedWorker?.id} />
                   </div>
                 </div>
               </div>
@@ -222,7 +222,7 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
                     <p className="text-sm text-muted-foreground">Manage working hours and availability</p>
                   </div>
                   <div className="p-4">
-                    <WorkerScheduleManager onScheduleUpdate={onWorkerUpdate} />
+                    <WorkerScheduleManager workerId={selectedWorker?.id} onScheduleUpdate={onWorkerUpdate} />
                   </div>
                 </div>
               </div>
