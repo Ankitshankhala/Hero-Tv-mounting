@@ -118,7 +118,7 @@ export const EnhancedInlineBookingFlow = ({
       {!showSuccess && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
           <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-y-auto border border-slate-700/50 backdrop-blur-xl">
-            {/* Enhanced Header with Progress */}
+            {/* Enhanced Header - Removed progress steps from header */}
             <div className="relative bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 text-white px-4 sm:px-8 py-4 sm:py-6 rounded-t-2xl border-b border-slate-600/50">
               <button
                 onClick={onClose}
@@ -127,19 +127,20 @@ export const EnhancedInlineBookingFlow = ({
                 <X className="h-5 w-5" />
               </button>
               
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center space-x-3 mb-4 sm:mb-0">
-                  <div className="p-2 sm:p-3 bg-white/10 rounded-xl backdrop-blur-sm border border-white/20">
-                    <CalendarIcon className="h-6 w-6 sm:h-7 sm:w-7" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl sm:text-2xl font-bold mb-1">Book Your Service</h2>
-                    <p className="text-slate-300 text-xs sm:text-sm">Step {currentStep} of 4</p>
-                  </div>
+              <div className="flex items-center space-x-3">
+                <div className="p-2 sm:p-3 bg-white/10 rounded-xl backdrop-blur-sm border border-white/20">
+                  <CalendarIcon className="h-6 w-6 sm:h-7 sm:w-7" />
                 </div>
-                
-                <BookingProgressSteps currentStep={currentStep} />
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-bold mb-1">Book Your Service</h2>
+                  <p className="text-slate-300 text-xs sm:text-sm">Step {currentStep} of 4</p>
+                </div>
               </div>
+            </div>
+
+            {/* Progress Steps moved to content area */}
+            <div className="px-4 sm:px-6 pt-6">
+              <BookingProgressSteps currentStep={currentStep} />
             </div>
 
             <div className="p-4 sm:p-6 space-y-6">
