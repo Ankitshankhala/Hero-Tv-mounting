@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Wrench } from 'lucide-react';
 import { AddWorkerModal } from './AddWorkerModal';
 import { WorkerApplicationsManager } from './WorkerApplicationsManager';
@@ -15,8 +14,6 @@ export const WorkersManager = () => {
   const [workers, setWorkers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddWorker, setShowAddWorker] = useState(false);
-  const [showDropAllDialog, setShowDropAllDialog] = useState(false);
-  const [isDropping, setIsDropping] = useState(false);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -49,40 +46,6 @@ export const WorkersManager = () => {
       });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleDropAllWorkers = async () => {
-    try {
-      setIsDropping(true);
-      
-      const { error } = await supabase
-        .from('users')
-        .update({ is_active: false })
-        .eq('role', 'worker')
-        .eq('is_active', true);
-
-      if (error) {
-        console.error('Error dropping all workers:', error);
-        throw error;
-      }
-
-      toast({
-        title: "Success",
-        description: "All workers have been deactivated successfully",
-      });
-
-      await fetchWorkers();
-      setShowDropAllDialog(false);
-    } catch (error) {
-      console.error('Error dropping all workers:', error);
-      toast({
-        title: "Error",
-        description: "Failed to deactivate all workers",
-        variant: "destructive",
-      });
-    } finally {
-      setIsDropping(false);
     }
   };
 
@@ -121,8 +84,6 @@ export const WorkersManager = () => {
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}
                 onAddWorker={() => setShowAddWorker(true)}
-                onDropAllWorkers={() => setShowDropAllDialog(true)}
-                isDropping={isDropping}
               />
 
               <WorkerTable 
@@ -144,27 +105,6 @@ export const WorkersManager = () => {
           onSuccess={fetchWorkers}
         />
       )}
-
-      <AlertDialog open={showDropAllDialog} onOpenChange={setShowDropAllDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Drop All Workers</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to deactivate all workers? This action will set all active workers to inactive status. This action can be reversed by reactivating individual workers later.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDropping}>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDropAllWorkers}
-              disabled={isDropping}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isDropping ? 'Dropping...' : 'Drop All Workers'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 };
