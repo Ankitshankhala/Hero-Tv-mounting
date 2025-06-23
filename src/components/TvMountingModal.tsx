@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -19,11 +20,11 @@ interface TvMountingModalProps {
 
 export const TvMountingModal = ({ open, onClose, onAddToCart, services }: TvMountingModalProps) => {
   const [tvConfigs, setTvConfigs] = useState([
-    { mountType: 'TV Mounting', tvSize: '32-49', quantity: 0 },
-    { mountType: 'TV Mounting', tvSize: '50-59', quantity: 0 },
-    { mountType: 'TV Mounting', tvSize: '60-69', quantity: 0 },
-    { mountType: 'TV Mounting', tvSize: '70-79', quantity: 0 },
-    { mountType: 'TV Mounting', tvSize: '80+', quantity: 0 },
+    { mountType: 'TV Mounting', tvSize: '32-49', basePrice: 90, quantity: 0 },
+    { mountType: 'TV Mounting', tvSize: '50-59', basePrice: 90, quantity: 0 },
+    { mountType: 'TV Mounting', tvSize: '60-69', basePrice: 115, quantity: 0 },
+    { mountType: 'TV Mounting', tvSize: '70-79', basePrice: 115, quantity: 0 },
+    { mountType: 'TV Mounting', tvSize: '80+', basePrice: 115, quantity: 0 },
   ]);
 
   const [cableConcealment, setCableConcealment] = useState({
@@ -32,8 +33,8 @@ export const TvMountingModal = ({ open, onClose, onAddToCart, services }: TvMoun
   });
 
   const [additionalServices, setAdditionalServices] = useState([
-    { name: 'Full Motion Mount', quantity: 0 },
-    { name: 'Flat Mount', quantity: 0 },
+    { name: 'Full Motion Mount', basePrice: 25, quantity: 0 },
+    { name: 'Flat Mount', basePrice: 0, quantity: 0 },
   ]);
 
   const handleTvConfigChange = (index: number, quantity: number) => {
@@ -42,8 +43,8 @@ export const TvMountingModal = ({ open, onClose, onAddToCart, services }: TvMoun
     setTvConfigs(newConfigs);
   };
 
-  const handleCableConcealmentChange = (type: string, quantity: number) => {
-    setCableConcealment({ type, quantity });
+  const handleCableConcealmentChange = (type: string) => {
+    setCableConcealment({ type, quantity: type === 'none' ? 0 : 1 });
   };
 
   const handleAdditionalServiceChange = (index: number, quantity: number) => {
@@ -52,29 +53,30 @@ export const TvMountingModal = ({ open, onClose, onAddToCart, services }: TvMoun
     setAdditionalServices(newServices);
   };
 
+  const getCableConcealmentPrice = (type: string) => {
+    const priceMap: { [key: string]: number } = {
+      'Simple Cable Concealment': 30,
+      'Fire Safe Cable Concealment': 50,
+    };
+    return priceMap[type] || 0;
+  };
+
   const getTotalPrice = () => {
     let total = 0;
+    
+    // Calculate TV mounting prices
     tvConfigs.forEach((config) => {
-      const mountService = services.find(s => s.name === config.mountType);
-      if (mountService) {
-        total += mountService.base_price * config.quantity;
-      }
+      total += config.basePrice * config.quantity;
     });
 
+    // Calculate cable concealment price
     if (cableConcealment.type !== 'none') {
-      const cableService = services.find(s =>
-        s.name.toLowerCase().includes(cableConcealment.type.toLowerCase())
-      );
-      if (cableService) {
-        total += cableService.base_price * cableConcealment.quantity;
-      }
+      total += getCableConcealmentPrice(cableConcealment.type);
     }
 
+    // Calculate additional services
     additionalServices.forEach((service) => {
-      const foundService = services.find(s => s.name === service.name);
-      if (foundService) {
-        total += foundService.base_price * service.quantity;
-      }
+      total += service.basePrice * service.quantity;
     });
 
     return total;
@@ -98,49 +100,39 @@ export const TvMountingModal = ({ open, onClose, onAddToCart, services }: TvMoun
     // Add base TV mounting services
     tvConfigs.forEach((config) => {
       if (config.quantity > 0) {
-        const mountService = services.find(s => s.name === config.mountType);
-        if (mountService) {
-          cartItems.push({
-            id: `${mountService.id}-${Date.now()}-${Math.random()}`,
-            name: `${config.mountType} - ${config.tvSize}"`,
-            price: mountService.base_price,
-            quantity: config.quantity
-          });
-        }
+        cartItems.push({
+          id: `tv-mounting-${config.tvSize}-${Date.now()}-${Math.random()}`,
+          name: `${config.mountType} - ${config.tvSize}"`,
+          price: config.basePrice,
+          quantity: config.quantity
+        });
       }
     });
 
     // Add cable concealment if selected
     if (cableConcealment.type !== 'none' && cableConcealment.quantity > 0) {
-      const cableService = services.find(s => 
-        s.name.toLowerCase().includes(cableConcealment.type.toLowerCase())
-      );
-      if (cableService) {
-        cartItems.push({
-          id: `${cableService.id}-cable-${Date.now()}`,
-          name: cableService.name,
-          price: cableService.base_price,
-          quantity: cableConcealment.quantity
-        });
-      }
+      cartItems.push({
+        id: `cable-concealment-${Date.now()}`,
+        name: cableConcealment.type,
+        price: getCableConcealmentPrice(cableConcealment.type),
+        quantity: cableConcealment.quantity
+      });
     }
 
     // Add additional services
     additionalServices.forEach((service) => {
       if (service.quantity > 0) {
-        const foundService = services.find(s => s.name === service.name);
-        if (foundService) {
-          cartItems.push({
-            id: `${foundService.id}-additional-${Date.now()}`,
-            name: service.name,
-            price: foundService.base_price,
-            quantity: service.quantity
-          });
-        }
+        cartItems.push({
+          id: `additional-${service.name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`,
+          name: service.name,
+          price: service.basePrice,
+          quantity: service.quantity
+        });
       }
     });
 
     onAddToCart(cartItems);
+    onClose();
   };
 
   return (
@@ -158,13 +150,14 @@ export const TvMountingModal = ({ open, onClose, onAddToCart, services }: TvMoun
                 <div className="flex items-center justify-between">
                   <div>
                     <Label htmlFor={`tv-${index}`} className="block text-sm font-medium text-gray-700">
-                      {config.mountType} - {config.tvSize}"
+                      {config.mountType} - {config.tvSize}" (${config.basePrice})
                     </Label>
                   </div>
                   <Input
                     type="number"
                     id={`tv-${index}`}
                     className="w-24"
+                    min="0"
                     value={config.quantity}
                     onChange={(e) => handleTvConfigChange(index, parseInt(e.target.value) || 0)}
                   />
@@ -179,41 +172,41 @@ export const TvMountingModal = ({ open, onClose, onAddToCart, services }: TvMoun
               <div className="space-y-2">
                 <div>
                   <Label htmlFor="cable-none" className="inline-flex items-center space-x-2 cursor-pointer">
-                    <Input
+                    <input
                       type="radio"
                       id="cable-none"
                       name="cable-concealment"
-                      className="focus:ring-0"
                       checked={cableConcealment.type === 'none'}
-                      onChange={() => handleCableConcealmentChange('none', 0)}
+                      onChange={() => handleCableConcealmentChange('none')}
+                      className="focus:ring-0"
                     />
                     <span>None</span>
                   </Label>
                 </div>
                 <div>
                   <Label htmlFor="cable-simple" className="inline-flex items-center space-x-2 cursor-pointer">
-                    <Input
+                    <input
                       type="radio"
                       id="cable-simple"
                       name="cable-concealment"
-                      className="focus:ring-0"
                       checked={cableConcealment.type === 'Simple Cable Concealment'}
-                      onChange={() => handleCableConcealmentChange('Simple Cable Concealment', 1)}
+                      onChange={() => handleCableConcealmentChange('Simple Cable Concealment')}
+                      className="focus:ring-0"
                     />
-                    <span>Simple Cable Concealment</span>
+                    <span>Simple Cable Concealment ($30)</span>
                   </Label>
                 </div>
                 <div>
                   <Label htmlFor="cable-fire-safe" className="inline-flex items-center space-x-2 cursor-pointer">
-                    <Input
+                    <input
                       type="radio"
                       id="cable-fire-safe"
                       name="cable-concealment"
-                      className="focus:ring-0"
                       checked={cableConcealment.type === 'Fire Safe Cable Concealment'}
-                      onChange={() => handleCableConcealmentChange('Fire Safe Cable Concealment', 1)}
+                      onChange={() => handleCableConcealmentChange('Fire Safe Cable Concealment')}
+                      className="focus:ring-0"
                     />
-                    <span>Fire Safe Cable Concealment</span>
+                    <span>Fire Safe Cable Concealment ($50)</span>
                   </Label>
                 </div>
               </div>
@@ -227,13 +220,14 @@ export const TvMountingModal = ({ open, onClose, onAddToCart, services }: TvMoun
                 <div className="flex items-center justify-between">
                   <div>
                     <Label htmlFor={`additional-${index}`} className="block text-sm font-medium text-gray-700">
-                      {service.name}
+                      {service.name} {service.basePrice > 0 && `(+$${service.basePrice})`}
                     </Label>
                   </div>
                   <Input
                     type="number"
                     id={`additional-${index}`}
                     className="w-24"
+                    min="0"
                     value={service.quantity}
                     onChange={(e) => handleAdditionalServiceChange(index, parseInt(e.target.value) || 0)}
                   />

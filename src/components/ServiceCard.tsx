@@ -17,13 +17,18 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ id, name, price, image
   const handleClick = () => {
     setIsClicked(true);
     
-    // Add to cart instead of navigating
-    onAddToCart({
-      id,
-      name,
-      price,
-      quantity: 1
-    });
+    // For TV Mounting, trigger the modal instead of adding directly to cart
+    if (name === 'TV Mounting') {
+      onAddToCart(); // This will trigger the TV mounting modal
+    } else {
+      // For other services, add to cart directly
+      onAddToCart({
+        id,
+        name,
+        price,
+        quantity: 1
+      });
+    }
     
     setTimeout(() => setIsClicked(false), 1000);
   };
@@ -50,7 +55,7 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ id, name, price, image
         
         <div className="flex items-center justify-between">
           <div className="text-2xl font-bold text-white transition-all duration-300">
-            ${price}
+            {name === 'TV Mounting' ? 'Starting at $90' : `$${price}`}
           </div>
           <button className={`p-3 rounded-full transition-all duration-300 group-hover:scale-110 ${
             isClicked 
