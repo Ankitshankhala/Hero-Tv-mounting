@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { useErrorHandler } from '@/hooks/useErrorHandler';
 import { useRetryableQuery } from '@/hooks/useRetryableQuery';
 
 type TableName = 'users' | 'bookings' | 'onsite_charges' | 'payment_sessions' | 'reviews' | 'services' | 'sms_logs' | 'transactions' | 'worker_availability' | 'worker_notifications' | 'worker_schedule';

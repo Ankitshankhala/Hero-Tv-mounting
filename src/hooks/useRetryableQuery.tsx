@@ -10,6 +10,8 @@ interface RetryConfig {
 
 export const useRetryableQuery = () => {
   const [retryCount, setRetryCount] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
   const { logError } = useErrorMonitoring();
 
   const executeWithRetry = useCallback(async (
@@ -23,6 +25,8 @@ export const useRetryableQuery = () => {
       backoffMultiplier = 2
     } = config;
 
+    setLoading(true);
+    setError(null);
     let currentDelay = delay;
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -32,6 +36,7 @@ export const useRetryableQuery = () => {
           console.log(`${operationName} succeeded on retry ${attempt}`);
         }
         setRetryCount(0); // Reset on success
+        setLoading(false);
         return result;
       } catch (error) {
         const isLastAttempt = attempt === maxRetries;
@@ -44,6 +49,8 @@ export const useRetryableQuery = () => {
             totalAttempts: maxRetries + 1
           });
           setRetryCount(0); // Reset after final failure
+          setError(error as Error);
+          setLoading(false);
           throw error;
         }
 
@@ -73,6 +80,8 @@ export const useRetryableQuery = () => {
   return {
     executeWithRetry,
     retryWithExponentialBackoff,
-    retryCount
+    retryCount,
+    loading,
+    error
   };
 };
