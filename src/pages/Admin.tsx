@@ -17,6 +17,7 @@ import { ReviewsManager } from '@/components/admin/ReviewsManager';
 import PendingWorkersManager from '@/components/admin/PendingWorkersManager';
 import { SMSLogsManager } from '@/components/admin/SMSLogsManager';
 import { BlogManager } from '@/components/admin/BlogManager';
+import { AdminCalendarView } from '@/components/admin/AdminCalendarView';
 
 const Admin = () => {
   const { user, profile, loading } = useAuth();
@@ -74,6 +75,8 @@ const Admin = () => {
     switch (activeTab) {
       case 'dashboard':
         return <DashboardStats />;
+      case 'calendar':
+        return <AdminCalendarView />;
       case 'bookings':
         return <BookingsManager />;
       case 'workers':

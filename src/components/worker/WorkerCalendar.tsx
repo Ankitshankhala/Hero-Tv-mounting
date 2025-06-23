@@ -3,9 +3,14 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
 import { enUS } from 'date-fns/locale';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { RefreshCw, CalendarIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useCalendarSync } from '@/hooks/useCalendarSync';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 
 const locales = {
@@ -36,59 +41,17 @@ const WorkerCalendar = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const fetchJobsForDate = async (date: Date) => {
-    if (!user) return;
-
-    try {
-      console.log('Fetching jobs for date:', date.toISOString().split('T')[0]);
-      
-      const { data, error } = await supabase
-        .from('bookings')
-        .select(`
-          *,
-          customer:users!customer_id(name, phone),
-          service:services!service_id(name, description, duration_minutes, base_price)
-        `)
-        .eq('worker_id', user.id)
-        .eq('scheduled_date', date.toISOString().split('T')[0])
-        .order('scheduled_start', { ascending: true });
-
-      if (error) {
-        console.error('Error fetching jobs:', error);
-        throw error;
-      }
-
-      console.log('Jobs data:', data);
-
-      const transformedJobs: Job[] = (data || []).map(job => {
-        // Create start datetime by combining scheduled_date and scheduled_start
-        const startDateTime = new Date(`${job.scheduled_date}T${job.scheduled_start}`);
-        
-        // Calculate end time based on service duration or default to 1 hour
-        const durationMinutes = job.service?.duration_minutes || 60;
-        const endDateTime = new Date(startDateTime.getTime() + durationMinutes * 60000);
-
-        return {
-          id: job.id,
-          title: `${job.service?.name || 'Service'} - ${job.customer?.name || 'Customer'}`,
-          start: startDateTime,
-          end: endDateTime,
-          status: job.status,
-          customer: job.customer,
-          service: job.service
-        };
-      });
-
-      setJobs(transformedJobs);
-    } catch (error) {
-      console.error('Error fetching jobs:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load jobs for the selected date",
-        variant: "destructive",
-      });
+  const { isConnected, isRefreshing, forceRefresh } = useCalendarSync({
+    userId: user?.id,
+    userRole: 'worker',
+    onBookingUpdate: () => {
+      fetchAllJobs();
+    },
+    onScheduleUpdate: () => {
+      // Optionally fetch schedule changes here
+      console.log('Worker schedule updated');
     }
-  };
+  });
 
   const fetchAllJobs = async () => {
     if (!user) return;
@@ -116,10 +79,7 @@ const WorkerCalendar = () => {
       console.log('All jobs data:', data);
 
       const transformedJobs: Job[] = (data || []).map(job => {
-        // Create start datetime by combining scheduled_date and scheduled_start
         const startDateTime = new Date(`${job.scheduled_date}T${job.scheduled_start}`);
-        
-        // Calculate end time based on service duration or default to 1 hour
         const durationMinutes = job.service?.duration_minutes || 60;
         const endDateTime = new Date(startDateTime.getTime() + durationMinutes * 60000);
 
@@ -194,26 +154,59 @@ const WorkerCalendar = () => {
   }
 
   return (
-    <div className="h-96 bg-white p-4 rounded-lg border">
-      <Calendar
-        localizer={localizer}
-        events={jobs}
-        startAccessor="start"
-        endAccessor="end"
-        style={{ height: '100%' }}
-        eventPropGetter={eventStyleGetter}
-        onNavigate={(date) => fetchJobsForDate(date)}
-        views={['month', 'week', 'day']}
-        defaultView="month"
-        popup
-        onSelectEvent={(event) => {
-          toast({
-            title: event.title,
-            description: `Status: ${event.status}`,
-          });
-        }}
-      />
-    </div>
+    <Card className="w-full">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center space-x-2">
+            <CalendarIcon className="h-5 w-5" />
+            <span>My Schedule</span>
+            {isConnected && (
+              <Badge variant="outline" className="text-green-600">
+                ● Live
+              </Badge>
+            )}
+          </CardTitle>
+          <Button
+            onClick={forceRefresh}
+            disabled={isRefreshing}
+            size="sm"
+            variant="outline"
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
+      </CardHeader>
+      
+      <CardContent>
+        <div className="h-96 bg-white p-4 rounded-lg border">
+          <Calendar
+            localizer={localizer}
+            events={jobs}
+            startAccessor="start"
+            endAccessor="end"
+            style={{ height: '100%' }}
+            eventPropGetter={eventStyleGetter}
+            views={['month', 'week', 'day']}
+            defaultView="week"
+            popup
+            onSelectEvent={(event) => {
+              toast({
+                title: event.title,
+                description: `Status: ${event.status}`,
+              });
+            }}
+          />
+        </div>
+        
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Badge className="bg-yellow-500">Pending</Badge>
+          <Badge className="bg-green-500">Confirmed</Badge>
+          <Badge className="bg-blue-500">In Progress</Badge>
+          <Badge className="bg-gray-500">Completed</Badge>
+          <Badge className="bg-red-500">Cancelled</Badge>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 

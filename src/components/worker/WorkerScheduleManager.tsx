@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useWorkerScheduleOperations } from '@/hooks/useWorkerScheduleOperations';
+import { useCalendarSync } from '@/hooks/useCalendarSync';
 import { ScheduleCalendar } from './schedule/ScheduleCalendar';
 import { ScheduleList } from './schedule/ScheduleList';
 import { ScheduleFormModal } from './schedule/ScheduleFormModal';
@@ -27,6 +28,16 @@ const WorkerScheduleManager = ({ onScheduleUpdate }: WorkerScheduleManagerProps)
   
   const { user } = useAuth();
   const { createOrUpdateSchedule, deleteSchedule, fetchSchedulesForDate, loading } = useWorkerScheduleOperations();
+
+  // Use calendar sync for real-time updates
+  const { isConnected } = useCalendarSync({
+    userId: user?.id,
+    userRole: 'worker',
+    onScheduleUpdate: () => {
+      loadSchedulesForDate(selectedDate);
+      if (onScheduleUpdate) onScheduleUpdate();
+    }
+  });
 
   // Monitor network connection
   useEffect(() => {
@@ -129,22 +140,25 @@ const WorkerScheduleManager = ({ onScheduleUpdate }: WorkerScheduleManagerProps)
     resetForm();
   };
 
+  // Update connection status to show both network and real-time status
+  const enhancedIsOnline = isOnline && isConnected;
+
   return (
     <div className="w-full max-w-7xl mx-auto">
-      <ScheduleConnectionStatus isOnline={isOnline} fetchError={fetchError} />
+      <ScheduleConnectionStatus isOnline={enhancedIsOnline} fetchError={fetchError} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ScheduleCalendar
           selectedDate={selectedDate}
           onDateSelect={setSelectedDate}
-          isOnline={isOnline}
+          isOnline={enhancedIsOnline}
         />
 
         <ScheduleList
           selectedDate={selectedDate}
           schedules={schedules}
           fetchError={fetchError}
-          isOnline={isOnline}
+          isOnline={enhancedIsOnline}
           onAddSchedule={handleAddSchedule}
           onEditSchedule={handleEditSchedule}
           onDeleteSchedule={handleDeleteSchedule}
@@ -160,7 +174,7 @@ const WorkerScheduleManager = ({ onScheduleUpdate }: WorkerScheduleManagerProps)
         onFormDataChange={setFormData}
         onSave={handleSaveSchedule}
         loading={loading}
-        isOnline={isOnline}
+        isOnline={enhancedIsOnline}
       />
     </div>
   );

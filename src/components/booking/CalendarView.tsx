@@ -2,8 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useCalendarSync } from '@/hooks/useCalendarSync';
 import { CalendarHeader } from './calendar/CalendarHeader';
 import { WeekGrid } from './calendar/WeekGrid';
 import { CalendarLegend } from './calendar/CalendarLegend';
@@ -37,6 +40,14 @@ export const CalendarView = ({
   const [bookings, setBookings] = useState<CalendarBooking[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+
+  // Use calendar sync for real-time updates
+  const { isConnected, isRefreshing, forceRefresh } = useCalendarSync({
+    userRole: 'customer',
+    onBookingUpdate: () => {
+      fetchBookings();
+    }
+  });
 
   const timeSlots = Array.from({ length: 9 }, (_, i) => {
     const hour = 9 + i;
@@ -152,8 +163,24 @@ export const CalendarView = ({
   return (
     <div className="max-w-6xl mx-auto">
       <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold text-white mb-4">Choose Your Appointment Time</h2>
-        <p className="text-slate-300">
+        <div className="flex items-center justify-center space-x-4">
+          <h2 className="text-3xl font-bold text-white">Choose Your Appointment Time</h2>
+          {isConnected && (
+            <Badge variant="outline" className="text-green-400 border-green-400">
+              ● Live Updates
+            </Badge>
+          )}
+          <Button
+            onClick={forceRefresh}
+            disabled={isRefreshing}
+            size="sm"
+            variant="outline"
+            className="text-white border-white"
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
+        <p className="text-slate-300 mt-2">
           Select from available time slots. Same-day booking available with 1-hour advance notice.
         </p>
       </div>
