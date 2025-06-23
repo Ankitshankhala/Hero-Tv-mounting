@@ -35,6 +35,7 @@ export const useBookingFlowState = (selectedServices: ServiceItem[] = []) => {
     }
   }, [bookingOperations.showSuccess]);
 
+  // Create wrapper function for handleBookingSubmit
   const handleBookingSubmit = async () => {
     const bookingId = await bookingOperations.handleBookingSubmit(formState.services, formState.formData);
     if (bookingId) {
@@ -42,10 +43,8 @@ export const useBookingFlowState = (selectedServices: ServiceItem[] = []) => {
     }
   };
 
-  // Destructure and filter out conflicting properties from other hooks
+  // Destructure formState excluding conflicting properties
   const {
-    showSuccess: _formShowSuccess,
-    successAnimation: _formSuccessAnimation,
     currentStep: _formCurrentStep,
     setCurrentStep: _formSetCurrentStep,
     loading: _formLoading,
@@ -53,12 +52,13 @@ export const useBookingFlowState = (selectedServices: ServiceItem[] = []) => {
     bookingId: _formBookingId,
     setBookingId: _formSetBookingId,
     handleBookingSubmit: _formHandleBookingSubmit,
-    ...restFormState
+    showSuccess: _formShowSuccess,
+    successAnimation: _formSuccessAnimation,
+    ...cleanFormState
   } = formState;
 
+  // Destructure workerAvailability excluding conflicting properties
   const {
-    showSuccess: _workerShowSuccess,
-    successAnimation: _workerSuccessAnimation,
     currentStep: _workerCurrentStep,
     setCurrentStep: _workerSetCurrentStep,
     loading: _workerLoading,
@@ -66,26 +66,16 @@ export const useBookingFlowState = (selectedServices: ServiceItem[] = []) => {
     bookingId: _workerBookingId,
     setBookingId: _workerSetBookingId,
     handleBookingSubmit: _workerHandleBookingSubmit,
-    ...restWorkerAvailability
+    showSuccess: _workerShowSuccess,
+    successAnimation: _workerSuccessAnimation,
+    ...cleanWorkerAvailability
   } = workerAvailability;
 
-  // Return combined state with bookingOperations taking precedence for overlapping properties
+  // Return merged state with bookingOperations spread last to take precedence
   return {
-    // Form state properties (excluding conflicting ones)
-    ...restFormState,
-    // Worker availability properties (excluding conflicting ones)
-    ...restWorkerAvailability,
-    // Override with bookingOperations properties (these take precedence and are the correct types)
-    currentStep: bookingOperations.currentStep,
-    setCurrentStep: bookingOperations.setCurrentStep,
-    loading: bookingOperations.loading,
-    setLoading: bookingOperations.setLoading,
-    bookingId: bookingOperations.bookingId,
-    setBookingId: bookingOperations.setBookingId,
-    showSuccess: bookingOperations.showSuccess, // Ensure this is boolean
-    setShowSuccess: bookingOperations.setShowSuccess,
-    successAnimation: bookingOperations.successAnimation, // Ensure this is boolean
-    setSuccessAnimation: bookingOperations.setSuccessAnimation,
+    ...cleanFormState,
+    ...cleanWorkerAvailability,
+    ...bookingOperations,
     handleBookingSubmit, // Use our wrapper function
     user,
   };
