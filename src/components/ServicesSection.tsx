@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import { ServiceCard } from './ServiceCard';
 import { TvMountingModal } from './TvMountingModal';
-import { EnhancedInlineBookingFlow } from './EnhancedInlineBookingFlow';
 import { CartItem } from '@/types';
 import { usePublicServicesData } from '@/hooks/usePublicServicesData';
 
@@ -28,20 +27,13 @@ const getServiceImage = (serviceName: string) => {
 
 export const ServicesSection = ({ onAddToCart }: ServicesSectionProps) => {
   const [showTvModal, setShowTvModal] = useState(false);
-  const [showEnhancedBooking, setShowEnhancedBooking] = useState(false);
-  const [selectedServices, setSelectedServices] = useState<Array<{
-    id: string;
-    name: string;
-    price: number;
-    quantity: number;
-  }>>([]);
   const { services, loading } = usePublicServicesData();
 
   const handleServiceClick = (serviceId: string, serviceName: string) => {
     if (serviceName === 'TV Mounting') {
       setShowTvModal(true);
     } else {
-      // For other services, start the enhanced booking flow
+      // For other services, just add to cart
       const service = services.find(s => s.id === serviceId);
       if (service) {
         const serviceItem = {
@@ -50,34 +42,15 @@ export const ServicesSection = ({ onAddToCart }: ServicesSectionProps) => {
           price: service.base_price,
           quantity: 1
         };
-        setSelectedServices([serviceItem]);
-        setShowEnhancedBooking(true);
         onAddToCart(serviceItem);
       }
     }
   };
 
   const handleTvMountingComplete = (cartItems: CartItem[]) => {
-    // Add items to cart and start booking flow
+    // Add items to cart only
     cartItems.forEach(item => onAddToCart(item));
-    
-    // Convert CartItem[] to the format expected by EnhancedInlineBookingFlow
-    const enhancedServices = cartItems.map(item => ({
-      id: item.id,
-      name: item.name,
-      price: item.price,
-      quantity: item.quantity
-    }));
-    
-    setSelectedServices(enhancedServices);
     setShowTvModal(false);
-    setShowEnhancedBooking(true);
-  };
-
-  const handleBookingComplete = (data: any) => {
-    console.log('Booking completed:', data);
-    setShowEnhancedBooking(false);
-    setSelectedServices([]);
   };
 
   if (loading) {
@@ -122,18 +95,6 @@ export const ServicesSection = ({ onAddToCart }: ServicesSectionProps) => {
           onClose={() => setShowTvModal(false)}
           onAddToCart={handleTvMountingComplete}
           services={services}
-        />
-      )}
-
-      {showEnhancedBooking && (
-        <EnhancedInlineBookingFlow
-          isOpen={showEnhancedBooking}
-          onClose={() => {
-            setShowEnhancedBooking(false);
-            setSelectedServices([]);
-          }}
-          onSubmit={handleBookingComplete}
-          selectedServices={selectedServices}
         />
       )}
     </section>
