@@ -77,13 +77,9 @@ export const EnhancedInlineBookingFlow = ({
   const handleScheduleToPayment = async () => {
     console.log('Creating booking before payment step...');
     try {
-      const newBookingId = await handleBookingSubmit();
-      if (newBookingId) {
-        console.log('Booking created successfully:', newBookingId);
-        setCurrentStep(4);
-      } else {
-        throw new Error('Failed to create booking');
-      }
+      await handleBookingSubmit();
+      console.log('Booking created successfully, proceeding to payment');
+      setCurrentStep(4);
     } catch (error) {
       console.error('Failed to create booking:', error);
       toast({
