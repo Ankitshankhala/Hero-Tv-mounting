@@ -99,7 +99,7 @@ export const AdminCalendarView = () => {
         query = query.eq('worker_id', selectedWorker);
       }
 
-      // Apply status filter
+      // Apply status filter - only filter if selectedStatus is a valid BookingStatus
       if (selectedStatus !== 'all') {
         query = query.eq('status', selectedStatus);
       }
