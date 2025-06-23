@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ZipcodeInput } from '@/components/ui/ZipcodeInput';
 import { Calendar } from '@/components/ui/calendar';
-import { X, User, Mail, Phone, MapPin, Calendar as CalendarIcon, Clock, ArrowRight, Shield, Star, CheckCircle, Users, CreditCard, Plus, Minus } from 'lucide-react';
+import { X, User, Mail, Phone, MapPin, Calendar as CalendarIcon, Clock, ArrowRight, Shield, Star, CheckCircle, Users, CreditCard, Plus, Minus, Sparkles, Trophy, Heart } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -58,6 +57,8 @@ export const EnhancedInlineBookingFlow = ({
   const [loading, setLoading] = useState(false);
   const [bookingId, setBookingId] = useState<string>('');
   const [showSuccess, setShowSuccess] = useState(false);
+  const [paymentCompleted, setPaymentCompleted] = useState(false);
+  const [successAnimation, setSuccessAnimation] = useState(false);
 
   const { user } = useAuth();
   const { toast } = useToast();
@@ -67,16 +68,23 @@ export const EnhancedInlineBookingFlow = ({
   ];
 
   const steps = [
-    { number: 1, title: 'Services', description: 'Configure services' },
-    { number: 2, title: 'Details', description: 'Contact & location' },
-    { number: 3, title: 'Schedule', description: 'Date & time' },
-    { number: 4, title: 'Payment', description: 'Secure payment' }
+    { number: 1, title: 'Services', description: 'Configure services', icon: Star },
+    { number: 2, title: 'Details', description: 'Contact & location', icon: User },
+    { number: 3, title: 'Schedule', description: 'Date & time', icon: CalendarIcon },
+    { number: 4, title: 'Payment', description: 'Secure payment', icon: CreditCard }
   ];
 
   // Update services when props change
   useEffect(() => {
     setServices(selectedServices);
   }, [selectedServices]);
+
+  // Trigger success animation
+  useEffect(() => {
+    if (showSuccess) {
+      setTimeout(() => setSuccessAnimation(true), 100);
+    }
+  }, [showSuccess]);
 
   const handleZipcodeChange = (zipcode: string, cityState?: string) => {
     setFormData(prev => ({ ...prev, zipcode }));
@@ -239,11 +247,24 @@ export const EnhancedInlineBookingFlow = ({
   };
 
   const handlePaymentSuccess = () => {
+    setPaymentCompleted(true);
     setShowSuccess(true);
+    
     toast({
-      title: "Payment Successful",
-      description: "Your booking has been confirmed!",
+      title: "Payment Successful! 🎉",
+      description: "Your booking has been confirmed. We'll contact you shortly!",
     });
+
+    // Auto-close after 5 seconds
+    setTimeout(() => {
+      onClose();
+      onSubmit?.({
+        bookingId,
+        services,
+        formData,
+        totalAmount: getTotalPrice()
+      });
+    }, 5000);
   };
 
   const handlePaymentFailure = (error: string) => {
@@ -263,17 +284,114 @@ export const EnhancedInlineBookingFlow = ({
   if (showSuccess) {
     return (
       <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 text-center">
-          <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle className="h-8 w-8 text-white" />
+        <div className={cn(
+          "bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden",
+          "transform transition-all duration-700 ease-out",
+          successAnimation ? "scale-100 opacity-100" : "scale-95 opacity-90"
+        )}>
+          {/* Success Header with Gradient */}
+          <div className="bg-gradient-to-br from-green-500 via-emerald-500 to-teal-600 p-8 text-white relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16"></div>
+            <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full translate-y-12 -translate-x-12"></div>
+            
+            <div className="relative z-10 text-center">
+              <div className={cn(
+                "w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-6",
+                "transform transition-all duration-1000 delay-300",
+                successAnimation ? "scale-100 rotate-0" : "scale-0 rotate-180"
+              )}>
+                <CheckCircle className="h-10 w-10 text-green-500" />
+              </div>
+              
+              <div className={cn(
+                "transform transition-all duration-700 delay-500",
+                successAnimation ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
+              )}>
+                <h2 className="text-3xl font-bold mb-2">Booking Confirmed!</h2>
+                <div className="flex items-center justify-center space-x-2 text-green-100">
+                  <Sparkles className="h-5 w-5" />
+                  <span className="text-lg">Payment Successful</span>
+                  <Sparkles className="h-5 w-5" />
+                </div>
+              </div>
+            </div>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Booking Confirmed!</h2>
-          <p className="text-gray-600 mb-6">
-            Thank you for your booking. We'll contact you shortly to confirm the details and assign a technician.
-          </p>
-          <Button onClick={onClose} className="w-full">
-            Continue
-          </Button>
+
+          {/* Success Content */}
+          <div className="p-8">
+            <div className={cn(
+              "transform transition-all duration-700 delay-700",
+              successAnimation ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
+            )}>
+              {/* Booking Summary */}
+              <div className="space-y-4 mb-6">
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <CalendarIcon className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">Scheduled Date</p>
+                      <p className="text-sm text-gray-600">
+                        {formData.selectedDate && format(formData.selectedDate, 'EEEE, MMMM do, yyyy')} at {formData.selectedTime}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                      <CreditCard className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">Total Amount</p>
+                      <p className="text-sm text-gray-600">${getTotalPrice()}</p>
+                    </div>
+                  </div>
+                  <div className="text-green-600 font-bold text-lg">${getTotalPrice()}</div>
+                </div>
+              </div>
+
+              {/* What's Next */}
+              <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
+                <div className="flex items-center space-x-3 mb-4">
+                  <Trophy className="h-6 w-6 text-blue-600" />
+                  <h3 className="font-semibold text-blue-900">What's Next?</h3>
+                </div>
+                <ul className="space-y-2 text-sm text-blue-800">
+                  <li className="flex items-center space-x-2">
+                    <CheckCircle className="h-4 w-4 text-blue-600" />
+                    <span>We'll contact you within 24 hours to confirm details</span>
+                  </li>
+                  <li className="flex items-center space-x-2">
+                    <CheckCircle className="h-4 w-4 text-blue-600" />
+                    <span>A qualified technician will be assigned to your job</span>
+                  </li>
+                  <li className="flex items-center space-x-2">
+                    <CheckCircle className="h-4 w-4 text-blue-600" />
+                    <span>You'll receive SMS updates about your appointment</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex space-x-3 mt-6">
+                <Button 
+                  onClick={onClose} 
+                  className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+                >
+                  <Heart className="h-4 w-4 mr-2" />
+                  Awesome, Thanks!
+                </Button>
+              </div>
+
+              {/* Footer Note */}
+              <p className="text-center text-xs text-gray-500 mt-4">
+                Booking ID: {bookingId?.slice(0, 8)}... • Auto-closing in 5 seconds
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -302,27 +420,40 @@ export const EnhancedInlineBookingFlow = ({
               </div>
             </div>
             
-            {/* Progress Steps - Mobile Friendly */}
+            {/* Enhanced Progress Steps */}
             <div className="flex space-x-2 overflow-x-auto pb-2 sm:pb-0">
-              {steps.map((step, index) => (
-                <div key={step.number} className="flex items-center">
-                  <div className={cn(
-                    "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300",
-                    currentStep >= step.number 
-                      ? "bg-white text-indigo-600" 
-                      : "bg-white/20 text-white"
-                  )}>
-                    {step.number}
+              {steps.map((step, index) => {
+                const Icon = step.icon;
+                return (
+                  <div key={step.number} className="flex items-center">
+                    <div className={cn(
+                      "relative w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300",
+                      currentStep >= step.number 
+                        ? "bg-white text-indigo-600 shadow-lg scale-110" 
+                        : "bg-white/20 text-white scale-100"
+                    )}>
+                      {currentStep > step.number ? (
+                        <CheckCircle className="h-5 w-5" />
+                      ) : (
+                        <Icon className="h-4 w-4" />
+                      )}
+                      {currentStep === step.number && (
+                        <div className="absolute -inset-1 bg-white/30 rounded-full animate-pulse"></div>
+                      )}
+                    </div>
+                    <div className="hidden sm:block ml-2 min-w-0">
+                      <div className="text-xs font-medium">{step.title}</div>
+                      <div className="text-xs text-blue-200">{step.description}</div>
+                    </div>
+                    {index < steps.length - 1 && (
+                      <div className={cn(
+                        "w-4 sm:w-8 h-0.5 mx-2 transition-colors duration-300",
+                        currentStep > step.number ? "bg-white" : "bg-white/20"
+                      )} />
+                    )}
                   </div>
-                  <div className="hidden sm:block ml-2 min-w-0">
-                    <div className="text-xs font-medium">{step.title}</div>
-                    <div className="text-xs text-blue-200">{step.description}</div>
-                  </div>
-                  {index < steps.length - 1 && (
-                    <div className="w-4 sm:w-8 h-0.5 bg-white/20 mx-2" />
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
@@ -338,7 +469,7 @@ export const EnhancedInlineBookingFlow = ({
 
               <div className="space-y-4">
                 {services.map((service) => (
-                  <Card key={service.id} className="border-2 border-gray-200 hover:border-blue-300 transition-colors">
+                  <Card key={service.id} className="border-2 border-gray-200 hover:border-blue-300 transition-all duration-200 hover:shadow-md">
                     <CardContent className="p-4 sm:p-6">
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
                         <div className="flex-1">
@@ -347,22 +478,22 @@ export const EnhancedInlineBookingFlow = ({
                         </div>
                         
                         <div className="flex items-center space-x-4">
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center space-x-2 bg-gray-50 rounded-lg p-2">
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => updateServiceQuantity(service.id, -1)}
                               disabled={service.quantity <= 1}
-                              className="h-8 w-8 p-0"
+                              className="h-8 w-8 p-0 hover:bg-red-50 hover:border-red-200"
                             >
                               <Minus className="h-4 w-4" />
                             </Button>
-                            <span className="w-8 text-center font-medium">{service.quantity}</span>
+                            <span className="w-8 text-center font-medium bg-white px-2 py-1 rounded">{service.quantity}</span>
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => updateServiceQuantity(service.id, 1)}
-                              className="h-8 w-8 p-0"
+                              className="h-8 w-8 p-0 hover:bg-green-50 hover:border-green-200"
                             >
                               <Plus className="h-4 w-4" />
                             </Button>
@@ -378,7 +509,7 @@ export const EnhancedInlineBookingFlow = ({
                             variant="outline"
                             size="sm"
                             onClick={() => removeService(service.id)}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
                           >
                             Remove
                           </Button>
@@ -391,13 +522,14 @@ export const EnhancedInlineBookingFlow = ({
 
               {services.length === 0 && (
                 <div className="text-center py-12 text-gray-500">
+                  <Star className="h-12 w-12 mx-auto text-gray-300 mb-4" />
                   <p>No services selected. Please select services from the homepage.</p>
                 </div>
               )}
 
-              <div className="border-t pt-4">
-                <div className="flex justify-between items-center text-xl font-bold">
-                  <span>Total:</span>
+              <div className="border-t pt-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4">
+                <div className="flex justify-between items-center text-2xl font-bold">
+                  <span className="text-gray-900">Total:</span>
                   <span className="text-green-600">${getTotalPrice()}</span>
                 </div>
               </div>
@@ -657,8 +789,8 @@ export const EnhancedInlineBookingFlow = ({
             </div>
           )}
 
-          {/* Navigation Buttons */}
-          <div className="flex flex-col sm:flex-row justify-between items-center pt-6 border-t space-y-4 sm:space-y-0">
+          {/* Enhanced Navigation Buttons */}
+          <div className="flex flex-col sm:flex-row justify-between items-center pt-6 border-t bg-gray-50 rounded-xl p-4 space-y-4 sm:space-y-0">
             <div className="flex items-center space-x-2">
               <Shield className="h-4 w-4 text-green-600" />
               <span className="text-sm text-gray-600">Secure & encrypted</span>
@@ -669,7 +801,8 @@ export const EnhancedInlineBookingFlow = ({
                 <Button
                   variant="outline"
                   onClick={handlePrevStep}
-                  className="flex-1 sm:flex-none"
+                  className="flex-1 sm:flex-none hover:bg-gray-100"
+                  disabled={loading}
                 >
                   Back
                 </Button>
@@ -680,12 +813,22 @@ export const EnhancedInlineBookingFlow = ({
                   onClick={handleNextStep}
                   disabled={
                     (currentStep === 1 && !isStep1Valid) ||
-                    (currentStep === 2 && !isStep2Valid)
+                    (currentStep === 2 && !isStep2Valid) ||
+                    loading
                   }
-                  className="flex-1 sm:flex-none bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+                  className="flex-1 sm:flex-none bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50"
                 >
-                  Next Step
-                  <ArrowRight className="h-4 w-4 ml-2" />
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Loading...
+                    </>
+                  ) : (
+                    <>
+                      Next Step
+                      <ArrowRight className="h-4 w-4 ml-2" />
+                    </>
+                  )}
                 </Button>
               )}
 
@@ -693,10 +836,19 @@ export const EnhancedInlineBookingFlow = ({
                 <Button
                   onClick={handleBookingSubmit}
                   disabled={!isStep3Valid || loading}
-                  className="flex-1 sm:flex-none bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+                  className="flex-1 sm:flex-none bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50"
                 >
-                  {loading ? 'Creating...' : 'Create Booking'}
-                  <ArrowRight className="h-4 w-4 ml-2" />
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      Create Booking
+                      <ArrowRight className="h-4 w-4 ml-2" />
+                    </>
+                  )}
                 </Button>
               )}
             </div>
