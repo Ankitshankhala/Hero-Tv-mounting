@@ -42,37 +42,13 @@ export const useBookingFlowState = (selectedServices: ServiceItem[] = []) => {
     }
   };
 
-  // Destructure to avoid conflicts and ensure proper types
-  const {
-    showSuccess: formStateShowSuccess,
-    successAnimation: formStateSuccessAnimation,
-    currentStep: formStateCurrentStep,
-    setCurrentStep: formStateSetCurrentStep,
-    loading: formStateLoading,
-    setLoading: formStateSetLoading,
-    bookingId: formStateBookingId,
-    setBookingId: formStateSetBookingId,
-    handleBookingSubmit: formStateHandleBookingSubmit,
-    ...restFormState
-  } = formState;
-
-  const {
-    showSuccess: workerShowSuccess,
-    successAnimation: workerSuccessAnimation,
-    currentStep: workerCurrentStep,
-    setCurrentStep: workerSetCurrentStep,
-    loading: workerLoading,
-    setLoading: workerSetLoading,
-    bookingId: workerBookingId,
-    setBookingId: workerSetBookingId,
-    handleBookingSubmit: workerHandleBookingSubmit,
-    ...restWorkerAvailability
-  } = workerAvailability;
-
+  // Return combined state with bookingOperations taking precedence for overlapping properties
   return {
-    ...restFormState,
-    ...restWorkerAvailability,
-    // Use bookingOperations for these critical state properties
+    // Form state properties
+    ...formState,
+    // Worker availability properties  
+    ...workerAvailability,
+    // Override with bookingOperations properties (these take precedence)
     currentStep: bookingOperations.currentStep,
     setCurrentStep: bookingOperations.setCurrentStep,
     loading: bookingOperations.loading,
@@ -85,6 +61,5 @@ export const useBookingFlowState = (selectedServices: ServiceItem[] = []) => {
     setSuccessAnimation: bookingOperations.setSuccessAnimation,
     handleBookingSubmit: bookingOperations.handleBookingSubmit,
     user,
-    handleBookingSubmit,
   };
 };
