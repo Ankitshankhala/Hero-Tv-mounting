@@ -35,33 +35,30 @@ export const useBookingFlowState = (selectedServices: ServiceItem[] = []) => {
     }
   }, [bookingOperations.showSuccess]);
 
-  // Create wrapper function for handleBookingSubmit
   const handleBookingSubmit = async () => {
     const bookingId = await bookingOperations.handleBookingSubmit(formState.services, formState.formData);
     if (bookingId) {
-      bookingOperations.setCurrentStep(4);
+      formState.setCurrentStep(4);
     }
   };
 
-  // Destructure formState excluding only conflicting properties that actually exist
-  const {
-    currentStep: _formCurrentStep,
-    setCurrentStep: _formSetCurrentStep,
-    ...cleanFormState
-  } = formState;
-
-  // Destructure workerAvailability excluding conflicting properties  
-  const {
-    loading: _workerLoading,
-    ...cleanWorkerAvailability
-  } = workerAvailability;
-
-  // Return merged state with bookingOperations spread last to take precedence
+  // Explicitly type the return object to ensure proper boolean types
   return {
-    ...cleanFormState,
-    ...cleanWorkerAvailability,
-    ...bookingOperations,
-    handleBookingSubmit, // Use our wrapper function
+    ...formState,
+    ...workerAvailability,
+    // Explicitly override with bookingOperations properties to ensure correct types
+    currentStep: bookingOperations.currentStep,
+    setCurrentStep: bookingOperations.setCurrentStep,
+    loading: bookingOperations.loading,
+    setLoading: bookingOperations.setLoading,
+    bookingId: bookingOperations.bookingId,
+    setBookingId: bookingOperations.setBookingId,
+    showSuccess: bookingOperations.showSuccess, // This is already boolean from useBookingOperations
+    setShowSuccess: bookingOperations.setShowSuccess,
+    successAnimation: bookingOperations.successAnimation, // This is already boolean from useBookingOperations
+    setSuccessAnimation: bookingOperations.setSuccessAnimation,
+    handleBookingSubmit: bookingOperations.handleBookingSubmit,
     user,
+    handleBookingSubmit,
   };
 };
