@@ -18,7 +18,7 @@ const defaultReviews: Review[] = [
     rating: 5,
     name: "Sarah M.",
     city: "Austin, TX",
-    image: "/assets/images/reviews/customer-1.png"
+    image: "/lovable-uploads/9b4cf239-a12b-4275-9ca2-a4abafb59c40.png"
   },
   {
     id: 2,
@@ -26,7 +26,7 @@ const defaultReviews: Review[] = [
     rating: 5,
     name: "Mike R.",
     city: "Dallas, TX",
-    image: "/assets/images/reviews/customer-2.png"
+    image: "/lovable-uploads/77f65da7-38bc-4d01-afdd-bb998049c77b.png"
   },
   {
     id: 3,
@@ -34,7 +34,7 @@ const defaultReviews: Review[] = [
     rating: 5,
     name: "Jennifer L.",
     city: "Houston, TX",
-    image: "/assets/images/reviews/customer-3.png"
+    image: "/lovable-uploads/4a49b814-b16a-4daf-aa91-3a52fcbb5fae.png"
   },
   {
     id: 4,
@@ -42,7 +42,7 @@ const defaultReviews: Review[] = [
     rating: 5,
     name: "David K.",
     city: "San Antonio, TX",
-    image: "/assets/images/reviews/customer-4.png"
+    image: "/lovable-uploads/6889f051-f5b1-4f2a-a093-a09693378bd4.png"
   },
   {
     id: 5,
@@ -50,7 +50,7 @@ const defaultReviews: Review[] = [
     rating: 5,
     name: "Lisa P.",
     city: "Fort Worth, TX",
-    image: "/assets/images/reviews/customer-5.png"
+    image: "/lovable-uploads/cf56b4f9-cc16-4662-ba09-6186268ae1a0.png"
   }
 ];
 
