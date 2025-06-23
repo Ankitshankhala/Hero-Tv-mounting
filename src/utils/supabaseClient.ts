@@ -10,8 +10,10 @@ export const subscribeToWorkerBookings = (
   workerId: string,
   onBookingUpdate: (booking: any) => void
 ) => {
+  const channelName = `worker-bookings-${workerId}-${Date.now()}`;
+  
   const channel = properSupabase
-    .channel('worker-bookings')
+    .channel(channelName)
     .on(
       'postgres_changes',
       {
@@ -36,8 +38,10 @@ export const subscribeToCustomerBookings = (
   customerId: string,
   onBookingUpdate: (booking: any) => void
 ) => {
+  const channelName = `customer-bookings-${customerId}-${Date.now()}`;
+  
   const channel = properSupabase
-    .channel('customer-bookings')
+    .channel(channelName)
     .on(
       'postgres_changes',
       {
@@ -61,8 +65,10 @@ export const subscribeToCustomerBookings = (
 export const subscribeToAllBookings = (
   onBookingUpdate: (booking: any) => void
 ) => {
+  const channelName = `all-bookings-${Date.now()}`;
+  
   const channel = properSupabase
-    .channel('all-bookings')
+    .channel(channelName)
     .on(
       'postgres_changes',
       {

@@ -22,18 +22,20 @@ export const BookingsManager = () => {
   // Use our custom hook for booking management
   const { bookings, loading, handleBookingUpdate, fetchBookings } = useBookingManager();
 
-  // Set up real-time subscriptions for admin
+  // Set up real-time subscriptions for admin with stable callback
+  const handleRealtimeUpdate = React.useCallback((updatedBooking: any) => {
+    console.log('Real-time booking update received:', updatedBooking);
+    handleBookingUpdate(updatedBooking);
+    // Force a fresh fetch to ensure we have the latest data with all relations
+    setTimeout(() => {
+      fetchBookings();
+    }, 1000);
+  }, [handleBookingUpdate, fetchBookings]);
+
   const { isConnected } = useRealtimeBookings({
     userId: user?.id,
     userRole: 'admin',
-    onBookingUpdate: (updatedBooking) => {
-      console.log('Real-time booking update received:', updatedBooking);
-      handleBookingUpdate(updatedBooking);
-      // Force a fresh fetch to ensure we have the latest data with all relations
-      setTimeout(() => {
-        fetchBookings();
-      }, 1000);
-    }
+    onBookingUpdate: handleRealtimeUpdate
   });
 
   useEffect(() => {
