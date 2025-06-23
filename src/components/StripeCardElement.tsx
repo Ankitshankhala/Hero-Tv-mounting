@@ -15,7 +15,119 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
   const [isInitialized, setIsInitialized] = useState(false);
   const [configError, setConfigError] = useState<string>('');
   const initializationRef = useRef(false);
+  const [retryCount, setRetryCount] = useState(0);
   const { logStripeError } = useErrorMonitoring();
+
+  const initializeStripe = async () => {
+    if (isInitialized || initializationRef.current) return;
+    
+    try {
+      setIsLoading(true);
+      setConfigError('');
+      
+      console.log('Starting Stripe initialization...');
+      
+      // Wait for the DOM element to be available with multiple checks
+      let attempts = 0;
+      const maxAttempts = 10;
+      
+      while (!cardElementRef.current && attempts < maxAttempts) {
+        console.log(`Waiting for DOM element... attempt ${attempts + 1}`);
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
+      }
+
+      if (!cardElementRef.current) {
+        throw new Error('Payment form container not ready after waiting. Please try again.');
+      }
+
+      initializationRef.current = true;
+
+      const stripe: Stripe | null = await loadStripe(STRIPE_CONFIG.publishableKey);
+
+      if (!stripe) {
+        throw new Error('Failed to load Stripe');
+      }
+
+      console.log('Stripe loaded successfully, creating elements...');
+
+      const elements = stripe.elements({
+        appearance: {
+          theme: 'stripe',
+          variables: {
+            colorPrimary: '#2563eb',
+            colorBackground: '#ffffff',
+            colorText: '#1f2937',
+            fontFamily: 'system-ui, sans-serif',
+          },
+        },
+      });
+
+      const cardElement = elements.create('card', {
+        style: {
+          base: {
+            fontSize: '16px',
+            color: '#1f2937',
+            fontFamily: 'system-ui, sans-serif',
+            '::placeholder': {
+              color: '#6b7280',
+            },
+          },
+          invalid: {
+            color: '#ef4444',
+          },
+        },
+        hidePostalCode: true,
+      });
+
+      console.log('Mounting card element...');
+      await cardElement.mount(cardElementRef.current);
+      setIsInitialized(true);
+      console.log('Card element mounted successfully');
+
+      cardElement.on('change', ({ error, complete }: any) => {
+        if (error) {
+          console.error('Stripe card error:', error);
+          logStripeError(error, 'card element change', {
+            errorType: error.type,
+            errorCode: error.code
+          });
+          onError(error.message);
+        } else if (complete) {
+          onError(''); // Clear any previous errors
+        }
+      });
+
+      cardElement.on('ready', () => {
+        console.log('Stripe card element is ready for input');
+      });
+
+      onReady(stripe, elements, cardElement);
+      setIsLoading(false);
+      console.log('Stripe initialization complete');
+    } catch (error: any) {
+      console.error('Stripe initialization error:', error);
+      logStripeError(error, 'initialization', {
+        stripeKey: STRIPE_CONFIG.publishableKey ? 'present' : 'missing',
+        errorDetails: error.message,
+        retryCount
+      });
+      setIsLoading(false);
+      initializationRef.current = false; // Allow retry
+      
+      let errorMessage = 'Failed to initialize payment form. ';
+      if (error.message.includes('container not ready')) {
+        errorMessage += 'Payment form container not ready. Please try again.';
+      } else if (error.message.includes('key') || error.message.includes('publishable')) {
+        errorMessage += 'Payment system configuration error. Please contact support.';
+      } else {
+        errorMessage += 'Please check your internet connection and try again.';
+      }
+      
+      setConfigError(errorMessage);
+      onError(errorMessage);
+    }
+  };
 
   useEffect(() => {
     // Validate configuration first
@@ -27,125 +139,22 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
       return;
     }
 
-    if (isInitialized || initializationRef.current) return;
-    initializationRef.current = true;
-
-    const initializeStripe = async () => {
-      try {
-        setIsLoading(true);
-        setConfigError('');
-        
-        console.log('Starting Stripe initialization...');
-        
-        // Wait for DOM to be ready
-        if (!cardElementRef.current) {
-          console.log('Waiting for DOM element...');
-          // Use requestAnimationFrame to ensure DOM is ready
-          await new Promise(resolve => requestAnimationFrame(resolve));
-          
-          if (!cardElementRef.current) {
-            throw new Error('Payment form container not ready. Please try again.');
-          }
-        }
-
-        const stripe: Stripe | null = await loadStripe(STRIPE_CONFIG.publishableKey);
-
-        if (!stripe) {
-          throw new Error('Failed to load Stripe');
-        }
-
-        console.log('Stripe loaded successfully, creating elements...');
-
-        const elements = stripe.elements({
-          appearance: {
-            theme: 'stripe',
-            variables: {
-              colorPrimary: '#2563eb',
-              colorBackground: '#ffffff',
-              colorText: '#1f2937',
-              fontFamily: 'system-ui, sans-serif',
-            },
-          },
-        });
-
-        const cardElement = elements.create('card', {
-          style: {
-            base: {
-              fontSize: '16px',
-              color: '#1f2937',
-              fontFamily: 'system-ui, sans-serif',
-              '::placeholder': {
-                color: '#6b7280',
-              },
-            },
-            invalid: {
-              color: '#ef4444',
-            },
-          },
-          hidePostalCode: true,
-        });
-
-        console.log('Mounting card element...');
-        await cardElement.mount(cardElementRef.current);
-        setIsInitialized(true);
-        console.log('Card element mounted successfully');
-
-        cardElement.on('change', ({ error, complete }: any) => {
-          if (error) {
-            console.error('Stripe card error:', error);
-            logStripeError(error, 'card element change', {
-              errorType: error.type,
-              errorCode: error.code
-            });
-            onError(error.message);
-          } else if (complete) {
-            onError(''); // Clear any previous errors
-          }
-        });
-
-        cardElement.on('ready', () => {
-          console.log('Stripe card element is ready for input');
-        });
-
-        onReady(stripe, elements, cardElement);
-        setIsLoading(false);
-        console.log('Stripe initialization complete');
-      } catch (error: any) {
-        console.error('Stripe initialization error:', error);
-        logStripeError(error, 'initialization', {
-          stripeKey: STRIPE_CONFIG.publishableKey ? 'present' : 'missing',
-          errorDetails: error.message
-        });
-        setIsLoading(false);
-        initializationRef.current = false; // Allow retry
-        
-        let errorMessage = 'Failed to initialize payment form. ';
-        if (error.message.includes('container not ready')) {
-          errorMessage += 'Payment form container not ready. Please try again.';
-        } else if (error.message.includes('key') || error.message.includes('publishable')) {
-          errorMessage += 'Payment system configuration error. Please contact support.';
-        } else {
-          errorMessage += 'Please check your internet connection and try again.';
-        }
-        
-        setConfigError(errorMessage);
-        onError(errorMessage);
-      }
-    };
-
-    // Use a longer delay to ensure the component is fully mounted
-    const timer = setTimeout(initializeStripe, 500);
+    // Use a longer initial delay to ensure DOM is ready
+    const timer = setTimeout(() => {
+      initializeStripe();
+    }, 1000);
     
     return () => {
       clearTimeout(timer);
     };
-  }, [onReady, onError, isInitialized, logStripeError]);
+  }, [onReady, onError, logStripeError, retryCount]);
 
   const handleRetry = () => {
     setConfigError('');
     setIsLoading(true);
-    initializationRef.current = false;
     setIsInitialized(false);
+    initializationRef.current = false;
+    setRetryCount(prev => prev + 1);
   };
 
   if (configError) {
