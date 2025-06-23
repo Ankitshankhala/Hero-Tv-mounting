@@ -194,8 +194,16 @@ export const EnhancedInlineBookingFlow = ({
     try {
       setLoading(true);
 
+      // Get the first service ID as the primary service for the booking
+      const primaryServiceId = services.length > 0 ? services[0].id : null;
+      
+      if (!primaryServiceId) {
+        throw new Error('No services selected');
+      }
+
       const bookingData = {
         customer_id: user.id,
+        service_id: primaryServiceId, // Add the required service_id field
         scheduled_date: format(formData.selectedDate!, 'yyyy-MM-dd'),
         scheduled_start: formData.selectedTime,
         location_notes: `${formData.address}, ${formData.city}\nContact: ${formData.customerName}\nPhone: ${formData.customerPhone}\nEmail: ${formData.customerEmail}\nZIP: ${formData.zipcode}\nSpecial Instructions: ${formData.specialInstructions}`,
