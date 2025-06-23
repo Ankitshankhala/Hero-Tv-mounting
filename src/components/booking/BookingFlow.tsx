@@ -1,12 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import { ServiceStep } from './ServiceStep';
-import { ContactStep } from './ContactStep';
 import { ScheduleStep } from './ScheduleStep';
 import { PaymentStep } from './PaymentStep';
-import { SuccessStep } from './SuccessStep';
-import { StepIndicator } from './StepIndicator';
+import { BookingProgressSteps } from './BookingProgressSteps';
 import { useBookingOperations } from '@/hooks/booking/useBookingOperations';
 import { ServiceItem, FormData } from '@/hooks/booking/types';
 
@@ -25,6 +22,7 @@ export const BookingFlow = ({ onClose, initialServices = [] }: BookingFlowProps)
     address: '',
     city: '',
     zipcode: '',
+    region: 'downtown',
     selectedDate: null,
     selectedTime: '',
     specialInstructions: ''
@@ -46,16 +44,6 @@ export const BookingFlow = ({ onClose, initialServices = [] }: BookingFlowProps)
 
   // Calculate total price
   const totalPrice = services.reduce((sum, service) => sum + (service.price * service.quantity), 0);
-
-  const handleServiceNext = (selectedServices: ServiceItem[]) => {
-    setServices(selectedServices);
-    setCurrentStep(2);
-  };
-
-  const handleContactNext = (contactData: Partial<FormData>) => {
-    setFormData(prev => ({ ...prev, ...contactData }));
-    setCurrentStep(3);
-  };
 
   const handleScheduleNext = async (scheduleData: Partial<FormData>) => {
     const updatedFormData = { ...formData, ...scheduleData };
@@ -85,13 +73,6 @@ export const BookingFlow = ({ onClose, initialServices = [] }: BookingFlowProps)
     }, 100);
   };
 
-  const handleStepClick = (step: number) => {
-    // Only allow going back to previous steps
-    if (step < currentStep) {
-      setCurrentStep(step);
-    }
-  };
-
   // Ensure we have the necessary data for payment step
   const canProceedToPayment = bookingId && totalPrice > 0 && formData.customerEmail && formData.customerName;
 
@@ -106,29 +87,16 @@ export const BookingFlow = ({ onClose, initialServices = [] }: BookingFlowProps)
         </div>
 
         <div className="p-6">
-          <StepIndicator currentStep={currentStep} onStepClick={handleStepClick} />
+          <BookingProgressSteps currentStep={currentStep} />
           
           <div className="mt-8">
-            {currentStep === 1 && (
-              <ServiceStep 
-                initialServices={services}
-                onNext={handleServiceNext}
-              />
-            )}
-            
-            {currentStep === 2 && (
-              <ContactStep 
-                formData={formData}
-                onNext={handleContactNext}
-                onBack={() => setCurrentStep(1)}
-              />
-            )}
-            
             {currentStep === 3 && (
               <ScheduleStep 
                 formData={formData}
-                onNext={handleScheduleNext}
-                onBack={() => setCurrentStep(2)}
+                setFormData={setFormData}
+                timeSlots={[]}
+                blockedSlots={[]}
+                workerCount={0}
                 loading={loading}
               />
             )}
@@ -156,16 +124,6 @@ export const BookingFlow = ({ onClose, initialServices = [] }: BookingFlowProps)
                   Go Back to Schedule
                 </button>
               </div>
-            )}
-            
-            {currentStep === 5 && showSuccess && (
-              <SuccessStep 
-                bookingId={bookingId}
-                services={services}
-                totalPrice={totalPrice}
-                onClose={onClose}
-                animation={successAnimation}
-              />
             )}
           </div>
         </div>
