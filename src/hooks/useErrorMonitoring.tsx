@@ -1,5 +1,5 @@
 
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 
 interface ErrorContext {
   category?: string;
@@ -7,9 +7,19 @@ interface ErrorContext {
   [key: string]: any;
 }
 
+interface ErrorStats {
+  last24Hours: number;
+  byCategory: Record<string, number>;
+}
+
 export const useErrorMonitoring = () => {
+  const [errors, setErrors] = useState<Array<{ error: Error; context: string; timestamp: Date; additionalContext?: ErrorContext }>>([]);
+
   const logError = useCallback((error: Error, context: string, additionalContext?: ErrorContext) => {
     console.error(`Error in ${context}:`, error, additionalContext);
+    
+    // Store error for stats
+    setErrors(prev => [...prev.slice(-99), { error, context, timestamp: new Date(), additionalContext }]);
     
     // In production, you would send this to your error monitoring service
     // For now, we'll just log to console
@@ -40,10 +50,34 @@ export const useErrorMonitoring = () => {
     });
   }, [logError]);
 
+  const getErrorStats = useCallback((): ErrorStats => {
+    const last24Hours = new Date();
+    last24Hours.setHours(last24Hours.getHours() - 24);
+    
+    const recentErrors = errors.filter(e => e.timestamp > last24Hours);
+    const byCategory: Record<string, number> = {};
+    
+    recentErrors.forEach(e => {
+      const category = e.additionalContext?.category || 'unknown';
+      byCategory[category] = (byCategory[category] || 0) + 1;
+    });
+
+    return {
+      last24Hours: recentErrors.length,
+      byCategory
+    };
+  }, [errors]);
+
+  const clearErrors = useCallback(() => {
+    setErrors([]);
+  }, []);
+
   return {
     logError,
     logPaymentError,
     logStripeError,
-    logSupabaseError
+    logSupabaseError,
+    getErrorStats,
+    clearErrors
   };
 };
