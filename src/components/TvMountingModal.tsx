@@ -27,7 +27,8 @@ export const TvMountingModal = ({ open, onClose, onAddToCart, services }: TvMoun
     totalPrice,
     buildServicesList,
     over65Service,
-    frameMountService
+    frameMountService,
+    calculateTvMountingPrice
   } = useTvMountingModal(services);
 
   const handleAddToCart = () => {
@@ -88,7 +89,16 @@ export const TvMountingModal = ({ open, onClose, onAddToCart, services }: TvMoun
                 <Plus className="h-4 w-4" />
               </button>
             </div>
-            <p className="text-slate-400 text-sm">Base TV Mounting: $90</p>
+            <div className="bg-slate-700 rounded-lg p-3">
+              <p className="text-slate-300 text-sm mb-2">Base TV Mounting: ${calculateTvMountingPrice(numberOfTvs)}</p>
+              {numberOfTvs > 1 && (
+                <div className="text-xs text-slate-400 space-y-1">
+                  <div>• 1st TV: $90</div>
+                  <div>• 2nd TV: $60</div>
+                  {numberOfTvs > 2 && <div>• Additional TVs: $75 each</div>}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Configure Each TV */}
