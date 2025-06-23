@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -105,7 +104,10 @@ export const InlineBookingFlow = ({ isOpen, onClose, onSubmit, selectedServices 
   const calculateServicePrice = (service: any) => {
     const basePrice = service.price * service.quantity;
     const optionsPrice = service.options ? 
-      Object.values(service.options).reduce((sum: number, price: any) => sum + (Number(price) * service.quantity), 0) : 0;
+      Object.values(service.options).reduce((sum: number, price: any) => {
+        const numericPrice = typeof price === 'number' ? price : Number(price) || 0;
+        return sum + (numericPrice * service.quantity);
+      }, 0) : 0;
     return basePrice + optionsPrice;
   };
 
@@ -203,15 +205,13 @@ Services: ${services.map(s => `${s.name} (${s.quantity}x)`).join(', ')}
 
 Special Instructions: ${formData.specialInstructions}`;
 
-      // Create booking in database
+      // Create booking in database - only using fields that exist in the bookings table
       const { data: booking, error } = await supabase
         .from('bookings')
         .insert({
-          service_id: services[0]?.id,
           scheduled_date: format(formData.selectedDate!, 'yyyy-MM-dd'),
           scheduled_start: formData.selectedTime,
           location_notes: customerInfo,
-          duration_minutes: services.length * 60,
           requires_manual_payment: true
         })
         .select()
