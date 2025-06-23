@@ -3,7 +3,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { X, ArrowRight, Shield } from 'lucide-react';
 import { CalendarIcon } from 'lucide-react';
-import { SecurePaymentForm } from '@/components/payment/SecurePaymentForm';
+import { PaymentAuthorizationForm } from '@/components/payment/PaymentAuthorizationForm';
 import { useBookingFlowState } from '@/hooks/booking/useBookingFlowState';
 import { BookingProgressSteps } from '@/components/booking/BookingProgressSteps';
 import { ServiceConfigurationStep } from '@/components/booking/ServiceConfigurationStep';
@@ -74,12 +74,12 @@ export const EnhancedInlineBookingFlow = ({
     }
   };
 
-  const handlePaymentSuccess = () => {
+  const handlePaymentAuthorizationSuccess = () => {
     setShowSuccess(true);
     
     toast({
-      title: "Payment Successful! 🎉",
-      description: "Your booking has been confirmed. We'll contact you shortly!",
+      title: "Payment Authorized! 🎉",
+      description: "Your booking is confirmed. Payment will be charged after service completion.",
     });
 
     // Auto-close after 5 seconds
@@ -94,9 +94,9 @@ export const EnhancedInlineBookingFlow = ({
     }, 5000);
   };
 
-  const handlePaymentFailure = (error: string) => {
+  const handlePaymentAuthorizationFailure = (error: string) => {
     toast({
-      title: "Payment Failed",
+      title: "Payment Authorization Failed",
       description: error,
       variant: "destructive",
     });
@@ -118,7 +118,7 @@ export const EnhancedInlineBookingFlow = ({
       {!showSuccess && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
           <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-y-auto border border-slate-700/50 backdrop-blur-xl">
-            {/* Enhanced Header - Removed progress steps from header */}
+            {/* Enhanced Header */}
             <div className="relative bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 text-white px-4 sm:px-8 py-4 sm:py-6 rounded-t-2xl border-b border-slate-600/50">
               <button
                 onClick={onClose}
@@ -138,7 +138,7 @@ export const EnhancedInlineBookingFlow = ({
               </div>
             </div>
 
-            {/* Progress Steps moved to content area */}
+            {/* Progress Steps */}
             <div className="px-4 sm:px-6 pt-6">
               <BookingProgressSteps currentStep={currentStep} />
             </div>
@@ -175,23 +175,21 @@ export const EnhancedInlineBookingFlow = ({
                 />
               )}
 
-              {/* Step 4: Payment */}
+              {/* Step 4: Payment Authorization */}
               {currentStep === 4 && bookingId && (
                 <div className="space-y-6">
                   <div className="text-center">
-                    <h3 className="text-2xl font-bold text-white mb-2">Secure Payment</h3>
-                    <p className="text-slate-300">Complete your booking with secure payment</p>
+                    <h3 className="text-2xl font-bold text-white mb-2">Payment Authorization</h3>
+                    <p className="text-slate-300">Authorize payment - you'll only be charged after service completion</p>
                   </div>
 
-                  <SecurePaymentForm
+                  <PaymentAuthorizationForm
                     amount={getTotalPrice()}
                     bookingId={bookingId}
-                    customerId={user?.id}
                     customerEmail={formData.customerEmail || user?.email}
                     customerName={formData.customerName}
-                    onPaymentSuccess={handlePaymentSuccess}
-                    onPaymentFailure={handlePaymentFailure}
-                    collectOnly={true}
+                    onAuthorizationSuccess={handlePaymentAuthorizationSuccess}
+                    onAuthorizationFailure={handlePaymentAuthorizationFailure}
                   />
                 </div>
               )}

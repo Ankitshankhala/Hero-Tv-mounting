@@ -42,6 +42,7 @@ export const useBookingOperations = () => {
         scheduled_start: formData.selectedTime,
         location_notes: `${formData.address}, ${formData.city}\nContact: ${formData.customerName}\nPhone: ${formData.customerPhone}\nEmail: ${formData.customerEmail}\nZIP: ${formData.zipcode}\nSpecial Instructions: ${formData.specialInstructions}`,
         status: 'pending' as const,
+        payment_status: 'pending' as const,
         requires_manual_payment: true
       };
 
@@ -57,7 +58,7 @@ export const useBookingOperations = () => {
       
       toast({
         title: "Booking Created",
-        description: "Your booking has been created. Please complete payment.",
+        description: "Your booking has been created. Please authorize payment.",
       });
 
       return data.id;

@@ -60,6 +60,8 @@ export type Database = {
           late_fee_amount: number | null
           late_fee_charged: boolean | null
           location_notes: string | null
+          payment_intent_id: string | null
+          payment_status: string | null
           pending_payment_amount: number | null
           requires_manual_payment: boolean | null
           scheduled_date: string
@@ -79,6 +81,8 @@ export type Database = {
           late_fee_amount?: number | null
           late_fee_charged?: boolean | null
           location_notes?: string | null
+          payment_intent_id?: string | null
+          payment_status?: string | null
           pending_payment_amount?: number | null
           requires_manual_payment?: boolean | null
           scheduled_date: string
@@ -98,6 +102,8 @@ export type Database = {
           late_fee_amount?: number | null
           late_fee_charged?: boolean | null
           location_notes?: string | null
+          payment_intent_id?: string | null
+          payment_status?: string | null
           pending_payment_amount?: number | null
           requires_manual_payment?: boolean | null
           scheduled_date?: string
@@ -388,8 +394,10 @@ export type Database = {
           created_at: string | null
           currency: string | null
           id: string
+          payment_intent_id: string | null
           payment_method: string | null
           status: Database["public"]["Enums"]["payment_status"] | null
+          transaction_type: string | null
         }
         Insert: {
           amount: number
@@ -397,8 +405,10 @@ export type Database = {
           created_at?: string | null
           currency?: string | null
           id?: string
+          payment_intent_id?: string | null
           payment_method?: string | null
           status?: Database["public"]["Enums"]["payment_status"] | null
+          transaction_type?: string | null
         }
         Update: {
           amount?: number
@@ -406,8 +416,10 @@ export type Database = {
           created_at?: string | null
           currency?: string | null
           id?: string
+          payment_intent_id?: string | null
           payment_method?: string | null
           status?: Database["public"]["Enums"]["payment_status"] | null
+          transaction_type?: string | null
         }
         Relationships: [
           {
@@ -779,7 +791,13 @@ export type Database = {
       }
     }
     Enums: {
-      booking_status: "pending" | "confirmed" | "completed" | "cancelled"
+      booking_status:
+        | "pending"
+        | "confirmed"
+        | "completed"
+        | "cancelled"
+        | "authorized"
+        | "captured"
       day_of_week:
         | "Sunday"
         | "Monday"
@@ -907,7 +925,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      booking_status: ["pending", "confirmed", "completed", "cancelled"],
+      booking_status: [
+        "pending",
+        "confirmed",
+        "completed",
+        "cancelled",
+        "authorized",
+        "captured",
+      ],
       day_of_week: [
         "Sunday",
         "Monday",
