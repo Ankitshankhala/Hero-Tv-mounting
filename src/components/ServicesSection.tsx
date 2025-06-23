@@ -12,6 +12,22 @@ interface ServicesSectionProps {
   onAddToCart: (item: CartItem) => void;
 }
 
+const getServiceImage = (serviceName: string) => {
+  const imageMap: { [key: string]: string } = {
+    'TV Mounting': '/assets/images/services/tv-mounting.png',
+    'Full Motion Mount': '/assets/images/services/full-motion-mount.png',
+    'Flat Mount': '/assets/images/services/flat-mount.png',
+    'Cover Cables': '/assets/images/services/cable-management.png',
+    'Simple Cable Concealment': '/assets/images/services/cable-management.png',
+    'Fire Safe Cable Concealment': '/assets/images/services/cable-management.png',
+    'General Mounting': '/assets/images/services/general-mounting.png',
+    'Furniture Assembly': '/assets/images/services/furniture-assembly.png',
+    'Hire Second Technician': '/assets/images/services/default-service.png'
+  };
+  
+  return imageMap[serviceName] || '/assets/images/services/default-service.png';
+};
+
 export const ServicesSection = ({ onAddToCart }: ServicesSectionProps) => {
   const [showTvModal, setShowTvModal] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
@@ -73,7 +89,7 @@ export const ServicesSection = ({ onAddToCart }: ServicesSectionProps) => {
               id={service.id}
               name={service.name}
               price={service.base_price}
-              image={service.image_url || "/assets/images/services/default-service.png"}
+              image={service.image_url || getServiceImage(service.name)}
               description={service.description || `Professional ${service.name.toLowerCase()} service`}
               onAddToCart={() => handleServiceClick(service.id, service.name)}
             />
