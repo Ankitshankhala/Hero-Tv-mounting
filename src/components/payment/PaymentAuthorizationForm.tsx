@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Shield, Lock, CreditCard, Info } from 'lucide-react';
 import { usePaymentAuthorization } from '@/hooks/usePaymentAuthorization';
+import { supabase } from '@/integrations/supabase/client';
 
 const stripePromise = loadStripe(process.env.STRIPE_PUBLISHABLE_KEY || 'pk_test_...');
 
