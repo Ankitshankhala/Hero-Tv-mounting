@@ -18,6 +18,7 @@ import { SMSLogsManager } from '@/components/admin/SMSLogsManager';
 import { BlogManager } from '@/components/admin/BlogManager';
 import { AdminCalendarView } from '@/components/admin/AdminCalendarView';
 import { CoverageRequestsManager } from '@/components/admin/CoverageRequestsManager';
+import { InvoicesManager } from '@/components/admin/InvoicesManager';
 
 const Admin = () => {
   const { user, profile, loading } = useAuth();
@@ -75,28 +76,26 @@ const Admin = () => {
     switch (activeTab) {
       case 'dashboard':
         return <DashboardStats />;
-      case 'calendar':
-        return <AdminCalendarView />;
       case 'bookings':
         return <BookingsManager />;
-      case 'coverage':
-        return <CoverageRequestsManager />;
-      case 'workers':
-        return <WorkersManager />;
       case 'customers':
         return <CustomersManager />;
+      case 'workers':
+        return <WorkersManager />;
       case 'services':
         return <ServicesManager />;
-      case 'payments':
-        return <PaymentsManager />;
       case 'reviews':
         return <ReviewsManager />;
-      case 'applications':
-        return <PendingWorkersManager />;
+      case 'payments':
+        return <PaymentsManager />;
+      case 'invoices':
+        return <InvoicesManager />;
       case 'sms':
         return <SMSLogsManager />;
       case 'blog':
         return <BlogManager />;
+      case 'coverage':
+        return <CoverageRequestsManager />;
       default:
         return <DashboardStats />;
     }

@@ -138,6 +138,116 @@ export type Database = {
           },
         ]
       }
+      invoice_items: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          invoice_id: string
+          quantity: number
+          service_name: string
+          total_price: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          invoice_id: string
+          quantity?: number
+          service_name: string
+          total_price: number
+          unit_price: number
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          invoice_id?: string
+          quantity?: number
+          service_name?: string
+          total_price?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          amount: number
+          booking_id: string
+          created_at: string | null
+          customer_id: string
+          due_date: string
+          email_sent: boolean | null
+          email_sent_at: string | null
+          id: string
+          invoice_date: string
+          invoice_number: string
+          pdf_url: string | null
+          status: string
+          tax_amount: number | null
+          total_amount: number
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          booking_id: string
+          created_at?: string | null
+          customer_id: string
+          due_date?: string
+          email_sent?: boolean | null
+          email_sent_at?: string | null
+          id?: string
+          invoice_date?: string
+          invoice_number: string
+          pdf_url?: string | null
+          status?: string
+          tax_amount?: number | null
+          total_amount: number
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          booking_id?: string
+          created_at?: string | null
+          customer_id?: string
+          due_date?: string
+          email_sent?: boolean | null
+          email_sent_at?: string | null
+          id?: string
+          invoice_date?: string
+          invoice_number?: string
+          pdf_url?: string | null
+          status?: string
+          tax_amount?: number | null
+          total_amount?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       manual_charges: {
         Row: {
           amount: number
@@ -780,6 +890,10 @@ export type Database = {
           distance_priority: number
           customer_zipcode: string
         }[]
+      }
+      generate_invoice_number: {
+        Args: Record<PropertyKey, never>
+        Returns: string
       }
       get_current_user_role: {
         Args: Record<PropertyKey, never>

@@ -1,19 +1,18 @@
-
 import React from 'react';
-import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { 
   BarChart3, 
-  Calendar,
+  Calendar, 
   Users, 
-  Briefcase, 
+  Wrench, 
   Settings, 
-  CreditCard,
-  Star,
+  Star, 
+  CreditCard, 
   FileText,
-  MessageSquare,
-  Phone,
-  UserPlus
+  MessageSquare, 
+  MapPin 
 } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
 
 interface AdminSidebarProps {
   activeTab: string;
@@ -23,41 +22,41 @@ interface AdminSidebarProps {
 export const AdminSidebar = ({ activeTab, onTabChange }: AdminSidebarProps) => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
-    { id: 'calendar', label: 'Calendar', icon: Calendar },
-    { id: 'bookings', label: 'Bookings', icon: Briefcase },
-    { id: 'coverage', label: 'Coverage Requests', icon: MessageSquare },
-    { id: 'workers', label: 'Workers', icon: Users },
-    { id: 'applications', label: 'Applications', icon: UserPlus },
+    { id: 'bookings', label: 'Bookings', icon: Calendar },
     { id: 'customers', label: 'Customers', icon: Users },
+    { id: 'workers', label: 'Workers', icon: Wrench },
     { id: 'services', label: 'Services', icon: Settings },
-    { id: 'payments', label: 'Payments', icon: CreditCard },
     { id: 'reviews', label: 'Reviews', icon: Star },
-    { id: 'sms', label: 'SMS Logs', icon: Phone },
+    { id: 'payments', label: 'Payments', icon: CreditCard },
+    { id: 'invoices', label: 'Invoices', icon: FileText },
+    { id: 'sms', label: 'SMS Logs', icon: MessageSquare },
     { id: 'blog', label: 'Blog', icon: FileText },
+    { id: 'coverage', label: 'Coverage Requests', icon: MapPin },
   ];
 
   return (
-    <div className="w-64 bg-white border-r border-gray-200 min-h-screen">
-      <div className="p-6">
-        <h2 className="text-xl font-bold text-gray-800">Admin Panel</h2>
+    <div className="w-64 border-r flex-shrink-0">
+      <div className="p-4">
+        <h1 className="text-2xl font-bold">Admin Panel</h1>
       </div>
-      
-      <nav className="mt-8">
-        {menuItems.map((item) => {
-          const Icon = item.icon;
-          return (
-            <Button
-              key={item.id}
-              variant={activeTab === item.id ? "secondary" : "ghost"}
-              className="w-full justify-start px-6 py-3 h-auto"
-              onClick={() => onTabChange(item.id)}
-            >
-              <Icon className="h-5 w-5 mr-3" />
-              {item.label}
-            </Button>
-          );
-        })}
-      </nav>
+      <div className="py-4">
+        {menuItems.map((item) => (
+          <NavLink
+            key={item.id}
+            to={`/admin?tab=${item.id}`}
+            className={({ isActive }) =>
+              cn(
+                "flex items-center space-x-2 px-4 py-2 hover:bg-gray-100",
+                isActive ? "font-medium bg-gray-100" : "text-gray-600"
+              )
+            }
+            onClick={() => onTabChange(item.id)}
+          >
+            <item.icon className="h-4 w-4" />
+            <span>{item.label}</span>
+          </NavLink>
+        ))}
+      </div>
     </div>
   );
 };
