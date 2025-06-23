@@ -1,9 +1,8 @@
+
 import React, { useState } from 'react';
-import { ArrowRight, Monitor, Wrench, Home, Star, CheckCircle } from 'lucide-react';
 import { ServiceCard } from './ServiceCard';
 import { TvMountingModal } from './TvMountingModal';
-import { EmbeddedCheckout } from './EmbeddedCheckout';
-import { Button } from './ui/button';
+import { EnhancedInlineBookingFlow } from './EnhancedInlineBookingFlow';
 import { CartItem } from '@/types';
 import { usePublicServicesData } from '@/hooks/usePublicServicesData';
 
@@ -29,35 +28,56 @@ const getServiceImage = (serviceName: string) => {
 
 export const ServicesSection = ({ onAddToCart }: ServicesSectionProps) => {
   const [showTvModal, setShowTvModal] = useState(false);
-  const [showCheckout, setShowCheckout] = useState(false);
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [showEnhancedBooking, setShowEnhancedBooking] = useState(false);
+  const [selectedServices, setSelectedServices] = useState<Array<{
+    id: string;
+    name: string;
+    price: number;
+    quantity: number;
+  }>>([]);
   const { services, loading } = usePublicServicesData();
-
-  const handleAddToCart = (item: CartItem) => {
-    setCart([item]); // Replace cart with new item for immediate checkout
-    onAddToCart(item);
-    setShowCheckout(true);
-  };
 
   const handleServiceClick = (serviceId: string, serviceName: string) => {
     if (serviceName === 'TV Mounting') {
       setShowTvModal(true);
     } else {
-      // For other services, add directly to cart
+      // For other services, start the enhanced booking flow
       const service = services.find(s => s.id === serviceId);
       if (service) {
-        handleAddToCart({
+        const serviceItem = {
           id: serviceId,
           name: serviceName,
           price: service.base_price,
           quantity: 1
-        });
+        };
+        setSelectedServices([serviceItem]);
+        setShowEnhancedBooking(true);
+        onAddToCart(serviceItem);
       }
     }
   };
 
-  const getTotalPrice = () => {
-    return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+  const handleTvMountingComplete = (cartItems: CartItem[]) => {
+    // Convert CartItem[] to the format expected by EnhancedInlineBookingFlow
+    const enhancedServices = cartItems.map(item => ({
+      id: item.id,
+      name: item.name,
+      price: item.price,
+      quantity: item.quantity
+    }));
+    
+    setSelectedServices(enhancedServices);
+    setShowTvModal(false);
+    setShowEnhancedBooking(true);
+    
+    // Add to cart for parent component tracking
+    cartItems.forEach(item => onAddToCart(item));
+  };
+
+  const handleBookingComplete = (data: any) => {
+    console.log('Booking completed:', data);
+    setShowEnhancedBooking(false);
+    setSelectedServices([]);
   };
 
   if (loading) {
@@ -100,20 +120,20 @@ export const ServicesSection = ({ onAddToCart }: ServicesSectionProps) => {
         <TvMountingModal
           open={showTvModal}
           onClose={() => setShowTvModal(false)}
-          onAddToCart={handleAddToCart}
+          onAddToCart={handleTvMountingComplete}
           services={services}
         />
       )}
 
-      {showCheckout && (
-        <EmbeddedCheckout
-          cart={cart}
-          total={getTotalPrice()}
-          onClose={() => setShowCheckout(false)}
-          onSuccess={() => {
-            setCart([]);
-            setShowCheckout(false);
+      {showEnhancedBooking && (
+        <EnhancedInlineBookingFlow
+          isOpen={showEnhancedBooking}
+          onClose={() => {
+            setShowEnhancedBooking(false);
+            setSelectedServices([]);
           }}
+          onSubmit={handleBookingComplete}
+          selectedServices={selectedServices}
         />
       )}
     </section>
