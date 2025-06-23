@@ -5,11 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Calendar, Plus } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRealtimeBookings } from '@/hooks/useRealtimeBookings';
-import { useBookingCalendarSync } from '@/hooks/useBookingCalendarSync';
-import GoogleCalendarIntegration from '@/components/GoogleCalendarIntegration';
 import { BookingFilters } from './BookingFilters';
 import { BookingTable } from './BookingTable';
-import { BookingCalendarSyncList } from './BookingCalendarSyncList';
 import { CreateBookingModal } from './CreateBookingModal';
 import { useBookingManager } from '@/hooks/useBookingManager';
 import { AuthGuard } from '@/components/AuthGuard';
@@ -19,13 +16,11 @@ export const BookingsManager = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterRegion, setFilterRegion] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [isCalendarConnected, setIsCalendarConnected] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const { user } = useAuth();
-  const { isCalendarConnected: calendarConnected } = useBookingCalendarSync();
 
   // Use our custom hook for booking management
-  const { bookings, loading, handleBookingUpdate, fetchBookings } = useBookingManager(isCalendarConnected);
+  const { bookings, loading, handleBookingUpdate, fetchBookings } = useBookingManager();
 
   // Set up real-time subscriptions for admin
   const { isConnected } = useRealtimeBookings({
@@ -40,11 +35,6 @@ export const BookingsManager = () => {
       }, 1000);
     }
   });
-
-  // Update calendar connection state
-  useEffect(() => {
-    setIsCalendarConnected(calendarConnected);
-  }, [calendarConnected]);
 
   useEffect(() => {
     // Apply filters
@@ -86,11 +76,6 @@ export const BookingsManager = () => {
   return (
     <AuthGuard allowedRoles={['admin']}>
       <div className="space-y-6">
-        {/* Google Calendar Integration Card */}
-        <GoogleCalendarIntegration 
-          onConnectionChange={(connected) => setIsCalendarConnected(connected)}
-        />
-
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -108,9 +93,6 @@ export const BookingsManager = () => {
                 </Button>
                 {isConnected && (
                   <span className="text-sm text-green-600">● Live updates enabled</span>
-                )}
-                {isCalendarConnected && (
-                  <span className="text-sm text-blue-600">● Calendar sync active</span>
                 )}
               </div>
             </div>
@@ -139,12 +121,6 @@ export const BookingsManager = () => {
             )}
           </CardContent>
         </Card>
-
-        {/* Calendar sync components for all bookings when calendar is connected */}
-        <BookingCalendarSyncList 
-          bookings={filteredBookings}
-          isCalendarConnected={isCalendarConnected}
-        />
 
         {/* Create Booking Modal */}
         {showCreateModal && (

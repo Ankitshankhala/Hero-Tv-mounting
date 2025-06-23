@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Calendar, MapPin, Clock, Phone, User, FileEdit } from 'lucide-react';
@@ -9,8 +10,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeBookings } from '@/hooks/useRealtimeBookings';
 import { useToast } from '@/hooks/use-toast';
-import GoogleCalendarIntegration from '@/components/GoogleCalendarIntegration';
-import BookingCalendarSync from '@/components/BookingCalendarSync';
 import { InvoiceModificationCard } from '@/components/customer/InvoiceModificationCard';
 import { NotificationsBell } from '@/components/customer/NotificationsBell';
 
@@ -18,7 +17,6 @@ const CustomerDashboard = () => {
   const [customerBookings, setCustomerBookings] = useState([]);
   const [invoiceModifications, setInvoiceModifications] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [calendarConnected, setCalendarConnected] = useState(false);
   const { user, profile } = useAuth();
   const { toast } = useToast();
 
@@ -171,11 +169,6 @@ const CustomerDashboard = () => {
           <p className="text-slate-300">Here are your recent bookings and upcoming appointments.</p>
         </div>
 
-        {/* Add Google Calendar Integration */}
-        <div className="mb-8">
-          <GoogleCalendarIntegration onConnectionChange={setCalendarConnected} />
-        </div>
-
         {/* Show pending modifications alert */}
         {pendingModifications.length > 0 && (
           <Card className="bg-yellow-900/20 border-yellow-600 mb-8">
@@ -313,16 +306,6 @@ const CustomerDashboard = () => {
                                 ⏳ Worker assignment pending - we'll notify you once assigned
                               </p>
                             </div>
-                          )}
-
-                          {calendarConnected && (
-                            <BookingCalendarSync
-                              booking={booking}
-                              action="create"
-                              onEventCreated={(eventId) => {
-                                console.log(`Calendar event created for booking ${booking.id}: ${eventId}`);
-                              }}
-                            />
                           )}
                         </CardContent>
                       </Card>

@@ -15,8 +15,6 @@ import WorkerScheduleManager from '@/components/worker/WorkerScheduleManager';
 import WorkerLoginForm from '@/components/worker/WorkerLoginForm';
 import WorkerDashboardLoading from '@/components/worker/WorkerDashboardLoading';
 import CreateBookingModal from '@/components/worker/CreateBookingModal';
-import GoogleCalendarIntegration from '@/components/GoogleCalendarIntegration';
-import BookingCalendarSync from '@/components/BookingCalendarSync';
 import TestBookingCreator from '@/components/worker/TestBookingCreator';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -26,7 +24,6 @@ const WorkerDashboard = () => {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateBooking, setShowCreateBooking] = useState(false);
-  const [isCalendarConnected, setIsCalendarConnected] = useState(false);
   const { user, profile, loading: authLoading } = useAuth();
   const { toast } = useToast();
 
@@ -247,13 +244,6 @@ const WorkerDashboard = () => {
           todaysEarnings={todaysEarnings}
         />
 
-        {/* Google Calendar Integration Card */}
-        <div className="mb-6">
-          <GoogleCalendarIntegration 
-            onConnectionChange={(connected) => setIsCalendarConnected(connected)}
-          />
-        </div>
-
         <Tabs defaultValue="jobs" className="w-full">
           <TabsList className="grid w-full grid-cols-3 bg-slate-800 border-slate-700">
             <TabsTrigger value="jobs" className="text-white data-[state=active]:bg-slate-700">My Jobs</TabsTrigger>
@@ -285,26 +275,6 @@ const WorkerDashboard = () => {
           onBookingCreated={handleBookingCreated}
         />
       )}
-
-      {/* Calendar sync components for all jobs when calendar is connected */}
-      {isCalendarConnected && jobs.map((job) => (
-        <BookingCalendarSync
-          key={job.id}
-          booking={{
-            id: job.id,
-            service: `Job #${job.id.slice(0, 8)}`,
-            date: new Date(job.scheduled_at).toISOString().split('T')[0],
-            time: new Date(job.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            address: job.customer_address,
-            worker: profile?.name,
-            status: job.status
-          }}
-          action="create"
-          onEventCreated={(eventId) => {
-            console.log(`Calendar event created for job ${job.id}: ${eventId}`);
-          }}
-        />
-      ))}
     </div>
   );
 };
