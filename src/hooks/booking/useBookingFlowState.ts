@@ -47,27 +47,12 @@ export const useBookingFlowState = (selectedServices: ServiceItem[] = []) => {
   const {
     currentStep: _formCurrentStep,
     setCurrentStep: _formSetCurrentStep,
-    loading: _formLoading,
-    setLoading: _formSetLoading,
-    bookingId: _formBookingId,
-    setBookingId: _formSetBookingId,
-    handleBookingSubmit: _formHandleBookingSubmit,
-    showSuccess: _formShowSuccess,
-    successAnimation: _formSuccessAnimation,
     ...cleanFormState
   } = formState;
 
-  // Destructure workerAvailability excluding conflicting properties
+  // Destructure workerAvailability excluding conflicting properties  
   const {
-    currentStep: _workerCurrentStep,
-    setCurrentStep: _workerSetCurrentStep,
     loading: _workerLoading,
-    setLoading: _workerSetLoading,
-    bookingId: _workerBookingId,
-    setBookingId: _workerSetBookingId,
-    handleBookingSubmit: _workerHandleBookingSubmit,
-    showSuccess: _workerShowSuccess,
-    successAnimation: _workerSuccessAnimation,
     ...cleanWorkerAvailability
   } = workerAvailability;
 
