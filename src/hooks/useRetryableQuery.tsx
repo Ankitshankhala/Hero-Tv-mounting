@@ -1,52 +1,91 @@
 
 import { useState, useCallback } from 'react';
-import { useErrorHandler } from './useErrorHandler';
+import { useErrorMonitoring } from './useErrorMonitoring';
 
-interface RetryableQueryOptions {
+interface RetryConfig {
   maxRetries?: number;
-  retryDelay?: number;
-  onError?: (error: any) => void;
+  initialDelay?: number;
+  backoffMultiplier?: number;
+  maxDelay?: number;
 }
 
-export const useRetryableQuery = () => {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const { handleError } = useErrorHandler();
+export const useRetryableQuery = (config: RetryConfig = {}) => {
+  const {
+    maxRetries = 3,
+    initialDelay = 1000,
+    backoffMultiplier = 2,
+    maxDelay = 10000
+  } = config;
 
-  const executeWithRetry = useCallback(async (
-    queryFn: () => Promise<any>,
+  const [retryCount, setRetryCount] = useState(0);
+  const [isRetrying, setIsRetrying] = useState(false);
+  const { logError } = useErrorMonitoring();
+
+  const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+  const executeWithRetry = useCallback(async <T>(
+    operation: () => Promise<T>,
     context: string,
-    options: RetryableQueryOptions = {}
-  ) => {
-    const { maxRetries = 3, retryDelay = 1000, onError } = options;
-    
-    setLoading(true);
-    setError(null);
+    customConfig?: Partial<RetryConfig>
+  ): Promise<T> => {
+    const actualMaxRetries = customConfig?.maxRetries ?? maxRetries;
+    let attempt = 0;
+    let lastError: Error;
 
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    while (attempt <= actualMaxRetries) {
       try {
-        const result = await queryFn();
-        setLoading(false);
-        return result;
-      } catch (err) {
-        console.log(`Attempt ${attempt} failed for ${context}:`, err);
+        if (attempt > 0) {
+          setIsRetrying(true);
+          const delayMs = Math.min(
+            initialDelay * Math.pow(backoffMultiplier, attempt - 1),
+            maxDelay
+          );
+          console.log(`Retrying ${context} (attempt ${attempt}/${actualMaxRetries}) after ${delayMs}ms delay`);
+          await delay(delayMs);
+        }
+
+        const result = await operation();
         
-        if (attempt === maxRetries) {
-          const errorMessage = handleError(err, context, {
-            toastTitle: `Failed to ${context}`,
-            showToast: true
-          });
-          setError(errorMessage);
-          setLoading(false);
-          onError?.(err);
-          throw err;
+        if (attempt > 0) {
+          console.log(`${context} succeeded on retry attempt ${attempt}`);
+          setRetryCount(prev => prev + attempt);
         }
         
-        // Wait before retrying
-        await new Promise(resolve => setTimeout(resolve, retryDelay * attempt));
+        setIsRetrying(false);
+        return result;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        attempt++;
+
+        logError(lastError, `${context} - Attempt ${attempt}`, {
+          attempt,
+          maxRetries: actualMaxRetries,
+          willRetry: attempt <= actualMaxRetries
+        });
+
+        if (attempt > actualMaxRetries) {
+          setIsRetrying(false);
+          logError(lastError, `${context} - All retries exhausted`, {
+            totalAttempts: attempt,
+            maxRetries: actualMaxRetries
+          });
+          throw lastError;
+        }
       }
     }
-  }, [handleError]);
 
-  return { executeWithRetry, loading, error };
+    throw lastError!;
+  }, [maxRetries, initialDelay, backoffMultiplier, maxDelay, logError]);
+
+  const reset = useCallback(() => {
+    setRetryCount(0);
+    setIsRetrying(false);
+  }, []);
+
+  return {
+    executeWithRetry,
+    retryCount,
+    isRetrying,
+    reset
+  };
 };

@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { loadStripe, Stripe } from '@stripe/stripe-js';
 import { STRIPE_PUBLISHABLE_KEY } from '@/lib/stripe';
+import { useErrorMonitoring } from '@/hooks/useErrorMonitoring';
 
 interface StripeCardElementProps {
   onReady: (stripe: any, elements: any, cardElement: any) => void;
@@ -13,6 +14,7 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
   const initializationRef = useRef(false);
+  const { logStripeError } = useErrorMonitoring();
 
   useEffect(() => {
     if (isInitialized || initializationRef.current) return;
@@ -24,6 +26,11 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
         
         console.log('Starting Stripe initialization...');
         
+        // Validate Stripe key
+        if (!STRIPE_PUBLISHABLE_KEY) {
+          throw new Error('Stripe publishable key not configured');
+        }
+
         // Create a timeout promise that rejects after 10 seconds
         const timeoutPromise = new Promise<never>((_, reject) => {
           setTimeout(() => reject(new Error('Stripe initialization timeout')), 10000);
@@ -65,6 +72,10 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
         cardElement.on('change', ({ error }: any) => {
           if (error) {
             console.error('Stripe card error:', error);
+            logStripeError(error, 'card element change', {
+              errorType: error.type,
+              errorCode: error.code
+            });
             onError(error.message);
           } else {
             onError('');
@@ -75,11 +86,17 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
         console.log('Stripe initialization complete');
       } catch (error: any) {
         console.error('Stripe initialization error:', error);
+        logStripeError(error, 'initialization', {
+          stripeKey: STRIPE_PUBLISHABLE_KEY ? 'present' : 'missing',
+          errorDetails: error.message
+        });
         setIsLoading(false);
         initializationRef.current = false; // Allow retry
         
         if (error.message.includes('timeout')) {
           onError('Payment form is taking too long to load. Please refresh and try again.');
+        } else if (error.message.includes('key not configured')) {
+          onError('Payment system configuration error. Please contact support.');
         } else {
           onError('Failed to initialize payment form. Please check your internet connection and try again.');
         }
@@ -92,7 +109,7 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
     return () => {
       clearTimeout(timer);
     };
-  }, [onReady, onError, isInitialized]);
+  }, [onReady, onError, isInitialized, logStripeError]);
 
   if (isLoading) {
     return (

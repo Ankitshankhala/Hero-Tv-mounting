@@ -1,14 +1,18 @@
 
 import { useToast } from '@/hooks/use-toast';
+import { useErrorMonitoring } from './useErrorMonitoring';
 
 interface ErrorHandlerOptions {
   showToast?: boolean;
   toastTitle?: string;
   fallbackMessage?: string;
+  category?: string;
+  metadata?: Record<string, any>;
 }
 
 export const useErrorHandler = () => {
   const { toast } = useToast();
+  const { logError } = useErrorMonitoring();
 
   const handleError = (
     error: any, 
@@ -18,10 +22,10 @@ export const useErrorHandler = () => {
     const {
       showToast = true,
       toastTitle = "Error",
-      fallbackMessage = "An unexpected error occurred"
+      fallbackMessage = "An unexpected error occurred",
+      category,
+      metadata
     } = options;
-
-    console.error(`Error in ${context}:`, error);
 
     let errorMessage = fallbackMessage;
     
@@ -42,6 +46,23 @@ export const useErrorHandler = () => {
     } else if (errorMessage.includes('foreign key constraint')) {
       errorMessage = "Cannot complete this action due to related data";
     }
+
+    // Handle Stripe-specific errors
+    if (error?.type === 'StripeCardError') {
+      errorMessage = `Payment failed: ${error.message}`;
+    } else if (error?.type === 'StripeInvalidRequestError') {
+      errorMessage = "Invalid payment request. Please try again.";
+    } else if (error?.type === 'StripeAPIError') {
+      errorMessage = "Payment service temporarily unavailable. Please try again.";
+    }
+
+    // Log the error with monitoring
+    logError(error, context, {
+      category,
+      errorMessage,
+      originalError: error,
+      ...metadata
+    });
 
     if (showToast) {
       toast({
