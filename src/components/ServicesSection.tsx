@@ -13,18 +13,18 @@ interface ServicesSectionProps {
 
 const getServiceImage = (serviceName: string) => {
   const imageMap: { [key: string]: string } = {
-    'TV Mounting': '/assets/images/services/tv-mounting.png',
-    'Full Motion Mount': '/assets/images/services/full-motion-mount.png',
-    'Flat Mount': '/assets/images/services/flat-mount.png',
-    'Cover Cables': '/assets/images/services/cable-management.png',
-    'Simple Cable Concealment': '/assets/images/services/cable-management.png',
-    'Fire Safe Cable Concealment': '/assets/images/services/cable-management.png',
-    'General Mounting': '/assets/images/services/general-mounting.png',
-    'Furniture Assembly': '/assets/images/services/furniture-assembly.png',
-    'Hire Second Technician': '/assets/images/services/default-service.png'
+    'TV Mounting': '/lovable-uploads/9b4cf239-a12b-4275-9ca2-a4abafb59c40.png',
+    'Full Motion Mount': '/lovable-uploads/77f65da7-38bc-4d01-afdd-bb998049c77b.png',
+    'Flat Mount': '/lovable-uploads/4a49b814-b16a-4daf-aa91-3a52fcbb5fae.png',
+    'Cover Cables': '/lovable-uploads/6889f051-f5b1-4f2a-a093-a09693378bd4.png',
+    'Simple Cable Concealment': '/lovable-uploads/cf56b4f9-cc16-4662-ba09-6186268ae1a0.png',
+    'Fire Safe Cable Concealment': '/lovable-uploads/ebfd43c9-5c9d-4d15-b395-a22f44063cb6.png',
+    'General Mounting': '/lovable-uploads/a5b8dff7-04c1-4590-a491-0d8a7f9d004c.png',
+    'Furniture Assembly': '/lovable-uploads/fe916134-126d-4cff-aefa-608f842b536a.png',
+    'Hire Second Technician': '/lovable-uploads/f430204b-2ef5-4727-b3ee-7f4d9d26ded4.png'
   };
   
-  return imageMap[serviceName] || '/assets/images/services/default-service.png';
+  return imageMap[serviceName] || '/lovable-uploads/885a4cd2-a143-4e2e-b07c-e10030eb73c1.png';
 };
 
 export const ServicesSection = ({ onAddToCart }: ServicesSectionProps) => {
