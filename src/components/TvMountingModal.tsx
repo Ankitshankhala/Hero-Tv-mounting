@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { X, Plus, Minus } from 'lucide-react';
 import { useTvMountingModal } from '@/hooks/useTvMountingModal';
 
@@ -37,14 +38,16 @@ export const TvMountingModal = ({ open, onClose, onAddToCart, services }: TvMoun
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md bg-slate-800 border-slate-700 text-white p-0">
-        {/* Header */}
-        <DialogHeader className="px-6 py-4 border-b border-slate-700 flex flex-row items-center justify-between">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-slate-800 border-slate-700 text-white">
+        <DialogHeader className="flex flex-row items-center justify-between pb-4 border-b border-slate-700">
           <div className="flex items-center space-x-3">
-            <div className="w-6 h-6 bg-blue-500 rounded flex items-center justify-center">
-              <span className="text-white text-sm">📺</span>
+            <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center">
+              <span className="text-white font-bold">📺</span>
             </div>
-            <DialogTitle className="text-lg font-semibold text-white">TV Mounting Configuration</DialogTitle>
+            <div>
+              <DialogTitle className="text-xl font-bold text-white">TV Mounting Configuration</DialogTitle>
+              <p className="text-slate-400 text-sm">Customize your TV mounting service for each TV</p>
+            </div>
           </div>
           <button
             onClick={onClose}
@@ -54,142 +57,136 @@ export const TvMountingModal = ({ open, onClose, onAddToCart, services }: TvMoun
           </button>
         </DialogHeader>
 
-        <div className="px-6 py-4 space-y-6">
-          <p className="text-sm text-slate-400">Customize your TV mounting service for each TV</p>
-
+        <div className="space-y-6 py-6">
           {/* Number of TVs */}
-          <div>
-            <h3 className="text-white font-medium mb-3">Number of TVs</h3>
-            <div className="flex items-center space-x-3">
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-white">Number of TVs</h3>
+            <div className="flex items-center space-x-4">
               <button
                 onClick={() => setNumberOfTvs(Math.max(1, numberOfTvs - 1))}
                 disabled={numberOfTvs <= 1}
-                className={`w-8 h-8 rounded border flex items-center justify-center transition-colors ${
+                className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
                   numberOfTvs <= 1
-                    ? 'border-slate-600 text-slate-500 cursor-not-allowed'
-                    : 'border-slate-500 text-white hover:border-slate-400'
+                    ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                    : 'bg-slate-700 text-white hover:bg-slate-600'
                 }`}
               >
                 <Minus className="h-4 w-4" />
               </button>
-              <div className="w-12 text-center">
+              <div className="w-16 h-10 bg-slate-700 rounded-lg flex items-center justify-center">
                 <span className="text-xl font-semibold text-white">{numberOfTvs}</span>
               </div>
               <button
                 onClick={() => setNumberOfTvs(Math.min(5, numberOfTvs + 1))}
                 disabled={numberOfTvs >= 5}
-                className={`w-8 h-8 rounded border flex items-center justify-center transition-colors ${
+                className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
                   numberOfTvs >= 5
-                    ? 'border-slate-600 text-slate-500 cursor-not-allowed'
-                    : 'border-slate-500 text-white hover:border-slate-400'
+                    ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                    : 'bg-slate-700 text-white hover:bg-slate-600'
                 }`}
               >
                 <Plus className="h-4 w-4" />
               </button>
             </div>
-            <p className="text-sm text-slate-400 mt-2">Base TV Mounting: $90</p>
+            <p className="text-slate-400 text-sm">Base TV Mounting: $90</p>
           </div>
 
           {/* Configure Each TV */}
-          <div>
-            <h3 className="text-white font-medium mb-3">Configure Each TV</h3>
-            <div className="bg-slate-700 rounded-lg p-4 space-y-3">
-              <h4 className="text-sm font-medium text-slate-300 mb-3">TV #1 Configuration</h4>
-              
-              {/* Over 65" TV Add-on */}
-              <label className="flex items-center space-x-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={tvConfigurations[0]?.over65 || false}
-                  onChange={(e) => updateTvConfiguration('1', { over65: e.target.checked })}
-                  className="w-4 h-4 text-blue-600 bg-slate-600 border-slate-500 rounded focus:ring-blue-500"
-                />
-                <div className="flex-1">
-                  <div className="text-white text-sm">Over 65" TV Add-on</div>
-                  <div className="text-xs text-slate-400">Additional charge for larger TVs (+$25)</div>
-                </div>
-              </label>
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-white">Configure Each TV</h3>
+            {tvConfigurations.map((config, index) => (
+              <Card key={config.id} className="bg-slate-700 border-slate-600">
+                <CardContent className="p-4">
+                  <h4 className="font-semibold text-white mb-4">TV #{index + 1} Configuration</h4>
+                  
+                  <div className="space-y-3">
+                    {/* Over 65" TV Add-on */}
+                    <label className="flex items-center space-x-3 p-3 bg-slate-800 rounded-lg cursor-pointer hover:bg-slate-750 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={config.over65}
+                        onChange={(e) => updateTvConfiguration(config.id, { over65: e.target.checked })}
+                        className="w-5 h-5 text-blue-600 bg-slate-700 border-slate-600 rounded focus:ring-blue-500"
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium text-white">Over 65" TV Add-on</div>
+                        <div className="text-sm text-slate-400">
+                          Additional charge for larger TVs (+${over65Service?.base_price || 25})
+                        </div>
+                      </div>
+                    </label>
 
-              {/* Frame Mount Add-on */}
-              <label className="flex items-center space-x-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={tvConfigurations[0]?.frameMount || false}
-                  onChange={(e) => updateTvConfiguration('1', { frameMount: e.target.checked })}
-                  className="w-4 h-4 text-blue-600 bg-slate-600 border-slate-500 rounded focus:ring-blue-500"
-                />
-                <div className="flex-1">
-                  <div className="text-white text-sm">Frame Mount Add-on</div>
-                  <div className="text-xs text-slate-400">Specialized frame mounting service (+$25)</div>
-                </div>
-              </label>
+                    {/* Frame Mount Add-on */}
+                    <label className="flex items-center space-x-3 p-3 bg-slate-800 rounded-lg cursor-pointer hover:bg-slate-750 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={config.frameMount}
+                        onChange={(e) => updateTvConfiguration(config.id, { frameMount: e.target.checked })}
+                        className="w-5 h-5 text-blue-600 bg-slate-700 border-slate-600 rounded focus:ring-blue-500"
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium text-white">Frame Mount Add-on</div>
+                        <div className="text-sm text-slate-400">
+                          Specialized frame mounting service (+${frameMountService?.base_price || 25})
+                        </div>
+                      </div>
+                    </label>
 
-              {/* Stone/Brick/Tile Wall */}
-              <label className="flex items-center space-x-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={tvConfigurations[0]?.wallType !== 'standard'}
-                  onChange={(e) => updateTvConfiguration('1', { wallType: e.target.checked ? 'stone' : 'standard' })}
-                  className="w-4 h-4 text-blue-600 bg-slate-600 border-slate-500 rounded focus:ring-blue-500"
-                />
-                <div className="flex-1">
-                  <div className="text-white text-sm">Stone/Brick/Tile Wall</div>
-                  <div className="text-xs text-slate-400">Additional charge for specialty wall surfaces (+$50)</div>
-                </div>
-              </label>
+                    {/* Wall Type */}
+                    <div className="p-3 bg-slate-800 rounded-lg">
+                      <label className="block text-sm font-medium text-white mb-2">Wall Type</label>
+                      <select
+                        value={config.wallType}
+                        onChange={(e) => updateTvConfiguration(config.id, { wallType: e.target.value })}
+                        className="w-full p-2 bg-slate-700 border border-slate-600 rounded text-white focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="standard">Standard Wall</option>
+                        <option value="stone">Stone/Brick/Tile Wall (+$50)</option>
+                      </select>
+                    </div>
 
-              {/* Mount Soundbar */}
-              <label className="flex items-center space-x-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={tvConfigurations[0]?.soundbar || false}
-                  onChange={(e) => updateTvConfiguration('1', { soundbar: e.target.checked })}
-                  className="w-4 h-4 text-blue-600 bg-slate-600 border-slate-500 rounded focus:ring-blue-500"
-                />
-                <div className="flex-1">
-                  <div className="text-white text-sm">Mount Soundbar</div>
-                  <div className="text-xs text-slate-400">Additional soundbar mounting service (+$45)</div>
-                </div>
-              </label>
-            </div>
-          </div>
-
-          {/* Selected Services */}
-          <div>
-            <h3 className="text-white font-medium mb-3">Selected Services:</h3>
-            <div className="bg-slate-700 rounded-lg p-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-slate-300">TV Mounting</span>
-                <span className="text-sm text-blue-400">$90</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Total Price */}
-          <div className="bg-gradient-to-r from-purple-900/50 to-blue-900/50 rounded-lg p-4">
-            <div className="flex justify-between items-center">
-              <span className="text-white font-medium">Total Price:</span>
-              <span className="text-2xl font-bold text-blue-400">${totalPrice}</span>
-            </div>
-            <p className="text-xs text-slate-400 mt-1">Price updates automatically based on your selections</p>
+                    {/* Soundbar */}
+                    <label className="flex items-center space-x-3 p-3 bg-slate-800 rounded-lg cursor-pointer hover:bg-slate-750 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={config.soundbar}
+                        onChange={(e) => updateTvConfiguration(config.id, { soundbar: e.target.checked })}
+                        className="w-5 h-5 text-blue-600 bg-slate-700 border-slate-600 rounded focus:ring-blue-500"
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium text-white">Mount Soundbar</div>
+                        <div className="text-sm text-slate-400">
+                          Additional soundbar mounting (+$40)
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
-
-        {/* Footer */}
-        <div className="px-6 py-4 flex space-x-3">
-          <Button 
-            variant="outline" 
-            onClick={onClose}
-            className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-700"
-          >
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleAddToCart}
-            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            Add to Cart • ${totalPrice}
-          </Button>
+        
+        <div className="border-t border-slate-700 pt-4">
+          <div className="flex justify-between items-center">
+            <div className="text-2xl font-bold text-green-400">${totalPrice}</div>
+            
+            <div className="flex space-x-3">
+              <Button 
+                variant="outline" 
+                onClick={onClose}
+                className="border-slate-600 text-slate-300 hover:bg-slate-700"
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleAddToCart}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Add to Cart
+              </Button>
+            </div>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
