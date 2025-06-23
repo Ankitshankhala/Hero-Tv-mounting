@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { ArrowRight, Monitor, Wrench, Home, Star, CheckCircle } from 'lucide-react';
 import { ServiceCard } from './ServiceCard';
@@ -14,18 +13,18 @@ interface ServicesSectionProps {
 
 const getServiceImage = (serviceName: string) => {
   const imageMap: { [key: string]: string } = {
-    'TV Mounting': '/assets/images/services/tv-mounting.png',
-    'Full Motion Mount': '/assets/images/services/full-motion-mount.png',
-    'Flat Mount': '/assets/images/services/flat-mount.png',
-    'Cover Cables': '/assets/images/services/cable-management.png',
-    'Simple Cable Concealment': '/assets/images/services/cable-management.png',
-    'Fire Safe Cable Concealment': '/assets/images/services/cable-management.png',
-    'General Mounting': '/assets/images/services/general-mounting.png',
-    'Furniture Assembly': '/assets/images/services/furniture-assembly.png',
-    'Hire Second Technician': '/assets/images/services/default-service.png'
+    'TV Mounting': '/white-label/services/tv-mounting.png',
+    'Full Motion Mount': '/white-label/services/full-motion-mount.png',
+    'Flat Mount': '/white-label/services/flat-mount.png',
+    'Cover Cables': '/white-label/services/cable-management.png',
+    'Simple Cable Concealment': '/white-label/services/cable-management.png',
+    'Fire Safe Cable Concealment': '/white-label/services/cable-management.png',
+    'General Mounting': '/white-label/services/general-mounting.png',
+    'Furniture Assembly': '/white-label/services/furniture-assembly.png',
+    'Hire Second Technician': '/white-label/services/default-service.png'
   };
   
-  return imageMap[serviceName] || '/assets/images/services/default-service.png';
+  return imageMap[serviceName] || '/white-label/services/default-service.png';
 };
 
 export const ServicesSection = ({ onAddToCart }: ServicesSectionProps) => {
