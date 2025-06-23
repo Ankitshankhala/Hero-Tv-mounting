@@ -105,7 +105,7 @@ export const InlineBookingFlow = ({ isOpen, onClose, onSubmit, selectedServices 
   const calculateServicePrice = (service: any) => {
     const basePrice = service.price * service.quantity;
     const optionsPrice = service.options ? 
-      Object.values(service.options).reduce((sum: number, price: any) => sum + (price * service.quantity), 0) : 0;
+      Object.values(service.options).reduce((sum: number, price: any) => sum + (Number(price) * service.quantity), 0) : 0;
     return basePrice + optionsPrice;
   };
 
@@ -192,19 +192,25 @@ export const InlineBookingFlow = ({ isOpen, onClose, onSubmit, selectedServices 
     try {
       setIsProcessing(true);
       
+      // Prepare customer information for location_notes
+      const customerInfo = `Customer: ${formData.customerName}
+Email: ${formData.customerEmail}
+Phone: ${formData.customerPhone}
+ZIP: ${formData.zipcode}
+Address: ${formData.address}
+
+Services: ${services.map(s => `${s.name} (${s.quantity}x)`).join(', ')}
+
+Special Instructions: ${formData.specialInstructions}`;
+
       // Create booking in database
       const { data: booking, error } = await supabase
         .from('bookings')
         .insert({
-          customer_name: formData.customerName,
-          customer_email: formData.customerEmail,
-          customer_phone: formData.customerPhone,
-          customer_zipcode: formData.zipcode,
           service_id: services[0]?.id,
           scheduled_date: format(formData.selectedDate!, 'yyyy-MM-dd'),
           scheduled_start: formData.selectedTime,
-          location_notes: `${formData.address}\n\nServices: ${services.map(s => `${s.name} (${s.quantity}x)`).join(', ')}\n\nSpecial Instructions: ${formData.specialInstructions}`,
-          total_price: getTotalPrice(),
+          location_notes: customerInfo,
           duration_minutes: services.length * 60,
           requires_manual_payment: true
         })
