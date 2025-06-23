@@ -1,7 +1,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { loadStripe, Stripe } from '@stripe/stripe-js';
-import { STRIPE_PUBLISHABLE_KEY } from '@/lib/stripe';
+import { STRIPE_CONFIG, validateStripeConfig } from '@/lib/stripe-config';
 import { useErrorMonitoring } from '@/hooks/useErrorMonitoring';
 
 interface StripeCardElementProps {
@@ -13,63 +13,87 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
   const cardElementRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [configError, setConfigError] = useState<string>('');
   const initializationRef = useRef(false);
   const { logStripeError } = useErrorMonitoring();
 
   useEffect(() => {
+    // Validate configuration first
+    const validation = validateStripeConfig();
+    if (!validation.isValid) {
+      setConfigError(validation.errors[0]);
+      setIsLoading(false);
+      onError(validation.errors[0]);
+      return;
+    }
+
     if (isInitialized || initializationRef.current) return;
     initializationRef.current = true;
 
     const initializeStripe = async () => {
       try {
         setIsLoading(true);
+        setConfigError('');
         
-        console.log('Starting Stripe initialization...');
+        console.log('Starting Stripe initialization with key:', STRIPE_CONFIG.publishableKey?.substring(0, 12) + '...');
         
-        // Validate Stripe key
-        if (!STRIPE_PUBLISHABLE_KEY) {
-          throw new Error('Stripe publishable key not configured');
-        }
-
-        // Create a timeout promise that rejects after 10 seconds
+        // Create a timeout promise that rejects after 15 seconds
         const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error('Stripe initialization timeout')), 10000);
+          setTimeout(() => reject(new Error('Stripe initialization timeout after 15 seconds')), 15000);
         });
 
         // Race between loadStripe and timeout
         const stripe: Stripe | null = await Promise.race([
-          loadStripe(STRIPE_PUBLISHABLE_KEY),
+          loadStripe(STRIPE_CONFIG.publishableKey),
           timeoutPromise
         ]);
 
         if (!stripe) {
-          throw new Error('Failed to load Stripe');
+          throw new Error('Failed to load Stripe - received null response');
         }
 
         console.log('Stripe loaded successfully, creating elements...');
 
-        const elements = stripe.elements();
+        const elements = stripe.elements({
+          appearance: {
+            theme: 'stripe',
+            variables: {
+              colorPrimary: '#2563eb',
+              colorBackground: '#ffffff',
+              colorText: '#1f2937',
+              fontFamily: 'system-ui, sans-serif',
+            },
+          },
+        });
+
         const cardElement = elements.create('card', {
           style: {
             base: {
               fontSize: '16px',
-              color: '#424770',
+              color: '#1f2937',
+              fontFamily: 'system-ui, sans-serif',
               '::placeholder': {
-                color: '#aab7c4',
+                color: '#6b7280',
               },
             },
+            invalid: {
+              color: '#ef4444',
+            },
           },
+          hidePostalCode: true,
         });
 
         if (cardElementRef.current) {
           console.log('Mounting card element...');
           await cardElement.mount(cardElementRef.current);
           setIsInitialized(true);
-          console.log('Card element mounted, calling onReady...');
+          console.log('Card element mounted successfully');
           onReady(stripe, elements, cardElement);
+        } else {
+          throw new Error('Card element container not found');
         }
 
-        cardElement.on('change', ({ error }: any) => {
+        cardElement.on('change', ({ error, complete }: any) => {
           if (error) {
             console.error('Stripe card error:', error);
             logStripeError(error, 'card element change', {
@@ -77,9 +101,13 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
               errorCode: error.code
             });
             onError(error.message);
-          } else {
-            onError('');
+          } else if (complete) {
+            onError(''); // Clear any previous errors
           }
+        });
+
+        cardElement.on('ready', () => {
+          console.log('Stripe card element is ready for input');
         });
 
         setIsLoading(false);
@@ -87,19 +115,23 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
       } catch (error: any) {
         console.error('Stripe initialization error:', error);
         logStripeError(error, 'initialization', {
-          stripeKey: STRIPE_PUBLISHABLE_KEY ? 'present' : 'missing',
+          stripeKey: STRIPE_CONFIG.publishableKey ? 'present' : 'missing',
           errorDetails: error.message
         });
         setIsLoading(false);
         initializationRef.current = false; // Allow retry
         
+        let errorMessage = 'Failed to initialize payment form. ';
         if (error.message.includes('timeout')) {
-          onError('Payment form is taking too long to load. Please refresh and try again.');
-        } else if (error.message.includes('key not configured')) {
-          onError('Payment system configuration error. Please contact support.');
+          errorMessage += 'The payment system is taking too long to load. Please refresh and try again.';
+        } else if (error.message.includes('key')) {
+          errorMessage += 'Payment system configuration error. Please contact support.';
         } else {
-          onError('Failed to initialize payment form. Please check your internet connection and try again.');
+          errorMessage += 'Please check your internet connection and try again.';
         }
+        
+        setConfigError(errorMessage);
+        onError(errorMessage);
       }
     };
 
@@ -111,21 +143,47 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
     };
   }, [onReady, onError, isInitialized, logStripeError]);
 
+  if (configError) {
+    return (
+      <div className="p-4 border border-red-300 rounded-md bg-red-50">
+        <div className="flex items-center space-x-2">
+          <div className="text-red-600 text-sm font-medium">Payment Configuration Error</div>
+        </div>
+        <div className="text-red-600 text-sm mt-1">{configError}</div>
+        <button 
+          onClick={() => {
+            setConfigError('');
+            initializationRef.current = false;
+            window.location.reload();
+          }}
+          className="mt-2 text-sm text-red-700 hover:text-red-800 underline"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
-      <div className="p-3 border rounded-md bg-gray-50 min-h-[44px] flex items-center justify-center">
-        <div className="flex items-center space-x-2">
-          <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-          <div className="text-sm text-gray-500">Loading secure payment form...</div>
+      <div className="p-4 border rounded-md bg-gray-50 min-h-[52px] flex items-center justify-center">
+        <div className="flex items-center space-x-3">
+          <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+          <div className="text-sm text-gray-600">Loading secure payment form...</div>
         </div>
       </div>
     );
   }
 
   return (
-    <div 
-      ref={cardElementRef} 
-      className="p-3 border rounded-md bg-white min-h-[44px] flex items-center"
-    />
+    <div className="space-y-2">
+      <div 
+        ref={cardElementRef} 
+        className="p-4 border border-gray-300 rounded-md bg-white min-h-[52px] focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500"
+      />
+      <p className="text-xs text-gray-500">
+        Enter your card details. Your payment will be authorized but not charged until service completion.
+      </p>
+    </div>
   );
 };

@@ -1,16 +1,12 @@
 
 import React, { useState } from 'react';
-import { loadStripe } from '@stripe/stripe-js';
-import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Shield, Lock, CreditCard, Info } from 'lucide-react';
 import { usePaymentAuthorization } from '@/hooks/usePaymentAuthorization';
+import { StripeCardElement } from '@/components/StripeCardElement';
 import { supabase } from '@/integrations/supabase/client';
-import { STRIPE_PUBLISHABLE_KEY } from '@/lib/stripe';
-
-const stripePromise = loadStripe(STRIPE_PUBLISHABLE_KEY);
 
 interface PaymentAuthorizationFormProps {
   amount: number;
@@ -21,7 +17,7 @@ interface PaymentAuthorizationFormProps {
   onAuthorizationFailure: (error: string) => void;
 }
 
-const PaymentAuthorizationFormContent = ({
+export const PaymentAuthorizationForm = ({
   amount,
   bookingId,
   customerEmail,
@@ -29,26 +25,42 @@ const PaymentAuthorizationFormContent = ({
   onAuthorizationSuccess,
   onAuthorizationFailure,
 }: PaymentAuthorizationFormProps) => {
-  const stripe = useStripe();
-  const elements = useElements();
   const [cardError, setCardError] = useState('');
+  const [stripeReady, setStripeReady] = useState(false);
+  const [stripe, setStripe] = useState<any>(null);
+  const [elements, setElements] = useState<any>(null);
+  const [cardElement, setCardElement] = useState<any>(null);
   const { createPaymentAuthorization, processing } = usePaymentAuthorization();
+
+  const handleStripeReady = (stripeInstance: any, elementsInstance: any, cardElementInstance: any) => {
+    console.log('Stripe ready for payment authorization');
+    setStripe(stripeInstance);
+    setElements(elementsInstance);
+    setCardElement(cardElementInstance);
+    setStripeReady(true);
+  };
+
+  const handleStripeError = (error: string) => {
+    console.error('Stripe error:', error);
+    setCardError(error);
+  };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    if (!stripe || !elements) {
-      onAuthorizationFailure('Stripe not loaded');
+    if (!stripe || !elements || !cardElement) {
+      onAuthorizationFailure('Payment form not ready. Please wait or refresh the page.');
       return;
     }
 
-    const cardElement = elements.getElement(CardElement);
-    if (!cardElement) {
-      onAuthorizationFailure('Card element not found');
+    if (!stripeReady) {
+      onAuthorizationFailure('Payment system is still loading. Please wait.');
       return;
     }
 
     try {
+      console.log('Starting payment authorization process...');
+
       // Create payment authorization
       const result = await createPaymentAuthorization({
         bookingId,
@@ -62,21 +74,30 @@ const PaymentAuthorizationFormContent = ({
         return;
       }
 
+      console.log('Payment intent created, confirming with card...');
+
       // Confirm payment intent to authorize the card
       const confirmResult = await stripe.confirmCardPayment(result.client_secret, {
         payment_method: {
           card: cardElement,
+          billing_details: {
+            name: customerName,
+            email: customerEmail,
+          },
         },
       });
 
       if (confirmResult.error) {
+        console.error('Payment confirmation error:', confirmResult.error);
         onAuthorizationFailure(confirmResult.error.message || 'Payment authorization failed');
         return;
       }
 
       if (confirmResult.paymentIntent?.status === 'requires_capture') {
+        console.log('Payment authorized successfully, updating booking status...');
+        
         // Update booking status to authorized
-        await supabase
+        const { error: updateError } = await supabase
           .from('bookings')
           .update({ 
             status: 'authorized',
@@ -84,12 +105,18 @@ const PaymentAuthorizationFormContent = ({
           })
           .eq('id', bookingId);
 
+        if (updateError) {
+          console.error('Failed to update booking status:', updateError);
+          // Still call success since payment was authorized
+        }
+
         onAuthorizationSuccess();
       } else {
         onAuthorizationFailure('Payment authorization was not successful');
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Payment authorization failed';
+      console.error('Payment authorization error:', error);
       onAuthorizationFailure(errorMessage);
     }
   };
@@ -120,22 +147,13 @@ const PaymentAuthorizationFormContent = ({
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="p-3 border rounded-md">
-              <CardElement
-                options={{
-                  style: {
-                    base: {
-                      fontSize: '16px',
-                      color: '#424770',
-                      '::placeholder': {
-                        color: '#aab7c4',
-                      },
-                    },
-                  },
-                }}
-                onChange={(event) => {
-                  setCardError(event.error ? event.error.message : '');
-                }}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
+                Card Information
+              </label>
+              <StripeCardElement
+                onReady={handleStripeReady}
+                onError={handleStripeError}
               />
             </div>
             
@@ -152,7 +170,7 @@ const PaymentAuthorizationFormContent = ({
 
             <Button 
               type="submit"
-              disabled={!stripe || processing || !!cardError}
+              disabled={!stripeReady || processing || !!cardError}
               className="w-full"
               size="lg"
             >
@@ -162,13 +180,5 @@ const PaymentAuthorizationFormContent = ({
         </CardContent>
       </Card>
     </div>
-  );
-};
-
-export const PaymentAuthorizationForm = (props: PaymentAuthorizationFormProps) => {
-  return (
-    <Elements stripe={stripePromise}>
-      <PaymentAuthorizationFormContent {...props} />
-    </Elements>
   );
 };
