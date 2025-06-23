@@ -71,7 +71,7 @@ export const Header = () => {
           <img 
             src="/lovable-uploads/885a4cd2-a143-4e2e-b07c-e10030eb73c1.png" 
             alt="Hero TV Mounting Logo" 
-            className="h-16 w-16 mr-4 bg-white rounded-lg p-2"
+            className="h-16 w-16 mr-4"
           />
           <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
             Hero TV Mounting
