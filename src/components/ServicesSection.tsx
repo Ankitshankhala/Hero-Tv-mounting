@@ -58,6 +58,9 @@ export const ServicesSection = ({ onAddToCart }: ServicesSectionProps) => {
   };
 
   const handleTvMountingComplete = (cartItems: CartItem[]) => {
+    // Add items to cart and start booking flow
+    cartItems.forEach(item => onAddToCart(item));
+    
     // Convert CartItem[] to the format expected by EnhancedInlineBookingFlow
     const enhancedServices = cartItems.map(item => ({
       id: item.id,
@@ -69,9 +72,6 @@ export const ServicesSection = ({ onAddToCart }: ServicesSectionProps) => {
     setSelectedServices(enhancedServices);
     setShowTvModal(false);
     setShowEnhancedBooking(true);
-    
-    // Add to cart for parent component tracking
-    cartItems.forEach(item => onAddToCart(item));
   };
 
   const handleBookingComplete = (data: any) => {
