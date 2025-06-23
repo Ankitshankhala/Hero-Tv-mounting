@@ -492,6 +492,57 @@ export type Database = {
           },
         ]
       }
+      worker_coverage_notifications: {
+        Row: {
+          booking_id: string
+          created_at: string
+          distance_priority: number
+          id: string
+          notification_type: string
+          response: string | null
+          response_at: string | null
+          sent_at: string
+          worker_id: string
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          distance_priority?: number
+          id?: string
+          notification_type?: string
+          response?: string | null
+          response_at?: string | null
+          sent_at?: string
+          worker_id: string
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          distance_priority?: number
+          id?: string
+          notification_type?: string
+          response?: string | null
+          response_at?: string | null
+          sent_at?: string
+          worker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "worker_coverage_notifications_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "worker_coverage_notifications_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       worker_notifications: {
         Row: {
           body: string
@@ -574,6 +625,14 @@ export type Database = {
           assignment_status: string
         }[]
       }
+      auto_assign_workers_with_coverage: {
+        Args: { p_booking_id: string }
+        Returns: {
+          assigned_worker_id: string
+          assignment_status: string
+          notifications_sent: number
+        }[]
+      }
       find_available_workers: {
         Args: {
           p_zipcode: string
@@ -589,9 +648,24 @@ export type Database = {
           distance_priority: number
         }[]
       }
+      find_workers_for_coverage: {
+        Args: { p_booking_id: string; p_max_distance_priority?: number }
+        Returns: {
+          worker_id: string
+          worker_name: string
+          worker_email: string
+          worker_phone: string
+          distance_priority: number
+          customer_zipcode: string
+        }[]
+      }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      respond_to_coverage_request: {
+        Args: { p_notification_id: string; p_response: string }
+        Returns: boolean
       }
     }
     Enums: {

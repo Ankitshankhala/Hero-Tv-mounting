@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -16,6 +15,7 @@ import WorkerLoginForm from '@/components/worker/WorkerLoginForm';
 import WorkerDashboardLoading from '@/components/worker/WorkerDashboardLoading';
 import CreateBookingModal from '@/components/worker/CreateBookingModal';
 import TestBookingCreator from '@/components/worker/TestBookingCreator';
+import CoverageNotifications from '@/components/worker/CoverageNotifications';
 import type { Database } from '@/integrations/supabase/types';
 
 type BookingStatus = Database['public']['Enums']['booking_status'];
@@ -230,6 +230,11 @@ const WorkerDashboard = () => {
             <Plus className="h-4 w-4 mr-2" />
             Create Booking
           </Button>
+        </div>
+
+        {/* Add Coverage Notifications at the top */}
+        <div className="mb-6">
+          <CoverageNotifications />
         </div>
 
         {/* Test booking creator for development */}

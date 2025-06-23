@@ -25,6 +25,7 @@ export const AdminSidebar = ({ activeTab, onTabChange }: AdminSidebarProps) => {
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
     { id: 'calendar', label: 'Calendar', icon: Calendar },
     { id: 'bookings', label: 'Bookings', icon: Briefcase },
+    { id: 'coverage', label: 'Coverage Requests', icon: MessageSquare },
     { id: 'workers', label: 'Workers', icon: Users },
     { id: 'applications', label: 'Applications', icon: UserPlus },
     { id: 'customers', label: 'Customers', icon: Users },

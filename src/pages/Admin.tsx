@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
@@ -18,6 +17,7 @@ import PendingWorkersManager from '@/components/admin/PendingWorkersManager';
 import { SMSLogsManager } from '@/components/admin/SMSLogsManager';
 import { BlogManager } from '@/components/admin/BlogManager';
 import { AdminCalendarView } from '@/components/admin/AdminCalendarView';
+import { CoverageRequestsManager } from '@/components/admin/CoverageRequestsManager';
 
 const Admin = () => {
   const { user, profile, loading } = useAuth();
@@ -79,6 +79,8 @@ const Admin = () => {
         return <AdminCalendarView />;
       case 'bookings':
         return <BookingsManager />;
+      case 'coverage':
+        return <CoverageRequestsManager />;
       case 'workers':
         return <WorkersManager />;
       case 'customers':
