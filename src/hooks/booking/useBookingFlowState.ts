@@ -1,14 +1,25 @@
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useBookingFormState } from './useBookingFormState';
 import { useWorkerAvailability } from './useWorkerAvailability';
 import { useBookingOperations } from './useBookingOperations';
 import { ServiceItem } from './types';
+import { supabase } from '@/integrations/supabase/client';
 
 export const useBookingFlowState = (selectedServices: ServiceItem[] = []) => {
+  const [user, setUser] = useState<any>(null);
   const formState = useBookingFormState(selectedServices);
   const workerAvailability = useWorkerAvailability();
   const bookingOperations = useBookingOperations();
+
+  // Get current user
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    };
+    getUser();
+  }, []);
 
   // Fetch worker availability when date/zipcode changes
   useEffect(() => {
@@ -35,6 +46,7 @@ export const useBookingFlowState = (selectedServices: ServiceItem[] = []) => {
     ...formState,
     ...workerAvailability,
     ...bookingOperations,
+    user,
     handleBookingSubmit
   };
 };

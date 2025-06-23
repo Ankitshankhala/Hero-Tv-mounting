@@ -103,12 +103,12 @@ export const EnhancedInlineBookingFlow = ({
   return (
     <>
       <BookingSuccessModal
-        isOpen={showSuccess}
+        isOpen={Boolean(showSuccess)}
         onClose={onClose}
-        successAnimation={successAnimation}
+        successAnimation={Boolean(successAnimation)}
         formData={formData}
         getTotalPrice={getTotalPrice}
-        bookingId={bookingId}
+        bookingId={bookingId || ''}
       />
 
       {!showSuccess && (
