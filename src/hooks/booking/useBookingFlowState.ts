@@ -42,14 +42,23 @@ export const useBookingFlowState = (selectedServices: ServiceItem[] = []) => {
     }
   };
 
+  // Explicitly type the return object to ensure proper boolean types
   return {
     ...formState,
     ...workerAvailability,
-    ...bookingOperations,
+    // Explicitly override with bookingOperations properties to ensure correct types
+    currentStep: bookingOperations.currentStep,
+    setCurrentStep: bookingOperations.setCurrentStep,
+    loading: bookingOperations.loading,
+    setLoading: bookingOperations.setLoading,
+    bookingId: bookingOperations.bookingId,
+    setBookingId: bookingOperations.setBookingId,
+    showSuccess: bookingOperations.showSuccess, // This is already boolean from useBookingOperations
+    setShowSuccess: bookingOperations.setShowSuccess,
+    successAnimation: bookingOperations.successAnimation, // This is already boolean from useBookingOperations
+    setSuccessAnimation: bookingOperations.setSuccessAnimation,
+    handleBookingSubmit: bookingOperations.handleBookingSubmit,
     user,
     handleBookingSubmit,
-    // Ensure these are properly typed as booleans
-    showSuccess: Boolean(bookingOperations.showSuccess),
-    successAnimation: Boolean(bookingOperations.successAnimation)
   };
 };
