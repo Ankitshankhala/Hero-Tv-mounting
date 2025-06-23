@@ -100,8 +100,8 @@ export const AdminCalendarView = () => {
       }
 
       // Apply status filter - only filter if selectedStatus is a valid BookingStatus
-      if (selectedStatus !== 'all') {
-        query = query.eq('status', selectedStatus);
+      if (selectedStatus !== 'all' && (['pending', 'confirmed', 'completed', 'cancelled'] as const).includes(selectedStatus as BookingStatus)) {
+        query = query.eq('status', selectedStatus as BookingStatus);
       }
 
       const { data, error } = await query;
