@@ -42,20 +42,46 @@ export const useBookingFlowState = (selectedServices: ServiceItem[] = []) => {
     }
   };
 
-  // Explicitly type the return object to ensure proper boolean types
+  // Destructure to avoid conflicts and ensure proper types
+  const {
+    showSuccess: formStateShowSuccess,
+    successAnimation: formStateSuccessAnimation,
+    currentStep: formStateCurrentStep,
+    setCurrentStep: formStateSetCurrentStep,
+    loading: formStateLoading,
+    setLoading: formStateSetLoading,
+    bookingId: formStateBookingId,
+    setBookingId: formStateSetBookingId,
+    handleBookingSubmit: formStateHandleBookingSubmit,
+    ...restFormState
+  } = formState;
+
+  const {
+    showSuccess: workerShowSuccess,
+    successAnimation: workerSuccessAnimation,
+    currentStep: workerCurrentStep,
+    setCurrentStep: workerSetCurrentStep,
+    loading: workerLoading,
+    setLoading: workerSetLoading,
+    bookingId: workerBookingId,
+    setBookingId: workerSetBookingId,
+    handleBookingSubmit: workerHandleBookingSubmit,
+    ...restWorkerAvailability
+  } = workerAvailability;
+
   return {
-    ...formState,
-    ...workerAvailability,
-    // Explicitly override with bookingOperations properties to ensure correct types
+    ...restFormState,
+    ...restWorkerAvailability,
+    // Use bookingOperations for these critical state properties
     currentStep: bookingOperations.currentStep,
     setCurrentStep: bookingOperations.setCurrentStep,
     loading: bookingOperations.loading,
     setLoading: bookingOperations.setLoading,
     bookingId: bookingOperations.bookingId,
     setBookingId: bookingOperations.setBookingId,
-    showSuccess: bookingOperations.showSuccess, // This is already boolean from useBookingOperations
+    showSuccess: bookingOperations.showSuccess,
     setShowSuccess: bookingOperations.setShowSuccess,
-    successAnimation: bookingOperations.successAnimation, // This is already boolean from useBookingOperations
+    successAnimation: bookingOperations.successAnimation,
     setSuccessAnimation: bookingOperations.setSuccessAnimation,
     handleBookingSubmit: bookingOperations.handleBookingSubmit,
     user,
