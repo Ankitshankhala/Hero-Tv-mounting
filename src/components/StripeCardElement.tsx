@@ -15,7 +15,6 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
   const [isInitialized, setIsInitialized] = useState(false);
   const [configError, setConfigError] = useState<string>('');
   const initializationRef = useRef(false);
-  const mountTimeoutRef = useRef<NodeJS.Timeout>();
   const { logStripeError } = useErrorMonitoring();
 
   useEffect(() => {
@@ -38,16 +37,18 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
         
         console.log('Starting Stripe initialization...');
         
-        // Create a timeout promise that rejects after 10 seconds
-        const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error('Stripe initialization timeout')), 10000);
-        });
+        // Wait for DOM to be ready
+        if (!cardElementRef.current) {
+          console.log('Waiting for DOM element...');
+          // Use requestAnimationFrame to ensure DOM is ready
+          await new Promise(resolve => requestAnimationFrame(resolve));
+          
+          if (!cardElementRef.current) {
+            throw new Error('Payment form container not ready. Please try again.');
+          }
+        }
 
-        // Race between loadStripe and timeout
-        const stripe: Stripe | null = await Promise.race([
-          loadStripe(STRIPE_CONFIG.publishableKey),
-          timeoutPromise
-        ]);
+        const stripe: Stripe | null = await loadStripe(STRIPE_CONFIG.publishableKey);
 
         if (!stripe) {
           throw new Error('Failed to load Stripe');
@@ -84,33 +85,8 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
           hidePostalCode: true,
         });
 
-        // Wait for DOM element to be ready with timeout
-        const waitForElement = () => {
-          return new Promise<void>((resolve, reject) => {
-            const checkElement = () => {
-              if (cardElementRef.current) {
-                resolve();
-              } else {
-                mountTimeoutRef.current = setTimeout(checkElement, 100);
-              }
-            };
-            
-            checkElement();
-            
-            // Timeout after 5 seconds
-            setTimeout(() => {
-              if (mountTimeoutRef.current) {
-                clearTimeout(mountTimeoutRef.current);
-              }
-              reject(new Error('DOM element not found'));
-            }, 5000);
-          });
-        };
-
-        await waitForElement();
-        console.log('DOM element found, mounting card element...');
-        
-        await cardElement.mount(cardElementRef.current!);
+        console.log('Mounting card element...');
+        await cardElement.mount(cardElementRef.current);
         setIsInitialized(true);
         console.log('Card element mounted successfully');
 
@@ -144,9 +120,7 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
         initializationRef.current = false; // Allow retry
         
         let errorMessage = 'Failed to initialize payment form. ';
-        if (error.message.includes('timeout')) {
-          errorMessage += 'The payment system is taking too long to load. Please refresh and try again.';
-        } else if (error.message.includes('DOM element not found')) {
+        if (error.message.includes('container not ready')) {
           errorMessage += 'Payment form container not ready. Please try again.';
         } else if (error.message.includes('key') || error.message.includes('publishable')) {
           errorMessage += 'Payment system configuration error. Please contact support.';
@@ -159,14 +133,11 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
       }
     };
 
-    // Add a small delay to ensure DOM is ready
-    const timer = setTimeout(initializeStripe, 200);
+    // Use a longer delay to ensure the component is fully mounted
+    const timer = setTimeout(initializeStripe, 500);
     
     return () => {
       clearTimeout(timer);
-      if (mountTimeoutRef.current) {
-        clearTimeout(mountTimeoutRef.current);
-      }
     };
   }, [onReady, onError, isInitialized, logStripeError]);
 

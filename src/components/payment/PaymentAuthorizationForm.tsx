@@ -40,12 +40,14 @@ export const PaymentAuthorizationForm = ({
     setCardElement(cardElementInstance);
     setStripeReady(true);
     setFormError(''); // Clear any form errors when Stripe is ready
+    setCardError(''); // Clear any card errors
   };
 
   const handleStripeError = (error: string) => {
     console.error('Stripe error:', error);
     setCardError(error);
     setFormError(error);
+    setStripeReady(false); // Reset ready state on error
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -181,12 +183,6 @@ export const PaymentAuthorizationForm = ({
               />
             </div>
             
-            {cardError && !formError && (
-              <Alert variant="destructive">
-                <AlertDescription>{cardError}</AlertDescription>
-              </Alert>
-            )}
-
             <div className="flex justify-between items-center p-4 bg-gray-50 rounded-md">
               <span className="font-semibold">Authorization Amount:</span>
               <span className="text-2xl font-bold text-blue-600">${amount.toFixed(2)}</span>
@@ -194,7 +190,7 @@ export const PaymentAuthorizationForm = ({
 
             <Button 
               type="submit"
-              disabled={!stripeReady || processing || !!cardError || !!formError}
+              disabled={!stripeReady || processing || !!formError}
               className="w-full"
               size="lg"
             >
