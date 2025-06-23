@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { X, Plus, Minus } from 'lucide-react';
+import { Plus, Minus } from 'lucide-react';
 import { useTvMountingModal } from '@/hooks/useTvMountingModal';
 
 interface TvMountingModalProps {
@@ -50,12 +50,6 @@ export const TvMountingModal = ({ open, onClose, onAddToCart, services }: TvMoun
               <p className="text-slate-400 text-sm">Customize your TV mounting service for each TV</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-white transition-colors"
-          >
-            <X className="h-5 w-5" />
-          </button>
         </DialogHeader>
 
         <div className="space-y-6 py-6">
