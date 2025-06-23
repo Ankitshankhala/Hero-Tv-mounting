@@ -117,24 +117,24 @@ export const EnhancedInlineBookingFlow = ({
 
       {!showSuccess && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-y-auto border border-gray-100">
+          <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-y-auto border border-slate-700/50 backdrop-blur-xl">
             {/* Enhanced Header with Progress */}
-            <div className="relative bg-gradient-to-br from-indigo-600 via-blue-600 to-purple-700 text-white px-4 sm:px-8 py-4 sm:py-6 rounded-t-2xl">
+            <div className="relative bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 text-white px-4 sm:px-8 py-4 sm:py-6 rounded-t-2xl border-b border-slate-600/50">
               <button
                 onClick={onClose}
-                className="absolute top-3 right-3 sm:top-4 sm:right-4 p-2 hover:bg-white/20 rounded-lg transition-all duration-200"
+                className="absolute top-3 right-3 sm:top-4 sm:right-4 p-2 hover:bg-white/10 rounded-lg transition-all duration-200"
               >
                 <X className="h-5 w-5" />
               </button>
               
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center space-x-3 mb-4 sm:mb-0">
-                  <div className="p-2 sm:p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                  <div className="p-2 sm:p-3 bg-white/10 rounded-xl backdrop-blur-sm border border-white/20">
                     <CalendarIcon className="h-6 w-6 sm:h-7 sm:w-7" />
                   </div>
                   <div>
                     <h2 className="text-xl sm:text-2xl font-bold mb-1">Book Your Service</h2>
-                    <p className="text-blue-100 text-xs sm:text-sm">Step {currentStep} of 4</p>
+                    <p className="text-slate-300 text-xs sm:text-sm">Step {currentStep} of 4</p>
                   </div>
                 </div>
                 
@@ -178,8 +178,8 @@ export const EnhancedInlineBookingFlow = ({
               {currentStep === 4 && bookingId && (
                 <div className="space-y-6">
                   <div className="text-center">
-                    <h3 className="text-2xl font-bold text-gray-900 mb-2">Secure Payment</h3>
-                    <p className="text-gray-600">Complete your booking with secure payment</p>
+                    <h3 className="text-2xl font-bold text-white mb-2">Secure Payment</h3>
+                    <p className="text-slate-300">Complete your booking with secure payment</p>
                   </div>
 
                   <SecurePaymentForm
@@ -196,10 +196,10 @@ export const EnhancedInlineBookingFlow = ({
               )}
 
               {/* Enhanced Navigation Buttons */}
-              <div className="flex flex-col sm:flex-row justify-between items-center pt-6 border-t bg-gray-50 rounded-xl p-4 space-y-4 sm:space-y-0">
+              <div className="flex flex-col sm:flex-row justify-between items-center pt-6 border-t border-slate-600/50 bg-slate-800/30 rounded-xl p-4 space-y-4 sm:space-y-0 backdrop-blur-sm">
                 <div className="flex items-center space-x-2">
-                  <Shield className="h-4 w-4 text-green-600" />
-                  <span className="text-sm text-gray-600">Secure & encrypted</span>
+                  <Shield className="h-4 w-4 text-green-400" />
+                  <span className="text-sm text-slate-300">Secure & encrypted</span>
                 </div>
 
                 <div className="flex space-x-3 w-full sm:w-auto">
@@ -207,7 +207,7 @@ export const EnhancedInlineBookingFlow = ({
                     <Button
                       variant="outline"
                       onClick={handlePrevStep}
-                      className="flex-1 sm:flex-none hover:bg-gray-100"
+                      className="flex-1 sm:flex-none bg-slate-700/50 border-slate-600 text-white hover:bg-slate-600/50 hover:border-slate-500"
                       disabled={loading}
                     >
                       Back
@@ -222,7 +222,7 @@ export const EnhancedInlineBookingFlow = ({
                         (currentStep === 2 && !isStep2Valid) ||
                         loading
                       }
-                      className="flex-1 sm:flex-none bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50"
+                      className="flex-1 sm:flex-none bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 text-white border-0"
                     >
                       {loading ? (
                         <>
@@ -242,7 +242,7 @@ export const EnhancedInlineBookingFlow = ({
                     <Button
                       onClick={handleBookingSubmit}
                       disabled={!isStep3Valid || loading}
-                      className="flex-1 sm:flex-none bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50"
+                      className="flex-1 sm:flex-none bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 text-white border-0"
                     >
                       {loading ? (
                         <>

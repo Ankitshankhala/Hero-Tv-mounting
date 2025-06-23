@@ -32,14 +32,14 @@ export const ContactLocationStep = ({
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h3 className="text-2xl font-bold text-gray-900 mb-2">Contact & Location Details</h3>
-        <p className="text-gray-600">We need your information to schedule the service</p>
+        <h3 className="text-2xl font-bold text-white mb-2">Contact & Location Details</h3>
+        <p className="text-slate-300">We need your information to schedule the service</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
         <div className="space-y-3">
-          <Label htmlFor="customerName" className="text-base font-medium flex items-center space-x-2">
-            <User className="h-4 w-4 text-blue-600" />
+          <Label htmlFor="customerName" className="text-base font-medium flex items-center space-x-2 text-white">
+            <User className="h-4 w-4 text-blue-400" />
             <span>Full Name *</span>
           </Label>
           <Input
@@ -47,13 +47,13 @@ export const ContactLocationStep = ({
             value={formData.customerName}
             onChange={(e) => setFormData(prev => ({ ...prev, customerName: e.target.value }))}
             placeholder="Enter your full name"
-            className="h-12"
+            className="h-12 bg-slate-700/50 border-slate-600 text-white placeholder-slate-400 focus:border-blue-400"
           />
         </div>
 
         <div className="space-y-3">
-          <Label htmlFor="customerEmail" className="text-base font-medium flex items-center space-x-2">
-            <Mail className="h-4 w-4 text-blue-600" />
+          <Label htmlFor="customerEmail" className="text-base font-medium flex items-center space-x-2 text-white">
+            <Mail className="h-4 w-4 text-blue-400" />
             <span>Email Address *</span>
           </Label>
           <Input
@@ -62,13 +62,13 @@ export const ContactLocationStep = ({
             value={formData.customerEmail}
             onChange={(e) => setFormData(prev => ({ ...prev, customerEmail: e.target.value }))}
             placeholder="your.email@example.com"
-            className="h-12"
+            className="h-12 bg-slate-700/50 border-slate-600 text-white placeholder-slate-400 focus:border-blue-400"
           />
         </div>
 
         <div className="space-y-3">
-          <Label htmlFor="customerPhone" className="text-base font-medium flex items-center space-x-2">
-            <Phone className="h-4 w-4 text-blue-600" />
+          <Label htmlFor="customerPhone" className="text-base font-medium flex items-center space-x-2 text-white">
+            <Phone className="h-4 w-4 text-blue-400" />
             <span>Phone Number *</span>
           </Label>
           <Input
@@ -77,7 +77,7 @@ export const ContactLocationStep = ({
             value={formData.customerPhone}
             onChange={(e) => setFormData(prev => ({ ...prev, customerPhone: e.target.value }))}
             placeholder="(555) 123-4567"
-            className="h-12"
+            className="h-12 bg-slate-700/50 border-slate-600 text-white placeholder-slate-400 focus:border-blue-400"
           />
         </div>
 
@@ -89,14 +89,14 @@ export const ContactLocationStep = ({
             onChange={handleZipcodeChange}
             required
             placeholder="12345"
-            className="[&_input]:h-12"
+            className="[&_input]:h-12 [&_input]:bg-slate-700/50 [&_input]:border-slate-600 [&_input]:text-white [&_input]:placeholder-slate-400 [&_input]:focus:border-blue-400 [&_label]:text-white"
           />
         </div>
       </div>
 
       <div className="space-y-3">
-        <Label htmlFor="address" className="text-base font-medium flex items-center space-x-2">
-          <MapPin className="h-4 w-4 text-green-600" />
+        <Label htmlFor="address" className="text-base font-medium flex items-center space-x-2 text-white">
+          <MapPin className="h-4 w-4 text-green-400" />
           <span>Service Address *</span>
         </Label>
         <Input
@@ -104,50 +104,50 @@ export const ContactLocationStep = ({
           value={formData.address}
           onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
           placeholder="123 Main Street, Apartment 4B"
-          className="h-12"
+          className="h-12 bg-slate-700/50 border-slate-600 text-white placeholder-slate-400 focus:border-blue-400"
         />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
         <div className="space-y-3">
-          <Label htmlFor="city" className="text-base font-medium">City</Label>
+          <Label htmlFor="city" className="text-base font-medium text-white">City</Label>
           <Input
             id="city"
             value={formData.city}
             onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
             placeholder="Your city"
-            className="h-12"
+            className="h-12 bg-slate-700/50 border-slate-600 text-white placeholder-slate-400 focus:border-blue-400"
           />
         </div>
 
         <div className="space-y-3">
-          <Label htmlFor="region" className="text-base font-medium">Service Region</Label>
+          <Label htmlFor="region" className="text-base font-medium text-white">Service Region</Label>
           <Select 
             value={formData.region} 
             onValueChange={(value) => setFormData(prev => ({ ...prev, region: value }))}
           >
-            <SelectTrigger className="h-12">
+            <SelectTrigger className="h-12 bg-slate-700/50 border-slate-600 text-white">
               <SelectValue placeholder="Select your area" />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="downtown">Downtown</SelectItem>
-              <SelectItem value="north-side">North Side</SelectItem>
-              <SelectItem value="east-side">East Side</SelectItem>
-              <SelectItem value="west-end">West End</SelectItem>
-              <SelectItem value="south-side">South Side</SelectItem>
+            <SelectContent className="bg-slate-700 border-slate-600">
+              <SelectItem value="downtown" className="text-white hover:bg-slate-600">Downtown</SelectItem>
+              <SelectItem value="north-side" className="text-white hover:bg-slate-600">North Side</SelectItem>
+              <SelectItem value="east-side" className="text-white hover:bg-slate-600">East Side</SelectItem>
+              <SelectItem value="west-end" className="text-white hover:bg-slate-600">West End</SelectItem>
+              <SelectItem value="south-side" className="text-white hover:bg-slate-600">South Side</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </div>
 
       <div className="space-y-3">
-        <Label htmlFor="specialInstructions" className="text-base font-medium">Special Instructions</Label>
+        <Label htmlFor="specialInstructions" className="text-base font-medium text-white">Special Instructions</Label>
         <Textarea
           id="specialInstructions"
           value={formData.specialInstructions}
           onChange={(e) => setFormData(prev => ({ ...prev, specialInstructions: e.target.value }))}
           placeholder="Any special instructions, access codes, parking info..."
-          className="min-h-[100px]"
+          className="min-h-[100px] bg-slate-700/50 border-slate-600 text-white placeholder-slate-400 focus:border-blue-400"
           rows={4}
         />
       </div>
