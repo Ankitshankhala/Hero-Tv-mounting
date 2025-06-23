@@ -38,28 +38,55 @@ export const useBookingFlowState = (selectedServices: ServiceItem[] = []) => {
   const handleBookingSubmit = async () => {
     const bookingId = await bookingOperations.handleBookingSubmit(formState.services, formState.formData);
     if (bookingId) {
-      formState.setCurrentStep(4);
+      bookingOperations.setCurrentStep(4);
     }
   };
 
+  // Destructure and filter out conflicting properties from other hooks
+  const {
+    showSuccess: _formShowSuccess,
+    successAnimation: _formSuccessAnimation,
+    currentStep: _formCurrentStep,
+    setCurrentStep: _formSetCurrentStep,
+    loading: _formLoading,
+    setLoading: _formSetLoading,
+    bookingId: _formBookingId,
+    setBookingId: _formSetBookingId,
+    handleBookingSubmit: _formHandleBookingSubmit,
+    ...restFormState
+  } = formState;
+
+  const {
+    showSuccess: _workerShowSuccess,
+    successAnimation: _workerSuccessAnimation,
+    currentStep: _workerCurrentStep,
+    setCurrentStep: _workerSetCurrentStep,
+    loading: _workerLoading,
+    setLoading: _workerSetLoading,
+    bookingId: _workerBookingId,
+    setBookingId: _workerSetBookingId,
+    handleBookingSubmit: _workerHandleBookingSubmit,
+    ...restWorkerAvailability
+  } = workerAvailability;
+
   // Return combined state with bookingOperations taking precedence for overlapping properties
   return {
-    // Form state properties
-    ...formState,
-    // Worker availability properties  
-    ...workerAvailability,
-    // Override with bookingOperations properties (these take precedence)
+    // Form state properties (excluding conflicting ones)
+    ...restFormState,
+    // Worker availability properties (excluding conflicting ones)
+    ...restWorkerAvailability,
+    // Override with bookingOperations properties (these take precedence and are the correct types)
     currentStep: bookingOperations.currentStep,
     setCurrentStep: bookingOperations.setCurrentStep,
     loading: bookingOperations.loading,
     setLoading: bookingOperations.setLoading,
     bookingId: bookingOperations.bookingId,
     setBookingId: bookingOperations.setBookingId,
-    showSuccess: bookingOperations.showSuccess,
+    showSuccess: bookingOperations.showSuccess, // Ensure this is boolean
     setShowSuccess: bookingOperations.setShowSuccess,
-    successAnimation: bookingOperations.successAnimation,
+    successAnimation: bookingOperations.successAnimation, // Ensure this is boolean
     setSuccessAnimation: bookingOperations.setSuccessAnimation,
-    handleBookingSubmit: bookingOperations.handleBookingSubmit,
+    handleBookingSubmit, // Use our wrapper function
     user,
   };
 };
