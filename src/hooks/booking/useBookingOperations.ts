@@ -1,75 +1,91 @@
 
 import { useState } from 'react';
+import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { ServiceItem, FormData } from './types';
 
 export const useBookingOperations = () => {
-  const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [bookingId, setBookingId] = useState<string>();
+  const [bookingId, setBookingId] = useState<string>('');
   const [showSuccess, setShowSuccess] = useState(false);
+  const [paymentCompleted, setPaymentCompleted] = useState(false);
   const [successAnimation, setSuccessAnimation] = useState(false);
+
+  const { user } = useAuth();
   const { toast } = useToast();
 
   const handleBookingSubmit = async (services: ServiceItem[], formData: FormData) => {
-    setLoading(true);
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to complete your booking.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
-      console.log('Creating booking with data:', { services, formData });
+      setLoading(true);
+
+      const primaryServiceId = services.length > 0 ? services[0].id : null;
       
-      // Create the booking with correct fields that exist in the database
-      const { data: booking, error: bookingError } = await supabase
+      if (!primaryServiceId) {
+        throw new Error('No services selected');
+      }
+
+      const bookingData = {
+        customer_id: user.id,
+        service_id: primaryServiceId,
+        scheduled_date: format(formData.selectedDate!, 'yyyy-MM-dd'),
+        scheduled_start: formData.selectedTime,
+        location_notes: `${formData.address}, ${formData.city}\nContact: ${formData.customerName}\nPhone: ${formData.customerPhone}\nEmail: ${formData.customerEmail}\nZIP: ${formData.zipcode}\nSpecial Instructions: ${formData.specialInstructions}`,
+        status: 'pending' as const,
+        requires_manual_payment: true
+      };
+
+      const { data, error } = await supabase
         .from('bookings')
-        .insert({
-          customer_id: formData.customerEmail, // Using email as customer identifier for now
-          scheduled_date: formData.selectedDate?.toISOString().split('T')[0],
-          scheduled_start: formData.selectedTime,
-          location_notes: `${formData.address}, ${formData.city}, ${formData.region} ${formData.zipcode}. Special instructions: ${formData.specialInstructions}`,
-          status: 'pending',
-          service_id: services[0]?.id || '', // Using first service as primary service
-        })
+        .insert(bookingData)
         .select()
         .single();
 
-      if (bookingError) {
-        throw bookingError;
-      }
+      if (error) throw error;
 
-      // For now, we'll store service details in a simple way since booking_services table doesn't exist
-      // We could use the booking_service_modifications table or create a new table later
-      console.log('Services to be processed:', services);
-
-      setBookingId(booking.id);
+      setBookingId(data.id);
+      
       toast({
-        title: "Booking Created! 🎉",
-        description: "Your booking has been created successfully. Proceed to payment.",
+        title: "Booking Created",
+        description: "Your booking has been created. Please complete payment.",
       });
 
-      return booking.id;
+      return data.id;
     } catch (error) {
       console.error('Error creating booking:', error);
       toast({
-        title: "Booking Failed",
-        description: "There was an error creating your booking. Please try again.",
+        title: "Error",
+        description: "Failed to create booking. Please try again.",
         variant: "destructive",
       });
-      return null;
+      throw error;
     } finally {
       setLoading(false);
     }
   };
 
   return {
-    currentStep,
-    setCurrentStep,
     loading,
     setLoading,
     bookingId,
     setBookingId,
     showSuccess,
     setShowSuccess,
+    paymentCompleted,
+    setPaymentCompleted,
     successAnimation,
     setSuccessAnimation,
-    handleBookingSubmit
+    handleBookingSubmit,
+    user
   };
 };

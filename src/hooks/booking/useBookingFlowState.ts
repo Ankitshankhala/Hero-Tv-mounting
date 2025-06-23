@@ -1,25 +1,14 @@
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useBookingFormState } from './useBookingFormState';
 import { useWorkerAvailability } from './useWorkerAvailability';
 import { useBookingOperations } from './useBookingOperations';
 import { ServiceItem } from './types';
-import { supabase } from '@/integrations/supabase/client';
 
 export const useBookingFlowState = (selectedServices: ServiceItem[] = []) => {
-  const [user, setUser] = useState<any>(null);
   const formState = useBookingFormState(selectedServices);
   const workerAvailability = useWorkerAvailability();
   const bookingOperations = useBookingOperations();
-
-  // Get current user
-  useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-    };
-    getUser();
-  }, []);
 
   // Fetch worker availability when date/zipcode changes
   useEffect(() => {
@@ -42,23 +31,10 @@ export const useBookingFlowState = (selectedServices: ServiceItem[] = []) => {
     }
   };
 
-  // Explicitly type the return object to ensure proper boolean types
   return {
     ...formState,
     ...workerAvailability,
-    // Explicitly override with bookingOperations properties to ensure correct types
-    currentStep: bookingOperations.currentStep,
-    setCurrentStep: bookingOperations.setCurrentStep,
-    loading: bookingOperations.loading,
-    setLoading: bookingOperations.setLoading,
-    bookingId: bookingOperations.bookingId,
-    setBookingId: bookingOperations.setBookingId,
-    showSuccess: bookingOperations.showSuccess, // This is already boolean from useBookingOperations
-    setShowSuccess: bookingOperations.setShowSuccess,
-    successAnimation: bookingOperations.successAnimation, // This is already boolean from useBookingOperations
-    setSuccessAnimation: bookingOperations.setSuccessAnimation,
-    handleBookingSubmit: bookingOperations.handleBookingSubmit,
-    user,
-    handleBookingSubmit,
+    ...bookingOperations,
+    handleBookingSubmit
   };
 };
