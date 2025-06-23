@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { X, ArrowRight, Shield } from 'lucide-react';
 import { CalendarIcon } from 'lucide-react';
 import { SecurePaymentForm } from '@/components/payment/SecurePaymentForm';
-import { useBookingFlowState } from '@/hooks/useBookingFlowState';
+import { useBookingFlowState } from '@/hooks/booking/useBookingFlowState';
 import { BookingProgressSteps } from '@/components/booking/BookingProgressSteps';
 import { ServiceConfigurationStep } from '@/components/booking/ServiceConfigurationStep';
 import { ContactLocationStep } from '@/components/booking/ContactLocationStep';
