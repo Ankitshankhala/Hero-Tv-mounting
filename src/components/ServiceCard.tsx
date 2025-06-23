@@ -8,7 +8,7 @@ interface ServiceCardProps {
   price: number;
   image: string;
   description: string;
-  onAddToCart: (item: any) => void;
+  onAddToCart: (item?: any) => void;
 }
 
 export const ServiceCard: React.FC<ServiceCardProps> = ({ id, name, price, image, description, onAddToCart }) => {
@@ -17,7 +17,7 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ id, name, price, image
   const handleClick = () => {
     setIsClicked(true);
     
-    // For TV Mounting, trigger the modal instead of adding directly to cart
+    // For TV Mounting, trigger the modal without passing cart item
     if (name === 'TV Mounting') {
       onAddToCart(); // This will trigger the TV mounting modal
     } else {
