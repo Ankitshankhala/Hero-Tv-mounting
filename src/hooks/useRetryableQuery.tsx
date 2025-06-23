@@ -4,88 +4,75 @@ import { useErrorMonitoring } from './useErrorMonitoring';
 
 interface RetryConfig {
   maxRetries?: number;
-  initialDelay?: number;
+  delay?: number;
   backoffMultiplier?: number;
-  maxDelay?: number;
 }
 
-export const useRetryableQuery = (config: RetryConfig = {}) => {
-  const {
-    maxRetries = 3,
-    initialDelay = 1000,
-    backoffMultiplier = 2,
-    maxDelay = 10000
-  } = config;
-
+export const useRetryableQuery = () => {
   const [retryCount, setRetryCount] = useState(0);
-  const [isRetrying, setIsRetrying] = useState(false);
   const { logError } = useErrorMonitoring();
-
-  const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
   const executeWithRetry = useCallback(async <T>(
     operation: () => Promise<T>,
-    context: string,
-    customConfig?: Partial<RetryConfig>
+    operationName: string,
+    config: RetryConfig = {}
   ): Promise<T> => {
-    const actualMaxRetries = customConfig?.maxRetries ?? maxRetries;
-    let attempt = 0;
-    let lastError: Error;
+    const {
+      maxRetries = 3,
+      delay = 1000,
+      backoffMultiplier = 2
+    } = config;
 
-    while (attempt <= actualMaxRetries) {
+    let currentDelay = delay;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        if (attempt > 0) {
-          setIsRetrying(true);
-          const delayMs = Math.min(
-            initialDelay * Math.pow(backoffMultiplier, attempt - 1),
-            maxDelay
-          );
-          console.log(`Retrying ${context} (attempt ${attempt}/${actualMaxRetries}) after ${delayMs}ms delay`);
-          await delay(delayMs);
-        }
-
         const result = await operation();
-        
         if (attempt > 0) {
-          console.log(`${context} succeeded on retry attempt ${attempt}`);
-          setRetryCount(prev => prev + attempt);
+          console.log(`${operationName} succeeded on retry ${attempt}`);
         }
-        
-        setIsRetrying(false);
+        setRetryCount(0); // Reset on success
         return result;
       } catch (error) {
-        lastError = error instanceof Error ? error : new Error(String(error));
-        attempt++;
-
-        logError(lastError, `${context} - Attempt ${attempt}`, {
-          attempt,
-          maxRetries: actualMaxRetries,
-          willRetry: attempt <= actualMaxRetries
-        });
-
-        if (attempt > actualMaxRetries) {
-          setIsRetrying(false);
-          logError(lastError, `${context} - All retries exhausted`, {
-            totalAttempts: attempt,
-            maxRetries: actualMaxRetries
+        const isLastAttempt = attempt === maxRetries;
+        
+        if (isLastAttempt) {
+          logError(error as Error, `${operationName} failed after ${maxRetries + 1} attempts`, {
+            category: 'retry',
+            operationName,
+            finalAttempt: attempt + 1,
+            totalAttempts: maxRetries + 1
           });
-          throw lastError;
+          setRetryCount(0); // Reset after final failure
+          throw error;
         }
+
+        console.warn(`${operationName} failed on attempt ${attempt + 1}, retrying in ${currentDelay}ms...`);
+        setRetryCount(attempt + 1);
+        
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, currentDelay));
+        currentDelay *= backoffMultiplier;
       }
     }
 
-    throw lastError!;
-  }, [maxRetries, initialDelay, backoffMultiplier, maxDelay, logError]);
+    throw new Error('Unexpected end of retry loop');
+  }, [logError]);
 
-  const reset = useCallback(() => {
-    setRetryCount(0);
-    setIsRetrying(false);
-  }, []);
+  const retryWithExponentialBackoff = useCallback(async <T>(
+    operation: () => Promise<T>,
+    operationName: string
+  ): Promise<T> => {
+    return executeWithRetry(operation, operationName, {
+      maxRetries: 3,
+      delay: 1000,
+      backoffMultiplier: 2
+    });
+  }, [executeWithRetry]);
 
   return {
     executeWithRetry,
-    retryCount,
-    isRetrying,
-    reset
+    retryWithExponentialBackoff,
+    retryCount
   };
 };

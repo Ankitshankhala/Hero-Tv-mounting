@@ -2,7 +2,7 @@
 // Environment configuration and validation
 export const config = {
   stripe: {
-    publishableKey: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_live_51RYKUCCrUPkotWKCM10E0EeqJ5j24WbloBt4CemrXYkJxsGUdS6Xxl5hsyh7UaIHBeI9nVtgqjmXI3sTD7xyvNnV00s1GO6it4'
+    publishableKey: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
   },
   isDevelopment: import.meta.env.DEV,
   isProduction: import.meta.env.PROD
