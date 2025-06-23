@@ -18,7 +18,7 @@ const defaultReviews: Review[] = [
     rating: 5,
     name: "Sarah M.",
     city: "Austin, TX",
-    image: "/lovable-uploads/4f2b0612-e53a-4743-9241-89f3d0c96f3f.png"
+    image: "/assets/images/reviews/customer-1.png"
   },
   {
     id: 2,
@@ -26,7 +26,7 @@ const defaultReviews: Review[] = [
     rating: 5,
     name: "Mike R.",
     city: "Dallas, TX",
-    image: "/lovable-uploads/9b5c911a-cfc6-4311-94bb-902ce479c279.png"
+    image: "/assets/images/reviews/customer-2.png"
   },
   {
     id: 3,
@@ -34,7 +34,7 @@ const defaultReviews: Review[] = [
     rating: 5,
     name: "Jennifer L.",
     city: "Houston, TX",
-    image: "/lovable-uploads/1cdefbf0-13c5-4f66-bb5c-761861d66f74.png"
+    image: "/assets/images/reviews/customer-3.png"
   },
   {
     id: 4,
@@ -42,7 +42,7 @@ const defaultReviews: Review[] = [
     rating: 5,
     name: "David K.",
     city: "San Antonio, TX",
-    image: "/lovable-uploads/4f2b0612-e53a-4743-9241-89f3d0c96f3f.png"
+    image: "/assets/images/reviews/customer-4.png"
   },
   {
     id: 5,
@@ -50,7 +50,7 @@ const defaultReviews: Review[] = [
     rating: 5,
     name: "Lisa P.",
     city: "Fort Worth, TX",
-    image: "/lovable-uploads/9b5c911a-cfc6-4311-94bb-902ce479c279.png"
+    image: "/assets/images/reviews/customer-5.png"
   }
 ];
 
@@ -73,7 +73,7 @@ export const useReviewsData = () => {
       rating: adminReview.rating,
       name: adminReview.customer,
       city: "Admin Added", // Could be enhanced to include actual city
-      image: adminReview.imageUrl || "/lovable-uploads/4f2b0612-e53a-4743-9241-89f3d0c96f3f.png" // Use uploaded image or default
+      image: adminReview.imageUrl || "/assets/images/reviews/default-customer.png" // Use uploaded image or default
     };
     
     globalAdminReviews.push(frontendReview);
