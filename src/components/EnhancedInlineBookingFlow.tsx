@@ -203,11 +203,11 @@ export const EnhancedInlineBookingFlow = ({
 
       const bookingData = {
         customer_id: user.id,
-        service_id: primaryServiceId, // Add the required service_id field
+        service_id: primaryServiceId,
         scheduled_date: format(formData.selectedDate!, 'yyyy-MM-dd'),
         scheduled_start: formData.selectedTime,
         location_notes: `${formData.address}, ${formData.city}\nContact: ${formData.customerName}\nPhone: ${formData.customerPhone}\nEmail: ${formData.customerEmail}\nZIP: ${formData.zipcode}\nSpecial Instructions: ${formData.specialInstructions}`,
-        status: 'pending',
+        status: 'pending' as const,
         requires_manual_payment: true
       };
 
