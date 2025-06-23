@@ -25,12 +25,14 @@ const localizer = dateFnsLocalizer({
   locales,
 });
 
+type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
+
 interface CalendarEvent {
   id: string;
   title: string;
   start: Date;
   end: Date;
-  status: string;
+  status: BookingStatus;
   worker?: any;
   customer?: any;
   service?: any;
@@ -115,12 +117,17 @@ export const AdminCalendarView = () => {
         const customerName = booking.customer?.name || 'Unknown';
         const serviceName = booking.service?.name || 'Service';
 
+        // Ensure status is one of the valid enum values
+        const validStatus: BookingStatus = (['pending', 'confirmed', 'completed', 'cancelled'] as const).includes(booking.status as BookingStatus) 
+          ? booking.status as BookingStatus 
+          : 'pending';
+
         return {
           id: booking.id,
           title: `${serviceName} - ${customerName} (${workerName})`,
           start: startDateTime,
           end: endDateTime,
-          status: booking.status,
+          status: validStatus,
           worker: booking.worker,
           customer: booking.customer,
           service: booking.service,
@@ -151,9 +158,6 @@ export const AdminCalendarView = () => {
       case 'confirmed':
         backgroundColor = '#10b981';
         break;
-      case 'in_progress':
-        backgroundColor = '#3b82f6';
-        break;
       case 'completed':
         backgroundColor = '#6b7280';
         break;
@@ -178,7 +182,6 @@ export const AdminCalendarView = () => {
     const statusColor = {
       pending: 'yellow',
       confirmed: 'green',
-      in_progress: 'blue',
       completed: 'gray',
       cancelled: 'red'
     }[event.status] || 'blue';
@@ -252,7 +255,6 @@ export const AdminCalendarView = () => {
                 <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="confirmed">Confirmed</SelectItem>
-                <SelectItem value="in_progress">In Progress</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
                 <SelectItem value="cancelled">Cancelled</SelectItem>
               </SelectContent>
@@ -287,7 +289,6 @@ export const AdminCalendarView = () => {
         <div className="mt-4 flex flex-wrap gap-2">
           <Badge className="bg-yellow-500">Pending</Badge>
           <Badge className="bg-green-500">Confirmed</Badge>
-          <Badge className="bg-blue-500">In Progress</Badge>
           <Badge className="bg-gray-500">Completed</Badge>
           <Badge className="bg-red-500">Cancelled</Badge>
         </div>
