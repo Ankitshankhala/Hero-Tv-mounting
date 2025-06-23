@@ -22,8 +22,8 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
   const [autoRetryCount, setAutoRetryCount] = useState(0);
   const { logStripeError } = useErrorMonitoring();
 
-  const MAX_AUTO_RETRIES = 5;
-  const MAX_DOM_ATTEMPTS = 20;
+  const MAX_AUTO_RETRIES = 3;
+  const MAX_DOM_ATTEMPTS = 10;
 
   // Cleanup function
   const cleanup = () => {
@@ -33,14 +33,18 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
     }
   };
 
-  // Check if DOM element is properly ready
+  // Simplified DOM element readiness check
   const isDOMElementReady = (element: HTMLElement | null): boolean => {
-    return !!(
-      element && 
-      element.isConnected && 
-      element.offsetParent !== null &&
-      element.getBoundingClientRect().width > 0
-    );
+    if (!element) return false;
+    
+    // Basic checks: element exists and is connected to DOM
+    if (!element.isConnected) return false;
+    
+    // Simple visibility check
+    const style = window.getComputedStyle(element);
+    if (style.display === 'none' || style.visibility === 'hidden') return false;
+    
+    return true;
   };
 
   const waitForDOMElement = async (): Promise<boolean> => {
@@ -60,17 +64,17 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
 
         attempts++;
         if (attempts >= MAX_DOM_ATTEMPTS) {
-          resolve(false);
+          console.log('DOM attempts exhausted, trying initialization anyway as fallback');
+          resolve(!!cardElementRef.current); // Fallback: try if element exists
           return;
         }
 
-        // Use requestAnimationFrame for better DOM timing
-        requestAnimationFrame(() => {
-          setTimeout(checkElement, 100);
-        });
+        // Use longer delay between checks
+        setTimeout(checkElement, 200);
       };
 
-      checkElement();
+      // Start checking after a brief initial delay
+      setTimeout(checkElement, 100);
     });
   };
 
@@ -80,14 +84,17 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
     try {
       setIsLoading(true);
       setConfigError('');
-      setLoadingMessage('Initializing payment form...');
+      setLoadingMessage(autoRetryCount > 0 ? 
+        `Retrying initialization... (${autoRetryCount + 1}/${MAX_AUTO_RETRIES + 1})` : 
+        'Initializing payment form...'
+      );
       
       console.log(`Starting Stripe initialization... (attempt ${autoRetryCount + 1})`);
       
       // Wait for DOM element to be ready
       const domReady = await waitForDOMElement();
       
-      if (!domReady || !mountedRef.current) {
+      if (!domReady || !mountedRef.current || !cardElementRef.current) {
         throw new Error('Payment form container not ready after waiting. Please try again.');
       }
 
@@ -182,10 +189,9 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
       // Attempt automatic retry with exponential backoff
       if (autoRetryCount < MAX_AUTO_RETRIES) {
         const nextRetryCount = autoRetryCount + 1;
-        const retryDelay = Math.min(1000 * Math.pow(2, autoRetryCount), 5000); // Exponential backoff, max 5s
+        const retryDelay = Math.min(1000 * Math.pow(1.5, autoRetryCount), 3000); // Slower exponential backoff, max 3s
         
         setAutoRetryCount(nextRetryCount);
-        setLoadingMessage(`Retrying initialization... (${nextRetryCount}/${MAX_AUTO_RETRIES})`);
         
         retryTimerRef.current = setTimeout(() => {
           if (mountedRef.current) {
@@ -201,7 +207,7 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
       
       let errorMessage = 'Failed to initialize payment form. ';
       if (error.message.includes('container not ready')) {
-        errorMessage += 'Payment form container not ready. Please try again.';
+        errorMessage += 'Please refresh the page and try again.';
       } else if (error.message.includes('key') || error.message.includes('publishable')) {
         errorMessage += 'Payment system configuration error. Please contact support.';
       } else {
@@ -230,7 +236,7 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
       if (mountedRef.current) {
         initializeStripe();
       }
-    }, 100);
+    }, 150);
     
     return () => {
       mountedRef.current = false;
@@ -254,7 +260,7 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
       if (mountedRef.current) {
         initializeStripe();
       }
-    }, 100);
+    }, 200);
   };
 
   if (configError) {
