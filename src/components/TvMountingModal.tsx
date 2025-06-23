@@ -132,18 +132,21 @@ export const TvMountingModal = ({ open, onClose, onAddToCart, services }: TvMoun
                       </div>
                     </label>
 
-                    {/* Wall Type */}
-                    <div className="p-3 bg-slate-800 rounded-lg">
-                      <label className="block text-sm font-medium text-white mb-2">Wall Type</label>
-                      <select
-                        value={config.wallType}
-                        onChange={(e) => updateTvConfiguration(config.id, { wallType: e.target.value })}
-                        className="w-full p-2 bg-slate-700 border border-slate-600 rounded text-white focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        <option value="standard">Standard Wall</option>
-                        <option value="stone">Stone/Brick/Tile Wall (+$50)</option>
-                      </select>
-                    </div>
+                    {/* Stone/Brick/Tile Wall */}
+                    <label className="flex items-center space-x-3 p-3 bg-slate-800 rounded-lg cursor-pointer hover:bg-slate-750 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={config.wallType !== 'standard'}
+                        onChange={(e) => updateTvConfiguration(config.id, { wallType: e.target.checked ? 'stone' : 'standard' })}
+                        className="w-5 h-5 text-blue-600 bg-slate-700 border-slate-600 rounded focus:ring-blue-500"
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium text-white">Stone/Brick/Tile Wall</div>
+                        <div className="text-sm text-slate-400">
+                          Additional charge for specialty wall surfaces (+$50)
+                        </div>
+                      </div>
+                    </label>
 
                     {/* Soundbar */}
                     <label className="flex items-center space-x-3 p-3 bg-slate-800 rounded-lg cursor-pointer hover:bg-slate-750 transition-colors">
