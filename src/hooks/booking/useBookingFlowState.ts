@@ -43,12 +43,10 @@ export const useBookingFlowState = (selectedServices: ServiceItem[] = []) => {
     }
   };
 
-  // Destructure formState excluding ALL conflicting properties
+  // Destructure formState excluding only conflicting properties that actually exist
   const {
     currentStep: _formCurrentStep,
     setCurrentStep: _formSetCurrentStep,
-    showSuccess: _formShowSuccess,
-    successAnimation: _formSuccessAnimation,
     ...cleanFormState
   } = formState;
 
