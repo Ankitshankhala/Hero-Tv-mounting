@@ -92,11 +92,11 @@ export const usePerformanceMonitoring = () => {
     };
   }, []);
 
-  const measureAsync = useCallback(async <T>(
+  const measureAsync = useCallback(async (
     operationName: string,
-    operation: () => Promise<T>,
+    operation: () => Promise<any>,
     metadata?: Record<string, any>
-  ): Promise<T> => {
+  ): Promise<any> => {
     const timer = startTiming(operationName, metadata);
     
     try {

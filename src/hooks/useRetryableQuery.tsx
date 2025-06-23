@@ -12,11 +12,11 @@ export const useRetryableQuery = () => {
   const [retryCount, setRetryCount] = useState(0);
   const { logError } = useErrorMonitoring();
 
-  const executeWithRetry = useCallback(async <T>(
-    operation: () => Promise<T>,
+  const executeWithRetry = useCallback(async (
+    operation: () => Promise<any>,
     operationName: string,
     config: RetryConfig = {}
-  ): Promise<T> => {
+  ): Promise<any> => {
     const {
       maxRetries = 3,
       delay = 1000,
@@ -59,10 +59,10 @@ export const useRetryableQuery = () => {
     throw new Error('Unexpected end of retry loop');
   }, [logError]);
 
-  const retryWithExponentialBackoff = useCallback(async <T>(
+  const retryWithExponentialBackoff = useCallback(async (
     operationName: string,
-    operation: () => Promise<T>
-  ): Promise<T> => {
+    operation: () => Promise<any>
+  ): Promise<any> => {
     return executeWithRetry(operation, operationName, {
       maxRetries: 3,
       delay: 1000,
