@@ -182,7 +182,7 @@ export const TvMountingModal = ({ open, onClose, onAddToCart, services }: TvMoun
               <Button 
                 variant="outline" 
                 onClick={onClose}
-                className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                className="border-slate-500 text-white bg-slate-700 hover:bg-slate-600 hover:border-slate-400 transition-colors"
               >
                 Cancel
               </Button>
