@@ -116,10 +116,21 @@ export const CalendarView = ({
   };
 
   const isTimeSlotAvailable = (date: Date, time: string) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
     
-    if (date < today) return false;
+    // Don't allow past dates
+    if (dateOnly < today) return false;
+    
+    // For same-day booking, check if the time slot is at least 1 hour from now
+    if (dateOnly.getTime() === today.getTime()) {
+      const [hours] = time.split(':').map(Number);
+      const currentHour = now.getHours();
+      
+      // Require at least 1 hour advance notice for same-day bookings
+      if (hours <= currentHour) return false;
+    }
     
     const conflictingBookings = getBookingsForDateTime(date, time);
     return conflictingBookings.length === 0;
@@ -142,7 +153,9 @@ export const CalendarView = ({
     <div className="max-w-6xl mx-auto">
       <div className="text-center mb-8">
         <h2 className="text-3xl font-bold text-white mb-4">Choose Your Appointment Time</h2>
-        <p className="text-slate-300">Select from available time slots. Red blocks show existing bookings in your area.</p>
+        <p className="text-slate-300">
+          Select from available time slots. Same-day booking available with 1-hour advance notice.
+        </p>
       </div>
 
       <Card className="bg-slate-800 border-slate-700">
