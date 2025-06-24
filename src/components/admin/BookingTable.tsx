@@ -3,9 +3,10 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Edit, Trash2 } from 'lucide-react';
+import { Edit, Trash2, DollarSign } from 'lucide-react';
 import { EditBookingModal } from './EditBookingModal';
 import { DeleteBookingModal } from './DeleteBookingModal';
+import { ManualChargeModal } from '@/components/worker/payment/ManualChargeModal';
 
 interface Booking {
   id: string;
@@ -20,6 +21,10 @@ interface Booking {
   total_price?: number;
   customer_address?: string;
   location_notes?: string;
+  cancellation_deadline?: string;
+  late_fee_charged?: boolean;
+  stripe_customer_id?: string;
+  stripe_payment_method_id?: string;
 }
 
 interface BookingTableProps {
@@ -31,6 +36,7 @@ export const BookingTable = ({ bookings, onBookingUpdate }: BookingTableProps) =
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showManualChargeModal, setShowManualChargeModal] = useState(false);
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
@@ -93,6 +99,21 @@ export const BookingTable = ({ bookings, onBookingUpdate }: BookingTableProps) =
     }
   };
 
+  const isEligibleForLateFee = (booking: Booking): boolean => {
+    if (booking.status !== 'cancelled') return false;
+    if (booking.late_fee_charged) return false;
+    if (!booking.cancellation_deadline) return false;
+    if (!booking.stripe_customer_id || !booking.stripe_payment_method_id) return false;
+    
+    try {
+      const deadline = new Date(booking.cancellation_deadline);
+      const now = new Date();
+      return now > deadline;
+    } catch (error) {
+      return false;
+    }
+  };
+
   const handleEdit = (booking: Booking) => {
     setSelectedBooking(booking);
     setShowEditModal(true);
@@ -103,10 +124,16 @@ export const BookingTable = ({ bookings, onBookingUpdate }: BookingTableProps) =
     setShowDeleteModal(true);
   };
 
+  const handleLateFeeCharge = (booking: Booking) => {
+    setSelectedBooking(booking);
+    setShowManualChargeModal(true);
+  };
+
   const handleModalClose = () => {
     setSelectedBooking(null);
     setShowEditModal(false);
     setShowDeleteModal(false);
+    setShowManualChargeModal(false);
   };
 
   const handleBookingUpdated = () => {
@@ -137,6 +164,8 @@ export const BookingTable = ({ bookings, onBookingUpdate }: BookingTableProps) =
           <TableBody>
             {bookings.map((booking) => {
               const { date, time } = formatDateTime(booking);
+              const canChargeFee = isEligibleForLateFee(booking);
+              
               return (
                 <TableRow key={booking.id}>
                   <TableCell className="font-medium">{booking.id.slice(0, 8)}</TableCell>
@@ -173,6 +202,17 @@ export const BookingTable = ({ bookings, onBookingUpdate }: BookingTableProps) =
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
+                      {canChargeFee && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleLateFeeCharge(booking)}
+                          className="text-orange-600 hover:text-orange-700"
+                          title="Charge Late Fee"
+                        >
+                          <DollarSign className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -202,6 +242,14 @@ export const BookingTable = ({ bookings, onBookingUpdate }: BookingTableProps) =
         isOpen={showDeleteModal}
         onClose={handleModalClose}
         onBookingDeleted={handleBookingUpdated}
+      />
+
+      {/* Manual Charge Modal */}
+      <ManualChargeModal
+        booking={selectedBooking}
+        isOpen={showManualChargeModal}
+        onClose={handleModalClose}
+        onChargeComplete={handleBookingUpdated}
       />
     </>
   );
