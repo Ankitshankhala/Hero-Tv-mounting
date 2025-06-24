@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,21 +28,7 @@ const Admin = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [isCalendarConnected] = useState(false);
 
-  // Check if user is admin - wait for both user and profile to load
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
-  // Show login if no user, or if user exists but profile hasn't loaded yet, or if not admin
-  if (!user || (user && !profile) || !isAdmin) {
-    return <AdminLogin />;
-  }
-
-  // Test realtime connection
+  // Test realtime connection - moved before any returns
   useEffect(() => {
     const channel = supabase.channel('admin-realtime-test');
     
@@ -62,7 +49,7 @@ const Admin = () => {
     };
   }, []);
 
-  // Fetch dashboard statistics
+  // Fetch dashboard statistics - moved before any returns
   const { data: stats } = useQuery({
     queryKey: ['admin-stats'],
     queryFn: async () => {
@@ -84,8 +71,23 @@ const Admin = () => {
         pendingBookings: pendingBookings || 0,
         completedBookings: completedBookings || 0
       };
-    }
+    },
+    enabled: !loading && !!user && !!profile && isAdmin // Only run query when authenticated as admin
   });
+
+  // Check if user is admin - wait for both user and profile to load
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  // Show login if no user, or if user exists but profile hasn't loaded yet, or if not admin
+  if (!user || (user && !profile) || !isAdmin) {
+    return <AdminLogin />;
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
