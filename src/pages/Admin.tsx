@@ -1,122 +1,187 @@
 
 import React, { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { 
+  Users, 
+  Calendar, 
+  DollarSign, 
+  TrendingUp,
+  CheckCircle,
+  Clock,
+  AlertCircle
+} from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { BookingsList } from '@/components/admin/BookingsList';
+import { UsersList } from '@/components/admin/UsersList';
+import { ServicesList } from '@/components/admin/ServicesList';
+import { SystemStatusCard } from '@/components/admin/SystemStatusCard';
+import { SystemMonitoringDashboard } from '@/components/admin/SystemMonitoringDashboard';
 import { useAuth } from '@/hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
-import { AlertTriangle } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
-import { AdminSidebar } from '@/components/admin/AdminSidebar';
-import { AdminHeader } from '@/components/admin/AdminHeader';
-import { AdminLogin } from '@/components/admin/AdminLogin';
-import { DashboardStats } from '@/components/admin/DashboardStats';
-import { BookingsManager } from '@/components/admin/BookingsManager';
-import { WorkersManager } from '@/components/admin/WorkersManager';
-import { CustomersManager } from '@/components/admin/CustomersManager';
-import { ServicesManager } from '@/components/admin/ServicesManager';
-import { PaymentsManager } from '@/components/admin/PaymentsManager';
-import { ReviewsManager } from '@/components/admin/ReviewsManager';
-import PendingWorkersManager from '@/components/admin/PendingWorkersManager';
-import { SMSLogsManager } from '@/components/admin/SMSLogsManager';
-import { BlogManager } from '@/components/admin/BlogManager';
-import { AdminCalendarView } from '@/components/admin/AdminCalendarView';
-import { CoverageRequestsManager } from '@/components/admin/CoverageRequestsManager';
-import { InvoicesManager } from '@/components/admin/InvoicesManager';
-import { PerformanceDashboard } from '@/components/admin/PerformanceDashboard';
-import { DeploymentPanel } from '@/components/admin/DeploymentPanel';
+import { Navigate } from 'react-router-dom';
 
 const Admin = () => {
-  const { user, profile, loading } = useAuth();
-  const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const { user, loading } = useAuth();
+  const [isConnected, setIsConnected] = useState(false);
+  const [isCalendarConnected] = useState(false);
 
-  console.log('Admin page - Auth state:', { user: user?.email, profile: profile?.role, loading });
-
-  // Show loading while auth is being checked
+  // Check if user is admin
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
+    return <div>Loading...</div>;
   }
 
-  // Show login form if not authenticated
   if (!user) {
-    console.log('No user found, showing login form');
-    return <AdminLogin />;
+    return <Navigate to="/login" replace />;
   }
 
-  // Show access denied if not admin
-  if (profile && profile.role !== 'admin') {
-    console.log('User is not admin:', profile.role);
-    return (
-      <Card className="max-w-md mx-auto mt-8">
-        <CardContent className="pt-6">
-          <div className="text-center space-y-4">
-            <AlertTriangle className="h-12 w-12 text-red-400 mx-auto" />
-            <div>
-              <h3 className="text-lg font-medium text-gray-900">Access Denied</h3>
-              <p className="text-gray-600 mt-2">You are not authorized to view this page.</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  // Test realtime connection
+  useEffect(() => {
+    const channel = supabase.channel('admin-realtime-test');
+    
+    channel
+      .on('presence', { event: 'sync' }, () => {
+        setIsConnected(true);
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          setIsConnected(true);
+        } else {
+          setIsConnected(false);
+        }
+      });
 
-  // Show loading if we have a user but no profile yet
-  if (user && !profile) {
-    console.log('User exists but no profile loaded yet');
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
-  console.log('Rendering admin dashboard for:', user.email);
+  // Fetch dashboard statistics
+  const { data: stats } = useQuery({
+    queryKey: ['admin-stats'],
+    queryFn: async () => {
+      const [
+        { count: totalUsers },
+        { count: totalBookings },
+        { count: pendingBookings },
+        { count: completedBookings }
+      ] = await Promise.all([
+        supabase.from('users').select('*', { count: 'exact', head: true }),
+        supabase.from('bookings').select('*', { count: 'exact', head: true }),
+        supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'completed')
+      ]);
 
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'dashboard':
-        return <DashboardStats />;
-      case 'bookings':
-        return <BookingsManager />;
-      case 'customers':
-        return <CustomersManager />;
-      case 'workers':
-        return <WorkersManager />;
-      case 'services':
-        return <ServicesManager />;
-      case 'reviews':
-        return <ReviewsManager />;
-      case 'payments':
-        return <PaymentsManager />;
-      case 'invoices':
-        return <InvoicesManager />;
-      case 'sms':
-        return <SMSLogsManager />;
-      case 'blog':
-        return <BlogManager />;
-      case 'coverage':
-        return <CoverageRequestsManager />;
-      case 'performance':
-        return <PerformanceDashboard />;
-      case 'deployment':
-        return <DeploymentPanel />;
-      default:
-        return <DashboardStats />;
+      return {
+        totalUsers: totalUsers || 0,
+        totalBookings: totalBookings || 0,
+        pendingBookings: pendingBookings || 0,
+        completedBookings: completedBookings || 0
+      };
     }
-  };
+  });
 
   return (
-    <div className="min-h-screen bg-gray-50 flex w-full">
-      <AdminSidebar activeTab={activeTab} onTabChange={setActiveTab} />
-      <div className="flex-1 flex flex-col">
-        <AdminHeader />
-        <main className="flex-1 p-6">
-          {renderContent()}
-        </main>
+    <div className="container mx-auto px-4 py-8">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+        <p className="text-gray-600">Manage your TV mounting service business</p>
       </div>
+
+      {/* System Status */}
+      <div className="mb-8">
+        <SystemStatusCard 
+          isConnected={isConnected} 
+          isCalendarConnected={isCalendarConnected} 
+        />
+      </div>
+
+      {/* Quick Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.totalUsers || 0}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Bookings</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.totalBookings || 0}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending Bookings</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.pendingBookings || 0}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Completed</CardTitle>
+            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.completedBookings || 0}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Main Admin Tabs */}
+      <Tabs defaultValue="monitoring" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="monitoring">System Monitoring</TabsTrigger>
+          <TabsTrigger value="bookings">Bookings</TabsTrigger>
+          <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="services">Services</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="monitoring">
+          <SystemMonitoringDashboard />
+        </TabsContent>
+
+        <TabsContent value="bookings">
+          <BookingsList />
+        </TabsContent>
+
+        <TabsContent value="users">
+          <UsersList />
+        </TabsContent>
+
+        <TabsContent value="services">
+          <ServicesList />
+        </TabsContent>
+
+        <TabsContent value="analytics">
+          <Card>
+            <CardHeader>
+              <CardTitle>Business Analytics</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8">
+                <TrendingUp className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500">Analytics dashboard coming soon...</p>
+                <p className="text-sm text-gray-400">Track revenue, customer satisfaction, and business growth metrics</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

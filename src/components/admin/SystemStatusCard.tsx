@@ -2,10 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Database, Wifi, WifiOff, Calendar } from 'lucide-react';
+import { Database, Wifi, WifiOff, Calendar, Activity } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { useEdgeFunctionMonitoring } from '@/hooks/useEdgeFunctionMonitoring';
 
 interface SystemStatusCardProps {
   isConnected: boolean;
@@ -17,6 +18,9 @@ export const SystemStatusCard = ({ isConnected, isCalendarConnected }: SystemSta
   const [realtimeTestResult, setRealtimeTestResult] = useState('');
   const { user } = useAuth();
   const { toast } = useToast();
+  const { metrics, getSystemHealth } = useEdgeFunctionMonitoring();
+
+  const systemHealth = getSystemHealth();
 
   useEffect(() => {
     testDatabaseConnection();
@@ -136,7 +140,7 @@ export const SystemStatusCard = ({ isConnected, isCalendarConnected }: SystemSta
         <CardTitle className="text-slate-800">System Status & Testing</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="flex items-center space-x-2">
             <Database className={`h-5 w-5 ${dbConnectionStatus === 'connected' ? 'text-green-600' : dbConnectionStatus === 'error' ? 'text-red-600' : 'text-yellow-600'}`} />
             <span className="text-sm">
@@ -177,6 +181,13 @@ export const SystemStatusCard = ({ isConnected, isCalendarConnected }: SystemSta
               Calendar: {isCalendarConnected ? '✅ Synced' : '⭕ Not connected'}
             </span>
           </div>
+
+          <div className="flex items-center space-x-2">
+            <Activity className={`h-5 w-5 ${systemHealth.status === 'healthy' ? 'text-green-600' : 'text-red-600'}`} />
+            <span className="text-sm">
+              Functions: {systemHealth.healthPercentage}% healthy
+            </span>
+          </div>
         </div>
 
         {realtimeTestResult && (
@@ -184,6 +195,14 @@ export const SystemStatusCard = ({ isConnected, isCalendarConnected }: SystemSta
             <p className="text-sm text-slate-700">{realtimeTestResult}</p>
           </div>
         )}
+
+        <div className="mt-4 p-3 bg-blue-50 rounded-md">
+          <p className="text-sm text-blue-800 font-medium">Edge Functions Status:</p>
+          <p className="text-sm text-blue-700">
+            {metrics.healthyFunctions}/{metrics.totalFunctions} functions healthy
+            {metrics.averageResponseTime > 0 && ` • ${metrics.averageResponseTime}ms avg response time`}
+          </p>
+        </div>
       </CardContent>
     </Card>
   );
