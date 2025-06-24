@@ -13,51 +13,10 @@ export const useWorkerAvailability = () => {
     '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'
   ];
 
-  const fetchWorkerAvailability = async (date: Date, zipcode: string, serviceDurationMinutes: number = 60) => {
+  const fetchWorkerAvailability = async (date: Date, zipcode: string) => {
     if (!zipcode || !date) return;
     
     setLoading(true);
-    try {
-      const dateStr = format(date, 'yyyy-MM-dd');
-      
-      // Use the new enhanced availability function
-      const { data: availabilityData, error } = await supabase.rpc('get_available_time_slots', {
-        p_zipcode: zipcode,
-        p_date: dateStr,
-        p_service_duration_minutes: serviceDurationMinutes
-      });
-
-      if (error) {
-        console.error('Error fetching availability:', error);
-        // Fallback to old method if RPC fails
-        await fetchWorkerAvailabilityFallback(date, zipcode);
-        return;
-      }
-
-      if (availabilityData && availabilityData.length > 0) {
-        const available = availabilityData.map((slot: any) => slot.time_slot);
-        const totalWorkers = Math.max(...availabilityData.map((slot: any) => slot.available_workers));
-        
-        setAvailableSlots(available);
-        setBlockedSlots(timeSlots.filter(slot => !available.includes(slot)));
-        setWorkerCount(totalWorkers);
-      } else {
-        // No available slots
-        setAvailableSlots([]);
-        setBlockedSlots(timeSlots);
-        setWorkerCount(0);
-      }
-    } catch (error) {
-      console.error('Error fetching worker availability:', error);
-      // Fallback to old method
-      await fetchWorkerAvailabilityFallback(date, zipcode);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Fallback method using the old logic for backward compatibility
-  const fetchWorkerAvailabilityFallback = async (date: Date, zipcode: string) => {
     try {
       const dateStr = format(date, 'yyyy-MM-dd');
       
@@ -104,10 +63,9 @@ export const useWorkerAvailability = () => {
       setBlockedSlots(blocked);
       setAvailableSlots(timeSlots.filter(slot => !blocked.includes(slot)));
     } catch (error) {
-      console.error('Error in fallback availability check:', error);
-      setAvailableSlots(timeSlots);
-      setBlockedSlots([]);
-      setWorkerCount(0);
+      console.error('Error fetching worker availability:', error);
+    } finally {
+      setLoading(false);
     }
   };
 

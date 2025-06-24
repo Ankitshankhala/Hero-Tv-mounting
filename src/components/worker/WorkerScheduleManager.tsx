@@ -7,8 +7,6 @@ import { ScheduleCalendar } from './schedule/ScheduleCalendar';
 import { ScheduleList } from './schedule/ScheduleList';
 import { ScheduleFormModal } from './schedule/ScheduleFormModal';
 import { ScheduleConnectionStatus } from './schedule/ScheduleConnectionStatus';
-import { WeeklyAvailabilityManager } from './WeeklyAvailabilityManager';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface WorkerScheduleManagerProps {
   onScheduleUpdate?: () => void;
@@ -157,37 +155,24 @@ const WorkerScheduleManager = ({ onScheduleUpdate, workerId }: WorkerScheduleMan
     <div className="w-full max-w-7xl mx-auto">
       <ScheduleConnectionStatus isOnline={enhancedIsOnline} fetchError={fetchError} />
 
-      <Tabs defaultValue="daily" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="daily">Daily Schedule</TabsTrigger>
-          <TabsTrigger value="weekly">Weekly Availability</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="daily" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <ScheduleCalendar
-              selectedDate={selectedDate}
-              onDateSelect={setSelectedDate}
-              isOnline={enhancedIsOnline}
-            />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <ScheduleCalendar
+          selectedDate={selectedDate}
+          onDateSelect={setSelectedDate}
+          isOnline={enhancedIsOnline}
+        />
 
-            <ScheduleList
-              selectedDate={selectedDate}
-              schedules={schedules}
-              fetchError={fetchError}
-              isOnline={enhancedIsOnline}
-              onAddSchedule={canEdit ? handleAddSchedule : undefined}
-              onEditSchedule={canEdit ? handleEditSchedule : undefined}
-              onDeleteSchedule={canEdit ? handleDeleteSchedule : undefined}
-              onRetryLoad={() => loadSchedulesForDate(selectedDate)}
-            />
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="weekly">
-          <WeeklyAvailabilityManager workerId={workerId} />
-        </TabsContent>
-      </Tabs>
+        <ScheduleList
+          selectedDate={selectedDate}
+          schedules={schedules}
+          fetchError={fetchError}
+          isOnline={enhancedIsOnline}
+          onAddSchedule={canEdit ? handleAddSchedule : undefined}
+          onEditSchedule={canEdit ? handleEditSchedule : undefined}
+          onDeleteSchedule={canEdit ? handleDeleteSchedule : undefined}
+          onRetryLoad={() => loadSchedulesForDate(selectedDate)}
+        />
+      </div>
 
       {canEdit && (
         <ScheduleFormModal

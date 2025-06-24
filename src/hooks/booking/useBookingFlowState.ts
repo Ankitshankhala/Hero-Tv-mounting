@@ -10,30 +10,12 @@ export const useBookingFlowState = (selectedServices: ServiceItem[] = []) => {
   const workerAvailability = useWorkerAvailability();
   const bookingOperations = useBookingOperations();
 
-  // Calculate total service duration from selected services
-  const getTotalServiceDuration = () => {
-    // If services have duration, sum them up, otherwise default to 60 minutes
-    const totalDuration = formState.services.reduce((total, service) => {
-      // Assuming each service takes about 60 minutes by default
-      // This could be enhanced to read from service metadata
-      const serviceDuration = service.quantity * 60; // 60 minutes per service
-      return total + serviceDuration;
-    }, 0);
-    
-    return Math.max(totalDuration, 60); // Minimum 60 minutes
-  };
-
   // Fetch worker availability when date/zipcode changes
   useEffect(() => {
     if (formState.formData.selectedDate && formState.formData.zipcode) {
-      const serviceDuration = getTotalServiceDuration();
-      workerAvailability.fetchWorkerAvailability(
-        formState.formData.selectedDate, 
-        formState.formData.zipcode,
-        serviceDuration
-      );
+      workerAvailability.fetchWorkerAvailability(formState.formData.selectedDate, formState.formData.zipcode);
     }
-  }, [formState.formData.selectedDate, formState.formData.zipcode, formState.services.length]);
+  }, [formState.formData.selectedDate, formState.formData.zipcode]);
 
   // Trigger success animation
   useEffect(() => {
@@ -53,7 +35,6 @@ export const useBookingFlowState = (selectedServices: ServiceItem[] = []) => {
     ...formState,
     ...workerAvailability,
     ...bookingOperations,
-    handleBookingSubmit,
-    getTotalServiceDuration
+    handleBookingSubmit
   };
 };

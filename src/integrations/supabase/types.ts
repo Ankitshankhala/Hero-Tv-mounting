@@ -895,28 +895,12 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
-      get_available_time_slots: {
-        Args: {
-          p_zipcode: string
-          p_date: string
-          p_service_duration_minutes?: number
-        }
-        Returns: {
-          time_slot: string
-          available_workers: number
-          worker_ids: string[]
-        }[]
-      }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: string
       }
       respond_to_coverage_request: {
         Args: { p_notification_id: string; p_response: string }
-        Returns: boolean
-      }
-      set_worker_weekly_availability: {
-        Args: { p_worker_id: string; p_availability: Json }
         Returns: boolean
       }
     }

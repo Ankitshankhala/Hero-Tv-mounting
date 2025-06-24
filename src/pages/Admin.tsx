@@ -1,64 +1,36 @@
 
 import React, { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { 
-  Users, 
-  Calendar, 
-  DollarSign, 
-  TrendingUp,
-  CheckCircle,
-  Clock,
-  AlertCircle,
-  Settings,
-  Star,
-  CreditCard,
-  FileText,
-  MessageSquare,
-  MapPin,
-  Wrench
-} from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
+import { AlertTriangle } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { AdminSidebar } from '@/components/admin/AdminSidebar';
+import { AdminHeader } from '@/components/admin/AdminHeader';
+import { AdminLogin } from '@/components/admin/AdminLogin';
+import { DashboardStats } from '@/components/admin/DashboardStats';
 import { BookingsManager } from '@/components/admin/BookingsManager';
+import { WorkersManager } from '@/components/admin/WorkersManager';
 import { CustomersManager } from '@/components/admin/CustomersManager';
 import { ServicesManager } from '@/components/admin/ServicesManager';
+import { PaymentsManager } from '@/components/admin/PaymentsManager';
+import { ReviewsManager } from '@/components/admin/ReviewsManager';
+import PendingWorkersManager from '@/components/admin/PendingWorkersManager';
+import { SMSLogsManager } from '@/components/admin/SMSLogsManager';
+import { BlogManager } from '@/components/admin/BlogManager';
+import { AdminCalendarView } from '@/components/admin/AdminCalendarView';
 import { CoverageRequestsManager } from '@/components/admin/CoverageRequestsManager';
-import { AdminLogin } from '@/components/admin/AdminLogin';
-import { useAuth } from '@/hooks/useAuth';
+import { InvoicesManager } from '@/components/admin/InvoicesManager';
+import { PerformanceDashboard } from '@/components/admin/PerformanceDashboard';
+import { DeploymentPanel } from '@/components/admin/DeploymentPanel';
 
 const Admin = () => {
-  const { user, loading, isAdmin, profile } = useAuth();
+  const { user, profile, loading } = useAuth();
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('dashboard');
 
-  // Fetch dashboard statistics
-  const { data: stats } = useQuery({
-    queryKey: ['admin-stats'],
-    queryFn: async () => {
-      const [
-        { count: totalUsers },
-        { count: totalBookings },
-        { count: pendingBookings },
-        { count: completedBookings }
-      ] = await Promise.all([
-        supabase.from('users').select('*', { count: 'exact', head: true }),
-        supabase.from('bookings').select('*', { count: 'exact', head: true }),
-        supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-        supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'completed')
-      ]);
+  console.log('Admin page - Auth state:', { user: user?.email, profile: profile?.role, loading });
 
-      return {
-        totalUsers: totalUsers || 0,
-        totalBookings: totalBookings || 0,
-        pendingBookings: pendingBookings || 0,
-        completedBookings: completedBookings || 0
-      };
-    },
-    enabled: !loading && !!user && !!profile && isAdmin
-  });
-
-  // Check if user is admin
+  // Show loading while auth is being checked
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -67,142 +39,84 @@ const Admin = () => {
     );
   }
 
-  if (!user || (user && !profile) || !isAdmin) {
+  // Show login form if not authenticated
+  if (!user) {
+    console.log('No user found, showing login form');
     return <AdminLogin />;
   }
 
+  // Show access denied if not admin
+  if (profile && profile.role !== 'admin') {
+    console.log('User is not admin:', profile.role);
+    return (
+      <Card className="max-w-md mx-auto mt-8">
+        <CardContent className="pt-6">
+          <div className="text-center space-y-4">
+            <AlertTriangle className="h-12 w-12 text-red-400 mx-auto" />
+            <div>
+              <h3 className="text-lg font-medium text-gray-900">Access Denied</h3>
+              <p className="text-gray-600 mt-2">You are not authorized to view this page.</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Show loading if we have a user but no profile yet
+  if (user && !profile) {
+    console.log('User exists but no profile loaded yet');
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  console.log('Rendering admin dashboard for:', user.email);
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'dashboard':
+        return <DashboardStats />;
+      case 'bookings':
+        return <BookingsManager />;
+      case 'customers':
+        return <CustomersManager />;
+      case 'workers':
+        return <WorkersManager />;
+      case 'services':
+        return <ServicesManager />;
+      case 'reviews':
+        return <ReviewsManager />;
+      case 'payments':
+        return <PaymentsManager />;
+      case 'invoices':
+        return <InvoicesManager />;
+      case 'sms':
+        return <SMSLogsManager />;
+      case 'blog':
+        return <BlogManager />;
+      case 'coverage':
+        return <CoverageRequestsManager />;
+      case 'performance':
+        return <PerformanceDashboard />;
+      case 'deployment':
+        return <DeploymentPanel />;
+      default:
+        return <DashboardStats />;
+    }
+  };
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-        <p className="text-gray-600">Manage your TV mounting service business</p>
+    <div className="min-h-screen bg-gray-50 flex w-full">
+      <AdminSidebar activeTab={activeTab} onTabChange={setActiveTab} />
+      <div className="flex-1 flex flex-col">
+        <AdminHeader />
+        <main className="flex-1 p-6">
+          {renderContent()}
+        </main>
       </div>
-
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.totalUsers || 0}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Bookings</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.totalBookings || 0}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Bookings</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.pendingBookings || 0}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completed</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.completedBookings || 0}</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Main Admin Tabs */}
-      <Tabs defaultValue="bookings" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-7">
-          <TabsTrigger value="bookings">Bookings</TabsTrigger>
-          <TabsTrigger value="customers">Customers</TabsTrigger>
-          <TabsTrigger value="workers">Workers</TabsTrigger>
-          <TabsTrigger value="services">Services</TabsTrigger>
-          <TabsTrigger value="coverage">Coverage</TabsTrigger>
-          <TabsTrigger value="payments">Payments</TabsTrigger>
-          <TabsTrigger value="reports">Reports</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="bookings">
-          <BookingsManager />
-        </TabsContent>
-
-        <TabsContent value="customers">
-          <CustomersManager />
-        </TabsContent>
-
-        <TabsContent value="workers">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Wrench className="h-5 w-5" />
-                <span>Workers Management</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8">
-                <Wrench className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">Workers management coming soon...</p>
-                <p className="text-sm text-gray-400">Manage worker profiles, availability, and assignments</p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="services">
-          <ServicesManager />
-        </TabsContent>
-
-        <TabsContent value="coverage">
-          <CoverageRequestsManager />
-        </TabsContent>
-
-        <TabsContent value="payments">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <CreditCard className="h-5 w-5" />
-                <span>Payments Management</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8">
-                <CreditCard className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">Payments dashboard coming soon...</p>
-                <p className="text-sm text-gray-400">Track payments, refunds, and financial reports</p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="reports">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <TrendingUp className="h-5 w-5" />
-                <span>Reports & Analytics</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8">
-                <TrendingUp className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">Reports dashboard coming soon...</p>
-                <p className="text-sm text-gray-400">View business analytics, revenue reports, and performance metrics</p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
     </div>
   );
 };
