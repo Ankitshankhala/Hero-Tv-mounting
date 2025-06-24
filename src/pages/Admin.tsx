@@ -20,21 +20,25 @@ import { CustomersManager } from '@/components/admin/CustomersManager';
 import { ServicesManager } from '@/components/admin/ServicesManager';
 import { SystemStatusCard } from '@/components/admin/SystemStatusCard';
 import { SystemMonitoringDashboard } from '@/components/admin/SystemMonitoringDashboard';
+import { AdminLogin } from '@/components/admin/AdminLogin';
 import { useAuth } from '@/hooks/useAuth';
-import { Navigate } from 'react-router-dom';
 
 const Admin = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, isAdmin } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
   const [isCalendarConnected] = useState(false);
 
   // Check if user is admin
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
   }
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
+  if (!user || !isAdmin) {
+    return <AdminLogin />;
   }
 
   // Test realtime connection
