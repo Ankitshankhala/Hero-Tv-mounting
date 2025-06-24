@@ -149,9 +149,15 @@ export const EdgeFunctionMonitor = () => {
             </TabsList>
             
             <TabsContent value="all" className="space-y-2">
-              {functionStatuses.map((func) => (
-                <FunctionStatusCard key={func.name} function={func} />
-              ))}
+              {functionStatuses.length > 0 ? (
+                functionStatuses.map((func) => (
+                  <FunctionStatusCard key={func.name} function={func} />
+                ))
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  No function data available. Click "Refresh All" to check function status.
+                </div>
+              )}
             </TabsContent>
             
             <TabsContent value="healthy" className="space-y-2">
@@ -183,6 +189,11 @@ interface FunctionStatusCardProps {
 }
 
 const FunctionStatusCard = ({ function: func }: FunctionStatusCardProps) => {
+  // Add safety check to prevent undefined access
+  if (!func) {
+    return null;
+  }
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'healthy':
