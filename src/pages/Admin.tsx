@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,11 +23,11 @@ import { AdminLogin } from '@/components/admin/AdminLogin';
 import { useAuth } from '@/hooks/useAuth';
 
 const Admin = () => {
-  const { user, loading, isAdmin } = useAuth();
+  const { user, loading, isAdmin, profile } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
   const [isCalendarConnected] = useState(false);
 
-  // Check if user is admin
+  // Check if user is admin - wait for both user and profile to load
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -37,7 +36,8 @@ const Admin = () => {
     );
   }
 
-  if (!user || !isAdmin) {
+  // Show login if no user, or if user exists but profile hasn't loaded yet, or if not admin
+  if (!user || (user && !profile) || !isAdmin) {
     return <AdminLogin />;
   }
 
