@@ -15,9 +15,9 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { BookingsList } from '@/components/admin/BookingsList';
-import { UsersList } from '@/components/admin/UsersList';
-import { ServicesList } from '@/components/admin/ServicesList';
+import { BookingsManager } from '@/components/admin/BookingsManager';
+import { CustomersManager } from '@/components/admin/CustomersManager';
+import { ServicesManager } from '@/components/admin/ServicesManager';
 import { SystemStatusCard } from '@/components/admin/SystemStatusCard';
 import { SystemMonitoringDashboard } from '@/components/admin/SystemMonitoringDashboard';
 import { useAuth } from '@/hooks/useAuth';
@@ -156,15 +156,15 @@ const Admin = () => {
         </TabsContent>
 
         <TabsContent value="bookings">
-          <BookingsList />
+          <BookingsManager />
         </TabsContent>
 
         <TabsContent value="users">
-          <UsersList />
+          <CustomersManager />
         </TabsContent>
 
         <TabsContent value="services">
-          <ServicesList />
+          <ServicesManager />
         </TabsContent>
 
         <TabsContent value="analytics">
