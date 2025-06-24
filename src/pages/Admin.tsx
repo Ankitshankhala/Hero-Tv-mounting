@@ -18,38 +18,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { BookingsManager } from '@/components/admin/BookingsManager';
 import { CustomersManager } from '@/components/admin/CustomersManager';
 import { ServicesManager } from '@/components/admin/ServicesManager';
-import { SystemStatusCard } from '@/components/admin/SystemStatusCard';
-import { SystemMonitoringDashboard } from '@/components/admin/SystemMonitoringDashboard';
 import { AdminLogin } from '@/components/admin/AdminLogin';
 import { useAuth } from '@/hooks/useAuth';
 
 const Admin = () => {
   const { user, loading, isAdmin, profile } = useAuth();
-  const [isConnected, setIsConnected] = useState(false);
-  const [isCalendarConnected] = useState(false);
 
-  // Test realtime connection - moved before any returns
-  useEffect(() => {
-    const channel = supabase.channel('admin-realtime-test');
-    
-    channel
-      .on('presence', { event: 'sync' }, () => {
-        setIsConnected(true);
-      })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          setIsConnected(true);
-        } else {
-          setIsConnected(false);
-        }
-      });
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  // Fetch dashboard statistics - moved before any returns
+  // Fetch dashboard statistics
   const { data: stats } = useQuery({
     queryKey: ['admin-stats'],
     queryFn: async () => {
@@ -72,10 +47,10 @@ const Admin = () => {
         completedBookings: completedBookings || 0
       };
     },
-    enabled: !loading && !!user && !!profile && isAdmin // Only run query when authenticated as admin
+    enabled: !loading && !!user && !!profile && isAdmin
   });
 
-  // Check if user is admin - wait for both user and profile to load
+  // Check if user is admin
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -84,7 +59,6 @@ const Admin = () => {
     );
   }
 
-  // Show login if no user, or if user exists but profile hasn't loaded yet, or if not admin
   if (!user || (user && !profile) || !isAdmin) {
     return <AdminLogin />;
   }
@@ -94,14 +68,6 @@ const Admin = () => {
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
         <p className="text-gray-600">Manage your TV mounting service business</p>
-      </div>
-
-      {/* System Status */}
-      <div className="mb-8">
-        <SystemStatusCard 
-          isConnected={isConnected} 
-          isCalendarConnected={isCalendarConnected} 
-        />
       </div>
 
       {/* Quick Stats */}
@@ -148,18 +114,12 @@ const Admin = () => {
       </div>
 
       {/* Main Admin Tabs */}
-      <Tabs defaultValue="monitoring" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="monitoring">System Monitoring</TabsTrigger>
+      <Tabs defaultValue="bookings" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="bookings">Bookings</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="services">Services</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="monitoring">
-          <SystemMonitoringDashboard />
-        </TabsContent>
 
         <TabsContent value="bookings">
           <BookingsManager />
@@ -171,21 +131,6 @@ const Admin = () => {
 
         <TabsContent value="services">
           <ServicesManager />
-        </TabsContent>
-
-        <TabsContent value="analytics">
-          <Card>
-            <CardHeader>
-              <CardTitle>Business Analytics</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8">
-                <TrendingUp className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">Analytics dashboard coming soon...</p>
-                <p className="text-sm text-gray-400">Track revenue, customer satisfaction, and business growth metrics</p>
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
       </Tabs>
     </div>
