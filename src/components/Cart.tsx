@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { ShoppingCart, X, Calendar } from 'lucide-react';
+import { ShoppingCart, X, Calendar, AlertCircle } from 'lucide-react';
 import { CartItem } from '@/types';
 
 interface CartProps {
@@ -11,7 +11,12 @@ interface CartProps {
   highlightedItemId?: string | null;
 }
 
+const MINIMUM_BOOKING_AMOUNT = 75;
+
 export const Cart: React.FC<CartProps> = ({ items, total, onRemoveItem, onBook, highlightedItemId }) => {
+  const isMinimumMet = total >= MINIMUM_BOOKING_AMOUNT;
+  const amountNeeded = MINIMUM_BOOKING_AMOUNT - total;
+
   return (
     <div className="fixed bottom-4 right-4 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl max-w-sm w-full mx-4 z-40 animate-fade-in">
       <div className="p-4">
@@ -61,12 +66,30 @@ export const Cart: React.FC<CartProps> = ({ items, total, onRemoveItem, onBook, 
               ${total}
             </span>
           </div>
+
+          {!isMinimumMet && items.length > 0 && (
+            <div className="mb-4 p-3 bg-orange-900/30 border border-orange-500/50 rounded-lg">
+              <div className="flex items-center space-x-2 mb-2">
+                <AlertCircle className="h-4 w-4 text-orange-400" />
+                <span className="text-sm font-medium text-orange-300">Minimum Required</span>
+              </div>
+              <p className="text-xs text-orange-200">
+                Your cart total is ${total}. Please add ${amountNeeded} more to reach the minimum booking amount of ${MINIMUM_BOOKING_AMOUNT}.
+              </p>
+            </div>
+          )}
+
           <button
             onClick={onBook}
-            className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg transition-all duration-200 hover:scale-105 hover:shadow-lg flex items-center justify-center space-x-2"
+            disabled={!isMinimumMet}
+            className={`w-full font-semibold py-3 rounded-lg transition-all duration-200 flex items-center justify-center space-x-2 ${
+              isMinimumMet
+                ? 'bg-green-600 hover:bg-green-700 text-white hover:scale-105 hover:shadow-lg'
+                : 'bg-slate-600 text-slate-400 cursor-not-allowed opacity-50'
+            }`}
           >
             <Calendar className="h-4 w-4" />
-            <span>Book Service</span>
+            <span>{isMinimumMet ? 'Book Service' : `Add $${amountNeeded} to Book`}</span>
           </button>
         </div>
       </div>

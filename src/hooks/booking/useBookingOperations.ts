@@ -6,6 +6,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { ServiceItem, FormData } from './types';
 
+const MINIMUM_BOOKING_AMOUNT = 75;
+
 export const useBookingOperations = () => {
   const [loading, setLoading] = useState(false);
   const [bookingId, setBookingId] = useState<string>('');
@@ -16,9 +18,30 @@ export const useBookingOperations = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
+  const validateMinimumCart = (services: ServiceItem[]): boolean => {
+    const total = services.reduce((sum, service) => sum + (service.price * service.quantity), 0);
+    
+    if (total < MINIMUM_BOOKING_AMOUNT) {
+      const amountNeeded = MINIMUM_BOOKING_AMOUNT - total;
+      toast({
+        title: "Minimum Booking Amount Required",
+        description: `Your cart total is $${total}. Please add $${amountNeeded} more to reach the minimum booking amount of $${MINIMUM_BOOKING_AMOUNT}.`,
+        variant: "destructive",
+      });
+      return false;
+    }
+    
+    return true;
+  };
+
   const handleBookingSubmit = async (services: ServiceItem[], formData: FormData) => {
     try {
       setLoading(true);
+
+      // Validate minimum cart amount first
+      if (!validateMinimumCart(services)) {
+        return; // Stop execution if validation fails
+      }
 
       const primaryServiceId = services.length > 0 ? services[0].id : null;
       
@@ -123,6 +146,8 @@ export const useBookingOperations = () => {
     successAnimation,
     setSuccessAnimation,
     handleBookingSubmit,
-    user
+    validateMinimumCart,
+    user,
+    MINIMUM_BOOKING_AMOUNT
   };
 };

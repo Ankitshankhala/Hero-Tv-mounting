@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react';
 import { ServiceItem, FormData } from './types';
 
+const MINIMUM_BOOKING_AMOUNT = 75;
+
 export const useBookingFormState = (selectedServices: ServiceItem[] = []) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [services, setServices] = useState<ServiceItem[]>(selectedServices);
@@ -39,6 +41,14 @@ export const useBookingFormState = (selectedServices: ServiceItem[] = []) => {
     return services.reduce((total, service) => total + (service.price * service.quantity), 0);
   };
 
+  const isMinimumCartMet = () => {
+    return getTotalPrice() >= MINIMUM_BOOKING_AMOUNT;
+  };
+
+  const getAmountNeeded = () => {
+    return Math.max(0, MINIMUM_BOOKING_AMOUNT - getTotalPrice());
+  };
+
   const handleZipcodeChange = (zipcode: string, cityState?: string) => {
     setFormData(prev => ({ ...prev, zipcode }));
     
@@ -52,7 +62,7 @@ export const useBookingFormState = (selectedServices: ServiceItem[] = []) => {
     }
   };
 
-  const isStep1Valid = services.length > 0;
+  const isStep1Valid = services.length > 0 && isMinimumCartMet();
   const isStep2Valid = formData.customerName && formData.customerEmail && formData.customerPhone && formData.address && formData.zipcode;
   const isStep3Valid = formData.selectedDate && formData.selectedTime;
 
@@ -66,9 +76,12 @@ export const useBookingFormState = (selectedServices: ServiceItem[] = []) => {
     updateServiceQuantity,
     removeService,
     getTotalPrice,
+    isMinimumCartMet,
+    getAmountNeeded,
     handleZipcodeChange,
     isStep1Valid,
     isStep2Valid,
-    isStep3Valid
+    isStep3Valid,
+    MINIMUM_BOOKING_AMOUNT
   };
 };

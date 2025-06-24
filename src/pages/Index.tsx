@@ -11,12 +11,16 @@ import { BlogSection } from '@/components/BlogSection';
 import { Cart } from '@/components/Cart';
 import { EnhancedInlineBookingFlow } from '@/components/EnhancedInlineBookingFlow';
 import { CartItem } from '@/types';
+import { useToast } from '@/hooks/use-toast';
+
+const MINIMUM_BOOKING_AMOUNT = 75;
 
 const Index = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showBookingFlow, setShowBookingFlow] = useState(false);
   const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const addToCart = (item: CartItem) => {
     setCart(prev => {
@@ -45,6 +49,18 @@ const Index = () => {
   };
 
   const handleBookService = () => {
+    const total = getTotalPrice();
+    
+    if (total < MINIMUM_BOOKING_AMOUNT) {
+      const amountNeeded = MINIMUM_BOOKING_AMOUNT - total;
+      toast({
+        title: "Minimum Booking Amount Required",
+        description: `Your cart total is $${total}. Please add $${amountNeeded} more to reach the minimum booking amount of $${MINIMUM_BOOKING_AMOUNT}.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (cart.length > 0) {
       setShowBookingFlow(true);
     }

@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { X, ArrowRight, Shield } from 'lucide-react';
+import { X, ArrowRight, Shield, AlertCircle } from 'lucide-react';
 import { CalendarIcon } from 'lucide-react';
 import { PaymentAuthorizationForm } from '@/components/payment/PaymentAuthorizationForm';
 import { useBookingFlowState } from '@/hooks/booking/useBookingFlowState';
@@ -26,6 +26,8 @@ interface EnhancedInlineBookingFlowProps {
   onSubmit?: (data: any) => void;
   selectedServices?: ServiceItem[];
 }
+
+const MINIMUM_BOOKING_AMOUNT = 75;
 
 export const EnhancedInlineBookingFlow = ({ 
   isOpen, 
@@ -61,8 +63,20 @@ export const EnhancedInlineBookingFlow = ({
   } = useBookingFlowState(selectedServices);
 
   const { toast } = useToast();
+  
+  const isMinimumCartMet = getTotalPrice() >= MINIMUM_BOOKING_AMOUNT;
+  const amountNeeded = MINIMUM_BOOKING_AMOUNT - getTotalPrice();
 
   const handleNextStep = () => {
+    if (currentStep === 1 && !isMinimumCartMet) {
+      toast({
+        title: "Minimum Booking Amount Required",
+        description: `Your cart total is $${getTotalPrice()}. Please add $${amountNeeded} more to reach the minimum booking amount of $${MINIMUM_BOOKING_AMOUNT}.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    
     if (currentStep < 4) {
       setCurrentStep(currentStep + 1);
     }
@@ -75,6 +89,15 @@ export const EnhancedInlineBookingFlow = ({
   };
 
   const handleScheduleToPayment = async () => {
+    if (!isMinimumCartMet) {
+      toast({
+        title: "Minimum Booking Amount Required",
+        description: `Your cart total is $${getTotalPrice()}. Please add $${amountNeeded} more to reach the minimum booking amount of $${MINIMUM_BOOKING_AMOUNT}.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     console.log('Creating booking before payment step...');
     try {
       await handleBookingSubmit();
@@ -162,12 +185,26 @@ export const EnhancedInlineBookingFlow = ({
             <div className="p-4 sm:p-6 space-y-6">
               {/* Step 1: Service Configuration */}
               {currentStep === 1 && (
-                <ServiceConfigurationStep
-                  services={services}
-                  updateServiceQuantity={updateServiceQuantity}
-                  removeService={removeService}
-                  getTotalPrice={getTotalPrice}
-                />
+                <div className="space-y-6">
+                  <ServiceConfigurationStep
+                    services={services}
+                    updateServiceQuantity={updateServiceQuantity}
+                    removeService={removeService}
+                    getTotalPrice={getTotalPrice}
+                  />
+                  
+                  {!isMinimumCartMet && services.length > 0 && (
+                    <div className="p-4 bg-orange-900/20 border border-orange-500/30 rounded-lg">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <AlertCircle className="h-5 w-5 text-orange-400" />
+                        <span className="font-medium text-orange-300">Minimum Booking Amount Required</span>
+                      </div>
+                      <p className="text-orange-200">
+                        Your cart total is ${getTotalPrice()}. Please add ${amountNeeded} more to reach the minimum booking amount of ${MINIMUM_BOOKING_AMOUNT}.
+                      </p>
+                    </div>
+                  )}
+                </div>
               )}
 
               {/* Step 2: Contact & Location */}
@@ -199,7 +236,19 @@ export const EnhancedInlineBookingFlow = ({
                     <p className="text-slate-300">Authorize payment - you'll only be charged after service completion</p>
                   </div>
 
-                  {bookingId ? (
+                  {!isMinimumCartMet && (
+                    <div className="p-4 bg-red-900/20 border border-red-500/30 rounded-lg">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <AlertCircle className="h-5 w-5 text-red-400" />
+                        <span className="font-medium text-red-300">Cannot Process Payment</span>
+                      </div>
+                      <p className="text-red-200">
+                        Your cart total is ${getTotalPrice()}. Please add ${amountNeeded} more to reach the minimum booking amount of ${MINIMUM_BOOKING_AMOUNT}.
+                      </p>
+                    </div>
+                  )}
+
+                  {bookingId && isMinimumCartMet ? (
                     <PaymentAuthorizationForm
                       amount={getTotalPrice()}
                       bookingId={bookingId}
@@ -240,7 +289,7 @@ export const EnhancedInlineBookingFlow = ({
                     <Button
                       onClick={handleNextStep}
                       disabled={
-                        (currentStep === 1 && !isStep1Valid) ||
+                        (currentStep === 1 && (!isStep1Valid || !isMinimumCartMet)) ||
                         (currentStep === 2 && !isStep2Valid) ||
                         loading
                       }
@@ -263,7 +312,7 @@ export const EnhancedInlineBookingFlow = ({
                   {currentStep === 3 && (
                     <Button
                       onClick={handleScheduleToPayment}
-                      disabled={!isStep3Valid || loading}
+                      disabled={!isStep3Valid || !isMinimumCartMet || loading}
                       className="flex-1 sm:flex-none bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 text-white border-0"
                     >
                       {loading ? (
