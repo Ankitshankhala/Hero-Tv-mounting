@@ -12,12 +12,20 @@ import {
   TrendingUp,
   CheckCircle,
   Clock,
-  AlertCircle
+  AlertCircle,
+  Settings,
+  Star,
+  CreditCard,
+  FileText,
+  MessageSquare,
+  MapPin,
+  Wrench
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { BookingsManager } from '@/components/admin/BookingsManager';
 import { CustomersManager } from '@/components/admin/CustomersManager';
 import { ServicesManager } from '@/components/admin/ServicesManager';
+import { CoverageRequestsManager } from '@/components/admin/CoverageRequestsManager';
 import { AdminLogin } from '@/components/admin/AdminLogin';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -115,22 +123,84 @@ const Admin = () => {
 
       {/* Main Admin Tabs */}
       <Tabs defaultValue="bookings" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="bookings">Bookings</TabsTrigger>
-          <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="customers">Customers</TabsTrigger>
+          <TabsTrigger value="workers">Workers</TabsTrigger>
           <TabsTrigger value="services">Services</TabsTrigger>
+          <TabsTrigger value="coverage">Coverage</TabsTrigger>
+          <TabsTrigger value="payments">Payments</TabsTrigger>
+          <TabsTrigger value="reports">Reports</TabsTrigger>
         </TabsList>
 
         <TabsContent value="bookings">
           <BookingsManager />
         </TabsContent>
 
-        <TabsContent value="users">
+        <TabsContent value="customers">
           <CustomersManager />
+        </TabsContent>
+
+        <TabsContent value="workers">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Wrench className="h-5 w-5" />
+                <span>Workers Management</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8">
+                <Wrench className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500">Workers management coming soon...</p>
+                <p className="text-sm text-gray-400">Manage worker profiles, availability, and assignments</p>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="services">
           <ServicesManager />
+        </TabsContent>
+
+        <TabsContent value="coverage">
+          <CoverageRequestsManager />
+        </TabsContent>
+
+        <TabsContent value="payments">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <CreditCard className="h-5 w-5" />
+                <span>Payments Management</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8">
+                <CreditCard className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500">Payments dashboard coming soon...</p>
+                <p className="text-sm text-gray-400">Track payments, refunds, and financial reports</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="reports">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <TrendingUp className="h-5 w-5" />
+                <span>Reports & Analytics</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8">
+                <TrendingUp className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500">Reports dashboard coming soon...</p>
+                <p className="text-sm text-gray-400">View business analytics, revenue reports, and performance metrics</p>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
