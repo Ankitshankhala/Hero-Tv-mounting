@@ -219,6 +219,29 @@ export const StripeConfigTest = () => {
     );
   };
 
+  // Helper function to determine if a value indicates an error state
+  const isErrorValue = (value: unknown): boolean => {
+    if (typeof value !== 'string') return false;
+    
+    return (
+      value.includes('error') || 
+      value.includes('failed')
+    ) && 
+    !value.includes('Expected') && 
+    !value.includes('correctly');
+  };
+
+  // Helper function to determine if a value indicates a success state
+  const isSuccessValue = (value: unknown): boolean => {
+    if (typeof value !== 'string') return false;
+    
+    return (
+      value.includes('Expected') || 
+      value.includes('correctly') || 
+      value.includes('Successfully')
+    );
+  };
+
   return (
     <Card className="bg-slate-50 border-slate-200">
       <CardHeader>
@@ -267,12 +290,9 @@ export const StripeConfigTest = () => {
                       <div key={detailKey} className="flex justify-between">
                         <span className="capitalize">{detailKey.replace(/([A-Z])/g, ' $1')}:</span>
                         <span className={`font-mono text-xs ${
-                          typeof detailValue === 'string' && 
-                          (detailValue.includes('error') || detailValue.includes('failed')) && 
-                          !detailValue.includes('Expected') && 
-                          !detailValue.includes('correctly')
+                          isErrorValue(detailValue)
                             ? 'text-red-600' 
-                            : detailValue.includes('Expected') || detailValue.includes('correctly') || detailValue.includes('Successfully')
+                            : isSuccessValue(detailValue)
                             ? 'text-green-600'
                             : 'text-slate-700'
                         }`}>
