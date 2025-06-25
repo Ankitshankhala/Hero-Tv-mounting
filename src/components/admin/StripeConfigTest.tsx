@@ -51,65 +51,52 @@ export const StripeConfigTest = () => {
         let responseDetails = {};
         
         if (error) {
-          // Handle FunctionsHttpError or FunctionsRelayError
-          console.log('📡 Error object:', error);
-          console.log('📡 Error message:', error.message);
-          console.log('📡 Error context:', error.context);
+          console.log('📡 Error details:', {
+            message: error.message,
+            context: error.context,
+            details: error.details
+          });
           
-          // Check if it's a FunctionsHttpError with status information
-          if (error.context && typeof error.context === 'object') {
+          // Extract the actual error message from different possible sources
+          let actualErrorMessage = '';
+          if (typeof error.message === 'string') {
+            actualErrorMessage = error.message;
+          } else if (error.details && typeof error.details === 'string') {
+            actualErrorMessage = error.details;
+          } else if (error.context && typeof error.context === 'object') {
             const context = error.context as any;
-            console.log('📡 Error context status:', context.status);
-            
-            // For a 400 status with our test message, this is expected
-            if (context.status === 400) {
-              const errorMessage = typeof error.message === 'string' ? error.message : '';
-              const isExpectedTestError = errorMessage.includes('Test booking ID provided') ||
-                                        errorMessage.includes('test-booking-id') ||
-                                        errorMessage.includes('expected for configuration testing');
-              
-              if (isExpectedTestError) {
-                isTestResponseValid = true;
-                responseDetails = {
-                  status: 'Expected test response received (400)',
-                  errorMessage: errorMessage,
-                  responseType: 'Test scenario handled correctly'
-                };
-              } else {
-                responseDetails = {
-                  status: `HTTP ${context.status} error`,
-                  errorMessage: errorMessage,
-                  responseType: 'Function HTTP error'
-                };
+            if (context.body && typeof context.body === 'string') {
+              try {
+                const parsed = JSON.parse(context.body);
+                if (parsed.error && typeof parsed.error === 'string') {
+                  actualErrorMessage = parsed.error;
+                }
+              } catch (e) {
+                actualErrorMessage = context.body;
               }
-            } else {
-              responseDetails = {
-                status: `HTTP ${context.status} error`,
-                errorMessage: typeof error.message === 'string' ? error.message : 'Unknown error',
-                responseType: 'Function HTTP error'
-              };
             }
+          }
+          
+          console.log('📡 Extracted error message:', actualErrorMessage);
+          
+          // Check if it's the expected test error
+          const isExpectedTestError = actualErrorMessage.includes('Test booking ID provided') ||
+                                    actualErrorMessage.includes('test-booking-id') ||
+                                    actualErrorMessage.includes('expected for configuration testing');
+          
+          if (isExpectedTestError) {
+            isTestResponseValid = true;
+            responseDetails = {
+              status: 'Expected test response received',
+              errorMessage: actualErrorMessage,
+              responseType: 'Test scenario handled correctly'
+            };
           } else {
-            // Generic error handling
-            const errorMessage = typeof error.message === 'string' ? error.message : 'Unknown error';
-            const isExpectedTestError = errorMessage.includes('Test booking ID provided') ||
-                                      errorMessage.includes('test-booking-id') ||
-                                      errorMessage.includes('expected for configuration testing');
-            
-            if (isExpectedTestError) {
-              isTestResponseValid = true;
-              responseDetails = {
-                status: 'Expected test response received',
-                errorMessage: errorMessage,
-                responseType: 'Test scenario handled correctly'
-              };
-            } else {
-              responseDetails = {
-                status: 'Unexpected error',
-                errorMessage: errorMessage,
-                responseType: 'Function error'
-              };
-            }
+            responseDetails = {
+              status: 'Unexpected error response',
+              errorMessage: actualErrorMessage || 'Unknown error format',
+              responseType: 'Function error'
+            };
           }
         } else if (data && data.success === false) {
           // Check if the data contains the expected test error
