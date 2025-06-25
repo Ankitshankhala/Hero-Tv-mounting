@@ -29,6 +29,33 @@ export const ScheduleStep = ({
   workerCount,
   loading
 }: ScheduleStepProps) => {
+  // Get current time to filter out past time slots for today
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const currentHour = now.getHours();
+  const currentMinutes = now.getMinutes();
+  
+  // Filter time slots for same day booking - only show slots after current time + 30 minute buffer
+  const getAvailableTimeSlots = () => {
+    if (!formData.selectedDate) return timeSlots;
+    
+    const selectedDateOnly = new Date(formData.selectedDate.getFullYear(), formData.selectedDate.getMonth(), formData.selectedDate.getDate());
+    const isToday = selectedDateOnly.getTime() === today.getTime();
+    
+    if (!isToday) return timeSlots;
+    
+    // For same day booking, only show time slots that are at least 30 minutes from now
+    return timeSlots.filter(time => {
+      const [hours] = time.split(':').map(Number);
+      const slotMinutes = hours * 60;
+      const nowMinutes = currentHour * 60 + currentMinutes;
+      return slotMinutes > nowMinutes + 30;
+    });
+  };
+
+  const availableTimeSlots = getAvailableTimeSlots();
+  const filteredAvailableSlots = availableTimeSlots.filter(slot => !blockedSlots.includes(slot));
+
   return (
     <div className="space-y-6">
       <div className="text-center">
@@ -53,7 +80,11 @@ export const ScheduleStep = ({
               mode="single"
               selected={formData.selectedDate}
               onSelect={(date) => setFormData(prev => ({ ...prev, selectedDate: date }))}
-              disabled={(date) => date < new Date()}
+              disabled={(date) => {
+                // Allow today and future dates, disable past dates
+                const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+                return dateOnly < today;
+              }}
               className="w-full [&_.rdp-day]:text-white [&_.rdp-day_button:hover]:bg-slate-600 [&_.rdp-day_button[aria-selected]]:bg-blue-600 [&_.rdp-caption]:text-white [&_.rdp-nav_button]:text-white [&_.rdp-nav_button:hover]:bg-slate-600"
             />
           </div>
@@ -87,45 +118,49 @@ export const ScheduleStep = ({
                   </div>
                   <p className="text-xs text-slate-400">
                     Times based on worker availability (ZIP: {formData.zipcode})
+                    {formData.selectedDate && formData.selectedDate.toDateString() === today.toDateString() && 
+                      " • Same-day booking available! (30 min advance notice)"
+                    }
                   </p>
                 </div>
                 
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-64 overflow-y-auto">
-                  {timeSlots.map((time) => {
-                    const isBlocked = blockedSlots.includes(time);
-                    const isSelected = formData.selectedTime === time;
-                    
-                    return (
-                      <Button
-                        key={time}
-                        type="button"
-                        variant={isSelected ? "default" : "outline"}
-                        size="sm"
-                        disabled={isBlocked}
-                        onClick={() => setFormData(prev => ({ ...prev, selectedTime: time }))}
-                        className={cn(
-                          "h-12 text-sm font-medium transition-all duration-200 relative",
-                          isBlocked && "bg-red-900/30 text-red-400 border-red-500/50 cursor-not-allowed hover:bg-red-900/30",
-                          isSelected && "bg-purple-600 text-white border-purple-600 shadow-md",
-                          !isBlocked && !isSelected && "bg-slate-700/50 text-white border-slate-600 hover:bg-purple-600/20 hover:border-purple-400/50"
-                        )}
-                      >
-                        <div className="flex items-center space-x-2">
-                          <div className={cn(
-                            "w-2 h-2 rounded-full",
-                            isBlocked ? "bg-red-400" : "bg-green-400"
-                          )} />
-                          <span>{time}</span>
-                        </div>
-                        {isBlocked && (
-                          <div className="absolute inset-0 bg-red-900/20 rounded flex items-center justify-center">
-                            <span className="text-xs font-medium text-red-400">Busy</span>
+                {filteredAvailableSlots.length === 0 ? (
+                  <div className="text-center py-8 text-slate-400">
+                    <Clock className="h-12 w-12 mx-auto text-slate-500 mb-3" />
+                    <p>No time slots available for this date</p>
+                    {formData.selectedDate && formData.selectedDate.toDateString() === today.toDateString() && (
+                      <p className="text-sm text-orange-400 mt-2">
+                        For same-day service, please allow at least 30 minutes advance notice
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-64 overflow-y-auto">
+                    {filteredAvailableSlots.map((time) => {
+                      const isSelected = formData.selectedTime === time;
+                      
+                      return (
+                        <Button
+                          key={time}
+                          type="button"
+                          variant={isSelected ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setFormData(prev => ({ ...prev, selectedTime: time }))}
+                          className={cn(
+                            "h-12 text-sm font-medium transition-all duration-200 relative",
+                            isSelected && "bg-purple-600 text-white border-purple-600 shadow-md",
+                            !isSelected && "bg-slate-700/50 text-white border-slate-600 hover:bg-purple-600/20 hover:border-purple-400/50"
+                          )}
+                        >
+                          <div className="flex items-center space-x-2">
+                            <div className="w-2 h-2 rounded-full bg-green-400" />
+                            <span>{time}</span>
                           </div>
-                        )}
-                      </Button>
-                    );
-                  })}
-                </div>
+                        </Button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </div>

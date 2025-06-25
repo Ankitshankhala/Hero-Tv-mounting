@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { BookingBlock } from './BookingBlock';
+import { cn } from '@/lib/utils';
 
 interface CalendarBooking {
   id: string;
@@ -27,26 +27,60 @@ export const TimeSlot = ({
   isSelected,
   onTimeSlotClick
 }: TimeSlotProps) => {
+  const hasBookings = bookings.length > 0;
+  
+  // Check if this is today and if the time slot is in the past
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const dayOnly = new Date(day.getFullYear(), day.getMonth(), day.getDate());
+  const isToday = dayOnly.getTime() === today.getTime();
+  
+  let isPastTimeSlot = false;
+  if (isToday) {
+    const [hours] = time.split(':').map(Number);
+    const currentHour = now.getHours();
+    const currentMinutes = now.getMinutes();
+    const slotMinutes = hours * 60;
+    const nowMinutes = currentHour * 60 + currentMinutes;
+    
+    // Consider slots that are less than 30 minutes away as past slots
+    isPastTimeSlot = slotMinutes <= nowMinutes + 30;
+  }
+  
+  // Determine if slot should be disabled
+  const isDisabled = hasBookings || isPastTimeSlot || !isAvailable;
+
   return (
     <div
-      className={`
-        min-h-16 border border-slate-700 p-1 cursor-pointer transition-colors
-        ${isSelected ? 'bg-blue-600 border-blue-500' : ''}
-        ${!isAvailable ? 'bg-slate-700' : 'hover:bg-slate-600'}
-        ${isAvailable && !isSelected ? 'bg-slate-800' : ''}
-      `}
-      onClick={() => onTimeSlotClick(day, time)}
+      className={cn(
+        "h-12 border border-slate-600/30 cursor-pointer transition-all duration-200 flex items-center justify-center text-xs relative",
+        isSelected && "bg-blue-600 border-blue-500 text-white shadow-lg",
+        !isSelected && !isDisabled && "hover:bg-slate-700/50 bg-slate-800/30",
+        isDisabled && "bg-slate-700/20 cursor-not-allowed opacity-50",
+        hasBookings && "bg-red-900/30 border-red-500/50",
+        isPastTimeSlot && !hasBookings && "bg-gray-600/30 border-gray-500/50"
+      )}
+      onClick={() => {
+        if (!isDisabled) {
+          onTimeSlotClick(day, time);
+        }
+      }}
     >
-      {bookings.map((booking, bookingIndex) => (
-        <BookingBlock
-          key={`${booking.id}-${bookingIndex}`}
-          booking={booking}
-        />
-      ))}
-      {isAvailable && bookings.length === 0 && (
-        <div className="text-green-400 text-xs p-1">
-          Available
+      {hasBookings ? (
+        <div className="text-center">
+          <div className="text-red-300 font-medium">Booked</div>
+          {bookings[0]?.users?.name && (
+            <div className="text-red-200 text-xs truncate max-w-16">
+              {bookings[0].users.name}
+            </div>
+          )}
         </div>
+      ) : isPastTimeSlot ? (
+        <div className="text-gray-400 text-xs">Past</div>
+      ) : isSelected ? (
+        <div className="text-white font-medium">Selected</div>
+      ) : (
+        <div className="text-slate-300">Available</div>
       )}
     </div>
   );
