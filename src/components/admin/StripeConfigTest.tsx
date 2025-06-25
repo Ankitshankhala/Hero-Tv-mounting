@@ -51,29 +51,69 @@ export const StripeConfigTest = () => {
         let responseDetails = {};
         
         if (error) {
-          // Check if it's a FunctionsHttpError with expected test message
-          const errorMessage = error.message || '';
-          const isExpectedTestError = errorMessage.includes('Test booking ID provided') ||
-                                    errorMessage.includes('test-booking-id') ||
-                                    errorMessage.includes('expected for configuration testing');
+          // Handle FunctionsHttpError or FunctionsRelayError
+          console.log('📡 Error object:', error);
+          console.log('📡 Error message:', error.message);
+          console.log('📡 Error context:', error.context);
           
-          if (isExpectedTestError) {
-            isTestResponseValid = true;
-            responseDetails = {
-              status: 'Expected test response received',
-              errorMessage: errorMessage,
-              responseType: 'Test scenario handled correctly'
-            };
+          // Check if it's a FunctionsHttpError with status information
+          if (error.context && typeof error.context === 'object') {
+            const context = error.context as any;
+            console.log('📡 Error context status:', context.status);
+            
+            // For a 400 status with our test message, this is expected
+            if (context.status === 400) {
+              const errorMessage = typeof error.message === 'string' ? error.message : '';
+              const isExpectedTestError = errorMessage.includes('Test booking ID provided') ||
+                                        errorMessage.includes('test-booking-id') ||
+                                        errorMessage.includes('expected for configuration testing');
+              
+              if (isExpectedTestError) {
+                isTestResponseValid = true;
+                responseDetails = {
+                  status: 'Expected test response received (400)',
+                  errorMessage: errorMessage,
+                  responseType: 'Test scenario handled correctly'
+                };
+              } else {
+                responseDetails = {
+                  status: `HTTP ${context.status} error`,
+                  errorMessage: errorMessage,
+                  responseType: 'Function HTTP error'
+                };
+              }
+            } else {
+              responseDetails = {
+                status: `HTTP ${context.status} error`,
+                errorMessage: typeof error.message === 'string' ? error.message : 'Unknown error',
+                responseType: 'Function HTTP error'
+              };
+            }
           } else {
-            responseDetails = {
-              status: 'Unexpected error',
-              errorMessage: errorMessage,
-              responseType: 'Function error'
-            };
+            // Generic error handling
+            const errorMessage = typeof error.message === 'string' ? error.message : 'Unknown error';
+            const isExpectedTestError = errorMessage.includes('Test booking ID provided') ||
+                                      errorMessage.includes('test-booking-id') ||
+                                      errorMessage.includes('expected for configuration testing');
+            
+            if (isExpectedTestError) {
+              isTestResponseValid = true;
+              responseDetails = {
+                status: 'Expected test response received',
+                errorMessage: errorMessage,
+                responseType: 'Test scenario handled correctly'
+              };
+            } else {
+              responseDetails = {
+                status: 'Unexpected error',
+                errorMessage: errorMessage,
+                responseType: 'Function error'
+              };
+            }
           }
         } else if (data && data.success === false) {
           // Check if the data contains the expected test error
-          const dataErrorMessage = data.error || '';
+          const dataErrorMessage = typeof data.error === 'string' ? data.error : '';
           const isExpectedTestError = dataErrorMessage.includes('Test booking ID provided') ||
                                     dataErrorMessage.includes('test-booking-id') ||
                                     dataErrorMessage.includes('expected for configuration testing');
