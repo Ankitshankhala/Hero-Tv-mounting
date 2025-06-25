@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -116,7 +117,7 @@ export const BookingTable = ({ bookings, onBookingUpdate }: BookingTableProps) =
   };
 
   const isUnassigned = (booking: Booking) => {
-    return !booking.worker_id || !booking.worker?.name;
+    return !booking.worker?.name;
   };
 
   const handleEdit = (booking: Booking) => {
