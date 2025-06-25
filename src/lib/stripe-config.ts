@@ -11,30 +11,44 @@ export const validateStripeConfig = () => {
   const errors: string[] = [];
 
   if (!STRIPE_CONFIG.publishableKey) {
-    errors.push('Stripe publishable key is not configured. Please set up your Stripe key in project settings.');
+    errors.push('Stripe publishable key is not configured. Please check your environment variables.');
   }
 
   if (STRIPE_CONFIG.publishableKey && !STRIPE_CONFIG.publishableKey.startsWith('pk_')) {
     errors.push('Invalid Stripe publishable key format. Key must start with pk_');
   }
 
+  // Additional validation for live vs test keys
+  if (STRIPE_CONFIG.publishableKey) {
+    const isLiveKey = STRIPE_CONFIG.publishableKey.startsWith('pk_live_');
+    const isTestKey = STRIPE_CONFIG.publishableKey.startsWith('pk_test_');
+    
+    if (!isLiveKey && !isTestKey) {
+      errors.push('Stripe key must be either a live key (pk_live_) or test key (pk_test_)');
+    }
+    
+    if (STRIPE_CONFIG.isProduction && isTestKey) {
+      console.warn('WARNING: Using test Stripe key in production environment');
+    }
+  }
+
   if (errors.length > 0) {
     console.error('Stripe configuration errors:', errors);
-    if (STRIPE_CONFIG.isProduction) {
-      throw new Error(`Stripe configuration errors: ${errors.join(', ')}`);
-    }
   }
 
   return {
     isValid: errors.length === 0,
-    errors
+    errors,
+    keyType: STRIPE_CONFIG.publishableKey?.startsWith('pk_live_') ? 'live' : 'test'
   };
 };
 
-// Initialize validation
+// Initialize and log validation results
 const validationResult = validateStripeConfig();
-if (!validationResult.isValid) {
-  console.warn('Stripe configuration issues detected:', validationResult.errors);
-}
+console.log('Stripe Configuration Status:', {
+  isValid: validationResult.isValid,
+  keyType: validationResult.keyType,
+  errors: validationResult.errors
+});
 
 export { validationResult as stripeValidation };

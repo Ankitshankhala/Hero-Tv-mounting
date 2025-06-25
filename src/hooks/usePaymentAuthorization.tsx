@@ -8,7 +8,7 @@ interface PaymentAuthorizationData {
   amount: number;
   customerEmail?: string;
   customerName?: string;
-  requireAuth?: boolean; // New prop to control authentication requirement
+  requireAuth?: boolean;
 }
 
 interface PaymentAuthorizationResult {
@@ -28,7 +28,21 @@ export const usePaymentAuthorization = () => {
     setProcessing(true);
     
     try {
-      console.log('Creating payment authorization:', data);
+      console.log('🔄 Starting payment authorization with data:', {
+        bookingId: data.bookingId,
+        amount: data.amount,
+        customerEmail: data.customerEmail,
+        requireAuth: data.requireAuth
+      });
+
+      // Validate required fields
+      if (!data.bookingId) {
+        throw new Error('Booking ID is required for payment authorization');
+      }
+      
+      if (!data.amount || data.amount <= 0) {
+        throw new Error('Valid payment amount is required');
+      }
 
       const { data: result, error } = await supabase.functions.invoke('create-payment-intent', {
         body: {
@@ -40,16 +54,24 @@ export const usePaymentAuthorization = () => {
         }
       });
 
+      console.log('📡 Edge function response:', { result, error });
+
       if (error) {
-        console.error('Payment authorization error:', error);
+        console.error('❌ Payment authorization error from edge function:', error);
         throw new Error(error.message || 'Failed to create payment authorization');
       }
 
       if (!result?.success) {
+        console.error('❌ Payment authorization failed:', result);
         throw new Error(result?.error || 'Payment authorization failed');
       }
 
-      console.log('Payment authorization created successfully');
+      if (!result.client_secret) {
+        console.error('❌ No client secret received:', result);
+        throw new Error('Invalid payment authorization response - missing client secret');
+      }
+
+      console.log('✅ Payment authorization created successfully');
       
       toast({
         title: "Payment Authorization Created",
@@ -64,7 +86,7 @@ export const usePaymentAuthorization = () => {
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Payment authorization failed';
-      console.error('Payment authorization failed:', error);
+      console.error('❌ Payment authorization failed:', error);
       
       toast({
         title: "Payment Authorization Failed",
@@ -85,14 +107,14 @@ export const usePaymentAuthorization = () => {
     setProcessing(true);
     
     try {
-      console.log('Capturing payment for booking:', bookingId);
+      console.log('🔄 Capturing payment for booking:', bookingId);
 
       const { data: result, error } = await supabase.functions.invoke('capture-payment-intent', {
         body: { bookingId }
       });
 
       if (error) {
-        console.error('Payment capture error:', error);
+        console.error('❌ Payment capture error:', error);
         throw new Error(error.message || 'Failed to capture payment');
       }
 
@@ -100,7 +122,7 @@ export const usePaymentAuthorization = () => {
         throw new Error(result?.error || 'Payment capture failed');
       }
 
-      console.log('Payment captured successfully');
+      console.log('✅ Payment captured successfully');
       
       toast({
         title: "Payment Captured Successfully",
@@ -113,7 +135,7 @@ export const usePaymentAuthorization = () => {
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Payment capture failed';
-      console.error('Payment capture failed:', error);
+      console.error('❌ Payment capture failed:', error);
       
       toast({
         title: "Payment Capture Failed",
