@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +9,7 @@ import { CreditCard, DollarSign, RefreshCw, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import PaymentDetailsModal from './PaymentDetailsModal';
+import { StripeConfigTest } from './StripeConfigTest';
 
 interface Transaction {
   id: string;
@@ -195,6 +195,10 @@ export const PaymentsManager = () => {
 
   return (
     <div className="space-y-6">
+      {/* Stripe Configuration Test Section */}
+      <StripeConfigTest />
+
+      {/* Payment Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-6">
@@ -246,6 +250,7 @@ export const PaymentsManager = () => {
         </Card>
       </div>
 
+      {/* Payment Transactions Table */}
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
