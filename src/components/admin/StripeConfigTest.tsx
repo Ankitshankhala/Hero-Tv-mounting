@@ -44,29 +44,85 @@ export const StripeConfigTest = () => {
           }
         });
         
-        // For test booking, we expect a specific error response
-        const isExpectedTestError = error && (
-          error.message?.includes('Test booking ID provided') ||
-          error.message?.includes('test-booking-id')
-        );
+        console.log('📡 Raw edge function response:', { data, error });
+        
+        // Check if we got the expected test response
+        let isTestResponseValid = false;
+        let responseDetails = {};
+        
+        if (error) {
+          // Check if it's a FunctionsHttpError with expected test message
+          const errorMessage = error.message || '';
+          const isExpectedTestError = errorMessage.includes('Test booking ID provided') ||
+                                    errorMessage.includes('test-booking-id') ||
+                                    errorMessage.includes('expected for configuration testing');
+          
+          if (isExpectedTestError) {
+            isTestResponseValid = true;
+            responseDetails = {
+              status: 'Expected test response received',
+              errorMessage: errorMessage,
+              responseType: 'Test scenario handled correctly'
+            };
+          } else {
+            responseDetails = {
+              status: 'Unexpected error',
+              errorMessage: errorMessage,
+              responseType: 'Function error'
+            };
+          }
+        } else if (data && data.success === false) {
+          // Check if the data contains the expected test error
+          const dataErrorMessage = data.error || '';
+          const isExpectedTestError = dataErrorMessage.includes('Test booking ID provided') ||
+                                    dataErrorMessage.includes('test-booking-id') ||
+                                    dataErrorMessage.includes('expected for configuration testing');
+          
+          if (isExpectedTestError) {
+            isTestResponseValid = true;
+            responseDetails = {
+              status: 'Expected test response received',
+              errorMessage: dataErrorMessage,
+              responseType: 'Test scenario handled correctly'
+            };
+          } else {
+            responseDetails = {
+              status: 'Unexpected response',
+              errorMessage: dataErrorMessage,
+              responseType: 'Function response error'
+            };
+          }
+        } else if (data && data.success === true) {
+          // This shouldn't happen with test-booking-id, but handle it
+          isTestResponseValid = true;
+          responseDetails = {
+            status: 'Function accessible and working',
+            errorMessage: 'No error (unexpected for test booking)',
+            responseType: 'Function working'
+          };
+        } else {
+          responseDetails = {
+            status: 'No clear response received',
+            errorMessage: 'Unclear response format',
+            responseType: 'Unknown response'
+          };
+        }
         
         results.tests.edgeFunction = {
           name: 'Edge Function Connectivity',
-          passed: isExpectedTestError || (!error && data?.success),
-          details: {
-            errorMessage: error?.message || 'Function accessible',
-            status: isExpectedTestError ? 'Expected test error (good)' : 
-                   (!error && data?.success) ? 'Function working' : 'Unexpected error',
-            response: data ? 'Response received' : 'No response'
-          }
+          passed: isTestResponseValid,
+          details: responseDetails
         };
+        
       } catch (err) {
+        console.error('🔴 Edge function test exception:', err);
         results.tests.edgeFunction = {
           name: 'Edge Function Connectivity',
           passed: false,
           details: {
+            status: 'Connection failed',
             errorMessage: err instanceof Error ? err.message : 'Unknown error',
-            status: 'Connection failed'
+            responseType: 'Network or connection error'
           }
         };
       }
@@ -171,8 +227,13 @@ export const StripeConfigTest = () => {
                       <div key={detailKey} className="flex justify-between">
                         <span className="capitalize">{detailKey.replace(/([A-Z])/g, ' $1')}:</span>
                         <span className={`font-mono text-xs ${
-                          typeof detailValue === 'string' && detailValue.includes('error') && !detailValue.includes('Expected') 
+                          typeof detailValue === 'string' && 
+                          (detailValue.includes('error') || detailValue.includes('failed')) && 
+                          !detailValue.includes('Expected') && 
+                          !detailValue.includes('correctly')
                             ? 'text-red-600' 
+                            : detailValue.includes('Expected') || detailValue.includes('correctly') || detailValue.includes('Successfully')
+                            ? 'text-green-600'
                             : 'text-slate-700'
                         }`}>
                           {Array.isArray(detailValue) 
