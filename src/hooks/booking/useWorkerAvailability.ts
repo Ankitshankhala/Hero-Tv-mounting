@@ -19,6 +19,9 @@ export const useWorkerAvailability = () => {
     setLoading(true);
     try {
       const dateStr = format(date, 'yyyy-MM-dd');
+      const now = new Date();
+      const isToday = dateStr === format(now, 'yyyy-MM-dd');
+      const currentHour = now.getHours();
       
       const { data: bookings, error } = await supabase
         .from('bookings')
@@ -60,8 +63,26 @@ export const useWorkerAvailability = () => {
         booking.scheduled_start.substring(0, 5)
       );
 
+      // Filter out past time slots for same-day booking
+      const availableTimeSlots = timeSlots.filter(slot => {
+        const isBlocked = blocked.includes(slot);
+        
+        // For same-day booking, only allow slots that are at least 30 minutes from now
+        if (isToday) {
+          const [hours] = slot.split(':').map(Number);
+          const currentMinutes = now.getMinutes();
+          const slotMinutes = hours * 60;
+          const nowMinutes = currentHour * 60 + currentMinutes;
+          
+          // Allow booking if slot is at least 30 minutes in the future
+          return !isBlocked && (slotMinutes > nowMinutes + 30);
+        }
+        
+        return !isBlocked;
+      });
+
       setBlockedSlots(blocked);
-      setAvailableSlots(timeSlots.filter(slot => !blocked.includes(slot)));
+      setAvailableSlots(availableTimeSlots);
     } catch (error) {
       console.error('Error fetching worker availability:', error);
     } finally {

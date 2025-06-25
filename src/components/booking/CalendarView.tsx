@@ -41,7 +41,6 @@ export const CalendarView = ({
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  // Use calendar sync for real-time updates
   const { isConnected, isRefreshing, forceRefresh } = useCalendarSync({
     userRole: 'customer',
     onBookingUpdate: () => {
@@ -118,7 +117,7 @@ export const CalendarView = ({
       if (dateStr !== bookingDateStr) return false;
       
       const bookingStart = new Date(`2000-01-01T${bookingTime}`);
-      const bookingEnd = new Date(bookingStart.getTime() + 60 * 60000); // Assume 1 hour duration
+      const bookingEnd = new Date(bookingStart.getTime() + 60 * 60000);
       const slotTime = new Date(`2000-01-01T${time}`);
       const slotEnd = new Date(slotTime.getTime() + 60 * 60000);
       
@@ -134,13 +133,16 @@ export const CalendarView = ({
     // Don't allow past dates
     if (dateOnly < today) return false;
     
-    // For same-day booking, check if the time slot is at least 1 hour from now
+    // For same-day booking, check if the time slot is at least 30 minutes from now
     if (dateOnly.getTime() === today.getTime()) {
       const [hours] = time.split(':').map(Number);
       const currentHour = now.getHours();
+      const currentMinutes = now.getMinutes();
+      const slotMinutes = hours * 60;
+      const nowMinutes = currentHour * 60 + currentMinutes;
       
-      // Require at least 1 hour advance notice for same-day bookings
-      if (hours <= currentHour) return false;
+      // Require at least 30 minutes advance notice for same-day bookings
+      if (slotMinutes <= nowMinutes + 30) return false;
     }
     
     const conflictingBookings = getBookingsForDateTime(date, time);
@@ -181,7 +183,7 @@ export const CalendarView = ({
           </Button>
         </div>
         <p className="text-slate-300 mt-2">
-          Select from available time slots. Same-day booking available with 1-hour advance notice.
+          Select from available time slots. Same-day booking available with 30-minute advance notice.
         </p>
       </div>
 

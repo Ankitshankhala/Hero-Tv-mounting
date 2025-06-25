@@ -35,8 +35,9 @@ export const ScheduleSection = ({
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const currentHour = now.getHours();
+  const currentMinutes = now.getMinutes();
   
-  // Filter time slots for same day booking - only show slots after current time + 1 hour buffer
+  // Filter time slots for same day booking - only show slots after current time + 30 minute buffer
   const getAvailableTimeSlots = () => {
     if (!selectedDate) return timeSlots;
     
@@ -45,10 +46,12 @@ export const ScheduleSection = ({
     
     if (!isToday) return timeSlots;
     
-    // For same day booking, only show time slots that are at least 1 hour from now
+    // For same day booking, only show time slots that are at least 30 minutes from now
     return timeSlots.filter(time => {
       const [hours] = time.split(':').map(Number);
-      return hours > currentHour;
+      const slotMinutes = hours * 60;
+      const nowMinutes = currentHour * 60 + currentMinutes;
+      return slotMinutes > nowMinutes + 30;
     });
   };
 
@@ -141,7 +144,7 @@ export const ScheduleSection = ({
                   <p className="text-xs text-gray-500">
                     Times shown are based on worker availability in your area (ZIP: {formData.zipcode})
                     {selectedDate && selectedDate.toDateString() === today.toDateString() && 
-                      " • Same-day booking available!"
+                      " • Same-day booking available! (30 min advance notice)"
                     }
                   </p>
                 </div>
@@ -152,7 +155,7 @@ export const ScheduleSection = ({
                     <p>No time slots available for this date</p>
                     {selectedDate && selectedDate.toDateString() === today.toDateString() && (
                       <p className="text-sm text-orange-600 mt-2">
-                        For same-day service, please allow at least 1 hour advance notice
+                        For same-day service, please allow at least 30 minutes advance notice
                       </p>
                     )}
                   </div>
