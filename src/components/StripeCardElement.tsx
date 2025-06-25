@@ -16,14 +16,45 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
   const [loadingMessage, setLoadingMessage] = useState('Initializing payment form...');
   const initializationRef = useRef(false);
   const mountedRef = useRef(false);
+  const retryCountRef = useRef(0);
+  const maxRetries = 5;
+
+  const waitForDomElement = async (maxAttempts = 10, interval = 100): Promise<boolean> => {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      console.log(`🔄 DOM check attempt ${attempt}/${maxAttempts}`);
+      
+      if (!mountedRef.current) {
+        console.log('❌ Component unmounted during DOM check');
+        return false;
+      }
+      
+      if (cardElementRef.current && cardElementRef.current.isConnected) {
+        console.log('✅ DOM element found and connected');
+        return true;
+      }
+      
+      if (attempt < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, interval));
+      }
+    }
+    
+    console.log('❌ DOM element not found after all attempts');
+    return false;
+  };
 
   const initializeStripe = async () => {
-    if (isInitialized || initializationRef.current || !mountedRef.current) return;
+    if (isInitialized || initializationRef.current || !mountedRef.current) {
+      console.log('🔄 Skipping initialization - already in progress or component unmounted');
+      return;
+    }
     
     try {
       setIsLoading(true);
       setConfigError('');
-      console.log('🔄 Starting Stripe initialization...');
+      retryCountRef.current += 1;
+      
+      console.log(`🔄 Starting Stripe initialization attempt ${retryCountRef.current}...`);
+      setLoadingMessage(`Initializing payment form... (attempt ${retryCountRef.current})`);
       
       // Validate configuration first
       const validation = validateStripeConfig();
@@ -34,15 +65,22 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
       
       console.log('✅ Stripe configuration valid, loading Stripe.js...');
       
-      // Wait for DOM element to be ready
-      if (!cardElementRef.current) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-        if (!cardElementRef.current && mountedRef.current) {
-          throw new Error('Payment form container not found');
-        }
+      // Wait for DOM element to be ready with retries
+      console.log('🔄 Waiting for DOM element...');
+      setLoadingMessage('Preparing payment form container...');
+      
+      const domReady = await waitForDomElement(15, 200);
+      if (!domReady) {
+        throw new Error('Payment form container could not be initialized. Please refresh the page and try again.');
+      }
+
+      if (!mountedRef.current) {
+        console.log('❌ Component unmounted during DOM wait');
+        return;
       }
 
       initializationRef.current = true;
+      setLoadingMessage('Loading Stripe payment system...');
 
       const stripe: Stripe | null = await loadStripe(STRIPE_CONFIG.publishableKey);
 
@@ -50,9 +88,13 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
         throw new Error('Failed to load Stripe.js - check your internet connection');
       }
 
-      if (!mountedRef.current) return;
+      if (!mountedRef.current) {
+        console.log('❌ Component unmounted after Stripe load');
+        return;
+      }
 
       console.log('✅ Stripe.js loaded successfully, creating elements...');
+      setLoadingMessage('Setting up payment form...');
 
       const elements = stripe.elements({
         appearance: {
@@ -83,14 +125,24 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
         hidePostalCode: true,
       });
 
-      if (!mountedRef.current || !cardElementRef.current) return;
+      // Final check before mounting
+      if (!mountedRef.current || !cardElementRef.current) {
+        console.log('❌ Component or element ref not available for mounting');
+        return;
+      }
 
       console.log('🔄 Mounting card element...');
+      setLoadingMessage('Finalizing payment form...');
+      
       await cardElement.mount(cardElementRef.current);
       
-      if (!mountedRef.current) return;
+      if (!mountedRef.current) {
+        console.log('❌ Component unmounted after mount');
+        return;
+      }
 
       setIsInitialized(true);
+      retryCountRef.current = 0; // Reset retry count on success
       console.log('✅ Card element mounted successfully');
 
       cardElement.on('change', ({ error, complete }: any) => {
@@ -123,10 +175,25 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
       setIsLoading(false);
       
       let errorMessage = 'Failed to initialize payment form. ';
+      
+      if (retryCountRef.current < maxRetries && 
+          (error.message.includes('container') || error.message.includes('DOM'))) {
+        // Auto-retry for container/DOM issues
+        console.log(`🔄 Auto-retrying initialization (attempt ${retryCountRef.current + 1}/${maxRetries})`);
+        setTimeout(() => {
+          if (mountedRef.current) {
+            initializeStripe();
+          }
+        }, 1000);
+        return;
+      }
+      
       if (error.message.includes('configuration') || error.message.includes('key')) {
         errorMessage += 'Please check your Stripe configuration.';
       } else if (error.message.includes('network') || error.message.includes('connection')) {
         errorMessage += 'Please check your internet connection and try again.';
+      } else if (error.message.includes('container')) {
+        errorMessage += 'Payment form setup failed. Please refresh the page.';
       } else {
         errorMessage += error.message || 'Please refresh the page and try again.';
       }
@@ -138,25 +205,31 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
 
   useEffect(() => {
     mountedRef.current = true;
+    console.log('🔄 StripeCardElement mounted, starting initialization...');
     
-    // Small delay to ensure DOM is ready
+    // Increased delay to ensure DOM is fully ready
     const timer = setTimeout(() => {
       if (mountedRef.current) {
         initializeStripe();
       }
-    }, 100);
+    }, 300);
     
     return () => {
+      console.log('🔄 StripeCardElement unmounting...');
       mountedRef.current = false;
       clearTimeout(timer);
+      initializationRef.current = false;
+      retryCountRef.current = 0;
     };
   }, []);
 
   const handleRetry = () => {
+    console.log('🔄 Manual retry triggered');
     setConfigError('');
     setIsLoading(true);
     setIsInitialized(false);
     initializationRef.current = false;
+    retryCountRef.current = 0;
     setLoadingMessage('Retrying initialization...');
     
     setTimeout(() => {
@@ -199,6 +272,7 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
       <div 
         ref={cardElementRef} 
         className="p-4 border border-gray-300 rounded-md bg-white min-h-[52px] focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500"
+        style={{ minHeight: '52px' }}
       />
       <p className="text-xs text-gray-500">
         Enter your card details. Your payment will be authorized but not charged until service completion.
