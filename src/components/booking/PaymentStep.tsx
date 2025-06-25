@@ -12,7 +12,7 @@ interface PaymentStepProps {
   customerName: string;
   onPaymentAuthorized: () => void;
   onBack: () => void;
-  requireAuth?: boolean; // New prop to control authentication requirement
+  requireAuth?: boolean;
 }
 
 export const PaymentStep = ({
@@ -22,43 +22,97 @@ export const PaymentStep = ({
   customerName,
   onPaymentAuthorized,
   onBack,
-  requireAuth = false // Default to false for guest checkout
+  requireAuth = false
 }: PaymentStepProps) => {
   const [authorizationError, setAuthorizationError] = useState('');
+  const [isValidatingBooking, setIsValidatingBooking] = useState(true);
   const { toast } = useToast();
 
-  // Validate required props
+  // Validate required props and booking
   useEffect(() => {
-    if (!bookingId) {
-      console.error('PaymentStep: Missing booking ID');
-      setAuthorizationError('Booking information is missing. Please go back and try again.');
-    }
-    if (!totalPrice || totalPrice <= 0) {
-      console.error('PaymentStep: Invalid total price:', totalPrice);
-      setAuthorizationError('Invalid price information. Please go back and check your service selection.');
-    }
-    if (!customerEmail || !customerName) {
-      console.error('PaymentStep: Missing customer information');
-      setAuthorizationError('Customer information is missing. Please go back and fill in your details.');
-    }
+    const validateProps = async () => {
+      console.log('🔄 Validating payment step props:', { bookingId, totalPrice, customerEmail, customerName });
+      
+      // Basic validation
+      if (!bookingId) {
+        console.error('PaymentStep: Missing booking ID');
+        setAuthorizationError('Booking information is missing. Please go back and try again.');
+        setIsValidatingBooking(false);
+        return;
+      }
+      
+      if (!totalPrice || totalPrice <= 0) {
+        console.error('PaymentStep: Invalid total price:', totalPrice);
+        setAuthorizationError('Invalid price information. Please go back and check your service selection.');
+        setIsValidatingBooking(false);
+        return;
+      }
+      
+      if (!customerEmail || !customerName) {
+        console.error('PaymentStep: Missing customer information');
+        setAuthorizationError('Customer information is missing. Please go back and fill in your details.');
+        setIsValidatingBooking(false);
+        return;
+      }
+
+      // Test booking ID validation
+      if (bookingId === 'test-booking-id') {
+        setAuthorizationError('Test booking ID detected. This cannot be used for real payments.');
+        setIsValidatingBooking(false);
+        return;
+      }
+
+      console.log('✅ Payment step validation passed');
+      setAuthorizationError('');
+      setIsValidatingBooking(false);
+    };
+
+    validateProps();
   }, [bookingId, totalPrice, customerEmail, customerName]);
 
   const handleAuthorizationSuccess = () => {
-    console.log('Payment authorization successful for booking:', bookingId);
+    console.log('✅ Payment authorization successful for booking:', bookingId);
     toast({
-      title: "Payment Authorized",
+      title: "Payment Authorized! 🎉",
       description: "Your payment method has been authorized successfully. You will be charged after service completion.",
     });
     onPaymentAuthorized();
   };
 
   const handleAuthorizationFailure = (error: string) => {
-    console.error('Payment authorization failed:', error);
+    console.error('❌ Payment authorization failed:', error);
     setAuthorizationError(error);
+    
+    // Provide helpful guidance based on error type
+    if (error.includes('booking')) {
+      toast({
+        title: "Booking Issue",
+        description: "There was a problem with your booking. Please try creating a new booking.",
+        variant: "destructive",
+      });
+    } else if (error.includes('payment')) {
+      toast({
+        title: "Payment Setup Issue",
+        description: "Please check your payment information and try again.",
+        variant: "destructive",
+      });
+    }
   };
 
+  // Show loading state while validating
+  if (isValidatingBooking) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Validating booking information...</p>
+        </div>
+      </div>
+    );
+  }
+
   // Show error if we have validation issues
-  if (authorizationError && (!bookingId || !totalPrice || !customerEmail || !customerName)) {
+  if (authorizationError && (!bookingId || !totalPrice || !customerEmail || !customerName || bookingId === 'test-booking-id')) {
     return (
       <div className="space-y-6">
         <Alert variant="destructive">

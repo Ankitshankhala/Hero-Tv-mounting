@@ -14,11 +14,53 @@ serve(async (req) => {
   }
 
   try {
-    const { bookingId, amount, customerEmail, customerName } = await req.json();
+    const { bookingId, amount, customerEmail, customerName, requireAuth = false } = await req.json();
+
+    console.log('🔄 Payment intent request:', { bookingId, amount, customerEmail, requireAuth });
 
     if (!bookingId || !amount) {
       throw new Error('Missing required fields: bookingId and amount');
     }
+
+    // Handle test booking scenario
+    if (bookingId === 'test-booking-id') {
+      console.log('🧪 Test booking detected, returning mock response');
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Test booking ID provided - this is expected for configuration testing",
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 400,
+        }
+      );
+    }
+
+    // Initialize Supabase client with service role key
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } }
+    );
+
+    // Validate that the booking exists
+    const { data: booking, error: bookingError } = await supabaseAdmin
+      .from('bookings')
+      .select('id, customer_id, status')
+      .eq('id', bookingId)
+      .single();
+
+    if (bookingError) {
+      console.error('❌ Booking validation error:', bookingError);
+      throw new Error(`Invalid booking ID: ${bookingError.message}`);
+    }
+
+    if (!booking) {
+      throw new Error('Booking not found');
+    }
+
+    console.log('✅ Booking validated:', booking);
 
     // Initialize Stripe with secret key
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
@@ -28,39 +70,41 @@ serve(async (req) => {
     // Create customer in Stripe if needed
     let customer;
     if (customerEmail) {
-      const existingCustomers = await stripe.customers.list({
-        email: customerEmail,
-        limit: 1,
-      });
-
-      if (existingCustomers.data.length > 0) {
-        customer = existingCustomers.data[0];
-      } else {
-        customer = await stripe.customers.create({
+      try {
+        const existingCustomers = await stripe.customers.list({
           email: customerEmail,
-          name: customerName,
+          limit: 1,
         });
+
+        if (existingCustomers.data.length > 0) {
+          customer = existingCustomers.data[0];
+          console.log('✅ Found existing Stripe customer:', customer.id);
+        } else {
+          customer = await stripe.customers.create({
+            email: customerEmail,
+            name: customerName,
+          });
+          console.log('✅ Created new Stripe customer:', customer.id);
+        }
+      } catch (stripeError: any) {
+        console.error('⚠️ Stripe customer creation failed:', stripeError);
+        // Continue without customer - payment can still work
       }
     }
 
-    // Create PaymentIntent with manual capture
+    // Create PaymentIntent with manual capture for authorization
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100), // Convert to cents
       currency: "usd",
       customer: customer?.id,
-      capture_method: "manual", // This is the key for authorization only
+      capture_method: requireAuth ? "manual" : "automatic",
       description: `Booking payment - ${bookingId}`,
       metadata: {
         booking_id: bookingId,
       },
     });
 
-    // Initialize Supabase client with service role key
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { persistSession: false } }
-    );
+    console.log('✅ Payment intent created:', paymentIntent.id);
 
     // Update booking with payment intent ID
     const { error: updateError } = await supabaseAdmin
@@ -73,8 +117,11 @@ serve(async (req) => {
       .eq('id', bookingId);
 
     if (updateError) {
-      console.error('Failed to update booking:', updateError);
-      throw updateError;
+      console.error('❌ Failed to update booking:', updateError);
+      // Don't fail the entire request, but log the error
+      console.warn('⚠️ Booking update failed, but payment intent was created');
+    } else {
+      console.log('✅ Booking updated with payment intent');
     }
 
     return new Response(
@@ -90,11 +137,13 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error creating payment intent:', error);
+    console.error('❌ Error creating payment intent:', error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: errorMessage,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

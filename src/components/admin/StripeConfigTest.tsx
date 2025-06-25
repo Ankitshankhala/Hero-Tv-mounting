@@ -35,7 +35,7 @@ export const StripeConfigTest = () => {
       // Test 2: Edge function connectivity
       console.log('🔄 Testing edge function connectivity...');
       try {
-        const { error } = await supabase.functions.invoke('create-payment-intent', {
+        const { data, error } = await supabase.functions.invoke('create-payment-intent', {
           body: {
             bookingId: 'test-booking-id',
             amount: 10.00,
@@ -44,14 +44,20 @@ export const StripeConfigTest = () => {
           }
         });
         
-        // We expect this to fail with a specific error about the test booking
-        // If it fails differently, there might be a configuration issue
+        // For test booking, we expect a specific error response
+        const isExpectedTestError = error && (
+          error.message?.includes('Test booking ID provided') ||
+          error.message?.includes('test-booking-id')
+        );
+        
         results.tests.edgeFunction = {
           name: 'Edge Function Connectivity',
-          passed: error ? error.message.includes('booking') || error.message.includes('test') : true,
+          passed: isExpectedTestError || (!error && data?.success),
           details: {
             errorMessage: error?.message || 'Function accessible',
-            status: error ? 'Expected error (good)' : 'Unexpected success'
+            status: isExpectedTestError ? 'Expected test error (good)' : 
+                   (!error && data?.success) ? 'Function working' : 'Unexpected error',
+            response: data ? 'Response received' : 'No response'
           }
         };
       } catch (err) {
@@ -165,7 +171,7 @@ export const StripeConfigTest = () => {
                       <div key={detailKey} className="flex justify-between">
                         <span className="capitalize">{detailKey.replace(/([A-Z])/g, ' $1')}:</span>
                         <span className={`font-mono text-xs ${
-                          typeof detailValue === 'string' && detailValue.includes('error') 
+                          typeof detailValue === 'string' && detailValue.includes('error') && !detailValue.includes('Expected') 
                             ? 'text-red-600' 
                             : 'text-slate-700'
                         }`}>

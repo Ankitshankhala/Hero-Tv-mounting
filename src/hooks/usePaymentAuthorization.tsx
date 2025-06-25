@@ -44,6 +44,11 @@ export const usePaymentAuthorization = () => {
         throw new Error('Valid payment amount is required');
       }
 
+      // Additional validation for booking ID format
+      if (data.bookingId === 'test-booking-id') {
+        throw new Error('Test booking ID cannot be used for real payments');
+      }
+
       const { data: result, error } = await supabase.functions.invoke('create-payment-intent', {
         body: {
           bookingId: data.bookingId,
@@ -58,12 +63,26 @@ export const usePaymentAuthorization = () => {
 
       if (error) {
         console.error('❌ Payment authorization error from edge function:', error);
-        throw new Error(error.message || 'Failed to create payment authorization');
+        
+        // Handle specific error types
+        if (error.message?.includes('Invalid booking ID')) {
+          throw new Error('The booking could not be found. Please try creating a new booking.');
+        } else if (error.message?.includes('Stripe')) {
+          throw new Error('Payment service error. Please check your payment configuration.');
+        } else {
+          throw new Error(error.message || 'Failed to create payment authorization');
+        }
       }
 
       if (!result?.success) {
         console.error('❌ Payment authorization failed:', result);
-        throw new Error(result?.error || 'Payment authorization failed');
+        const errorMsg = result?.error || 'Payment authorization failed';
+        
+        if (errorMsg.includes('booking')) {
+          throw new Error('Booking validation failed. Please try creating a new booking.');
+        } else {
+          throw new Error(errorMsg);
+        }
       }
 
       if (!result.client_secret) {
