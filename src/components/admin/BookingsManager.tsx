@@ -19,18 +19,16 @@ export const BookingsManager = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const { user } = useAuth();
 
-  // Use our custom hook for booking management
+  // Use our enhanced booking manager hook
   const { bookings, loading, handleBookingUpdate, fetchBookings } = useBookingManager();
 
-  // Set up real-time subscriptions for admin with stable callback
+  // Set up real-time subscriptions for admin with enhanced callback
   const handleRealtimeUpdate = React.useCallback((updatedBooking: any) => {
-    console.log('Real-time booking update received:', updatedBooking);
+    console.log('Real-time booking update received in BookingsManager:', updatedBooking);
+    
+    // Use the enhanced update handler that enriches data
     handleBookingUpdate(updatedBooking);
-    // Force a fresh fetch to ensure we have the latest data with all relations
-    setTimeout(() => {
-      fetchBookings();
-    }, 1000);
-  }, [handleBookingUpdate, fetchBookings]);
+  }, [handleBookingUpdate]);
 
   const { isConnected } = useRealtimeBookings({
     userId: user?.id,
@@ -58,7 +56,8 @@ export const BookingsManager = () => {
         booking.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
         booking.services?.some(service => 
           service.name?.toLowerCase().includes(searchTerm.toLowerCase())
-        )
+        ) ||
+        booking.worker?.name?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -71,7 +70,7 @@ export const BookingsManager = () => {
   };
 
   const handleBookingUpdated = () => {
-    console.log('Booking updated, refreshing list');
+    console.log('Booking updated from BookingTable, refreshing list');
     fetchBookings();
   };
 

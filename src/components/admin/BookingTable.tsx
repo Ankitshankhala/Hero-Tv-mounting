@@ -1,12 +1,12 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Edit, Trash2, DollarSign } from 'lucide-react';
+import { Edit, Trash2, DollarSign, UserPlus } from 'lucide-react';
 import { EditBookingModal } from './EditBookingModal';
 import { DeleteBookingModal } from './DeleteBookingModal';
 import { ManualChargeModal } from '@/components/worker/payment/ManualChargeModal';
+import { AssignWorkerModal } from './AssignWorkerModal';
 
 interface Booking {
   id: string;
@@ -37,6 +37,7 @@ export const BookingTable = ({ bookings, onBookingUpdate }: BookingTableProps) =
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showManualChargeModal, setShowManualChargeModal] = useState(false);
+  const [showAssignWorkerModal, setShowAssignWorkerModal] = useState(false);
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
@@ -114,6 +115,10 @@ export const BookingTable = ({ bookings, onBookingUpdate }: BookingTableProps) =
     }
   };
 
+  const isUnassigned = (booking: Booking) => {
+    return !booking.worker_id || !booking.worker?.name;
+  };
+
   const handleEdit = (booking: Booking) => {
     setSelectedBooking(booking);
     setShowEditModal(true);
@@ -129,11 +134,17 @@ export const BookingTable = ({ bookings, onBookingUpdate }: BookingTableProps) =
     setShowManualChargeModal(true);
   };
 
+  const handleAssignWorker = (booking: Booking) => {
+    setSelectedBooking(booking);
+    setShowAssignWorkerModal(true);
+  };
+
   const handleModalClose = () => {
     setSelectedBooking(null);
     setShowEditModal(false);
     setShowDeleteModal(false);
     setShowManualChargeModal(false);
+    setShowAssignWorkerModal(false);
   };
 
   const handleBookingUpdated = () => {
@@ -165,6 +176,7 @@ export const BookingTable = ({ bookings, onBookingUpdate }: BookingTableProps) =
             {bookings.map((booking) => {
               const { date, time } = formatDateTime(booking);
               const canChargeFee = isEligibleForLateFee(booking);
+              const needsWorkerAssignment = isUnassigned(booking);
               
               return (
                 <TableRow key={booking.id}>
@@ -183,11 +195,30 @@ export const BookingTable = ({ bookings, onBookingUpdate }: BookingTableProps) =
                     </div>
                   </TableCell>
                   <TableCell>{booking.customer?.city || booking.customer_address || booking.location_notes || 'N/A'}</TableCell>
-                  <TableCell>{booking.worker?.name || 'Unassigned'}</TableCell>
+                  <TableCell>
+                    {needsWorkerAssignment ? (
+                      <Badge variant="secondary" className="text-orange-600">
+                        Unassigned
+                      </Badge>
+                    ) : (
+                      booking.worker?.name || 'Unassigned'
+                    )}
+                  </TableCell>
                   <TableCell>{getStatusBadge(booking.status)}</TableCell>
                   <TableCell className="font-medium">${booking.total_price || 0}</TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
+                      {needsWorkerAssignment && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleAssignWorker(booking)}
+                          className="text-green-600 hover:text-green-700"
+                          title="Assign Worker"
+                        >
+                          <UserPlus className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button 
                         variant="outline" 
                         size="sm"
@@ -250,6 +281,14 @@ export const BookingTable = ({ bookings, onBookingUpdate }: BookingTableProps) =
         isOpen={showManualChargeModal}
         onClose={handleModalClose}
         onChargeComplete={handleBookingUpdated}
+      />
+
+      {/* Assign Worker Modal */}
+      <AssignWorkerModal
+        onClose={handleModalClose}
+        onAssignmentComplete={handleBookingUpdated}
+        isOpen={showAssignWorkerModal}
+        selectedBookingId={selectedBooking?.id}
       />
     </>
   );

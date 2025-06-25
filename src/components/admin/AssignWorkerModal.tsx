@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -10,6 +9,8 @@ import { useToast } from '@/hooks/use-toast';
 interface AssignWorkerModalProps {
   onClose: () => void;
   onAssignmentComplete?: () => void;
+  isOpen?: boolean;
+  selectedBookingId?: string;
 }
 
 interface UnassignedBooking {
@@ -33,7 +34,7 @@ interface AvailableWorker {
   email: string;
 }
 
-export const AssignWorkerModal = ({ onClose, onAssignmentComplete }: AssignWorkerModalProps) => {
+export const AssignWorkerModal = ({ onClose, onAssignmentComplete, isOpen, selectedBookingId }: AssignWorkerModalProps) => {
   const [selectedBooking, setSelectedBooking] = useState('');
   const [selectedWorker, setSelectedWorker] = useState('');
   const [unassignedBookings, setUnassignedBookings] = useState<UnassignedBooking[]>([]);
@@ -43,8 +44,14 @@ export const AssignWorkerModal = ({ onClose, onAssignmentComplete }: AssignWorke
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (isOpen) {
+      fetchData();
+      // Pre-select booking if provided
+      if (selectedBookingId) {
+        setSelectedBooking(selectedBookingId);
+      }
+    }
+  }, [isOpen, selectedBookingId]);
 
   const fetchData = async () => {
     try {
@@ -101,6 +108,8 @@ export const AssignWorkerModal = ({ onClose, onAssignmentComplete }: AssignWorke
 
     setAssigning(true);
     try {
+      console.log('Assigning worker:', selectedWorker, 'to booking:', selectedBooking);
+      
       // Update the booking with the assigned worker
       const { error: updateError } = await supabase
         .from('bookings')
@@ -111,6 +120,7 @@ export const AssignWorkerModal = ({ onClose, onAssignmentComplete }: AssignWorke
         .eq('id', selectedBooking);
 
       if (updateError) {
+        console.error('Error updating booking:', updateError);
         throw updateError;
       }
 
@@ -166,6 +176,8 @@ export const AssignWorkerModal = ({ onClose, onAssignmentComplete }: AssignWorke
     });
   };
 
+  if (!isOpen) return null;
+
   if (loading) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -192,45 +204,47 @@ export const AssignWorkerModal = ({ onClose, onAssignmentComplete }: AssignWorke
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div>
             <Label className="text-base font-medium mb-3 block">
-              Unassigned Bookings ({unassignedBookings.length})
+              {selectedBookingId ? 'Selected Booking' : `Unassigned Bookings (${unassignedBookings.length})`}
             </Label>
             <div className="space-y-3 max-h-96 overflow-y-auto">
               {unassignedBookings.length === 0 ? (
                 <p className="text-gray-500 text-center py-4">No unassigned bookings</p>
               ) : (
-                unassignedBookings.map((booking) => (
-                  <Card 
-                    key={booking.id} 
-                    className={`cursor-pointer transition-colors ${
-                      selectedBooking === booking.id ? 'ring-2 ring-blue-500 bg-blue-50' : 'hover:bg-gray-50'
-                    }`}
-                    onClick={() => setSelectedBooking(booking.id)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-medium">{booking.customer?.name || 'Unknown Customer'}</p>
-                          <p className="text-sm text-gray-600">{booking.service?.name || 'Unknown Service'}</p>
-                          <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
-                            <div className="flex items-center space-x-1">
-                              <Clock className="h-3 w-3" />
-                              <span>{formatDate(booking.scheduled_date)} at {formatTime(booking.scheduled_start)}</span>
-                            </div>
-                            {booking.customer?.city && (
+                unassignedBookings
+                  .filter(booking => !selectedBookingId || booking.id === selectedBookingId)
+                  .map((booking) => (
+                    <Card 
+                      key={booking.id} 
+                      className={`cursor-pointer transition-colors ${
+                        selectedBooking === booking.id ? 'ring-2 ring-blue-500 bg-blue-50' : 'hover:bg-gray-50'
+                      } ${selectedBookingId ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
+                      onClick={() => setSelectedBooking(booking.id)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="font-medium">{booking.customer?.name || 'Unknown Customer'}</p>
+                            <p className="text-sm text-gray-600">{booking.service?.name || 'Unknown Service'}</p>
+                            <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
                               <div className="flex items-center space-x-1">
-                                <MapPin className="h-3 w-3" />
-                                <span>{booking.customer.city}</span>
+                                <Clock className="h-3 w-3" />
+                                <span>{formatDate(booking.scheduled_date)} at {formatTime(booking.scheduled_start)}</span>
                               </div>
-                            )}
+                              {booking.customer?.city && (
+                                <div className="flex items-center space-x-1">
+                                  <MapPin className="h-3 w-3" />
+                                  <span>{booking.customer.city}</span>
+                                </div>
+                              )}
+                            </div>
                           </div>
+                          <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
+                            {booking.id.slice(0, 8)}
+                          </span>
                         </div>
-                        <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
-                          {booking.id.slice(0, 8)}
-                        </span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
+                      </CardContent>
+                    </Card>
+                  ))
               )}
             </div>
           </div>

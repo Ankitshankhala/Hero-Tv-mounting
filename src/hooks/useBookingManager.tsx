@@ -27,12 +27,58 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
+  const enrichSingleBooking = async (booking: any): Promise<BookingData> => {
+    // Fetch customer data
+    let customer = null;
+    if (booking.customer_id) {
+      const { data: customerData } = await supabase
+        .from('users')
+        .select('id, name, email, phone, city')
+        .eq('id', booking.customer_id)
+        .single();
+      customer = customerData;
+    }
+
+    // Fetch worker data
+    let worker = null;
+    if (booking.worker_id) {
+      const { data: workerData } = await supabase
+        .from('users')
+        .select('id, name, email, phone')
+        .eq('id', booking.worker_id)
+        .single();
+      worker = workerData;
+    }
+
+    // Fetch service data
+    let service = null;
+    if (booking.service_id) {
+      const { data: serviceData } = await supabase
+        .from('services')
+        .select('id, name, description, base_price, duration_minutes')
+        .eq('id', booking.service_id)
+        .single();
+      service = serviceData;
+    }
+
+    // Create backward-compatible format
+    return {
+      ...booking,
+      customer,
+      worker,
+      service,
+      services: service ? [service] : [],
+      scheduled_at: `${booking.scheduled_date}T${booking.scheduled_start}`,
+      customer_address: booking.location_notes || 'No address provided',
+      total_price: service?.base_price || 0
+    };
+  };
+
   const fetchBookings = async () => {
     try {
       setLoading(true);
       console.log('Fetching bookings...');
 
-      // First, get the basic booking data
       const { data: bookingsData, error: bookingsError } = await supabase
         .from('bookings')
         .select('*')
@@ -53,54 +99,7 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
 
       // Enrich bookings with customer, worker, and service data
       const enrichedBookings = await Promise.all(
-        bookingsData.map(async (booking) => {
-          // Fetch customer data
-          let customer = null;
-          if (booking.customer_id) {
-            const { data: customerData } = await supabase
-              .from('users')
-              .select('id, name, email, phone, city')
-              .eq('id', booking.customer_id)
-              .single();
-            customer = customerData;
-          }
-
-          // Fetch worker data
-          let worker = null;
-          if (booking.worker_id) {
-            const { data: workerData } = await supabase
-              .from('users')
-              .select('id, name, email, phone')
-              .eq('id', booking.worker_id)
-              .single();
-            worker = workerData;
-          }
-
-          // Fetch service data
-          let service = null;
-          if (booking.service_id) {
-            const { data: serviceData } = await supabase
-              .from('services')
-              .select('id, name, description, base_price, duration_minutes')
-              .eq('id', booking.service_id)
-              .single();
-            service = serviceData;
-          }
-
-          // Create backward-compatible format
-          const enrichedBooking: BookingData = {
-            ...booking,
-            customer,
-            worker,
-            service,
-            services: service ? [service] : [], // For compatibility with BookingTable
-            scheduled_at: `${booking.scheduled_date}T${booking.scheduled_start}`, // For compatibility
-            customer_address: booking.location_notes || 'No address provided', // For compatibility
-            total_price: service?.base_price || 0 // For compatibility
-          };
-
-          return enrichedBooking;
-        })
+        bookingsData.map(enrichSingleBooking)
       );
 
       console.log('Enriched bookings:', enrichedBookings);
@@ -117,13 +116,43 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
     }
   };
 
-  const handleBookingUpdate = (updatedBooking: any) => {
+  const handleBookingUpdate = async (updatedBooking: any) => {
     console.log('Booking update received:', updatedBooking);
-    setBookings(prevBookings => 
-      prevBookings.map(booking => 
-        booking.id === updatedBooking.id ? { ...booking, ...updatedBooking } : booking
-      )
-    );
+    
+    try {
+      // Enrich the updated booking with related data
+      const enrichedBooking = await enrichSingleBooking(updatedBooking);
+      
+      setBookings(prevBookings => {
+        const existingIndex = prevBookings.findIndex(booking => booking.id === updatedBooking.id);
+        
+        if (existingIndex >= 0) {
+          // Update existing booking
+          const newBookings = [...prevBookings];
+          newBookings[existingIndex] = enrichedBooking;
+          return newBookings;
+        } else {
+          // Add new booking if it doesn't exist
+          return [enrichedBooking, ...prevBookings];
+        }
+      });
+
+      // Show success notification for worker assignments
+      if (updatedBooking.worker_id && enrichedBooking.worker?.name) {
+        toast({
+          title: "Worker Assigned",
+          description: `${enrichedBooking.worker.name} has been assigned to booking ${updatedBooking.id.slice(0, 8)}`,
+        });
+      }
+    } catch (error) {
+      console.error('Error enriching updated booking:', error);
+      // Fallback to basic update if enrichment fails
+      setBookings(prevBookings => 
+        prevBookings.map(booking => 
+          booking.id === updatedBooking.id ? { ...booking, ...updatedBooking } : booking
+        )
+      );
+    }
   };
 
   useEffect(() => {
