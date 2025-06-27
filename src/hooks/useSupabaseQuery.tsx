@@ -26,13 +26,18 @@ export const useSupabaseQuery = (options: UseSupabaseQueryOptions) => {
   } = options;
   
   const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<any>(null);
   const { user } = useAuth();
-  const { executeWithRetry, loading, error } = useRetryableQuery();
+  const { executeWithRetry } = useRetryableQuery();
 
   const executeQuery = async () => {
     if (!enabled) {
       return;
     }
+
+    setLoading(true);
+    setError(null);
 
     try {
       await executeWithRetry(async () => {
@@ -101,6 +106,9 @@ export const useSupabaseQuery = (options: UseSupabaseQueryOptions) => {
       }, `load ${table} data`);
     } catch (err) {
       console.error(`Query execution error for ${table}:`, err);
+      setError(err);
+    } finally {
+      setLoading(false);
     }
   };
 
