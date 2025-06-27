@@ -31,6 +31,8 @@ export const useBookingLogic = () => {
   const createBooking = async (bookingData: UnauthenticatedBookingData): Promise<CreateBookingResult> => {
     setLoading(true);
     try {
+      console.log('Creating booking with data:', bookingData);
+
       // Validate zipcode first
       const zipcodeValidation = await validateUSZipcode(bookingData.customer_zipcode);
       if (!zipcodeValidation) {
@@ -50,12 +52,16 @@ export const useBookingLogic = () => {
         .from('users')
         .select('id')
         .eq('email', bookingData.customer_email)
+        .eq('role', 'customer')
         .maybeSingle();
 
       if (existingCustomer) {
         customerId = existingCustomer.id;
+        console.log('Found existing customer:', customerId);
       } else {
-        // Create new customer
+        console.log('Creating new customer...');
+        
+        // Create new customer with explicit role
         const { data: newCustomer, error: customerError } = await supabase
           .from('users')
           .insert({
@@ -80,9 +86,12 @@ export const useBookingLogic = () => {
         }
 
         customerId = newCustomer.id;
+        console.log('Created new customer:', customerId);
       }
 
       // Create the booking
+      console.log('Creating booking for customer:', customerId);
+      
       const { data: booking, error: bookingError } = await supabase
         .from('bookings')
         .insert({
@@ -91,7 +100,9 @@ export const useBookingLogic = () => {
           scheduled_date: bookingData.scheduled_date,
           scheduled_start: bookingData.scheduled_start,
           location_notes: bookingData.location_notes,
-          status: 'pending'
+          status: 'pending',
+          payment_status: 'pending',
+          requires_manual_payment: true
         })
         .select()
         .single();
@@ -106,40 +117,52 @@ export const useBookingLogic = () => {
         };
       }
 
-      // Auto-assign workers using the database function
-      const { data: assignments, error: assignmentError } = await supabase
-        .rpc('auto_assign_workers_to_booking', {
-          p_booking_id: booking.id
-        });
+      console.log('Booking created successfully:', booking);
 
-      if (assignmentError) {
-        console.error('Worker assignment error:', assignmentError);
+      // Try to auto-assign workers
+      try {
+        const { data: assignments, error: assignmentError } = await supabase
+          .rpc('auto_assign_workers_to_booking', {
+            p_booking_id: booking.id
+          });
+
+        if (assignmentError) {
+          console.error('Worker assignment error:', assignmentError);
+          return {
+            booking_id: booking.id,
+            assigned_workers: [],
+            status: 'pending',
+            message: 'Booking created! No workers currently available in your area, but we will assign one soon and contact you.'
+          };
+        }
+
+        // Get assigned worker details if any
+        const assignedWorkerIds = assignments?.map((a: any) => a.assigned_worker_id) || [];
+        
+        if (assignedWorkerIds.length === 0) {
+          return {
+            booking_id: booking.id,
+            assigned_workers: [],
+            status: 'pending',
+            message: 'Booking created! No workers currently available in your area, but we will assign one soon and contact you.'
+          };
+        }
+
+        return {
+          booking_id: booking.id,
+          assigned_workers: assignedWorkerIds,
+          status: 'confirmed',
+          message: `Booking confirmed! We've assigned ${assignedWorkerIds.length} worker(s) to your job and will contact you soon.`
+        };
+      } catch (assignmentError) {
+        console.error('Assignment process failed:', assignmentError);
         return {
           booking_id: booking.id,
           assigned_workers: [],
           status: 'pending',
-          message: 'Booking created! No workers currently available in your area, but we will assign one soon and contact you.'
+          message: 'Booking created! Worker assignment will be done manually.'
         };
       }
-
-      // Get assigned worker details if any
-      const assignedWorkerIds = assignments?.map((a: any) => a.assigned_worker_id) || [];
-      
-      if (assignedWorkerIds.length === 0) {
-        return {
-          booking_id: booking.id,
-          assigned_workers: [],
-          status: 'pending',
-          message: 'Booking created! No workers currently available in your area, but we will assign one soon and contact you.'
-        };
-      }
-
-      return {
-        booking_id: booking.id,
-        assigned_workers: assignedWorkerIds,
-        status: 'confirmed',
-        message: `Booking confirmed! We've assigned ${assignedWorkerIds.length} worker(s) to your job and will contact you soon.`
-      };
 
     } catch (error) {
       console.error('Error in createBooking:', error);

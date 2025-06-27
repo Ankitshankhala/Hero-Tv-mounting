@@ -14,17 +14,45 @@ export const useBookingOperations = () => {
   const createBooking = async (bookingData: any) => {
     setLoading(true);
     try {
+      console.log('Creating booking with data:', bookingData);
+      
       return await executeWithRetry(async () => {
+        // Ensure we have the required fields
+        const bookingPayload = {
+          customer_id: bookingData.customer_id,
+          service_id: bookingData.service_id,
+          scheduled_date: bookingData.scheduled_date,
+          scheduled_start: bookingData.scheduled_start,
+          location_notes: bookingData.location_notes || '',
+          status: bookingData.status || 'pending',
+          payment_status: bookingData.payment_status || 'pending',
+          requires_manual_payment: bookingData.requires_manual_payment !== false,
+          worker_id: bookingData.worker_id || null
+        };
+
+        console.log('Booking payload:', bookingPayload);
+
         const { data, error } = await supabase
           .from('bookings')
-          .insert(bookingData)
-          .select()
+          .insert(bookingPayload)
+          .select(`
+            *,
+            customer:users!customer_id(*),
+            worker:users!worker_id(*),
+            service:services(*)
+          `)
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('Booking creation error:', error);
+          throw error;
+        }
+
+        console.log('Booking created successfully:', data);
         return data;
       }, 'create booking');
     } catch (error) {
+      console.error('Error in createBooking:', error);
       handleError(error, 'create booking', {
         toastTitle: 'Failed to create booking',
         fallbackMessage: 'Unable to create booking. Please try again.'
@@ -68,7 +96,8 @@ export const useBookingOperations = () => {
           .select(`
             *,
             customer:users!customer_id(*),
-            worker:users!worker_id(*)
+            worker:users!worker_id(*),
+            service:services(*)
           `);
 
         // Apply filters if provided

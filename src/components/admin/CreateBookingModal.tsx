@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -128,7 +127,7 @@ export const CreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingM
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.service || !formData.date || !formData.time) {
+    if (!formData.service || !formData.date || !formData.time || !formData.customerName || !formData.customerEmail) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
@@ -148,7 +147,7 @@ export const CreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingM
 
     setLoading(true);
     try {
-      console.log('Creating booking with data:', formData);
+      console.log('Creating customer and booking with data:', formData);
 
       // Create customer first
       const { data: customerData, error: customerError } = await supabase
@@ -164,10 +163,29 @@ export const CreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingM
 
       if (customerError) {
         console.error('Customer creation error:', customerError);
-        throw customerError;
+        
+        // Check if it's a duplicate email error
+        if (customerError.message?.includes('duplicate key value')) {
+          // Try to find existing customer
+          const { data: existingCustomer } = await supabase
+            .from('users')
+            .select('id')
+            .eq('email', formData.customerEmail)
+            .eq('role', 'customer')
+            .single();
+            
+          if (existingCustomer) {
+            // Use existing customer
+            customerData.id = existingCustomer.id;
+          } else {
+            throw customerError;
+          }
+        } else {
+          throw customerError;
+        }
       }
 
-      console.log('Customer created:', customerData);
+      console.log('Customer resolved:', customerData);
 
       // Build location notes with TV mounting config if applicable
       let locationNotes = `${formData.address}\n\nRegion: ${formData.region}`;
@@ -191,6 +209,8 @@ export const CreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingM
         scheduled_start: formData.time,
         location_notes: locationNotes,
         status: 'confirmed' as const,
+        payment_status: 'pending' as const,
+        requires_manual_payment: true,
         ...(formData.worker && formData.worker !== 'auto' && { worker_id: formData.worker })
       };
 

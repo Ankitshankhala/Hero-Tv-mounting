@@ -40,11 +40,20 @@ export const useErrorHandler = () => {
 
     // Handle specific Supabase RLS errors
     if (errorMessage.includes('row-level security policy')) {
-      errorMessage = "You don't have permission to access this data";
+      errorMessage = "You don't have permission to access this data. Please try logging in again.";
     } else if (errorMessage.includes('duplicate key value')) {
       errorMessage = "This record already exists";
     } else if (errorMessage.includes('foreign key constraint')) {
       errorMessage = "Cannot complete this action due to related data";
+    } else if (errorMessage.includes('violates not-null constraint')) {
+      errorMessage = "Missing required information. Please fill in all required fields.";
+    } else if (errorMessage.includes('invalid input syntax')) {
+      errorMessage = "Invalid data format. Please check your input.";
+    }
+
+    // Handle authentication errors
+    if (errorMessage.includes('JWT expired') || errorMessage.includes('invalid_token')) {
+      errorMessage = "Your session has expired. Please log in again.";
     }
 
     // Handle Stripe-specific errors

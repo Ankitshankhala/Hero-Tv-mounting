@@ -1,87 +1,44 @@
 
-import { useState, useCallback } from 'react';
-import { useErrorMonitoring } from './useErrorMonitoring';
-
-interface RetryConfig {
-  maxRetries?: number;
-  delay?: number;
-  backoffMultiplier?: number;
-}
+import { useState } from 'react';
 
 export const useRetryableQuery = () => {
   const [retryCount, setRetryCount] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  const { logError } = useErrorMonitoring();
 
-  const executeWithRetry = useCallback(async (
-    operation: () => Promise<any>,
+  const executeWithRetry = async <T>(
+    operation: () => Promise<T>,
     operationName: string,
-    config: RetryConfig = {}
-  ): Promise<any> => {
-    const {
-      maxRetries = 3,
-      delay = 1000,
-      backoffMultiplier = 2
-    } = config;
-
-    setLoading(true);
-    setError(null);
-    let currentDelay = delay;
-
+    maxRetries: number = 2
+  ): Promise<T> => {
+    let lastError: any;
+    
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         const result = await operation();
         if (attempt > 0) {
-          console.log(`${operationName} succeeded on retry ${attempt}`);
+          console.log(`${operationName} succeeded on attempt ${attempt + 1}`);
         }
-        setRetryCount(0); // Reset on success
-        setLoading(false);
+        setRetryCount(0);
         return result;
       } catch (error) {
-        const isLastAttempt = attempt === maxRetries;
+        lastError = error;
+        console.error(`${operationName} failed on attempt ${attempt + 1}:`, error);
         
-        if (isLastAttempt) {
-          logError(error as Error, `${operationName} failed after ${maxRetries + 1} attempts`, {
-            category: 'retry',
-            operationName,
-            finalAttempt: attempt + 1,
-            totalAttempts: maxRetries + 1
-          });
-          setRetryCount(0); // Reset after final failure
-          setError(error as Error);
-          setLoading(false);
-          throw error;
+        if (attempt < maxRetries) {
+          // Wait before retrying (exponential backoff)
+          const delay = Math.min(1000 * Math.pow(2, attempt), 5000);
+          console.log(`Retrying ${operationName} in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          setRetryCount(attempt + 1);
         }
-
-        console.warn(`${operationName} failed on attempt ${attempt + 1}, retrying in ${currentDelay}ms...`);
-        setRetryCount(attempt + 1);
-        
-        // Wait before retrying
-        await new Promise(resolve => setTimeout(resolve, currentDelay));
-        currentDelay *= backoffMultiplier;
       }
     }
-
-    throw new Error('Unexpected end of retry loop');
-  }, [logError]);
-
-  const retryWithExponentialBackoff = useCallback(async (
-    operationName: string,
-    operation: () => Promise<any>
-  ): Promise<any> => {
-    return executeWithRetry(operation, operationName, {
-      maxRetries: 3,
-      delay: 1000,
-      backoffMultiplier: 2
-    });
-  }, [executeWithRetry]);
+    
+    setRetryCount(0);
+    throw lastError;
+  };
 
   return {
     executeWithRetry,
-    retryWithExponentialBackoff,
-    retryCount,
-    loading,
-    error
+    retryCount
   };
 };
