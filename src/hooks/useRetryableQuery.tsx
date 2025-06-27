@@ -4,7 +4,7 @@ import { useState } from 'react';
 export const useRetryableQuery = () => {
   const [retryCount, setRetryCount] = useState(0);
 
-  const executeWithRetry = async <T>(
+  const executeWithRetry = async <T,>(
     operation: () => Promise<T>,
     operationName: string,
     maxRetries: number = 2
