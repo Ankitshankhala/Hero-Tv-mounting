@@ -1,10 +1,10 @@
-
 import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { CalendarIcon, Clock, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatTimeTo12Hour } from '@/utils/timeUtils';
 
 interface FormData {
   selectedDate: Date | undefined;
@@ -85,7 +85,7 @@ export const ScheduleStep = ({
                 const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
                 return dateOnly < today;
               }}
-              className="w-full [&_.rdp-day]:text-white [&_.rdp-day_button:hover]:bg-slate-600 [&_.rdp-day_button[aria-selected]]:bg-blue-600 [&_.rdp-caption]:text-white [&_.rdp-nav_button]:text-white [&_.rdp-nav_button:hover]:bg-slate-600"
+              className="w-full"
             />
           </div>
         </div>
@@ -154,7 +154,7 @@ export const ScheduleStep = ({
                         >
                           <div className="flex items-center space-x-2">
                             <div className="w-2 h-2 rounded-full bg-green-400" />
-                            <span>{time}</span>
+                            <span>{formatTimeTo12Hour(time)}</span>
                           </div>
                         </Button>
                       );
