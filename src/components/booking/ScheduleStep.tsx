@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -86,6 +87,44 @@ export const ScheduleStep = ({
                 return dateOnly < today;
               }}
               className="w-full"
+              classNames={{
+                months: "flex w-full flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+                month: "space-y-4 w-full flex flex-col",
+                caption: "flex justify-center pt-1 relative items-center text-white font-semibold",
+                caption_label: "text-base font-semibold text-white",
+                nav: "space-x-1 flex items-center",
+                nav_button: "h-8 w-8 bg-transparent p-0 text-white hover:bg-slate-600/50 hover:text-white rounded-md transition-colors border border-slate-600/50",
+                nav_button_previous: "absolute left-1",
+                nav_button_next: "absolute right-1",
+                table: "w-full border-collapse space-y-1",
+                head_row: "flex w-full",
+                head_cell: "text-slate-300 rounded-md w-9 font-medium text-sm flex-1 text-center py-2",
+                row: "flex w-full mt-2",
+                cell: "relative p-0 text-center text-sm focus-within:relative focus-within:z-20 flex-1 min-h-[44px] flex items-center justify-center",
+                day: cn(
+                  "h-9 w-9 text-white p-0 font-normal aria-selected:opacity-100 mx-auto",
+                  "hover:bg-slate-600/50 hover:text-white rounded-lg transition-all duration-200",
+                  "focus:bg-slate-600/50 focus:text-white focus:outline-none focus:ring-2 focus:ring-purple-400/50",
+                  "border border-transparent hover:border-slate-500/50",
+                  "min-h-[44px] min-w-[44px] flex items-center justify-center"
+                ),
+                day_selected: cn(
+                  "bg-blue-600 text-white hover:bg-blue-700 hover:text-white",
+                  "focus:bg-blue-600 focus:text-white rounded-lg",
+                  "border-blue-500 shadow-md font-semibold"
+                ),
+                day_today: cn(
+                  "bg-purple-600/80 text-white font-semibold",
+                  "hover:bg-purple-700 border-purple-400",
+                  "shadow-sm"
+                ),
+                day_outside: "text-slate-500 opacity-40 hover:opacity-60",
+                day_disabled: "text-slate-600 opacity-30 cursor-not-allowed hover:bg-transparent hover:text-slate-600",
+                day_range_end: "day-range-end",
+                day_range_start: "day-range-start",
+                day_range_middle: "aria-selected:bg-blue-500/50 aria-selected:text-white",
+                day_hidden: "invisible",
+              }}
             />
           </div>
         </div>
@@ -147,7 +186,7 @@ export const ScheduleStep = ({
                           size="sm"
                           onClick={() => setFormData(prev => ({ ...prev, selectedTime: time }))}
                           className={cn(
-                            "h-12 text-sm font-medium transition-all duration-200 relative",
+                            "h-12 text-sm font-medium transition-all duration-200 relative rounded-lg",
                             isSelected && "bg-purple-600 text-white border-purple-600 shadow-md",
                             !isSelected && "bg-slate-700/50 text-white border-slate-600 hover:bg-purple-600/20 hover:border-purple-400/50"
                           )}
