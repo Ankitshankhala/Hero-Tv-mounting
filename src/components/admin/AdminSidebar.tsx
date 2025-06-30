@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { 
@@ -36,8 +35,8 @@ export const AdminSidebar = ({ activeTab, onTabChange }: AdminSidebarProps) => {
     { id: 'sms', label: 'SMS Logs', icon: MessageSquare },
     { id: 'blog', label: 'Blog', icon: FileText },
     { id: 'coverage', label: 'Coverage Requests', icon: MapPin },
-    { id: 'performance', label: 'Performance', icon: Activity },
-    { id: 'deployment', label: 'Deployment', icon: Rocket },
+    // { id: 'performance', label: 'Performance', icon: Activity },
+    // { id: 'deployment', label: 'Deployment', icon: Rocket },
   ];
 
   return (

@@ -36,13 +36,7 @@ export const AdminHeader = () => {
               <Plus className="h-4 w-4 mr-2" />
               Create Booking
             </Button>
-            <Button 
-              variant="outline"
-              onClick={() => setShowAssignWorker(true)}
-            >
-              <UserPlus className="h-4 w-4 mr-2" />
-              Assign Worker
-            </Button>
+            
             <Button 
               variant="outline"
               onClick={() => setShowTodaysJobs(true)}
