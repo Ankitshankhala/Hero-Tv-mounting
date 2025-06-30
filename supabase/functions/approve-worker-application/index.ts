@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -42,7 +41,7 @@ serve(async (req) => {
 
     console.log('Authorization header found');
 
-    // Create regular client to verify admin status
+    // Create regular client to verify user authentication
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? ''
@@ -62,8 +61,8 @@ serve(async (req) => {
 
     console.log('User authenticated:', user.email);
 
-    // Check if user is admin
-    const { data: profile, error: profileError } = await supabase
+    // Check if user is admin using the admin client
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from('users')
       .select('role')
       .eq('id', user.id)
