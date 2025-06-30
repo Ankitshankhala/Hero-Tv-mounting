@@ -156,6 +156,7 @@ serve(async (req) => {
             name: application.name,
             phone: application.phone,
             city: application.city,
+            zip_code: application.zip_code,
             role: 'worker',
             is_active: true,
           })
@@ -196,6 +197,7 @@ serve(async (req) => {
           name: application.name,
           phone: application.phone,
           city: application.city,
+          zip_code: application.zip_code,
           role: 'worker',
           is_active: true,
         })

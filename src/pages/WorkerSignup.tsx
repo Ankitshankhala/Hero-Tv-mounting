@@ -62,6 +62,7 @@ const WorkerSignup = () => {
           phone: formData.phone,
           city: formData.city,
           region: formData.region,
+          zip_code: formData.zipCode,
           experience: formData.experience,
           skills: formData.skills,
           availability: formData.availability,

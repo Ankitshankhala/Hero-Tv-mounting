@@ -1,4 +1,3 @@
-
 -- Modified RLS Fix - Only add missing policies and enable RLS where needed
 -- This addresses the 19 RLS security errors without conflicting with existing policies
 
@@ -416,3 +415,11 @@ DO $$ BEGIN
         );
     END IF;
 END $$;
+
+-- Add zip_code column to worker_applications table for worker assignment
+ALTER TABLE public.worker_applications 
+ADD COLUMN IF NOT EXISTS zip_code TEXT;
+
+-- Create index for zip_code lookups
+CREATE INDEX IF NOT EXISTS idx_worker_applications_zip_code 
+ON public.worker_applications(zip_code) WHERE zip_code IS NOT NULL;
