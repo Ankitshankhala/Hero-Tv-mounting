@@ -26,16 +26,6 @@ export const WorkerApplicationsManager = () => {
   const [showPassword, setShowPassword] = useState(false);
   const { toast } = useToast();
 
-  // Generate a secure temporary password
-  const generateTemporaryPassword = () => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
-    let password = '';
-    for (let i = 0; i < 12; i++) {
-      password += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return password;
-  };
-
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -80,128 +70,72 @@ export const WorkerApplicationsManager = () => {
       setProcessingId(id);
       
       if (status === 'approved') {
-        // Get the application details
-        const application = applications.find(app => app.id === id);
-        if (!application) {
-          throw new Error('Application not found');
+        // Call the edge function to approve the worker application
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session) {
+          throw new Error('No active session');
         }
 
-        console.log('Creating worker profile for:', application.email);
-        
-        // Generate temporary password
-        const temporaryPassword = generateTemporaryPassword();
-        
-        // First check if a user with this email already exists
-        const { data: existingUser, error: checkError } = await supabase
-          .from('users')
-          .select('id, email, role')
-          .eq('email', application.email)
-          .maybeSingle();
+        const { data, error } = await supabase.functions.invoke('approve-worker-application', {
+          body: { applicationId: id },
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+        });
 
-        if (checkError) {
-          console.error('Error checking existing user:', checkError);
-          throw new Error('Failed to check if user already exists');
+        if (error) {
+          console.error('Edge function error:', error);
+          throw error;
         }
 
-        if (existingUser) {
-          // User already exists, check if they're already a worker
-          if (existingUser.role === 'worker') {
-            console.log('User already exists as a worker:', existingUser.email);
-            toast({
-              title: "Info",
-              description: "This user already exists as a worker in the system",
-            });
-          } else {
-            // Update existing user to worker role
-            const { error: updateError } = await supabase
-              .from('users')
-              .update({
-                name: application.name,
-                phone: application.phone,
-                city: application.city,
-                role: 'worker',
-                is_active: true,
-              })
-              .eq('id', existingUser.id);
+        console.log('Approval response:', data);
 
-            if (updateError) {
-              console.error('Error updating user to worker:', updateError);
-              throw updateError;
-            }
-            
-            console.log('Existing user updated to worker role');
-          }
-        } else {
-          // Create auth user with temporary password
-          const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-            email: application.email,
-            password: temporaryPassword,
-            email_confirm: true
-          });
-
-          if (authError) {
-            console.error('Error creating auth user:', authError);
-            throw authError;
-          }
-
-          // Create user profile
-          const { error: userError } = await supabase
-            .from('users')
-            .insert({
-              id: authData.user.id,
-              email: application.email,
-              name: application.name,
-              phone: application.phone,
-              city: application.city,
-              role: 'worker',
-              is_active: true,
-            });
-
-          if (userError) {
-            console.error('Error creating user profile:', userError);
-            throw userError;
-          }
-
-          console.log('New worker profile created successfully');
-          
-          // Show the temporary password to admin
+        // Show password modal only if it's a new user (not existing)
+        if (!data.isExistingUser && data.email && data.temporaryPassword) {
           setApprovalResult({
-            email: application.email,
-            temporaryPassword: temporaryPassword
+            email: data.email,
+            temporaryPassword: data.temporaryPassword
           });
           setShowPasswordModal(true);
         }
+
+        toast({
+          title: "Success",
+          description: data.isExistingUser 
+            ? "Application approved! Worker account was already active."
+            : "Application approved! Worker account created successfully.",
+        });
+      } else {
+        // Handle rejection
+        const { error } = await supabase
+          .from('worker_applications')
+          .update({ status: 'rejected' })
+          .eq('id', id);
+
+        if (error) {
+          console.error('Error rejecting application:', error);
+          throw error;
+        }
+
+        toast({
+          title: "Success",
+          description: "Application rejected successfully",
+        });
       }
-
-      // Update application status
-      const { error } = await supabase
-        .from('worker_applications')
-        .update({ status })
-        .eq('id', id);
-
-      if (error) {
-        console.error('Error updating application status:', error);
-        throw error;
-      }
-
-      toast({
-        title: "Success",
-        description: status === 'approved' 
-          ? `Application approved! Worker account created.`
-          : `Application ${status} successfully`,
-      });
 
       fetchApplications(); // Refresh the list
     } catch (error: any) {
       console.error('Error updating application:', error);
       
-      // Provide more specific error messages
       let errorMessage = "Failed to update application status";
       
       if (error?.message?.includes('duplicate key')) {
         errorMessage = "This email is already registered in the system";
-      } else if (error?.message?.includes('row-level security')) {
-        errorMessage = "Permission denied. Please check your admin access";
+      } else if (error?.message?.includes('Insufficient permissions')) {
+        errorMessage = "You don't have permission to perform this action";
+      } else if (error?.message?.includes('Invalid authorization')) {
+        errorMessage = "Authentication failed. Please refresh and try again";
       } else if (error?.message) {
         errorMessage = error.message;
       }
