@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useErrorHandler } from './useErrorHandler';
 import { useRetryableQuery } from './useRetryableQuery';
+import { useSmsNotifications } from './useSmsNotifications';
 
 type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
 
@@ -10,6 +11,7 @@ export const useBookingOperations = () => {
   const { executeWithRetry } = useRetryableQuery();
   const { handleError } = useErrorHandler();
   const [loading, setLoading] = useState(false);
+  const { sendWorkerAssignmentSms } = useSmsNotifications();
 
   const createBooking = async (bookingData: any) => {
     setLoading(true);
@@ -49,6 +51,12 @@ export const useBookingOperations = () => {
         }
 
         console.log('Booking created successfully:', data);
+        
+        // Send SMS if worker is assigned
+        if (data.worker_id) {
+          await sendWorkerAssignmentSms(data.id);
+        }
+        
         return data;
       }, 'create booking');
     } catch (error) {

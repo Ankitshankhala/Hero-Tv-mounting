@@ -2,10 +2,12 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useSmsNotifications } from './useSmsNotifications';
 
 export const useEnhancedBookingOperations = () => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { sendWorkerAssignmentSms } = useSmsNotifications();
 
   const createBookingWithCoverage = async (bookingData: any) => {
     setLoading(true);
@@ -53,6 +55,9 @@ export const useEnhancedBookingOperations = () => {
           title: "Booking Confirmed!",
           description: "A worker has been assigned to your booking",
         });
+        
+        // Send SMS notification to assigned worker
+        await sendWorkerAssignmentSms(booking.id);
         
         // Send coverage notifications
         await sendCoverageNotifications(booking.id, false);

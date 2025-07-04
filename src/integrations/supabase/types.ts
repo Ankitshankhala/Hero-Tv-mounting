@@ -606,6 +606,7 @@ export type Database = {
           skills: string | null
           status: string | null
           updated_at: string | null
+          zip_code: string | null
         }
         Insert: {
           availability?: Json
@@ -623,6 +624,7 @@ export type Database = {
           skills?: string | null
           status?: string | null
           updated_at?: string | null
+          zip_code?: string | null
         }
         Update: {
           availability?: Json
@@ -640,6 +642,7 @@ export type Database = {
           skills?: string | null
           status?: string | null
           updated_at?: string | null
+          zip_code?: string | null
         }
         Relationships: []
       }

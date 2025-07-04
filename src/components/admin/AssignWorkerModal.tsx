@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { X, User, MapPin, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useSmsNotifications } from '@/hooks/useSmsNotifications';
 
 interface AssignWorkerModalProps {
   onClose: () => void;
@@ -42,6 +43,7 @@ export const AssignWorkerModal = ({ onClose, onAssignmentComplete, isOpen, selec
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState(false);
   const { toast } = useToast();
+  const { sendWorkerAssignmentSms } = useSmsNotifications();
 
   useEffect(() => {
     if (isOpen) {
@@ -137,6 +139,9 @@ export const AssignWorkerModal = ({ onClose, onAssignmentComplete, isOpen, selec
         console.error('Worker booking error:', workerBookingError);
         // Don't throw here as the main assignment was successful
       }
+
+      // Send SMS notification to assigned worker
+      await sendWorkerAssignmentSms(selectedBooking);
 
       toast({
         title: "Success",
