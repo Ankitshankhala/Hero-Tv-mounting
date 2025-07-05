@@ -3,8 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { CheckCircle, XCircle, Clock, Phone, Mail, MapPin, User, Briefcase, Copy, Eye, EyeOff } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { CheckCircle, XCircle, Clock, Phone, Mail, MapPin, User, Briefcase, Copy, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Tables } from '@/integrations/supabase/types';
@@ -21,6 +22,7 @@ export const WorkerApplicationsManager = () => {
   const [applications, setApplications] = useState<WorkerApplication[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [approvalResult, setApprovalResult] = useState<ApprovalResult | null>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -147,6 +149,36 @@ export const WorkerApplicationsManager = () => {
       });
     } finally {
       setProcessingId(null);
+    }
+  };
+
+  const deleteApplication = async (id: string) => {
+    try {
+      setDeletingId(id);
+      
+      const { error } = await supabase
+        .from('worker_applications')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Worker application deleted successfully",
+      });
+
+      fetchApplications(); // Refresh the list
+    } catch (error: any) {
+      console.error('Error deleting application:', error);
+      
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to delete application",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -287,37 +319,74 @@ export const WorkerApplicationsManager = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {application.status === 'pending' && (
-                          <div className="flex space-x-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => updateApplicationStatus(application.id, 'approved')}
-                              disabled={processingId === application.id}
-                              className="text-green-600 hover:text-green-700"
-                            >
-                              {processingId === application.id ? (
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
-                              ) : (
-                                <CheckCircle className="h-4 w-4" />
-                              )}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => updateApplicationStatus(application.id, 'rejected')}
-                              disabled={processingId === application.id}
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <XCircle className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        )}
-                        {application.status === 'approved' && (
-                          <div className="text-xs text-green-600 font-medium">
-                            Profile Created
-                          </div>
-                        )}
+                        <div className="flex space-x-2">
+                          {application.status === 'pending' && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => updateApplicationStatus(application.id, 'approved')}
+                                disabled={processingId === application.id}
+                                className="text-green-600 hover:text-green-700"
+                              >
+                                {processingId === application.id ? (
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
+                                ) : (
+                                  <CheckCircle className="h-4 w-4" />
+                                )}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => updateApplicationStatus(application.id, 'rejected')}
+                                disabled={processingId === application.id}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                          
+                          {application.status === 'approved' && (
+                            <div className="text-xs text-green-600 font-medium mr-2">
+                              Profile Created
+                            </div>
+                          )}
+                          
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                disabled={deletingId === application.id}
+                              >
+                                {deletingId === application.id ? (
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Application</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete the application from <strong>{application.name}</strong> ({application.email})?
+                                  This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => deleteApplication(application.id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
