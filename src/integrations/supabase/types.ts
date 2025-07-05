@@ -472,30 +472,47 @@ export type Database = {
       }
       sms_logs: {
         Row: {
+          booking_id: string | null
           created_at: string | null
+          error_message: string | null
           id: string
           message: string
           recipient_number: string
           sent_at: string | null
           status: Database["public"]["Enums"]["sms_status"]
+          twilio_sid: string | null
         }
         Insert: {
+          booking_id?: string | null
           created_at?: string | null
+          error_message?: string | null
           id?: string
           message: string
           recipient_number: string
           sent_at?: string | null
           status: Database["public"]["Enums"]["sms_status"]
+          twilio_sid?: string | null
         }
         Update: {
+          booking_id?: string | null
           created_at?: string | null
+          error_message?: string | null
           id?: string
           message?: string
           recipient_number?: string
           sent_at?: string | null
           status?: Database["public"]["Enums"]["sms_status"]
+          twilio_sid?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sms_logs_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       transactions: {
         Row: {

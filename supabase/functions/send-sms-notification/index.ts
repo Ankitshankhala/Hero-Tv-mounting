@@ -99,8 +99,8 @@ serve(async (req) => {
         .from('sms_logs')
         .insert({
           booking_id: bookingId,
-          recipient_phone: booking.users.phone,
-          message_body: messageBody,
+          recipient_number: booking.users.phone,
+          message: messageBody,
           twilio_sid: 'MOCK_SID',
           status: 'sent'
         })
@@ -143,8 +143,8 @@ serve(async (req) => {
       // Log failed SMS
       await supabaseClient.from('sms_logs').insert({
         booking_id: bookingId,
-        recipient_phone: booking.users.phone,
-        message_body: messageBody,
+        recipient_number: booking.users.phone,
+        message: messageBody,
         status: 'failed',
         error_message: JSON.stringify(twilioData),
       });
@@ -160,8 +160,8 @@ serve(async (req) => {
       .from('sms_logs')
       .insert({
         booking_id: bookingId,
-        recipient_phone: booking.users.phone,
-        message_body: messageBody,
+        recipient_number: booking.users.phone,
+        message: messageBody,
         twilio_sid: twilioData.sid,
         status: 'sent',
       })
