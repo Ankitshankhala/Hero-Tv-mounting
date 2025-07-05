@@ -34,16 +34,16 @@ serve(async (req) => {
       .from('bookings')
       .select(`
         id,
-        scheduled_at,
-        customer_address,
-        special_instructions,
+        scheduled_date,
+        scheduled_start,
+        location_notes,
         worker_id,
         users:worker_id (
           name, 
           phone
         ),
         customer_id,
-        customers:customer_id (
+        customer:users!customer_id (
           name
         )
       `)
@@ -65,8 +65,8 @@ serve(async (req) => {
       );
     }
 
-    // Format scheduled date
-    const scheduledDate = new Date(booking.scheduled_at);
+    // Format scheduled date and time
+    const scheduledDate = new Date(`${booking.scheduled_date}T${booking.scheduled_start}`);
     const formattedDate = scheduledDate.toLocaleDateString('en-US', {
       weekday: 'long',
       month: 'long',
@@ -80,11 +80,10 @@ serve(async (req) => {
     // Compose message
     const messageBody = `
       New job assigned! ${formattedDate} at ${formattedTime}
-      Customer: ${booking.customers?.name}
-      Address: ${booking.customer_address}
-      ${booking.special_instructions ? `Notes: ${booking.special_instructions}` : ''}
+      Customer: ${booking.customer?.name}
+      Address: ${booking.location_notes || 'Address details in booking'}
       Reply Y to confirm or N if unavailable.
-    `;
+    `.replace(/\s+/g, ' ').trim();
 
     // Get Twilio credentials
     const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID');

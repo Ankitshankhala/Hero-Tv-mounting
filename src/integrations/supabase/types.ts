@@ -914,6 +914,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_secret: {
+        Args: { secret_name: string }
+        Returns: string
+      }
       respond_to_coverage_request: {
         Args: { p_notification_id: string; p_response: string }
         Returns: boolean
