@@ -23,15 +23,23 @@ interface WorkerTableRowProps {
   onViewCalendar: (worker: Worker) => void;
   onEditWorker: (worker: Worker) => void;
   onRemoveWorker: (workerId: string) => void;
+  onReactivateWorker: (workerId: string) => void;
+  onPermanentlyDeleteWorker: (workerId: string) => void;
   removingWorkerId: string | null;
+  reactivatingWorkerId: string | null;
+  deletingWorkerId: string | null;
 }
 
 export const WorkerTableRow = ({ 
   worker, 
   onViewCalendar, 
   onEditWorker, 
-  onRemoveWorker, 
-  removingWorkerId 
+  onRemoveWorker,
+  onReactivateWorker,
+  onPermanentlyDeleteWorker,
+  removingWorkerId,
+  reactivatingWorkerId,
+  deletingWorkerId
 }: WorkerTableRowProps) => {
   const getAvailabilityBadge = (workerAvailability: any[]) => {
     if (!workerAvailability || workerAvailability.length === 0) {
@@ -87,7 +95,11 @@ export const WorkerTableRow = ({
             worker={worker}
             onEditWorker={onEditWorker}
             onRemoveWorker={onRemoveWorker}
+            onReactivateWorker={onReactivateWorker}
+            onPermanentlyDeleteWorker={onPermanentlyDeleteWorker}
             removingWorkerId={removingWorkerId}
+            reactivatingWorkerId={reactivatingWorkerId}
+            deletingWorkerId={deletingWorkerId}
           />
         </div>
       </TableCell>

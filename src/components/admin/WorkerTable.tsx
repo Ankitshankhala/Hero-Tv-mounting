@@ -29,6 +29,8 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
   const [showCalendar, setShowCalendar] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [removingWorkerId, setRemovingWorkerId] = useState<string | null>(null);
+  const [reactivatingWorkerId, setReactivatingWorkerId] = useState<string | null>(null);
+  const [deletingWorkerId, setDeletingWorkerId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const handleEditWorker = (worker: Worker) => {
@@ -75,6 +77,78 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
     }
   };
 
+  const handleReactivateWorker = async (workerId: string) => {
+    try {
+      setReactivatingWorkerId(workerId);
+      
+      const { error } = await supabase
+        .from('users')
+        .update({ is_active: true })
+        .eq('id', workerId);
+
+      if (error) {
+        console.error('Error reactivating worker:', error);
+        throw error;
+      }
+
+      toast({
+        title: "Success",
+        description: "Worker has been reactivated successfully",
+      });
+
+      if (onWorkerUpdate) {
+        onWorkerUpdate();
+      }
+    } catch (error) {
+      console.error('Error reactivating worker:', error);
+      toast({
+        title: "Error",
+        description: "Failed to reactivate worker",
+        variant: "destructive",
+      });
+    } finally {
+      setReactivatingWorkerId(null);
+    }
+  };
+
+  const handlePermanentlyDeleteWorker = async (workerId: string) => {
+    if (!confirm("Are you sure you want to permanently delete this worker? This action cannot be undone and will remove all associated data.")) {
+      return;
+    }
+
+    try {
+      setDeletingWorkerId(workerId);
+      
+      const { error } = await supabase
+        .from('users')
+        .delete()
+        .eq('id', workerId);
+
+      if (error) {
+        console.error('Error permanently deleting worker:', error);
+        throw error;
+      }
+
+      toast({
+        title: "Success",
+        description: "Worker has been permanently deleted",
+      });
+
+      if (onWorkerUpdate) {
+        onWorkerUpdate();
+      }
+    } catch (error) {
+      console.error('Error permanently deleting worker:', error);
+      toast({
+        title: "Error",
+        description: "Failed to permanently delete worker",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingWorkerId(null);
+    }
+  };
+
   const closeModals = () => {
     setShowCalendar(false);
     setShowEditModal(false);
@@ -104,7 +178,11 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
                 onViewCalendar={handleViewCalendar}
                 onEditWorker={handleEditWorker}
                 onRemoveWorker={handleRemoveWorker}
+                onReactivateWorker={handleReactivateWorker}
+                onPermanentlyDeleteWorker={handlePermanentlyDeleteWorker}
                 removingWorkerId={removingWorkerId}
+                reactivatingWorkerId={reactivatingWorkerId}
+                deletingWorkerId={deletingWorkerId}
               />
             ))}
           </TableBody>
