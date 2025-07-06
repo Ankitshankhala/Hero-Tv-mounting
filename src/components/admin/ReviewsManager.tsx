@@ -23,55 +23,17 @@ interface Review {
   hasImages: boolean;
   date: string;
   worker: string;
+  imageUrl?: string;
 }
 
 export const ReviewsManager = () => {
   const { toast } = useToast();
-  const { addAdminReview } = useReviewsData();
+  const { adminReviews, addAdminReview, updateAdminReview, deleteAdminReview } = useReviewsData();
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
-
-  const [reviews, setReviews] = useState<Review[]>([
-    {
-      id: 'REV001',
-      customer: 'John Smith',
-      booking: 'BK001',
-      rating: 5,
-      title: 'Excellent service!',
-      comment: 'Alex did an amazing job mounting our TV. Very professional and clean work.',
-      status: 'approved',
-      hasImages: true,
-      date: '2024-01-15',
-      worker: 'Alex Thompson'
-    },
-    {
-      id: 'REV002',
-      customer: 'Sarah Johnson',
-      booking: 'BK002',
-      rating: 4,
-      title: 'Good work',
-      comment: 'TV mounted well, but took a bit longer than expected. Overall satisfied.',
-      status: 'pending',
-      hasImages: false,
-      date: '2024-01-14',
-      worker: 'Maria Garcia'
-    },
-    {
-      id: 'REV003',
-      customer: 'Mike Davis',
-      booking: 'BK003',
-      rating: 5,
-      title: 'Perfect installation',
-      comment: 'David was fantastic! Clean cable management and perfect TV placement.',
-      status: 'approved',
-      hasImages: true,
-      date: '2024-01-13',
-      worker: 'David Lee'
-    },
-  ]);
 
   const handleViewReview = (review: Review) => {
     setSelectedReview(review);
@@ -85,7 +47,7 @@ export const ReviewsManager = () => {
 
   const handleDeleteReview = (reviewId: string) => {
     if (window.confirm('Are you sure you want to delete this review?')) {
-      setReviews(prev => prev.filter(review => review.id !== reviewId));
+      deleteAdminReview(reviewId);
       toast({
         title: "Success",
         description: "Review deleted successfully",
@@ -94,19 +56,15 @@ export const ReviewsManager = () => {
   };
 
   const handleSaveReview = (updatedReview: Review) => {
-    setReviews(prev => prev.map(review => 
-      review.id === updatedReview.id ? updatedReview : review
-    ));
+    updateAdminReview(updatedReview);
+    toast({
+      title: "Success",
+      description: "Review updated successfully",
+    });
   };
 
   const handleCreateReview = (newReview: Omit<Review, 'id'>) => {
-    const reviewWithId = {
-      ...newReview,
-      id: `REV${String(reviews.length + 1).padStart(3, '0')}`,
-    };
-    setReviews(prev => [reviewWithId, ...prev]);
-    
-    // Add to frontend reviews display
+    // Add to both admin panel and frontend
     addAdminReview(newReview);
     
     toast({
@@ -115,7 +73,7 @@ export const ReviewsManager = () => {
     });
   };
 
-  const filteredReviews = reviews.filter(review => {
+  const filteredReviews = adminReviews.filter(review => {
     const matchesSearch = review.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          review.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          review.comment.toLowerCase().includes(searchTerm.toLowerCase());
@@ -168,7 +126,7 @@ export const ReviewsManager = () => {
             <div className="flex items-center space-x-2">
               <span className="text-sm text-gray-600">Total Reviews</span>
             </div>
-            <div className="text-2xl font-bold text-gray-900 mt-2">{reviews.length}</div>
+            <div className="text-2xl font-bold text-gray-900 mt-2">{adminReviews.length}</div>
             <div className="text-sm text-green-600">+23 this month</div>
           </CardContent>
         </Card>
@@ -177,7 +135,7 @@ export const ReviewsManager = () => {
             <div className="flex items-center space-x-2">
               <span className="text-sm text-gray-600">Pending Approval</span>
             </div>
-            <div className="text-2xl font-bold text-gray-900 mt-2">{reviews.filter(r => r.status === 'pending').length}</div>
+            <div className="text-2xl font-bold text-gray-900 mt-2">{adminReviews.filter(r => r.status === 'pending').length}</div>
             <div className="text-sm text-orange-600">Needs attention</div>
           </CardContent>
         </Card>
@@ -187,7 +145,7 @@ export const ReviewsManager = () => {
               <Image className="h-4 w-4 text-blue-600" />
               <span className="text-sm text-gray-600">With Images</span>
             </div>
-            <div className="text-2xl font-bold text-gray-900 mt-2">{reviews.filter(r => r.hasImages).length}</div>
+            <div className="text-2xl font-bold text-gray-900 mt-2">{adminReviews.filter(r => r.hasImages).length}</div>
             <div className="text-sm text-gray-600">25.6% of reviews</div>
           </CardContent>
         </Card>

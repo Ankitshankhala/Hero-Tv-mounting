@@ -10,6 +10,20 @@ interface Review {
   image: string;
 }
 
+interface AdminReview {
+  id: string;
+  customer: string;
+  booking: string;
+  rating: number;
+  title: string;
+  comment: string;
+  status: 'approved' | 'pending' | 'rejected';
+  hasImages: boolean;
+  date: string;
+  worker: string;
+  imageUrl?: string;
+}
+
 // This would eventually be replaced with actual API calls
 const defaultReviews: Review[] = [
   {
@@ -54,16 +68,56 @@ const defaultReviews: Review[] = [
   }
 ];
 
-// Global state for admin-created reviews (in a real app, this would be in a proper state management solution)
+// Global state for unified review management
 let globalAdminReviews: Review[] = [];
+let globalAdminPanelReviews: AdminReview[] = [
+  {
+    id: 'REV001',
+    customer: 'John Smith',
+    booking: 'BK001',
+    rating: 5,
+    title: 'Excellent service!',
+    comment: 'Alex did an amazing job mounting our TV. Very professional and clean work.',
+    status: 'approved',
+    hasImages: true,
+    date: '2024-01-15',
+    worker: 'Alex Thompson'
+  },
+  {
+    id: 'REV002',
+    customer: 'Sarah Johnson',
+    booking: 'BK002',
+    rating: 4,
+    title: 'Good work',
+    comment: 'TV mounted well, but took a bit longer than expected. Overall satisfied.',
+    status: 'pending',
+    hasImages: false,
+    date: '2024-01-14',
+    worker: 'Maria Garcia'
+  },
+  {
+    id: 'REV003',
+    customer: 'Mike Davis',
+    booking: 'BK003',
+    rating: 5,
+    title: 'Perfect installation',
+    comment: 'David was fantastic! Clean cable management and perfect TV placement.',
+    status: 'approved',
+    hasImages: true,
+    date: '2024-01-13',
+    worker: 'David Lee'
+  },
+];
 
 export const useReviewsData = () => {
   const [reviews, setReviews] = useState<Review[]>(defaultReviews);
+  const [adminReviews, setAdminReviews] = useState<AdminReview[]>(globalAdminPanelReviews);
 
   useEffect(() => {
     // Combine default reviews with admin-created reviews
     const allReviews = [...defaultReviews, ...globalAdminReviews];
     setReviews(allReviews);
+    setAdminReviews(globalAdminPanelReviews);
   }, []);
 
   const addAdminReview = (adminReview: any) => {
@@ -72,13 +126,44 @@ export const useReviewsData = () => {
       quote: adminReview.comment,
       rating: adminReview.rating,
       name: adminReview.customer,
-      city: "Admin Added", // Could be enhanced to include actual city
-      image: adminReview.imageUrl || "/lovable-uploads/30e56e23-dec2-4e93-a794-d7575b2e1bd5.png" // Use uploaded image or default
+      city: "Admin Added",
+      image: adminReview.imageUrl || "/lovable-uploads/30e56e23-dec2-4e93-a794-d7575b2e1bd5.png"
     };
     
+    const adminPanelReview: AdminReview = {
+      ...adminReview,
+      id: `REV${String(globalAdminPanelReviews.length + 1).padStart(3, '0')}`,
+    };
+    
+    // Update both global states
     globalAdminReviews.push(frontendReview);
+    globalAdminPanelReviews.push(adminPanelReview);
+    
+    // Update local states
     setReviews(prev => [frontendReview, ...prev]);
+    setAdminReviews(prev => [adminPanelReview, ...prev]);
   };
 
-  return { reviews, addAdminReview };
+  const updateAdminReview = (updatedReview: AdminReview) => {
+    const index = globalAdminPanelReviews.findIndex(r => r.id === updatedReview.id);
+    if (index !== -1) {
+      globalAdminPanelReviews[index] = updatedReview;
+      setAdminReviews(prev => prev.map(review => 
+        review.id === updatedReview.id ? updatedReview : review
+      ));
+    }
+  };
+
+  const deleteAdminReview = (reviewId: string) => {
+    globalAdminPanelReviews = globalAdminPanelReviews.filter(r => r.id !== reviewId);
+    setAdminReviews(prev => prev.filter(review => review.id !== reviewId));
+  };
+
+  return { 
+    reviews, 
+    adminReviews, 
+    addAdminReview, 
+    updateAdminReview, 
+    deleteAdminReview 
+  };
 };
