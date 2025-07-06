@@ -52,8 +52,8 @@ export const ReviewsSection = () => {
                       </ScrollArea>
                       
                       <div className="text-slate-300">
-                        <div className="font-semibold">{review.name}</div>
-                        <div className="text-sm">{review.city}</div>
+                        <div className="font-semibold text-white text-lg">{review.name}</div>
+                        <div className="text-sm text-slate-400">{review.city}</div>
                       </div>
                     </div>
                   </div>
@@ -94,8 +94,8 @@ export const ReviewsSection = () => {
                       </ScrollArea>
                       
                       <div className="text-slate-300">
-                        <div className="font-semibold">{review.name}</div>
-                        <div className="text-sm">{review.city}</div>
+                        <div className="font-semibold text-white text-lg">{review.name}</div>
+                        <div className="text-sm text-slate-400">{review.city}</div>
                       </div>
                     </div>
                   </div>
