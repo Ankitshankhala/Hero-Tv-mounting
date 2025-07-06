@@ -1,1 +1,4 @@
 project_id = "ggvplltpwsnvtcbpazbe"
+
+[functions.auto-invoice]
+verify_jwt = false

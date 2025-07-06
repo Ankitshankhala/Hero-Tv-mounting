@@ -26,6 +26,7 @@ const handler = async (req: Request): Promise<Response> => {
     );
 
     const payload: WebhookPayload = await req.json();
+    console.log('Auto-invoice webhook received:', payload);
     
     // Only process booking status updates to 'completed' or transaction status to 'completed'
     if (payload.table === 'bookings' && payload.type === 'UPDATE') {
