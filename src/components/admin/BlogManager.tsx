@@ -150,6 +150,13 @@ export const BlogManager = () => {
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
+  // Calculate dynamic stats
+  const totalViews = blogPosts.reduce((sum, post) => sum + post.views, 0);
+  const postsWithVideos = blogPosts.filter(post => post.hasVideo).length;
+  const videoPercentage = blogPosts.length > 0 ? Math.round((postsWithVideos / blogPosts.length) * 100) : 0;
+  const avgViewsPerPost = blogPosts.length > 0 ? Math.round(totalViews / blogPosts.length) : 0;
+  const publishedPosts = blogPosts.filter(post => post.status === 'published').length;
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -160,7 +167,7 @@ export const BlogManager = () => {
               <span className="text-sm text-gray-600">Total Posts</span>
             </div>
             <div className="text-2xl font-bold text-gray-900 mt-2">{blogPosts.length}</div>
-            <div className="text-sm text-green-600">+3 this month</div>
+            <div className="text-sm text-green-600">{publishedPosts} published</div>
           </CardContent>
         </Card>
         <Card>
@@ -169,8 +176,8 @@ export const BlogManager = () => {
               <Eye className="h-4 w-4 text-green-600" />
               <span className="text-sm text-gray-600">Total Views</span>
             </div>
-            <div className="text-2xl font-bold text-gray-900 mt-2">15,420</div>
-            <div className="text-sm text-green-600">+12% this month</div>
+            <div className="text-2xl font-bold text-gray-900 mt-2">{totalViews.toLocaleString()}</div>
+            <div className="text-sm text-gray-600">Total across all posts</div>
           </CardContent>
         </Card>
         <Card>
@@ -179,8 +186,8 @@ export const BlogManager = () => {
               <Video className="h-4 w-4 text-purple-600" />
               <span className="text-sm text-gray-600">With Videos</span>
             </div>
-            <div className="text-2xl font-bold text-gray-900 mt-2">12</div>
-            <div className="text-sm text-gray-600">50% of posts</div>
+            <div className="text-2xl font-bold text-gray-900 mt-2">{postsWithVideos}</div>
+            <div className="text-sm text-gray-600">{videoPercentage}% of posts</div>
           </CardContent>
         </Card>
         <Card>
@@ -188,8 +195,8 @@ export const BlogManager = () => {
             <div className="flex items-center space-x-2">
               <span className="text-sm text-gray-600">Avg. Views/Post</span>
             </div>
-            <div className="text-2xl font-bold text-gray-900 mt-2">642</div>
-            <div className="text-sm text-green-600">Good engagement</div>
+            <div className="text-2xl font-bold text-gray-900 mt-2">{avgViewsPerPost.toLocaleString()}</div>
+            <div className="text-sm text-gray-600">{avgViewsPerPost > 500 ? 'Good engagement' : avgViewsPerPost > 100 ? 'Moderate engagement' : 'Low engagement'}</div>
           </CardContent>
         </Card>
       </div>
