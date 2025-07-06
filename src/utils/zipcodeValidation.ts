@@ -12,25 +12,28 @@ interface ZipcodeData {
 const zipcodeCache = new Map<string, ZipcodeData | null>();
 
 export const validateUSZipcode = async (zipcode: string): Promise<ZipcodeData | null> => {
-  // Clean zipcode (remove any non-digits)
-  const cleanZipcode = zipcode.replace(/\D/g, '');
+  // Clean zipcode (remove spaces and hyphens, keep only digits)
+  const cleanZipcode = zipcode.replace(/[^\d]/g, '');
   
-  // Basic format validation
-  if (!/^\d{5}$/.test(cleanZipcode)) {
+  // Basic format validation - support both 5-digit and 9-digit (ZIP+4) format
+  if (!/^\d{5}(\d{4})?$/.test(cleanZipcode)) {
     return null;
   }
 
+  // Use just the first 5 digits for API lookup
+  const baseZipcode = cleanZipcode.substring(0, 5);
+
   // Check cache first
-  if (zipcodeCache.has(cleanZipcode)) {
-    return zipcodeCache.get(cleanZipcode) || null;
+  if (zipcodeCache.has(baseZipcode)) {
+    return zipcodeCache.get(baseZipcode) || null;
   }
 
   try {
     // Use free zipcode API for validation
-    const response = await fetch(`https://api.zippopotam.us/us/${cleanZipcode}`);
+    const response = await fetch(`https://api.zippopotam.us/us/${baseZipcode}`);
     
     if (!response.ok) {
-      zipcodeCache.set(cleanZipcode, null);
+      zipcodeCache.set(baseZipcode, null);
       return null;
     }
 
@@ -39,7 +42,7 @@ export const validateUSZipcode = async (zipcode: string): Promise<ZipcodeData | 
     if (data.places && data.places.length > 0) {
       const place = data.places[0];
       const zipcodeData: ZipcodeData = {
-        zipcode: cleanZipcode,
+        zipcode: baseZipcode,
         city: place['place name'],
         state: place.state,
         stateAbbr: place['state abbreviation'],
@@ -47,16 +50,16 @@ export const validateUSZipcode = async (zipcode: string): Promise<ZipcodeData | 
         longitude: parseFloat(place.longitude)
       };
       
-      zipcodeCache.set(cleanZipcode, zipcodeData);
+      zipcodeCache.set(baseZipcode, zipcodeData);
       return zipcodeData;
     }
     
-    zipcodeCache.set(cleanZipcode, null);
+    zipcodeCache.set(baseZipcode, null);
     return null;
     
   } catch (error) {
     console.error('Zipcode validation error:', error);
-    zipcodeCache.set(cleanZipcode, null);
+    zipcodeCache.set(baseZipcode, null);
     return null;
   }
 };
@@ -84,6 +87,15 @@ export const isZipcodeInServiceArea = (customerZipcode: string, workerZipcode: s
 };
 
 export const formatZipcode = (value: string): string => {
-  // Remove non-digits and limit to 5 characters
-  return value.replace(/\D/g, '').substring(0, 5);
+  // Remove non-digits 
+  const digits = value.replace(/\D/g, '');
+  
+  // Support ZIP+4 format (12345-6789)
+  if (digits.length > 5) {
+    const zip5 = digits.substring(0, 5);
+    const zip4 = digits.substring(5, 9);
+    return zip4 ? `${zip5}-${zip4}` : zip5;
+  }
+  
+  return digits.substring(0, 5);
 };

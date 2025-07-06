@@ -183,6 +183,7 @@ export type Database = {
         Row: {
           amount: number
           booking_id: string
+          business_license: string | null
           created_at: string | null
           customer_id: string
           due_date: string
@@ -192,14 +193,17 @@ export type Database = {
           invoice_date: string
           invoice_number: string
           pdf_url: string | null
+          state_code: string | null
           status: string
           tax_amount: number | null
+          tax_rate: number | null
           total_amount: number
           updated_at: string | null
         }
         Insert: {
           amount: number
           booking_id: string
+          business_license?: string | null
           created_at?: string | null
           customer_id: string
           due_date?: string
@@ -209,14 +213,17 @@ export type Database = {
           invoice_date?: string
           invoice_number: string
           pdf_url?: string | null
+          state_code?: string | null
           status?: string
           tax_amount?: number | null
+          tax_rate?: number | null
           total_amount: number
           updated_at?: string | null
         }
         Update: {
           amount?: number
           booking_id?: string
+          business_license?: string | null
           created_at?: string | null
           customer_id?: string
           due_date?: string
@@ -226,8 +233,10 @@ export type Database = {
           invoice_date?: string
           invoice_number?: string
           pdf_url?: string | null
+          state_code?: string | null
           status?: string
           tax_amount?: number | null
+          tax_rate?: number | null
           total_amount?: number
           updated_at?: string | null
         }
@@ -513,6 +522,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      state_tax_rates: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          state_code: string
+          state_name: string
+          tax_rate: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          state_code: string
+          state_name: string
+          tax_rate?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          state_code?: string
+          state_name?: string
+          tax_rate?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       transactions: {
         Row: {
@@ -934,6 +973,10 @@ export type Database = {
       get_secret: {
         Args: { secret_name: string }
         Returns: string
+      }
+      get_tax_rate_by_state: {
+        Args: { state_abbreviation: string }
+        Returns: number
       }
       respond_to_coverage_request: {
         Args: { p_notification_id: string; p_response: string }

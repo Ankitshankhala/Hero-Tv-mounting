@@ -62,9 +62,14 @@ const handler = async (req: Request): Promise<Response> => {
         throw new Error(`Failed to generate invoice number: ${invoiceNumberError.message}`);
       }
 
-      // Calculate invoice amounts
+      // Get customer's state from city (simplified - in production you'd use proper address)
+      const customerState = getStateFromCity(booking.customer.city);
+      
+      // Calculate invoice amounts with state sales tax
       const serviceAmount = booking.service?.base_price || 0;
-      const taxRate = 0.18; // 18% GST
+      const { data: taxRateData } = await supabase
+        .rpc('get_tax_rate_by_state', { state_abbreviation: customerState });
+      const taxRate = taxRateData || 0.0625; // Default to 6.25% if state not found
       const taxAmount = serviceAmount * taxRate;
       const totalAmount = serviceAmount + taxAmount;
 
@@ -78,6 +83,8 @@ const handler = async (req: Request): Promise<Response> => {
           amount: serviceAmount,
           tax_amount: taxAmount,
           total_amount: totalAmount,
+          state_code: customerState,
+          tax_rate: taxRate,
           status: 'sent'
         })
         .select()
@@ -161,6 +168,35 @@ const handler = async (req: Request): Promise<Response> => {
   }
 };
 
+function getStateFromCity(city: string): string {
+  // Simplified state mapping - in production, use proper address API
+  const cityStateMap: { [key: string]: string } = {
+    'austin': 'TX',
+    'dallas': 'TX',
+    'houston': 'TX',
+    'san antonio': 'TX',
+    'fort worth': 'TX',
+    'new york': 'NY',
+    'los angeles': 'CA',
+    'chicago': 'IL',
+    'miami': 'FL',
+    'phoenix': 'AZ',
+    'philadelphia': 'PA',
+    'san diego': 'CA',
+    'san francisco': 'CA',
+    'seattle': 'WA',
+    'denver': 'CO',
+    'atlanta': 'GA',
+    'boston': 'MA',
+    'las vegas': 'NV',
+    'detroit': 'MI',
+    'portland': 'OR'
+  };
+  
+  const normalizedCity = city?.toLowerCase().trim() || '';
+  return cityStateMap[normalizedCity] || 'TX'; // Default to Texas
+}
+
 function generateInvoiceEmail(data: any): string {
   const { customer, booking, service, worker, invoice, transaction } = data;
   
@@ -223,15 +259,15 @@ function generateInvoiceEmail(data: any): string {
                 <td>${service?.name || 'TV Mounting Service'}</td>
                 <td>${service?.description || 'Professional TV mounting and installation'}</td>
                 <td>1</td>
-                <td>₹${invoice.amount}</td>
+                <td>$${invoice.amount}</td>
               </tr>
             </tbody>
           </table>
           
           <div style="text-align: right; margin-top: 15px;">
-            <p><strong>Subtotal:</strong> ₹${invoice.amount}</p>
-            <p><strong>GST (18%):</strong> ₹${invoice.tax_amount}</p>
-            <p class="amount"><strong>Total Amount:</strong> ₹${invoice.total_amount}</p>
+            <p><strong>Subtotal:</strong> $${invoice.amount}</p>
+            <p><strong>Sales Tax (${(invoice.tax_rate * 100).toFixed(2)}%):</strong> $${invoice.tax_amount}</p>
+            <p class="amount"><strong>Total Amount:</strong> $${invoice.total_amount}</p>
           </div>
           
           ${worker ? `<p><strong>Technician:</strong> ${worker.name}</p>` : ''}
@@ -243,7 +279,7 @@ function generateInvoiceEmail(data: any): string {
       <p>If you have any questions about this invoice or our services, please don't hesitate to contact us:</p>
       <ul>
         <li>Email: support@herotv.com</li>
-        <li>Phone: +91-XXXX-XXXX</li>
+        <li>Phone: +1-555-HERO-TV</li>
         <li>Website: www.herotv.com</li>
       </ul>
       
