@@ -1,8 +1,11 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { Edit, MoreVertical, UserX, UserCheck, Trash2 } from 'lucide-react';
+import { Edit, MoreVertical, UserX, UserCheck, Trash2, MessageSquare } from 'lucide-react';
+import { useSmsNotifications } from '@/hooks/useSmsNotifications';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface Worker {
   id: string;
@@ -37,6 +40,60 @@ export const WorkerActionsDropdown = ({
   reactivatingWorkerId,
   deletingWorkerId
 }: WorkerActionsDropdownProps) => {
+  const [sendingSms, setSendingSms] = useState(false);
+  const { resendWorkerSms } = useSmsNotifications();
+  const { toast } = useToast();
+
+  const handleSendTestSms = async () => {
+    if (!worker.phone) {
+      toast({
+        title: "No Phone Number",
+        description: "Worker doesn't have a phone number registered",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSendingSms(true);
+    try {
+      // Find the most recent booking for this worker
+      const { data: bookings, error } = await supabase
+        .from('bookings')
+        .select('id')
+        .eq('worker_id', worker.id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (error) throw error;
+
+      if (!bookings || bookings.length === 0) {
+        toast({
+          title: "No Bookings Found",
+          description: "Worker needs at least one booking to send a test SMS",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const success = await resendWorkerSms(bookings[0].id);
+      if (success) {
+        toast({
+          title: "Test SMS Sent",
+          description: `Test SMS sent to ${worker.name} (${worker.phone})`,
+        });
+      }
+    } catch (error) {
+      console.error('Error sending test SMS:', error);
+      toast({
+        title: "SMS Error",
+        description: "Failed to send test SMS",
+        variant: "destructive",
+      });
+    } finally {
+      setSendingSms(false);
+    }
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -49,6 +106,17 @@ export const WorkerActionsDropdown = ({
           <Edit className="h-4 w-4 mr-2" />
           Edit Details
         </DropdownMenuItem>
+        
+        <DropdownMenuItem 
+          onClick={handleSendTestSms}
+          disabled={sendingSms || !worker.phone}
+          className="text-blue-600 hover:text-blue-700 focus:text-blue-700"
+        >
+          <MessageSquare className="h-4 w-4 mr-2" />
+          {sendingSms ? 'Sending...' : 'Send Test SMS'}
+        </DropdownMenuItem>
+        
+        <DropdownMenuSeparator />
         
         {worker.is_active ? (
           <DropdownMenuItem 
