@@ -5,6 +5,9 @@ import { Badge } from '@/components/ui/badge';
 import { MapPin, Clock, User, Phone, Mail, DollarSign } from 'lucide-react';
 
 import JobActions from './JobActions';
+import InvoiceModificationModal from './InvoiceModificationModal';
+import OnSiteChargeModal from './OnSiteChargeModal';
+import PaymentCollectionModal from './PaymentCollectionModal';
 
 interface WorkerJobCardProps {
   job: {
@@ -79,6 +82,27 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
     setShowPaymentModal(true);
   };
 
+  const handlePaymentCollected = () => {
+    setShowPaymentModal(false);
+    if (onJobCancelled) {
+      onJobCancelled(); // Refresh the jobs list
+    }
+  };
+
+  const handleModificationCreated = () => {
+    setShowModifyModal(false);
+    if (onJobCancelled) {
+      onJobCancelled(); // Refresh the jobs list
+    }
+  };
+
+  const handleChargeSuccess = () => {
+    setShowChargeModal(false);
+    if (onJobCancelled) {
+      onJobCancelled(); // Refresh the jobs list
+    }
+  };
+
   return (
     <Card className="bg-slate-700 border-slate-600">
       <CardHeader>
@@ -149,6 +173,34 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
           onCollectPaymentClick={handleCollectPaymentClick}
         />
       </CardContent>
+
+      {/* Modals */}
+      {showModifyModal && (
+        <InvoiceModificationModal
+          isOpen={showModifyModal}
+          onClose={() => setShowModifyModal(false)}
+          job={job}
+          onModificationCreated={handleModificationCreated}
+        />
+      )}
+
+      {showChargeModal && (
+        <OnSiteChargeModal
+          isOpen={showChargeModal}
+          onClose={() => setShowChargeModal(false)}
+          job={job}
+          onChargeSuccess={handleChargeSuccess}
+        />
+      )}
+
+      {showPaymentModal && (
+        <PaymentCollectionModal
+          isOpen={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          job={job}
+          onPaymentCollected={handlePaymentCollected}
+        />
+      )}
     </Card>
   );
 };

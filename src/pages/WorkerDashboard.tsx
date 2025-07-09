@@ -118,10 +118,13 @@ const WorkerDashboard = () => {
         customer_address: job.location_notes || 'No address provided',
         total_price: job.service?.base_price || 0,
         total_duration_minutes: job.service?.duration_minutes || 60,
-        services: job.service ? [job.service] : []
+        services: job.service ? [job.service] : [],
+        // Ensure customer data is properly nested and accessible
+        customer: job.customer || null
       }));
 
       console.log('Transformed jobs:', transformedJobs);
+      console.log('First job customer data:', transformedJobs[0]?.customer);
       setJobs(transformedJobs);
 
       toast({
