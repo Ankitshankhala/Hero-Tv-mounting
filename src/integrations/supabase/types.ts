@@ -995,6 +995,7 @@ export type Database = {
     Enums: {
       booking_status:
         | "pending"
+        | "payment_pending"
         | "confirmed"
         | "completed"
         | "cancelled"
@@ -1141,6 +1142,7 @@ export const Constants = {
     Enums: {
       booking_status: [
         "pending",
+        "payment_pending",
         "confirmed",
         "completed",
         "cancelled",

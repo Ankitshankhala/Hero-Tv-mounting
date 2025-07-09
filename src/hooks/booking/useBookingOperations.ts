@@ -100,7 +100,7 @@ export const useBookingOperations = () => {
         scheduled_date: format(formData.selectedDate!, 'yyyy-MM-dd'),
         scheduled_start: formData.selectedTime,
         location_notes: `${formData.houseNumber} ${formData.address}, ${formData.city}\nContact: ${formData.customerName}\nPhone: ${formData.customerPhone}\nEmail: ${formData.customerEmail}\nZIP: ${formData.zipcode}\nSpecial Instructions: ${formData.specialInstructions}`,
-        status: 'pending' as const,
+        status: 'payment_pending' as const,
         payment_status: 'authorized' as const,
         requires_manual_payment: false
       };

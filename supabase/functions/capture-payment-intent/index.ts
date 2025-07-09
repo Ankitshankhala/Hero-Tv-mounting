@@ -64,7 +64,7 @@ serve(async (req) => {
     const paymentIntent = await stripe.paymentIntents.capture(booking.payment_intent_id);
 
     // Update booking status based on capture result
-    let newStatus = 'captured';
+    let newStatus = 'confirmed';
     let newPaymentStatus = 'captured';
 
     if (paymentIntent.status === 'succeeded') {
@@ -78,7 +78,7 @@ serve(async (req) => {
         transaction_type: 'capture',
       });
     } else {
-      newStatus = 'pending';
+      newStatus = 'payment_failed';
       newPaymentStatus = 'failed';
     }
 
