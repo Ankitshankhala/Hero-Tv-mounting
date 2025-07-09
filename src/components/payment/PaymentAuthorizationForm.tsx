@@ -52,10 +52,22 @@ export const PaymentAuthorizationForm = ({
   };
 
   const handleStripeError = (error: string) => {
-    console.error('Stripe error:', error);
-    setCardError(error);
-    setFormError(error);
-    setStripeReady(false);
+    if (error && error.trim()) {
+      // Only treat non-empty errors as actual errors
+      console.error('Stripe error:', error);
+      setCardError(error);
+      setFormError(error);
+      setStripeReady(false);
+    } else {
+      // Empty error means clearing previous errors - this is normal
+      console.log('✅ Stripe error cleared, card validation successful');
+      setCardError('');
+      // Don't reset stripeReady here - keep it true if Stripe was already initialized
+      // Only clear form error if it was a card validation error
+      if (formError && !formError.includes('Payment form not ready') && !formError.includes('Payment system')) {
+        setFormError('');
+      }
+    }
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
