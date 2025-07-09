@@ -10,7 +10,7 @@ export const useWorkerAvailability = () => {
   const [loading, setLoading] = useState(false);
 
   const timeSlots = [
-    '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'
+    '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00'
   ];
 
   const fetchWorkerAvailability = async (date: Date, zipcode: string) => {
@@ -23,50 +23,30 @@ export const useWorkerAvailability = () => {
       const isToday = dateStr === format(now, 'yyyy-MM-dd');
       const currentHour = now.getHours();
       
-      const { data: bookings, error } = await supabase
-        .from('bookings')
-        .select(`
-          scheduled_start,
-          worker_bookings!inner(
-            worker_id,
-            users!inner(zip_code)
-          )
-        `)
-        .eq('scheduled_date', dateStr)
-        .eq('status', 'confirmed');
+      // Use the database function to get available time slots
+      const { data: availableSlots, error } = await supabase.rpc('get_available_time_slots', {
+        p_zipcode: zipcode,
+        p_date: dateStr,
+        p_service_duration_minutes: 60
+      });
 
       if (error) {
-        console.error('Error fetching bookings:', error);
+        console.error('Error fetching available time slots:', error);
+        setAvailableSlots([]);
+        setBlockedSlots([]);
+        setWorkerCount(0);
         return;
       }
 
-      const zipcodePrefix = zipcode.substring(0, 3);
-      const relevantBookings = bookings?.filter(booking => {
-        const workerZipcode = booking.worker_bookings?.[0]?.users?.zip_code;
-        return workerZipcode && workerZipcode.substring(0, 3) === zipcodePrefix;
-      }) || [];
-
-      const { data: workers, error: workerError } = await supabase
-        .from('users')
-        .select('id, zip_code')
-        .eq('role', 'worker')
-        .eq('is_active', true);
-
-      if (!workerError) {
-        const availableWorkers = workers?.filter(worker => 
-          worker.zip_code && worker.zip_code.substring(0, 3) === zipcodePrefix
-        ) || [];
-        setWorkerCount(availableWorkers.length);
-      }
-
-      const blocked = relevantBookings.map(booking => 
-        booking.scheduled_start.substring(0, 5)
-      );
-
+      // Extract available time slots and worker count
+      const slots = availableSlots?.map(slot => slot.time_slot) || [];
+      const totalWorkerIds = new Set();
+      availableSlots?.forEach(slot => {
+        slot.worker_ids?.forEach(id => totalWorkerIds.add(id));
+      });
+      
       // Filter out past time slots for same-day booking
-      const availableTimeSlots = timeSlots.filter(slot => {
-        const isBlocked = blocked.includes(slot);
-        
+      const availableTimeSlots = slots.filter(slot => {
         // For same-day booking, only allow slots that are at least 30 minutes from now
         if (isToday) {
           const [hours] = slot.split(':').map(Number);
@@ -75,16 +55,23 @@ export const useWorkerAvailability = () => {
           const nowMinutes = currentHour * 60 + currentMinutes;
           
           // Allow booking if slot is at least 30 minutes in the future
-          return !isBlocked && (slotMinutes > nowMinutes + 30);
+          return slotMinutes > nowMinutes + 30;
         }
         
-        return !isBlocked;
+        return true;
       });
 
-      setBlockedSlots(blocked);
+      // Blocked slots are all time slots that are not available
+      const blockedSlots = timeSlots.filter(slot => !slots.includes(slot));
+
       setAvailableSlots(availableTimeSlots);
+      setBlockedSlots(blockedSlots);
+      setWorkerCount(totalWorkerIds.size);
     } catch (error) {
       console.error('Error fetching worker availability:', error);
+      setAvailableSlots([]);
+      setBlockedSlots([]);
+      setWorkerCount(0);
     } finally {
       setLoading(false);
     }

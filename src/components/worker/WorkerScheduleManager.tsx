@@ -23,8 +23,8 @@ const WorkerScheduleManager = ({ onScheduleUpdate, workerId }: WorkerScheduleMan
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    startTime: '09:00',
-    endTime: '17:00',
+    startTime: '08:00',
+    endTime: '19:00',
     isAvailable: true,
     notes: ''
   });
@@ -117,8 +117,8 @@ const WorkerScheduleManager = ({ onScheduleUpdate, workerId }: WorkerScheduleMan
 
   const resetForm = () => {
     setFormData({
-      startTime: '09:00',
-      endTime: '17:00',
+      startTime: '08:00',
+      endTime: '19:00',
       isAvailable: true,
       notes: ''
     });
