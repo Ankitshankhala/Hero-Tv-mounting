@@ -6,7 +6,7 @@ import { WorkerFormData } from '@/hooks/useWorkerForm';
 
 interface WorkerAvailabilityFormProps {
   formData: WorkerFormData;
-  onAvailabilityChange: (day: string, checked: boolean) => void;
+  onAvailabilityChange: (day: string, field: 'enabled' | 'startTime' | 'endTime', value: boolean | string) => void;
 }
 
 const availableDays = [
@@ -28,8 +28,8 @@ export const WorkerAvailabilityForm = ({ formData, onAvailabilityChange }: Worke
           <div key={day.key} className="flex items-center space-x-2">
             <Checkbox
               id={day.key}
-              checked={formData.availability[day.key as keyof typeof formData.availability]}
-              onCheckedChange={(checked) => onAvailabilityChange(day.key, checked as boolean)}
+              checked={formData.availability[day.key as keyof typeof formData.availability].enabled}
+              onCheckedChange={(checked) => onAvailabilityChange(day.key, 'enabled', checked as boolean)}
             />
             <Label htmlFor={day.key} className="text-sm">{day.label}</Label>
           </div>

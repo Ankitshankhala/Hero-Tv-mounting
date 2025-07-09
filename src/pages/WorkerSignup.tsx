@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { DayAvailabilityCard } from '@/components/worker/DayAvailabilityCard';
 
 const WorkerSignup = () => {
   const [formData, setFormData] = useState({
@@ -21,13 +22,13 @@ const WorkerSignup = () => {
     experience: '',
     skills: '',
     availability: {
-      monday: false,
-      tuesday: false,
-      wednesday: false,
-      thursday: false,
-      friday: false,
-      saturday: false,
-      sunday: false,
+      monday: { enabled: false, startTime: '08:00', endTime: '18:00' },
+      tuesday: { enabled: false, startTime: '08:00', endTime: '18:00' },
+      wednesday: { enabled: false, startTime: '08:00', endTime: '18:00' },
+      thursday: { enabled: false, startTime: '08:00', endTime: '18:00' },
+      friday: { enabled: false, startTime: '08:00', endTime: '18:00' },
+      saturday: { enabled: false, startTime: '08:00', endTime: '18:00' },
+      sunday: { enabled: false, startTime: '08:00', endTime: '18:00' },
     },
     hasVehicle: false,
     hasTools: false,
@@ -40,10 +41,16 @@ const WorkerSignup = () => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleAvailabilityChange = (day: string, checked: boolean) => {
+  const handleAvailabilityChange = (day: string, field: 'enabled' | 'startTime' | 'endTime', value: boolean | string) => {
     setFormData(prev => ({
       ...prev,
-      availability: { ...prev.availability, [day]: checked }
+      availability: { 
+        ...prev.availability, 
+        [day]: { 
+          ...prev.availability[day as keyof typeof prev.availability], 
+          [field]: value 
+        }
+      }
     }));
   };
 
@@ -95,13 +102,13 @@ const WorkerSignup = () => {
         experience: '',
         skills: '',
         availability: {
-          monday: false,
-          tuesday: false,
-          wednesday: false,
-          thursday: false,
-          friday: false,
-          saturday: false,
-          sunday: false,
+          monday: { enabled: false, startTime: '08:00', endTime: '18:00' },
+          tuesday: { enabled: false, startTime: '08:00', endTime: '18:00' },
+          wednesday: { enabled: false, startTime: '08:00', endTime: '18:00' },
+          thursday: { enabled: false, startTime: '08:00', endTime: '18:00' },
+          friday: { enabled: false, startTime: '08:00', endTime: '18:00' },
+          saturday: { enabled: false, startTime: '08:00', endTime: '18:00' },
+          sunday: { enabled: false, startTime: '08:00', endTime: '18:00' },
         },
         hasVehicle: false,
         hasTools: false,
@@ -259,17 +266,17 @@ const WorkerSignup = () => {
                 </div>
 
                 <div className="space-y-4">
-                  <Label className="text-slate-300">Availability</Label>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <Label className="text-slate-300">Weekly Availability</Label>
+                  <p className="text-sm text-slate-400">Select the days you're available to work and set your preferred hours.</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {availableDays.map((day) => (
-                      <div key={day.key} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={day.key}
-                          checked={formData.availability[day.key as keyof typeof formData.availability]}
-                          onCheckedChange={(checked) => handleAvailabilityChange(day.key, checked as boolean)}
-                        />
-                        <Label htmlFor={day.key} className="text-slate-300 text-sm">{day.label}</Label>
-                      </div>
+                      <DayAvailabilityCard
+                        key={day.key}
+                        day={day.key}
+                        label={day.label}
+                        availability={formData.availability[day.key as keyof typeof formData.availability]}
+                        onChange={(field, value) => handleAvailabilityChange(day.key, field, value)}
+                      />
                     ))}
                   </div>
                 </div>
