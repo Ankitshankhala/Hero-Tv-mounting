@@ -68,18 +68,38 @@ serve(async (req) => {
     let newPaymentStatus = 'captured';
 
     if (paymentIntent.status === 'succeeded') {
-      // Create transaction record
-      await supabaseAdmin.from('transactions').insert({
-        booking_id: bookingId,
-        payment_intent_id: paymentIntent.id,
-        amount: paymentIntent.amount / 100, // Convert from cents
-        status: 'success',
-        payment_method: 'card',
-        transaction_type: 'capture',
-      });
+      // Update existing transaction record from 'authorized' to 'success'
+      const { error: transactionError } = await supabaseAdmin
+        .from('transactions')
+        .update({
+          status: 'success',
+          transaction_type: 'capture'
+        })
+        .eq('booking_id', bookingId)
+        .eq('payment_intent_id', paymentIntent.id);
+
+      if (transactionError) {
+        console.error('Failed to update transaction record:', transactionError);
+        // If no existing record found, create a new one
+        await supabaseAdmin.from('transactions').insert({
+          booking_id: bookingId,
+          payment_intent_id: paymentIntent.id,
+          amount: paymentIntent.amount / 100, // Convert from cents
+          status: 'success',
+          payment_method: 'card',
+          transaction_type: 'capture',
+        });
+      }
     } else {
       newStatus = 'payment_failed';
       newPaymentStatus = 'failed';
+      
+      // Update transaction status to failed
+      await supabaseAdmin
+        .from('transactions')
+        .update({ status: 'failed' })
+        .eq('booking_id', bookingId)
+        .eq('payment_intent_id', paymentIntent.id);
     }
 
     // Update booking

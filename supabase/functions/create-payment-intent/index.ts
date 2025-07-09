@@ -139,7 +139,7 @@ serve(async (req) => {
         .update({ 
           payment_intent_id: paymentIntent.id,
           stripe_customer_id: customer?.id,
-          payment_status: 'pending'
+          payment_status: 'authorized'
         })
         .eq('id', bookingId);
 
@@ -149,6 +149,25 @@ serve(async (req) => {
         console.warn('⚠️ Booking update failed, but payment intent was created');
       } else {
         console.log('✅ Booking updated with payment intent');
+        
+        // Create transaction record for authorization
+        const { error: transactionError } = await supabaseAdmin
+          .from('transactions')
+          .insert({
+            booking_id: bookingId,
+            amount: amount,
+            status: 'authorized',
+            payment_method: 'card',
+            payment_intent_id: paymentIntent.id,
+            transaction_type: 'authorization',
+            currency: 'USD'
+          });
+
+        if (transactionError) {
+          console.error('❌ Failed to create transaction record:', transactionError);
+        } else {
+          console.log('✅ Transaction record created for authorization');
+        }
       }
     } else {
       console.log('✅ Skipping booking update for temporary booking reference');

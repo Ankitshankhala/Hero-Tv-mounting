@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import PaymentDetailsModal from './PaymentDetailsModal';
 import { StripeConfigTest } from './StripeConfigTest';
+import { PaymentCaptureButton } from './PaymentCaptureButton';
 
 interface Transaction {
   id: string;
@@ -19,6 +20,7 @@ interface Transaction {
   payment_method: string;
   created_at: string;
   currency: string;
+  payment_intent_id?: string;
   booking?: {
     customer: {
       name: string;
@@ -87,6 +89,7 @@ export const PaymentsManager = () => {
           amount,
           status,
           payment_method,
+          payment_intent_id,
           created_at,
           currency,
           booking:bookings(
@@ -146,6 +149,7 @@ export const PaymentsManager = () => {
     const statusConfig = {
       completed: { label: 'Completed', variant: 'default' as const },
       success: { label: 'Success', variant: 'default' as const },
+      authorized: { label: 'Authorized', variant: 'secondary' as const },
       pending: { label: 'Pending', variant: 'secondary' as const },
       failed: { label: 'Failed', variant: 'destructive' as const },
       refunded: { label: 'Refunded', variant: 'outline' as const },
@@ -278,6 +282,7 @@ export const PaymentsManager = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Transactions</SelectItem>
+                <SelectItem value="authorized">Authorized</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
                 <SelectItem value="success">Success</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
@@ -329,13 +334,19 @@ export const PaymentsManager = () => {
                       <TableCell>{getStatusBadge(transaction.status)}</TableCell>
                       <TableCell>{formatDate(transaction.created_at)}</TableCell>
                       <TableCell>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleViewDetails(transaction)}
-                        >
-                          View Details
-                        </Button>
+                        <div className="flex items-center space-x-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleViewDetails(transaction)}
+                          >
+                            View Details
+                          </Button>
+                          <PaymentCaptureButton 
+                            transaction={transaction}
+                            onCaptureSuccess={fetchTransactions}
+                          />
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
