@@ -22,8 +22,6 @@ import { CoverageRequestsManager } from '@/components/admin/CoverageRequestsMana
 import { InvoicesManager } from '@/components/admin/InvoicesManager';
 import { PerformanceDashboard } from '@/components/admin/PerformanceDashboard';
 import { DeploymentPanel } from '@/components/admin/DeploymentPanel';
-import { DeleteTestUserButton } from '@/components/admin/DeleteTestUserButton';
-import { WorkerApplicationsManager } from '@/components/admin/WorkerApplicationsManager';
 
 const Admin = () => {
   const { user, profile, loading } = useAuth();
@@ -105,8 +103,6 @@ const Admin = () => {
         return <PerformanceDashboard />;
       case 'deployment':
         return <DeploymentPanel />;
-      case 'worker-applications':
-        return <WorkerApplicationsManager />;
       default:
         return <DashboardStats />;
     }
@@ -118,9 +114,6 @@ const Admin = () => {
       <div className="flex-1 flex flex-col">
         <AdminHeader />
         <main className="flex-1 p-6">
-          <div className="mb-4">
-            <DeleteTestUserButton />
-          </div>
           {renderContent()}
         </main>
       </div>

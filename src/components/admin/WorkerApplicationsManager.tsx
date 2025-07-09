@@ -131,66 +131,19 @@ export const WorkerApplicationsManager = () => {
       console.error('Error updating application:', error);
       
       let errorMessage = "Failed to update application status";
-      let errorTitle = "Error";
       
-      // Handle different types of errors from the edge function
-      if (error?.message?.includes('Edge Function returned a non-2xx status code')) {
-        // Extract more meaningful error from the edge function response
-        errorTitle = "Application Processing Failed";
-        
-        // Try to get more specific error details if available
-        try {
-          // Check if there's a response body with error details
-          const responseText = error?.context?.body || error?.details || '';
-          console.log('Raw error response:', responseText);
-          
-          if (responseText && typeof responseText === 'string') {
-            try {
-              const errorDetails = JSON.parse(responseText);
-              if (errorDetails.error) {
-                errorMessage = errorDetails.error;
-                if (errorDetails.details) {
-                  errorMessage += `: ${errorDetails.details}`;
-                }
-              }
-            } catch (parseError) {
-              console.warn('Could not parse error details as JSON:', parseError);
-              // If it's not JSON, use the raw response
-              errorMessage = responseText.length > 200 ? 
-                responseText.substring(0, 200) + '...' : 
-                responseText;
-            }
-          } else {
-            errorMessage = "Server error occurred while processing the application";
-          }
-        } catch (extractError) {
-          console.warn('Could not extract error details:', extractError);
-          errorMessage = "There was an issue processing the application. Please check the logs for details.";
-        }
-      } else if (error?.message?.includes('Email already registered')) {
-        errorTitle = "Email Already Exists";
-        errorMessage = "This email is already registered in the system. The existing user will be updated to worker role.";
+      if (error?.message?.includes('duplicate key')) {
+        errorMessage = "This email is already registered in the system";
       } else if (error?.message?.includes('Insufficient permissions')) {
-        errorTitle = "Permission Denied";
-        errorMessage = "You don't have permission to approve worker applications";
-      } else if (error?.message?.includes('Authentication failed') || error?.message?.includes('Invalid authorization')) {
-        errorTitle = "Authentication Error";
-        errorMessage = "Your session has expired. Please refresh the page and try again";
-      } else if (error?.message?.includes('Server configuration error')) {
-        errorTitle = "Server Configuration Error";
-        errorMessage = "Server is not properly configured. Please contact system administrator";
-      } else if (error?.message?.includes('Invalid application data')) {
-        errorTitle = "Invalid Data";
-        errorMessage = "The application data is incomplete or invalid";
-      } else if (error?.message?.includes('Application not found')) {
-        errorTitle = "Application Not Found";
-        errorMessage = "The application could not be found. It may have been deleted";
+        errorMessage = "You don't have permission to perform this action";
+      } else if (error?.message?.includes('Invalid authorization')) {
+        errorMessage = "Authentication failed. Please refresh and try again";
       } else if (error?.message) {
         errorMessage = error.message;
       }
       
       toast({
-        title: errorTitle,
+        title: "Error",
         description: errorMessage,
         variant: "destructive",
       });
