@@ -13,15 +13,27 @@ serve(async (req) => {
   }
 
   try {
-    console.log('Starting approve-worker-application function...');
+    console.log('🚀 Starting approve-worker-application function...');
+    console.log('Request method:', req.method);
+    console.log('Request URL:', req.url);
 
     // Validate environment variables
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
 
+    console.log('🔑 Environment check:', {
+      hasUrl: !!supabaseUrl,
+      hasServiceRole: !!serviceRoleKey,
+      hasAnonKey: !!anonKey
+    });
+
     if (!supabaseUrl || !serviceRoleKey || !anonKey) {
-      console.error('Missing required environment variables');
+      console.error('❌ Missing required environment variables:', {
+        supabaseUrl: !!supabaseUrl,
+        serviceRoleKey: !!serviceRoleKey,
+        anonKey: !!anonKey
+      });
       return new Response(
         JSON.stringify({ 
           error: 'Server configuration error',
@@ -54,17 +66,19 @@ serve(async (req) => {
       )
     }
 
-    console.log('Authorization header found');
+    console.log('🔐 Authorization header found, length:', authHeader.length);
 
     // Create regular client to verify user authentication
     const supabase = createClient(supabaseUrl, anonKey)
+    console.log('✅ Regular Supabase client created');
 
+    console.log('🔍 Attempting to get user from token...');
     const { data: { user }, error: authError } = await supabase.auth.getUser(
       authHeader.replace('Bearer ', '')
     )
 
     if (authError || !user) {
-      console.error('Invalid authorization:', authError);
+      console.error('❌ Invalid authorization:', authError);
       return new Response(
         JSON.stringify({ 
           error: 'Authentication failed',
@@ -74,9 +88,10 @@ serve(async (req) => {
       )
     }
 
-    console.log('User authenticated:', user.email);
+    console.log('✅ User authenticated:', user.email, 'ID:', user.id);
 
     // Check if user is admin using the admin client
+    console.log('🔍 Checking user profile and admin status...');
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('users')
       .select('role')
@@ -84,18 +99,18 @@ serve(async (req) => {
       .single()
 
     if (profileError) {
-      console.error('Error fetching user profile:', profileError);
+      console.error('❌ Error fetching user profile:', profileError);
       return new Response(
         JSON.stringify({ 
           error: 'Permission verification failed',
-          details: 'Unable to verify user permissions'
+          details: 'Unable to verify user permissions: ' + profileError.message
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
     if (!profile || profile.role !== 'admin') {
-      console.error('Insufficient permissions. Profile:', profile);
+      console.error('❌ Insufficient permissions. Profile:', profile);
       return new Response(
         JSON.stringify({ 
           error: 'Insufficient permissions',
@@ -105,7 +120,7 @@ serve(async (req) => {
       )
     }
 
-    console.log('Admin user verified');
+    console.log('✅ Admin user verified:', profile.role);
 
     // Parse request body
     let requestBody;
@@ -129,9 +144,10 @@ serve(async (req) => {
       )
     }
 
-    console.log('Processing application:', applicationId);
+    console.log('📋 Processing application ID:', applicationId);
 
     // Get the application details
+    console.log('🔍 Fetching application from database...');
     const { data: application, error: appError } = await supabaseAdmin
       .from('worker_applications')
       .select('*')
@@ -139,7 +155,7 @@ serve(async (req) => {
       .single()
 
     if (appError || !application) {
-      console.error('Application not found:', appError);
+      console.error('❌ Application not found:', appError);
       return new Response(
         JSON.stringify({ 
           error: 'Application not found',
@@ -149,7 +165,7 @@ serve(async (req) => {
       )
     }
 
-    console.log('Processing application for:', application.email);
+    console.log('✅ Found application for:', application.email, 'Name:', application.name);
 
     // Validate required application fields
     if (!application.email || !application.name) {
