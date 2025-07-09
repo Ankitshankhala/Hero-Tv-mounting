@@ -39,7 +39,11 @@ export const useWorkerAvailability = () => {
       }
 
       // Extract available time slots and worker count
-      const slots = availableSlots?.map(slot => slot.time_slot) || [];
+      const slots = availableSlots?.map(slot => {
+        // Convert "HH:MM:SS" format to "HH:MM" format to match frontend expectations
+        const timeStr = slot.time_slot.toString();
+        return timeStr.substring(0, 5); // Extract first 5 characters (HH:MM)
+      }) || [];
       const totalWorkerIds = new Set();
       availableSlots?.forEach(slot => {
         slot.worker_ids?.forEach(id => totalWorkerIds.add(id));
