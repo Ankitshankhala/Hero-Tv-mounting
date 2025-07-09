@@ -6,6 +6,13 @@ export const STRIPE_CONFIG = {
   isProduction: import.meta.env.PROD
 };
 
+// Log configuration for debugging
+console.log('🔧 Stripe Configuration:', {
+  hasPublishableKey: !!STRIPE_CONFIG.publishableKey,
+  keyType: STRIPE_CONFIG.publishableKey?.substring(0, 8) + '...',
+  environment: STRIPE_CONFIG.isProduction ? 'production' : 'development'
+});
+
 // Validate Stripe configuration
 export const validateStripeConfig = () => {
   const errors: string[] = [];
@@ -45,10 +52,21 @@ export const validateStripeConfig = () => {
 
 // Initialize and log validation results
 const validationResult = validateStripeConfig();
-console.log('Stripe Configuration Status:', {
+console.log('✅ Stripe Configuration Status:', {
   isValid: validationResult.isValid,
   keyType: validationResult.keyType,
   errors: validationResult.errors
 });
+
+// Environment key matching check
+if (STRIPE_CONFIG.publishableKey) {
+  const isLiveKey = STRIPE_CONFIG.publishableKey.startsWith('pk_live_');
+  const isTestKey = STRIPE_CONFIG.publishableKey.startsWith('pk_test_');
+  
+  console.log('🔑 Key Environment Check:', {
+    publishableKeyType: isLiveKey ? 'LIVE' : isTestKey ? 'TEST' : 'UNKNOWN',
+    shouldMatchSecretKey: 'Ensure your STRIPE_SECRET_KEY in Supabase matches this environment'
+  });
+}
 
 export { validationResult as stripeValidation };

@@ -17,6 +17,12 @@ serve(async (req) => {
     const { bookingId, amount, customerEmail, customerName, requireAuth = false } = await req.json();
 
     console.log('🔄 Payment intent request:', { bookingId, amount, customerEmail, requireAuth });
+    console.log('🔧 Environment check:', {
+      hasStripeKey: !!Deno.env.get("STRIPE_SECRET_KEY"),
+      stripeKeyType: Deno.env.get("STRIPE_SECRET_KEY")?.substring(0, 8) + '...',
+      hasSupabaseUrl: !!Deno.env.get("SUPABASE_URL"),
+      hasServiceKey: !!Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
+    });
 
     if (!bookingId || !amount) {
       throw new Error('Missing required fields: bookingId and amount');
@@ -70,7 +76,13 @@ serve(async (req) => {
     }
 
     // Initialize Stripe with secret key
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+    const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
+    if (!stripeSecretKey) {
+      throw new Error('STRIPE_SECRET_KEY environment variable is not configured');
+    }
+    
+    console.log('🔧 Initializing Stripe with key type:', stripeSecretKey.substring(0, 8) + '...');
+    const stripe = new Stripe(stripeSecretKey, {
       apiVersion: "2023-10-16",
     });
 
@@ -100,6 +112,13 @@ serve(async (req) => {
     }
 
     // Create PaymentIntent with manual capture for authorization (always manual for authorize-later model)
+    console.log('🔄 Creating Stripe PaymentIntent...', {
+      amount: Math.round(amount * 100),
+      currency: "usd",
+      customer: customer?.id,
+      bookingId
+    });
+    
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100), // Convert to cents
       currency: "usd",
@@ -149,12 +168,21 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('❌ Error creating payment intent:', error);
+    console.error('❌ Error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+      type: error.type,
+      code: error.code
+    });
+    
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     
     return new Response(
       JSON.stringify({
         success: false,
         error: errorMessage,
+        details: error.type || 'server_error'
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

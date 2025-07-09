@@ -49,6 +49,8 @@ export const usePaymentAuthorization = () => {
         throw new Error('Test booking ID cannot be used for real payments');
       }
 
+      console.log('📡 Calling create-payment-intent edge function...');
+      
       const { data: result, error } = await supabase.functions.invoke('create-payment-intent', {
         body: {
           bookingId: data.bookingId || `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -58,6 +60,8 @@ export const usePaymentAuthorization = () => {
           requireAuth: data.requireAuth || false,
         }
       });
+      
+      console.log('📡 Edge function raw response:', { result, error });
 
       console.log('📡 Edge function response:', { result, error });
 

@@ -61,11 +61,21 @@ export const PaymentAuthorizationForm = ({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
+    console.log('💳 Payment authorization started:', {
+      hasStripe: !!stripe,
+      hasElements: !!elements,
+      hasCardElement: !!cardElement,
+      amount,
+      customerEmail,
+      bookingId
+    });
+
     setCardError('');
     setFormError('');
 
     if (!stripe || !elements || !cardElement) {
       const error = 'Payment form not ready. Please wait or refresh the page.';
+      console.error('❌ Payment form not ready:', { stripe: !!stripe, elements: !!elements, cardElement: !!cardElement });
       setFormError(error);
       onAuthorizationFailure(error);
       return;
@@ -90,6 +100,7 @@ export const PaymentAuthorizationForm = ({
       console.log('Starting payment authorization process...');
 
       // Create payment authorization (works for both authenticated and guest users)
+      console.log('🔄 Creating payment authorization...');
       const result = await createPaymentAuthorization({
         bookingId: bookingId || 'temp-booking-ref',
         amount,
@@ -97,6 +108,8 @@ export const PaymentAuthorizationForm = ({
         customerName,
         requireAuth,
       });
+      
+      console.log('📡 Payment authorization result:', result);
 
       if (!result.success || !result.client_secret) {
         const error = result.error || 'Failed to create payment authorization';

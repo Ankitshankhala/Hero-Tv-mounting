@@ -48,6 +48,9 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
       return;
     }
     
+    console.log('🚀 Starting Stripe initialization with key:', 
+      STRIPE_CONFIG.publishableKey?.substring(0, 8) + '...');
+    
     try {
       setIsLoading(true);
       setConfigError('');
