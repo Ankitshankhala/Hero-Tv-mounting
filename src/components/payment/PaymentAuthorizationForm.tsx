@@ -6,13 +6,16 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Shield, Lock, CreditCard, Info } from 'lucide-react';
 import { usePaymentAuthorization } from '@/hooks/usePaymentAuthorization';
 import { StripeCardElement } from '@/components/StripeCardElement';
+import { useBookingOperations } from '@/hooks/booking/useBookingOperations';
 
 interface PaymentAuthorizationFormProps {
   amount: number;
-  bookingId: string;
+  bookingId?: string;
   customerEmail?: string;
   customerName?: string;
-  onAuthorizationSuccess: () => void;
+  services?: any[];
+  formData?: any;
+  onAuthorizationSuccess: (createdBookingId?: string) => void;
   onAuthorizationFailure: (error: string) => void;
   requireAuth?: boolean; // New prop to control authentication requirement
 }
@@ -22,6 +25,8 @@ export const PaymentAuthorizationForm = ({
   bookingId,
   customerEmail,
   customerName,
+  services,
+  formData,
   onAuthorizationSuccess,
   onAuthorizationFailure,
   requireAuth = false, // Default to false for guest checkout
@@ -32,7 +37,9 @@ export const PaymentAuthorizationForm = ({
   const [elements, setElements] = useState<any>(null);
   const [cardElement, setCardElement] = useState<any>(null);
   const [formError, setFormError] = useState('');
+  const [creatingBooking, setCreatingBooking] = useState(false);
   const { createPaymentAuthorization, processing } = usePaymentAuthorization();
+  const { handleBookingSubmit } = useBookingOperations();
 
   const handleStripeReady = (stripeInstance: any, elementsInstance: any, cardElementInstance: any) => {
     console.log('Stripe ready for payment authorization');
@@ -84,7 +91,7 @@ export const PaymentAuthorizationForm = ({
 
       // Create payment authorization (works for both authenticated and guest users)
       const result = await createPaymentAuthorization({
-        bookingId,
+        bookingId: bookingId || 'temp-booking-ref',
         amount,
         customerEmail,
         customerName,
@@ -120,8 +127,26 @@ export const PaymentAuthorizationForm = ({
       }
 
       if (confirmResult.paymentIntent?.status === 'requires_capture') {
-        console.log('Payment authorized successfully');
-        onAuthorizationSuccess();
+        console.log('Payment authorized successfully, now creating booking...');
+        
+        // If we have booking data, create the booking now
+        if (services && formData && !bookingId) {
+          setCreatingBooking(true);
+          try {
+            const createdBookingId = await handleBookingSubmit(services, formData);
+            console.log('Booking created after payment authorization:', createdBookingId);
+            onAuthorizationSuccess(createdBookingId);
+          } catch (bookingError) {
+            console.error('Failed to create booking after payment authorization:', bookingError);
+            setFormError('Payment authorized but booking creation failed. Please contact support.');
+            onAuthorizationFailure('Payment authorized but booking creation failed. Please contact support.');
+          } finally {
+            setCreatingBooking(false);
+          }
+        } else {
+          // If we already have a booking or no booking data, just proceed
+          onAuthorizationSuccess(bookingId);
+        }
       } else {
         const error = 'Payment authorization was not successful';
         setFormError(error);
@@ -187,11 +212,16 @@ export const PaymentAuthorizationForm = ({
 
             <Button 
               type="submit"
-              disabled={!stripeReady || processing || !!formError}
+              disabled={!stripeReady || processing || creatingBooking || !!formError}
               className="w-full"
               size="lg"
             >
-              {processing ? 'Authorizing...' : `Authorize $${amount.toFixed(2)}`}
+              {processing 
+                ? 'Authorizing...' 
+                : creatingBooking 
+                  ? 'Creating Booking...' 
+                  : `Authorize $${amount.toFixed(2)}`
+              }
             </Button>
           </form>
         </CardContent>

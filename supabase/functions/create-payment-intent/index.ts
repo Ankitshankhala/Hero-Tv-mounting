@@ -44,23 +44,30 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    // Validate that the booking exists
-    const { data: booking, error: bookingError } = await supabaseAdmin
-      .from('bookings')
-      .select('id, customer_id, status')
-      .eq('id', bookingId)
-      .single();
+    // Validate booking if provided (for existing bookings)
+    // For new bookings, we skip this validation and create payment intent without booking validation
+    let booking = null;
+    if (bookingId && bookingId !== 'temp-booking-ref') {
+      const { data: bookingData, error: bookingError } = await supabaseAdmin
+        .from('bookings')
+        .select('id, customer_id, status')
+        .eq('id', bookingId)
+        .single();
 
-    if (bookingError) {
-      console.error('❌ Booking validation error:', bookingError);
-      throw new Error(`Invalid booking ID: ${bookingError.message}`);
+      if (bookingError) {
+        console.error('❌ Booking validation error:', bookingError);
+        throw new Error(`Invalid booking ID: ${bookingError.message}`);
+      }
+
+      if (!bookingData) {
+        throw new Error('Booking not found');
+      }
+
+      booking = bookingData;
+      console.log('✅ Booking validated:', booking);
+    } else {
+      console.log('✅ Creating payment intent for new booking (no existing booking to validate)');
     }
-
-    if (!booking) {
-      throw new Error('Booking not found');
-    }
-
-    console.log('✅ Booking validated:', booking);
 
     // Initialize Stripe with secret key
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
@@ -106,22 +113,26 @@ serve(async (req) => {
 
     console.log('✅ Payment intent created:', paymentIntent.id);
 
-    // Update booking with payment intent ID
-    const { error: updateError } = await supabaseAdmin
-      .from('bookings')
-      .update({ 
-        payment_intent_id: paymentIntent.id,
-        stripe_customer_id: customer?.id,
-        payment_status: 'pending'
-      })
-      .eq('id', bookingId);
+    // Update booking with payment intent ID (only if we have a real booking)
+    if (booking && bookingId !== 'temp-booking-ref') {
+      const { error: updateError } = await supabaseAdmin
+        .from('bookings')
+        .update({ 
+          payment_intent_id: paymentIntent.id,
+          stripe_customer_id: customer?.id,
+          payment_status: 'pending'
+        })
+        .eq('id', bookingId);
 
-    if (updateError) {
-      console.error('❌ Failed to update booking:', updateError);
-      // Don't fail the entire request, but log the error
-      console.warn('⚠️ Booking update failed, but payment intent was created');
+      if (updateError) {
+        console.error('❌ Failed to update booking:', updateError);
+        // Don't fail the entire request, but log the error
+        console.warn('⚠️ Booking update failed, but payment intent was created');
+      } else {
+        console.log('✅ Booking updated with payment intent');
+      }
     } else {
-      console.log('✅ Booking updated with payment intent');
+      console.log('✅ Skipping booking update for temporary booking reference');
     }
 
     return new Response(

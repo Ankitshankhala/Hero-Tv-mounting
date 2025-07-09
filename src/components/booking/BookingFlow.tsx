@@ -48,18 +48,9 @@ export const BookingFlow = ({ onClose, initialServices = [] }: BookingFlowProps)
   const handleScheduleNext = async (scheduleData: Partial<FormData>) => {
     const updatedFormData = { ...formData, ...scheduleData };
     setFormData(updatedFormData);
-
-    try {
-      // Create booking and get booking ID
-      const newBookingId = await handleBookingSubmit(services, updatedFormData);
-      if (newBookingId) {
-        setBookingId(newBookingId);
-        setCurrentStep(4);
-      }
-    } catch (error) {
-      console.error('Failed to create booking:', error);
-      // Stay on current step if booking creation fails
-    }
+    
+    // Proceed to payment step without creating booking yet
+    setCurrentStep(4);
   };
 
   const handlePaymentAuthorized = () => {
@@ -74,7 +65,7 @@ export const BookingFlow = ({ onClose, initialServices = [] }: BookingFlowProps)
   };
 
   // Ensure we have the necessary data for payment step
-  const canProceedToPayment = bookingId && totalPrice > 0 && formData.customerEmail && formData.customerName;
+  const canProceedToPayment = totalPrice > 0 && formData.customerEmail && formData.customerName;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -107,6 +98,8 @@ export const BookingFlow = ({ onClose, initialServices = [] }: BookingFlowProps)
                 totalPrice={totalPrice}
                 customerEmail={formData.customerEmail}
                 customerName={formData.customerName}
+                services={services}
+                formData={formData}
                 onPaymentAuthorized={handlePaymentAuthorized}
                 onBack={() => setCurrentStep(3)}
               />

@@ -101,8 +101,8 @@ export const useBookingOperations = () => {
         scheduled_start: formData.selectedTime,
         location_notes: `${formData.address}, ${formData.city}\nContact: ${formData.customerName}\nPhone: ${formData.customerPhone}\nEmail: ${formData.customerEmail}\nZIP: ${formData.zipcode}\nSpecial Instructions: ${formData.specialInstructions}`,
         status: 'pending' as const,
-        payment_status: 'pending' as const,
-        requires_manual_payment: true
+        payment_status: 'authorized' as const,
+        requires_manual_payment: false
       };
 
       const { data, error } = await supabase
@@ -117,7 +117,7 @@ export const useBookingOperations = () => {
       
       toast({
         title: "Booking Created",
-        description: user ? "Your booking has been created. Please authorize payment." : "Your guest booking has been created. Please authorize payment.",
+        description: "Your booking has been created with authorized payment.",
       });
 
       return data.id;

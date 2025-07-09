@@ -4,12 +4,15 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PaymentAuthorizationForm } from '@/components/payment/PaymentAuthorizationForm';
 import { useToast } from '@/hooks/use-toast';
+import { useBookingOperations } from '@/hooks/booking/useBookingOperations';
 
 interface PaymentStepProps {
-  bookingId: string;
+  bookingId?: string;
   totalPrice: number;
   customerEmail: string;
   customerName: string;
+  services?: any[];
+  formData?: any;
   onPaymentAuthorized: () => void;
   onBack: () => void;
   requireAuth?: boolean;
@@ -20,6 +23,8 @@ export const PaymentStep = ({
   totalPrice,
   customerEmail,
   customerName,
+  services,
+  formData,
   onPaymentAuthorized,
   onBack,
   requireAuth = false
@@ -28,18 +33,10 @@ export const PaymentStep = ({
   const [isValidatingBooking, setIsValidatingBooking] = useState(true);
   const { toast } = useToast();
 
-  // Validate required props and booking
+  // Validate required props
   useEffect(() => {
     const validateProps = async () => {
-      console.log('🔄 Validating payment step props:', { bookingId, totalPrice, customerEmail, customerName });
-      
-      // Basic validation
-      if (!bookingId) {
-        console.error('PaymentStep: Missing booking ID');
-        setAuthorizationError('Booking information is missing. Please go back and try again.');
-        setIsValidatingBooking(false);
-        return;
-      }
+      console.log('🔄 Validating payment step props:', { totalPrice, customerEmail, customerName, hasServices: services?.length });
       
       if (!totalPrice || totalPrice <= 0) {
         console.error('PaymentStep: Invalid total price:', totalPrice);
@@ -55,9 +52,9 @@ export const PaymentStep = ({
         return;
       }
 
-      // Test booking ID validation
-      if (bookingId === 'test-booking-id') {
-        setAuthorizationError('Test booking ID detected. This cannot be used for real payments.');
+      if (!services || services.length === 0) {
+        console.error('PaymentStep: No services selected');
+        setAuthorizationError('No services selected. Please go back and select services.');
         setIsValidatingBooking(false);
         return;
       }
@@ -68,10 +65,10 @@ export const PaymentStep = ({
     };
 
     validateProps();
-  }, [bookingId, totalPrice, customerEmail, customerName]);
+  }, [totalPrice, customerEmail, customerName, services]);
 
-  const handleAuthorizationSuccess = () => {
-    console.log('✅ Payment authorization successful for booking:', bookingId);
+  const handleAuthorizationSuccess = async (createdBookingId?: string) => {
+    console.log('✅ Payment authorization successful, booking ID:', createdBookingId);
     toast({
       title: "Payment Authorized! 🎉",
       description: "Your payment method has been authorized successfully. You will be charged after service completion.",
@@ -112,7 +109,7 @@ export const PaymentStep = ({
   }
 
   // Show error if we have validation issues
-  if (authorizationError && (!bookingId || !totalPrice || !customerEmail || !customerName || bookingId === 'test-booking-id')) {
+  if (authorizationError && (!totalPrice || !customerEmail || !customerName || !services?.length)) {
     return (
       <div className="space-y-6">
         <Alert variant="destructive">
@@ -148,6 +145,8 @@ export const PaymentStep = ({
         bookingId={bookingId}
         customerEmail={customerEmail}
         customerName={customerName}
+        services={services}
+        formData={formData}
         onAuthorizationSuccess={handleAuthorizationSuccess}
         onAuthorizationFailure={handleAuthorizationFailure}
         requireAuth={requireAuth}
