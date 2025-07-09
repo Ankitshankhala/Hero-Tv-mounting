@@ -46,6 +46,7 @@ export const EnhancedInlineBookingFlow = ({
     workerCount,
     loading,
     bookingId,
+    setBookingId,
     showSuccess,
     setShowSuccess,
     successAnimation,
@@ -98,22 +99,15 @@ export const EnhancedInlineBookingFlow = ({
       return;
     }
 
-    console.log('Creating booking before payment step...');
-    try {
-      await handleBookingSubmit();
-      console.log('Booking created successfully, proceeding to payment');
-      setCurrentStep(4);
-    } catch (error) {
-      console.error('Failed to create booking:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create booking. Please try again.",
-        variant: "destructive",
-      });
-    }
+    // Proceed to payment step without creating booking yet
+    console.log('Proceeding to payment step...');
+    setCurrentStep(4);
   };
 
-  const handlePaymentAuthorizationSuccess = () => {
+  const handlePaymentAuthorizationSuccess = (createdBookingId?: string) => {
+    if (createdBookingId) {
+      setBookingId(createdBookingId);
+    }
     setShowSuccess(true);
     
     toast({
@@ -248,12 +242,14 @@ export const EnhancedInlineBookingFlow = ({
                     </div>
                   )}
 
-                  {bookingId && isMinimumCartMet ? (
+                  {isMinimumCartMet ? (
                     <PaymentAuthorizationForm
                       amount={getTotalPrice()}
                       bookingId={bookingId}
                       customerEmail={formData.customerEmail || user?.email}
                       customerName={formData.customerName}
+                      services={services}
+                      formData={formData}
                       onAuthorizationSuccess={handlePaymentAuthorizationSuccess}
                       onAuthorizationFailure={handlePaymentAuthorizationFailure}
                     />

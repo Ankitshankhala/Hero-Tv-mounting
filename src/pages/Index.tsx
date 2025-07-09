@@ -70,6 +70,10 @@ const Index = () => {
     console.log('Booking completed:', data);
     setShowBookingFlow(false);
     setCart([]); // Clear cart after successful booking
+    toast({
+      title: "Booking Confirmed! 🎉",
+      description: "Your booking has been created successfully. You will receive a confirmation email shortly.",
+    });
   };
 
   // Convert cart items to the format expected by EnhancedInlineBookingFlow
