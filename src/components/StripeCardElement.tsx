@@ -152,7 +152,7 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
         if (!mountedRef.current) return;
         
         if (error) {
-          console.error('❌ Stripe card error:', error);
+          console.error('❌ Stripe card validation error:', error);
           
           // Improve error messages for card input
           let userFriendlyError = error.message;
@@ -168,8 +168,12 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
           
           onError(userFriendlyError);
         } else if (complete) {
-          console.log('✅ Card input complete');
-          onError(''); // Clear any previous errors
+          console.log('✅ Card validation successful - all fields complete and valid');
+          onError(''); // Clear any previous errors - this is the successful state
+        } else {
+          // Card is being filled but not complete yet
+          console.log('🔄 Card input in progress...');
+          onError(''); // Clear errors while user is typing
         }
       });
 

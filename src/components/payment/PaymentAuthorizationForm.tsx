@@ -267,6 +267,14 @@ export const PaymentAuthorizationForm = ({
                 onReady={handleStripeReady}
                 onError={handleStripeError}
               />
+              {!cardError && stripeReady && (
+                <div className="flex items-center space-x-1 text-green-600 text-xs">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="font-medium">Payment method ready for authorization</span>
+                </div>
+              )}
             </div>
             
             <div className="flex justify-between items-center p-4 bg-gray-50 rounded-md">
