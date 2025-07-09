@@ -79,11 +79,10 @@ export const WorkerApplicationsManager = () => {
           throw new Error('No active session');
         }
 
-        const { data, error } = await supabase.functions.invoke('approve-worker-application', {
-          body: { applicationId: id },
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-          },
+        // Try the simple approval function first
+        console.log('Calling simple approval function for application:', id);
+        const { data, error } = await supabase.functions.invoke('approve-worker-simple', {
+          body: { applicationId: id }
         });
 
         if (error) {
