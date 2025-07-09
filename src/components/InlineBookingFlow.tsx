@@ -32,9 +32,9 @@ export const InlineBookingFlow = ({ isOpen, onClose, onSubmit, selectedServices 
     customerEmail: '',
     customerPhone: '',
     zipcode: '',
+    houseNumber: '',
     address: '',
     city: '',
-    region: '',
     selectedDate: undefined as Date | undefined,
     selectedTime: '',
     specialInstructions: ''
@@ -56,8 +56,7 @@ export const InlineBookingFlow = ({ isOpen, onClose, onSubmit, selectedServices 
       const [city, state] = cityState.split(', ');
       setFormData(prev => ({ 
         ...prev,
-        city: city || prev.city,
-        region: prev.region || 'downtown'
+        city: city || prev.city
       }));
     }
   };
@@ -144,6 +143,7 @@ export const InlineBookingFlow = ({ isOpen, onClose, onSubmit, selectedServices 
     formData.customerName && 
     formData.customerEmail && 
     formData.customerPhone &&
+    formData.houseNumber &&
     formData.address && 
     formData.zipcode &&
     formData.selectedDate &&
@@ -294,22 +294,22 @@ export const InlineBookingFlow = ({ isOpen, onClose, onSubmit, selectedServices 
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6 space-y-6">
-              <div className="space-y-3">
-                <Label htmlFor="address" className="text-base font-semibold text-gray-700 flex items-center space-x-2">
-                  <MapPin className="h-4 w-4 text-green-600" />
-                  <span>Complete Service Address</span>
-                  <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="address"
-                  value={formData.address}
-                  onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-                  placeholder="123 Main Street, Apartment 4B, City, State"
-                  className="h-12 border-2 border-gray-200 focus:border-green-500 focus:ring-green-500/20 rounded-lg bg-gray-50/50 transition-all duration-200"
-                />
-              </div>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-3">
+                  <Label htmlFor="houseNumber" className="text-base font-semibold text-gray-700 flex items-center space-x-2">
+                    <MapPin className="h-4 w-4 text-green-600" />
+                    <span>House Number</span>
+                    <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="houseNumber"
+                    value={formData.houseNumber}
+                    onChange={(e) => setFormData(prev => ({ ...prev, houseNumber: e.target.value }))}
+                    placeholder="123"
+                    className="h-12 border-2 border-gray-200 focus:border-green-500 focus:ring-green-500/20 rounded-lg bg-gray-50/50 transition-all duration-200"
+                  />
+                </div>
+
                 <div className="space-y-3">
                   <Label htmlFor="city" className="text-base font-semibold text-gray-700">
                     City <span className="text-red-500">*</span>
@@ -322,27 +322,21 @@ export const InlineBookingFlow = ({ isOpen, onClose, onSubmit, selectedServices 
                     className="h-12 border-2 border-gray-200 focus:border-green-500 focus:ring-green-500/20 rounded-lg bg-gray-50/50 transition-all duration-200"
                   />
                 </div>
+              </div>
 
-                <div className="space-y-3">
-                  <Label htmlFor="region" className="text-base font-semibold text-gray-700">
-                    Service Region <span className="text-red-500">*</span>
-                  </Label>
-                  <Select 
-                    value={formData.region} 
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, region: value }))}
-                  >
-                    <SelectTrigger className="h-12 border-2 border-gray-200 focus:border-green-500 rounded-lg bg-gray-50/50 transition-all duration-200">
-                      <SelectValue placeholder="Select your area" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-lg border-2">
-                      <SelectItem value="downtown">Downtown</SelectItem>
-                      <SelectItem value="north-side">North Side</SelectItem>
-                      <SelectItem value="east-side">East Side</SelectItem>
-                      <SelectItem value="west-end">West End</SelectItem>
-                      <SelectItem value="south-side">South Side</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="space-y-3">
+                <Label htmlFor="address" className="text-base font-semibold text-gray-700 flex items-center space-x-2">
+                  <MapPin className="h-4 w-4 text-green-600" />
+                  <span>Service Address</span>
+                  <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="address"
+                  value={formData.address}
+                  onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                  placeholder="Main Street, Apartment 4B"
+                  className="h-12 border-2 border-gray-200 focus:border-green-500 focus:ring-green-500/20 rounded-lg bg-gray-50/50 transition-all duration-200"
+                />
               </div>
             </CardContent>
           </Card>

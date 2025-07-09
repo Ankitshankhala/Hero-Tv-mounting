@@ -19,10 +19,10 @@ export const BookingFlow = ({ onClose, initialServices = [] }: BookingFlowProps)
     customerName: '',
     customerEmail: '',
     customerPhone: '',
+    houseNumber: '',
     address: '',
     city: '',
     zipcode: '',
-    region: 'downtown',
     selectedDate: null,
     selectedTime: '',
     specialInstructions: ''

@@ -12,9 +12,9 @@ export interface FormData {
   customerEmail: string;
   customerPhone: string;
   zipcode: string;
+  houseNumber: string;
   address: string;
   city: string;
-  region: string;
   selectedDate: Date | undefined;
   selectedTime: string;
   specialInstructions: string;

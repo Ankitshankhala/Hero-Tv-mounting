@@ -12,9 +12,9 @@ export const useBookingFormState = (selectedServices: ServiceItem[] = []) => {
     customerEmail: '',
     customerPhone: '',
     zipcode: '',
+    houseNumber: '',
     address: '',
     city: '',
-    region: '',
     selectedDate: undefined,
     selectedTime: '',
     specialInstructions: ''
@@ -56,8 +56,7 @@ export const useBookingFormState = (selectedServices: ServiceItem[] = []) => {
       const [city, state] = cityState.split(', ');
       setFormData(prev => ({ 
         ...prev,
-        city: city || prev.city,
-        region: prev.region || 'downtown'
+        city: city || prev.city
       }));
     }
   };
