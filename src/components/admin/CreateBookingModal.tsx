@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { usePublicServicesData } from '@/hooks/usePublicServicesData';
 import { useBookingOperations } from '@/hooks/useBookingOperations';
+import { createEnhancedBooking, EnhancedBookingData } from '@/utils/enhancedBookingLogic';
 import { TvMountingConfigModal } from './TvMountingConfigModal';
 
 interface CreateBookingModalProps {
@@ -201,28 +202,61 @@ export const CreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingM
         locationNotes += `- Services: ${tvMountingConfig.services.map(s => s.name).join(', ')}`;
       }
 
-      // Create booking data
-      const bookingData = {
-        customer_id: customerData.id,
-        service_id: formData.service,
-        scheduled_date: formData.date,
-        scheduled_start: formData.time,
-        location_notes: locationNotes,
-        status: 'confirmed' as const,
-        payment_status: 'pending' as const,
-        requires_manual_payment: true,
-        ...(formData.worker && formData.worker !== 'auto' && { worker_id: formData.worker })
-      };
+      // If specific worker selected, use regular booking creation
+      if (formData.worker && formData.worker !== 'auto') {
+        const bookingData = {
+          customer_id: customerData.id,
+          service_id: formData.service,
+          scheduled_date: formData.date,
+          scheduled_start: formData.time,
+          location_notes: locationNotes,
+          status: 'confirmed' as const,
+          payment_status: 'pending' as const,
+          requires_manual_payment: true,
+          worker_id: formData.worker
+        };
 
-      console.log('Creating booking with:', bookingData);
+        console.log('Creating booking with specific worker:', bookingData);
+        const booking = await createBooking(bookingData);
+        console.log('Booking created:', booking);
 
-      const booking = await createBooking(bookingData);
-      console.log('Booking created:', booking);
+        toast({
+          title: "Success",
+          description: "Booking created and assigned to worker successfully",
+        });
+      } else {
+        // Use enhanced booking logic with auto-assignment
+        const enhancedBookingData: EnhancedBookingData = {
+          customer_id: customerData.id,
+          service_id: formData.service,
+          scheduled_date: formData.date,
+          scheduled_start: formData.time,
+          location_notes: locationNotes,
+          customer_zipcode: formData.region // Using region as zipcode for admin bookings
+        };
 
-      toast({
-        title: "Success",
-        description: "Booking created successfully",
-      });
+        console.log('Creating booking with auto-assignment:', enhancedBookingData);
+        const result = await createEnhancedBooking(enhancedBookingData);
+        
+        if (result.status === 'error') {
+          throw new Error(result.message);
+        }
+
+        console.log('Enhanced booking result:', result);
+
+        // Show appropriate message based on assignment status
+        let toastMessage = result.message;
+        if (result.worker_assigned) {
+          toastMessage = "Booking created and worker automatically assigned!";
+        } else if (result.notifications_sent && result.notifications_sent > 0) {
+          toastMessage = `Booking created! Coverage requests sent to ${result.notifications_sent} workers.`;
+        }
+
+        toast({
+          title: result.status === 'confirmed' ? "Booking Confirmed" : "Booking Created",
+          description: toastMessage,
+        });
+      }
 
       if (onBookingCreated) {
         onBookingCreated();

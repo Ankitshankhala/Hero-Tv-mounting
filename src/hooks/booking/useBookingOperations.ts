@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { ServiceItem, FormData } from './types';
+import { createEnhancedBooking, EnhancedBookingData } from '@/utils/enhancedBookingLogic';
 
 const MINIMUM_BOOKING_AMOUNT = 75;
 
@@ -94,33 +95,38 @@ export const useBookingOperations = () => {
         throw new Error('Customer information is required');
       }
 
-      const bookingData = {
+      // Use enhanced booking logic with auto-assignment
+      const enhancedBookingData: EnhancedBookingData = {
         customer_id: customerId,
         service_id: primaryServiceId,
         scheduled_date: format(formData.selectedDate!, 'yyyy-MM-dd'),
         scheduled_start: formData.selectedTime,
         location_notes: `${formData.houseNumber} ${formData.address}, ${formData.city}\nContact: ${formData.customerName}\nPhone: ${formData.customerPhone}\nEmail: ${formData.customerEmail}\nZIP: ${formData.zipcode}\nSpecial Instructions: ${formData.specialInstructions}`,
-        status: 'payment_pending' as const,
-        payment_status: 'authorized' as const,
-        requires_manual_payment: false
+        customer_zipcode: formData.zipcode
       };
 
-      const { data, error } = await supabase
-        .from('bookings')
-        .insert(bookingData)
-        .select()
-        .single();
+      const result = await createEnhancedBooking(enhancedBookingData);
+      
+      if (result.status === 'error') {
+        throw new Error(result.message);
+      }
 
-      if (error) throw error;
-
-      setBookingId(data.id);
+      setBookingId(result.booking_id);
+      
+      // Show appropriate message based on assignment status
+      let toastMessage = result.message;
+      if (result.worker_assigned) {
+        toastMessage = "Booking confirmed! Worker has been automatically assigned.";
+      } else if (result.notifications_sent && result.notifications_sent > 0) {
+        toastMessage = `Booking created! Coverage requests sent to ${result.notifications_sent} workers in your area.`;
+      }
       
       toast({
-        title: "Booking Created",
-        description: "Your booking has been created with authorized payment.",
+        title: result.status === 'confirmed' ? "Booking Confirmed" : "Booking Created",
+        description: toastMessage,
       });
 
-      return data.id;
+      return result.booking_id;
     } catch (error) {
       console.error('Error creating booking:', error);
       toast({
