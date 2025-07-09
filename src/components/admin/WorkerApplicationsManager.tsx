@@ -137,21 +137,35 @@ export const WorkerApplicationsManager = () => {
       if (error?.message?.includes('Edge Function returned a non-2xx status code')) {
         // Extract more meaningful error from the edge function response
         errorTitle = "Application Processing Failed";
-        errorMessage = "There was an issue processing the application. Please check the logs for details.";
         
         // Try to get more specific error details if available
-        if (error?.context?.body) {
-          try {
-            const errorDetails = JSON.parse(error.context.body);
-            if (errorDetails.error) {
-              errorMessage = errorDetails.error;
-              if (errorDetails.details) {
-                errorMessage += `: ${errorDetails.details}`;
+        try {
+          // Check if there's a response body with error details
+          const responseText = error?.context?.body || error?.details || '';
+          console.log('Raw error response:', responseText);
+          
+          if (responseText && typeof responseText === 'string') {
+            try {
+              const errorDetails = JSON.parse(responseText);
+              if (errorDetails.error) {
+                errorMessage = errorDetails.error;
+                if (errorDetails.details) {
+                  errorMessage += `: ${errorDetails.details}`;
+                }
               }
+            } catch (parseError) {
+              console.warn('Could not parse error details as JSON:', parseError);
+              // If it's not JSON, use the raw response
+              errorMessage = responseText.length > 200 ? 
+                responseText.substring(0, 200) + '...' : 
+                responseText;
             }
-          } catch (parseError) {
-            console.warn('Could not parse error details:', parseError);
+          } else {
+            errorMessage = "Server error occurred while processing the application";
           }
+        } catch (extractError) {
+          console.warn('Could not extract error details:', extractError);
+          errorMessage = "There was an issue processing the application. Please check the logs for details.";
         }
       } else if (error?.message?.includes('Email already registered')) {
         errorTitle = "Email Already Exists";

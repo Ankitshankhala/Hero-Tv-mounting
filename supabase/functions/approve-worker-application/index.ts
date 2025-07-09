@@ -383,10 +383,28 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in approve-worker-application function:', error)
     
+    // Ensure we always return proper JSON
+    let errorMessage = 'Internal server error';
+    let errorDetails = 'An unexpected error occurred';
+    
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      errorDetails = error.stack || error.message;
+    } else if (typeof error === 'string') {
+      errorMessage = error;
+      errorDetails = error;
+    } else if (error && typeof error === 'object') {
+      errorMessage = error.message || 'Unknown error';
+      errorDetails = JSON.stringify(error, null, 2);
+    }
+    
+    console.error('Error details:', { errorMessage, errorDetails });
+    
     return new Response(
       JSON.stringify({ 
-        error: 'Internal server error',
-        details: error.message 
+        error: errorMessage,
+        details: errorDetails,
+        timestamp: new Date().toISOString()
       }),
       { 
         status: 500, 
