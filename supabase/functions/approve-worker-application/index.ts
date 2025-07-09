@@ -6,148 +6,111 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const generateTemporaryPassword = () => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  let password = '';
+  for (let i = 0; i < 12; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+};
+
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log('Starting approve-worker-application function...');
+    console.log('=== STARTING WORKER APPLICATION APPROVAL ===');
+    
+    // Step 1: Environment Check
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+    
+    console.log('Environment variables:', {
+      hasUrl: !!supabaseUrl,
+      hasServiceKey: !!serviceRoleKey,
+      hasAnonKey: !!anonKey
+    });
 
-    // Create Supabase client with service role key for admin operations
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    )
-
-    console.log('Supabase admin client created');
-
-    // Verify the request is from an admin user
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      console.error('No authorization header provided');
-      return new Response(
-        JSON.stringify({ error: 'No authorization header' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+    if (!supabaseUrl || !serviceRoleKey || !anonKey) {
+      throw new Error('Missing required environment variables');
     }
 
-    console.log('Authorization header found');
+    // Step 2: Parse Request
+    const { applicationId } = await req.json();
+    if (!applicationId) {
+      throw new Error('Application ID is required');
+    }
+    console.log('Processing application ID:', applicationId);
 
-    // Create regular client to verify user authentication
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
-    )
+    // Step 3: Create Supabase Admin Client
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    });
+    console.log('✓ Supabase admin client created');
 
+    // Step 4: Verify Admin Authorization
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      throw new Error('No authorization header provided');
+    }
+
+    const supabase = createClient(supabaseUrl, anonKey);
     const { data: { user }, error: authError } = await supabase.auth.getUser(
       authHeader.replace('Bearer ', '')
-    )
+    );
 
     if (authError || !user) {
-      console.error('Invalid authorization:', authError);
-      return new Response(
-        JSON.stringify({ error: 'Invalid authorization' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      console.error('Auth error:', authError);
+      throw new Error('Invalid authorization');
     }
+    console.log('✓ User authenticated:', user.email);
 
-    console.log('User authenticated:', user.email);
-
-    // Check if user is admin using the admin client
-    const { data: profile, error: profileError } = await supabaseAdmin
+    const { data: adminProfile, error: profileError } = await supabaseAdmin
       .from('users')
       .select('role')
       .eq('id', user.id)
-      .single()
+      .single();
 
-    if (profileError || !profile || profile.role !== 'admin') {
-      console.error('Insufficient permissions. Profile:', profile, 'Error:', profileError);
-      return new Response(
-        JSON.stringify({ error: 'Insufficient permissions' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+    if (profileError || !adminProfile || adminProfile.role !== 'admin') {
+      console.error('Profile check failed:', { profileError, adminProfile });
+      throw new Error('Insufficient permissions - admin role required');
     }
+    console.log('✓ Admin permissions verified');
 
-    console.log('Admin user verified');
-
-    // Parse request body
-    let requestBody;
-    try {
-      requestBody = await req.json();
-    } catch (parseError) {
-      console.error('Error parsing request body:', parseError);
-      return new Response(
-        JSON.stringify({ error: 'Invalid request body' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    const { applicationId } = requestBody;
-
-    if (!applicationId) {
-      console.error('Application ID is required');
-      return new Response(
-        JSON.stringify({ error: 'Application ID is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    console.log('Processing application:', applicationId);
-
-    // Get the application details
+    // Step 5: Get Application Details
     const { data: application, error: appError } = await supabaseAdmin
       .from('worker_applications')
       .select('*')
       .eq('id', applicationId)
-      .single()
+      .single();
 
     if (appError || !application) {
-      console.error('Application not found:', appError);
-      return new Response(
-        JSON.stringify({ error: 'Application not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      console.error('Application lookup failed:', appError);
+      throw new Error('Worker application not found');
     }
+    console.log('✓ Application found:', application.email);
 
-    console.log('Processing application for:', application.email);
-
-    // Generate temporary password
-    const generateTemporaryPassword = () => {
-      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
-      let password = '';
-      for (let i = 0; i < 12; i++) {
-        password += chars.charAt(Math.floor(Math.random() * chars.length));
-      }
-      return password;
-    };
-
-    const temporaryPassword = generateTemporaryPassword();
-
-    // Check if user already exists
+    // Step 6: Check for Existing User
     const { data: existingUser } = await supabaseAdmin
       .from('users')
       .select('id, email, role')
       .eq('email', application.email)
-      .maybeSingle()
+      .maybeSingle();
 
     let workerId = null;
     let isExistingUser = false;
+    const temporaryPassword = generateTemporaryPassword();
 
     if (existingUser) {
-      console.log('User already exists:', existingUser.email)
+      console.log('✓ Existing user found:', existingUser.email);
       
       if (existingUser.role === 'worker') {
-        // User already exists as a worker
         workerId = existingUser.id;
         isExistingUser = true;
+        console.log('✓ User already has worker role');
       } else {
         // Update existing user to worker role
         const { error: updateError } = await supabaseAdmin
@@ -160,35 +123,34 @@ serve(async (req) => {
             role: 'worker',
             is_active: true,
           })
-          .eq('id', existingUser.id)
+          .eq('id', existingUser.id);
 
         if (updateError) {
-          console.error('Error updating user to worker:', updateError)
-          throw updateError
+          console.error('User update failed:', updateError);
+          throw new Error('Failed to update user to worker role');
         }
 
         workerId = existingUser.id;
         isExistingUser = true;
-        console.log('Existing user updated to worker role')
+        console.log('✓ Existing user updated to worker role');
       }
     } else {
       console.log('Creating new user account...');
       
-      // Create new auth user with admin privileges
+      // Step 7a: Create Auth User
       const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
         email: application.email,
         password: temporaryPassword,
         email_confirm: true
-      })
+      });
 
       if (authError) {
-        console.error('Error creating auth user:', authError)
-        throw authError
+        console.error('Auth user creation failed:', authError);
+        throw new Error(`Failed to create auth user: ${authError.message}`);
       }
+      console.log('✓ Auth user created:', authData.user.id);
 
-      console.log('Auth user created:', authData.user.id);
-
-      // Create user profile
+      // Step 7b: Create User Profile
       const { error: userError } = await supabaseAdmin
         .from('users')
         .insert({
@@ -200,31 +162,30 @@ serve(async (req) => {
           zip_code: application.zip_code,
           role: 'worker',
           is_active: true,
-        })
+        });
 
       if (userError) {
-        console.error('Error creating user profile:', userError)
-        throw userError
+        console.error('User profile creation failed:', userError);
+        throw new Error(`Failed to create user profile: ${userError.message}`);
       }
 
       workerId = authData.user.id;
-      console.log('New worker profile created successfully')
+      console.log('✓ New worker profile created successfully');
     }
 
-    // Update application status
+    // Step 8: Update Application Status
     const { error: statusError } = await supabaseAdmin
       .from('worker_applications')
       .update({ status: 'approved' })
-      .eq('id', applicationId)
+      .eq('id', applicationId);
 
     if (statusError) {
-      console.error('Error updating application status:', statusError)
-      throw statusError
+      console.error('Status update failed:', statusError);
+      throw new Error(`Failed to update application status: ${statusError.message}`);
     }
+    console.log('✓ Application status updated to approved');
 
-    console.log('Application status updated to approved');
-
-    // Return success response
+    // Step 9: Return Success Response
     const responseData = {
       success: true,
       message: 'Worker application approved successfully',
@@ -236,28 +197,27 @@ serve(async (req) => {
       })
     };
 
-    console.log('Returning success response');
-
-    return new Response(
-      JSON.stringify(responseData),
-      { 
-        status: 200, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    )
+    console.log('=== APPROVAL COMPLETED SUCCESSFULLY ===');
+    return new Response(JSON.stringify(responseData), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
 
   } catch (error) {
-    console.error('Error in approve-worker-application function:', error)
+    console.error('=== APPROVAL FAILED ===');
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
     
-    return new Response(
-      JSON.stringify({ 
-        error: 'Internal server error',
-        details: error.message 
-      }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    )
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message || 'Internal server error',
+      timestamp: new Date().toISOString()
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
   }
-})
+});
