@@ -175,18 +175,10 @@ serve(async (req) => {
 
     const temporaryPassword = generateTemporaryPassword();
 
-    // Check if auth user already exists
+    // Skip checking for existing auth users to simplify the process
+    // We'll rely on the createUser call to handle duplicates gracefully
     let existingAuthUser = null;
-    try {
-      const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers();
-      existingAuthUser = authUsers?.users?.find(u => u.email === application.email);
-      if (existingAuthUser) {
-        console.log('Found existing auth user for:', application.email);
-      }
-    } catch (authCheckError) {
-      // User doesn't exist in auth, which is fine
-      console.log('No existing auth user found for:', application.email);
-    }
+    console.log('Skipping auth user existence check - will handle during creation');
 
     // Check if user profile already exists
     const { data: existingUser } = await supabaseAdmin

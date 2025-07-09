@@ -23,6 +23,7 @@ import { InvoicesManager } from '@/components/admin/InvoicesManager';
 import { PerformanceDashboard } from '@/components/admin/PerformanceDashboard';
 import { DeploymentPanel } from '@/components/admin/DeploymentPanel';
 import { DeleteTestUserButton } from '@/components/admin/DeleteTestUserButton';
+import { WorkerApplicationsManager } from '@/components/admin/WorkerApplicationsManager';
 
 const Admin = () => {
   const { user, profile, loading } = useAuth();
@@ -104,6 +105,8 @@ const Admin = () => {
         return <PerformanceDashboard />;
       case 'deployment':
         return <DeploymentPanel />;
+      case 'worker-applications':
+        return <WorkerApplicationsManager />;
       default:
         return <DashboardStats />;
     }
