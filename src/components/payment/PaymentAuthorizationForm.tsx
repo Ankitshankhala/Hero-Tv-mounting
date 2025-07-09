@@ -120,9 +120,37 @@ export const PaymentAuthorizationForm = ({
 
       if (confirmResult.error) {
         console.error('Payment confirmation error:', confirmResult.error);
-        const error = confirmResult.error.message || 'Payment authorization failed';
-        setFormError(error);
-        onAuthorizationFailure(error);
+        
+        // Improved Stripe error handling
+        let errorMessage = 'Payment authorization failed';
+        const stripeError = confirmResult.error;
+        
+        switch (stripeError.type) {
+          case 'card_error':
+            if (stripeError.code === 'card_declined') {
+              errorMessage = 'Your card was declined. Please try a different payment method.';
+            } else if (stripeError.code === 'insufficient_funds') {
+              errorMessage = 'Insufficient funds. Please try a different card.';
+            } else if (stripeError.code === 'expired_card') {
+              errorMessage = 'Your card has expired. Please use a different card.';
+            } else if (stripeError.code === 'incorrect_cvc') {
+              errorMessage = 'The security code is incorrect. Please check your card details.';
+            } else {
+              errorMessage = stripeError.message || 'There was an issue with your card. Please try again.';
+            }
+            break;
+          case 'validation_error':
+            errorMessage = 'Please check your card details and try again.';
+            break;
+          case 'api_error':
+            errorMessage = 'Payment service temporarily unavailable. Please try again.';
+            break;
+          default:
+            errorMessage = stripeError.message || 'Payment authorization failed. Please try again.';
+        }
+        
+        setFormError(errorMessage);
+        onAuthorizationFailure(errorMessage);
         return;
       }
 
@@ -171,6 +199,17 @@ export const PaymentAuthorizationForm = ({
           }
         </AlertDescription>
       </Alert>
+
+      {/* Development Test Card Helper */}
+      {process.env.NODE_ENV === 'development' && (
+        <Alert className="bg-blue-50 border-blue-200">
+          <Info className="h-4 w-4 text-blue-600" />
+          <AlertDescription className="text-blue-800">
+            <strong>Test Mode:</strong> Use card number <code className="bg-blue-100 px-1 rounded">4242424242424242</code> 
+            with any future expiry date and CVC for testing.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Alert>
         <Shield className="h-4 w-4" />

@@ -150,7 +150,20 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
         
         if (error) {
           console.error('❌ Stripe card error:', error);
-          onError(error.message);
+          
+          // Improve error messages for card input
+          let userFriendlyError = error.message;
+          if (error.code === 'incomplete_number') {
+            userFriendlyError = 'Please enter a complete card number';
+          } else if (error.code === 'incomplete_expiry') {
+            userFriendlyError = 'Please enter a valid expiry date';
+          } else if (error.code === 'incomplete_cvc') {
+            userFriendlyError = 'Please enter a valid security code (CVC)';
+          } else if (error.code === 'invalid_number') {
+            userFriendlyError = 'Please enter a valid card number';
+          }
+          
+          onError(userFriendlyError);
         } else if (complete) {
           console.log('✅ Card input complete');
           onError(''); // Clear any previous errors

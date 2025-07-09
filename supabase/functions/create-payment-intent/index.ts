@@ -47,7 +47,7 @@ serve(async (req) => {
     // Validate booking if provided (for existing bookings)
     // For new bookings, we skip this validation and create payment intent without booking validation
     let booking = null;
-    if (bookingId && bookingId !== 'temp-booking-ref') {
+    if (bookingId && bookingId !== 'temp-booking-ref' && !bookingId.startsWith('temp-')) {
       const { data: bookingData, error: bookingError } = await supabaseAdmin
         .from('bookings')
         .select('id, customer_id, status')
@@ -99,12 +99,12 @@ serve(async (req) => {
       }
     }
 
-    // Create PaymentIntent with manual capture for authorization
+    // Create PaymentIntent with manual capture for authorization (always manual for authorize-later model)
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100), // Convert to cents
       currency: "usd",
       customer: customer?.id,
-      capture_method: requireAuth ? "manual" : "automatic",
+      capture_method: "manual", // Always manual for authorize now, capture later
       description: `Booking payment - ${bookingId}`,
       metadata: {
         booking_id: bookingId,
@@ -114,7 +114,7 @@ serve(async (req) => {
     console.log('✅ Payment intent created:', paymentIntent.id);
 
     // Update booking with payment intent ID (only if we have a real booking)
-    if (booking && bookingId !== 'temp-booking-ref') {
+    if (booking && bookingId !== 'temp-booking-ref' && !bookingId.startsWith('temp-')) {
       const { error: updateError } = await supabaseAdmin
         .from('bookings')
         .update({ 

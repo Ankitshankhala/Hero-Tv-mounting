@@ -51,7 +51,7 @@ export const usePaymentAuthorization = () => {
 
       const { data: result, error } = await supabase.functions.invoke('create-payment-intent', {
         body: {
-          bookingId: data.bookingId,
+          bookingId: data.bookingId || `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           amount: data.amount,
           customerEmail: data.customerEmail,
           customerName: data.customerName,
@@ -64,13 +64,19 @@ export const usePaymentAuthorization = () => {
       if (error) {
         console.error('❌ Payment authorization error from edge function:', error);
         
-        // Handle specific error types
-        if (error.message?.includes('Invalid booking ID')) {
-          throw new Error('The booking could not be found. Please try creating a new booking.');
-        } else if (error.message?.includes('Stripe')) {
-          throw new Error('Payment service error. Please check your payment configuration.');
+        // Improved error handling with more specific messages
+        const errorMessage = error.message || 'Unknown error occurred';
+        
+        if (errorMessage.includes('Invalid booking ID') || errorMessage.includes('Booking not found')) {
+          throw new Error('The booking reference is invalid. Please try creating a new booking.');
+        } else if (errorMessage.includes('STRIPE_SECRET_KEY') || errorMessage.includes('Stripe')) {
+          throw new Error('Payment service configuration error. Please contact support.');
+        } else if (errorMessage.includes('amount') || errorMessage.includes('required fields')) {
+          throw new Error('Invalid payment amount. Please refresh and try again.');
+        } else if (errorMessage.includes('customer')) {
+          throw new Error('Customer information is missing. Please check your details.');
         } else {
-          throw new Error(error.message || 'Failed to create payment authorization');
+          throw new Error(`Payment setup failed: ${errorMessage}`);
         }
       }
 
