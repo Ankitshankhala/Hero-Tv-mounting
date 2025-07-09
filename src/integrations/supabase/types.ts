@@ -997,6 +997,7 @@ export type Database = {
         | "pending"
         | "payment_pending"
         | "confirmed"
+        | "in_progress"
         | "completed"
         | "cancelled"
         | "authorized"
@@ -1144,6 +1145,7 @@ export const Constants = {
         "pending",
         "payment_pending",
         "confirmed",
+        "in_progress",
         "completed",
         "cancelled",
         "authorized",

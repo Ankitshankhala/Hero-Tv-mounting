@@ -5,7 +5,7 @@ import { useErrorHandler } from './useErrorHandler';
 import { useRetryableQuery } from './useRetryableQuery';
 import { useSmsNotifications } from './useSmsNotifications';
 
-type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
+type BookingStatus = 'pending' | 'payment_pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'authorized' | 'captured';
 
 export const useBookingOperations = () => {
   const { executeWithRetry } = useRetryableQuery();

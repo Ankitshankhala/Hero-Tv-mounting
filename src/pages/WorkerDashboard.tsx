@@ -147,14 +147,21 @@ const WorkerDashboard = () => {
     try {
       console.log('Updating job status:', jobId, newStatus);
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('bookings')
         .update({ status: newStatus })
-        .eq('id', jobId);
+        .eq('id', jobId)
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Status update error:', error);
+        throw error;
+      }
 
-      // If job is marked as completed, automatically capture payment
+      console.log('Status updated successfully:', data);
+
+      // Handle payment capture for completed jobs
       if (newStatus === 'completed') {
         console.log('Job completed, capturing payment automatically...');
         
@@ -196,16 +203,20 @@ const WorkerDashboard = () => {
         });
       }
 
-      // Update local state immediately for responsive UI
-      setJobs(jobs.map(job => 
+      // Update local state immediately for responsive UI and refresh from server
+      setJobs(prevJobs => prevJobs.map(job => 
         job.id === jobId ? { ...job, status: newStatus } : job
       ));
+      
+      // Refresh jobs to get latest data from server
+      fetchWorkerJobs();
 
     } catch (error) {
       console.error('Error updating job status:', error);
+      const errorMessage = error?.message || 'Unknown error occurred';
       toast({
-        title: "Error",
-        description: "Failed to update job status",
+        title: "Failed to Update Job Status",
+        description: `Error: ${errorMessage}. Please try again.`,
         variant: "destructive",
       });
     }
