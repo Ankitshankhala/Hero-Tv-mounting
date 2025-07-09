@@ -131,19 +131,52 @@ export const WorkerApplicationsManager = () => {
       console.error('Error updating application:', error);
       
       let errorMessage = "Failed to update application status";
+      let errorTitle = "Error";
       
-      if (error?.message?.includes('duplicate key')) {
-        errorMessage = "This email is already registered in the system";
+      // Handle different types of errors from the edge function
+      if (error?.message?.includes('Edge Function returned a non-2xx status code')) {
+        // Extract more meaningful error from the edge function response
+        errorTitle = "Application Processing Failed";
+        errorMessage = "There was an issue processing the application. Please check the logs for details.";
+        
+        // Try to get more specific error details if available
+        if (error?.context?.body) {
+          try {
+            const errorDetails = JSON.parse(error.context.body);
+            if (errorDetails.error) {
+              errorMessage = errorDetails.error;
+              if (errorDetails.details) {
+                errorMessage += `: ${errorDetails.details}`;
+              }
+            }
+          } catch (parseError) {
+            console.warn('Could not parse error details:', parseError);
+          }
+        }
+      } else if (error?.message?.includes('Email already registered')) {
+        errorTitle = "Email Already Exists";
+        errorMessage = "This email is already registered in the system. The existing user will be updated to worker role.";
       } else if (error?.message?.includes('Insufficient permissions')) {
-        errorMessage = "You don't have permission to perform this action";
-      } else if (error?.message?.includes('Invalid authorization')) {
-        errorMessage = "Authentication failed. Please refresh and try again";
+        errorTitle = "Permission Denied";
+        errorMessage = "You don't have permission to approve worker applications";
+      } else if (error?.message?.includes('Authentication failed') || error?.message?.includes('Invalid authorization')) {
+        errorTitle = "Authentication Error";
+        errorMessage = "Your session has expired. Please refresh the page and try again";
+      } else if (error?.message?.includes('Server configuration error')) {
+        errorTitle = "Server Configuration Error";
+        errorMessage = "Server is not properly configured. Please contact system administrator";
+      } else if (error?.message?.includes('Invalid application data')) {
+        errorTitle = "Invalid Data";
+        errorMessage = "The application data is incomplete or invalid";
+      } else if (error?.message?.includes('Application not found')) {
+        errorTitle = "Application Not Found";
+        errorMessage = "The application could not be found. It may have been deleted";
       } else if (error?.message) {
         errorMessage = error.message;
       }
       
       toast({
-        title: "Error",
+        title: errorTitle,
         description: errorMessage,
         variant: "destructive",
       });
