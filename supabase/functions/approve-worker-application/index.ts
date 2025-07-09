@@ -141,7 +141,10 @@ serve(async (req) => {
     if (appError || !application) {
       console.error('Application not found:', appError);
       return new Response(
-        JSON.stringify({ error: 'Application not found' }),
+        JSON.stringify({ 
+          error: 'Application not found',
+          details: appError?.message || 'Application does not exist'
+        }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -175,8 +178,11 @@ serve(async (req) => {
     // Check if auth user already exists
     let existingAuthUser = null;
     try {
-      const { data: authUserData } = await supabaseAdmin.auth.admin.getUserById(application.email);
-      existingAuthUser = authUserData?.user;
+      const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers();
+      existingAuthUser = authUsers?.users?.find(u => u.email === application.email);
+      if (existingAuthUser) {
+        console.log('Found existing auth user for:', application.email);
+      }
     } catch (authCheckError) {
       // User doesn't exist in auth, which is fine
       console.log('No existing auth user found for:', application.email);
