@@ -983,6 +983,10 @@ export type Database = {
         Args: { state_abbreviation: string }
         Returns: number
       }
+      resend_worker_sms: {
+        Args: { booking_id_param: string }
+        Returns: boolean
+      }
       respond_to_coverage_request: {
         Args: { p_notification_id: string; p_response: string }
         Returns: boolean
