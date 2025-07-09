@@ -31,6 +31,7 @@ type AuthContextType = {
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, userData: any) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
+  changePassword: (newPassword: string) => Promise<{ error: any }>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -222,6 +223,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const changePassword = async (newPassword: string) => {
+    try {
+      console.log('Attempting to change password');
+      
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+      
+      if (error) {
+        console.error('Password change error:', error);
+        return { error };
+      }
+
+      console.log('Password changed successfully');
+      return { error: null };
+    } catch (error) {
+      console.error('Unexpected password change error:', error);
+      return { error };
+    }
+  };
+
   const value = {
     user,
     session,
@@ -233,6 +255,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     signIn,
     signUp,
     signOut,
+    changePassword,
   };
 
   return (
