@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, Clock, User, Phone, Mail, DollarSign } from 'lucide-react';
-import { PaymentCaptureButton } from './PaymentCaptureButton';
+
 import JobActions from './JobActions';
 
 interface WorkerJobCardProps {
@@ -139,13 +139,6 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
           </div>
         )}
 
-        <div className="flex justify-between items-center pt-4">
-          <PaymentCaptureButton
-            bookingId={job.id}
-            paymentStatus={job.payment_status || 'pending'}
-            onCaptureSuccess={onJobCancelled}
-          />
-        </div>
 
         <JobActions
           job={job}

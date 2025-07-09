@@ -151,15 +151,53 @@ const WorkerDashboard = () => {
 
       if (error) throw error;
 
+      // If job is marked as completed, automatically capture payment
+      if (newStatus === 'completed') {
+        console.log('Job completed, capturing payment automatically...');
+        
+        try {
+          const { data: captureResult, error: captureError } = await supabase.functions.invoke('capture-payment-intent', {
+            body: { bookingId: jobId }
+          });
+
+          if (captureError) {
+            console.error('Payment capture failed:', captureError);
+            toast({
+              title: "Job Completed",
+              description: "Job marked as completed, but payment capture failed. Please contact admin.",
+              variant: "destructive",
+            });
+          } else if (captureResult?.success) {
+            toast({
+              title: "Job Completed & Payment Captured",
+              description: `Job completed successfully and payment of $${captureResult.amount_captured?.toFixed(2)} has been captured.`,
+            });
+          } else {
+            toast({
+              title: "Job Completed",
+              description: "Job marked as completed. Payment capture status unknown.",
+            });
+          }
+        } catch (captureError) {
+          console.error('Payment capture error:', captureError);
+          toast({
+            title: "Job Completed",
+            description: "Job marked as completed, but payment capture failed. Please contact admin.",
+            variant: "destructive",
+          });
+        }
+      } else {
+        toast({
+          title: "Success",
+          description: `Job status updated to ${newStatus}`,
+        });
+      }
+
       // Update local state immediately for responsive UI
       setJobs(jobs.map(job => 
         job.id === jobId ? { ...job, status: newStatus } : job
       ));
 
-      toast({
-        title: "Success",
-        description: `Job status updated to ${newStatus}`,
-      });
     } catch (error) {
       console.error('Error updating job status:', error);
       toast({

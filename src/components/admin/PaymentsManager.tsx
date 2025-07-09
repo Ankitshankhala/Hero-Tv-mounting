@@ -10,7 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import PaymentDetailsModal from './PaymentDetailsModal';
 import { StripeConfigTest } from './StripeConfigTest';
-import { PaymentCaptureButton } from './PaymentCaptureButton';
+
 
 interface Transaction {
   id: string;
@@ -342,10 +342,6 @@ export const PaymentsManager = () => {
                           >
                             View Details
                           </Button>
-                          <PaymentCaptureButton 
-                            transaction={transaction}
-                            onCaptureSuccess={fetchTransactions}
-                          />
                         </div>
                       </TableCell>
                     </TableRow>
