@@ -94,17 +94,31 @@ export const ContactLocationStep = ({
         </div>
       </div>
 
+      <div className="space-y-3">
+        <Label htmlFor="address" className="text-base font-medium flex items-center space-x-2 text-white">
+          <MapPin className="h-4 w-4 text-green-400" />
+          <span>Service Address *</span>
+        </Label>
+        <Input
+          id="address"
+          value={formData.address}
+          onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+          placeholder="123 Main Street, Apartment 4B"
+          className="h-12 bg-slate-700/50 border-slate-600 text-white placeholder-slate-400 focus:border-blue-400"
+        />
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
         <div className="space-y-3">
           <Label htmlFor="houseNumber" className="text-base font-medium flex items-center space-x-2 text-white">
             <MapPin className="h-4 w-4 text-green-400" />
-            <span>House Number *</span>
+            <span>Unit Number *</span>
           </Label>
           <Input
             id="houseNumber"
             value={formData.houseNumber}
             onChange={(e) => setFormData(prev => ({ ...prev, houseNumber: e.target.value }))}
-            placeholder="123"
+            placeholder="Apt 4B"
             className="h-12 bg-slate-700/50 border-slate-600 text-white placeholder-slate-400 focus:border-blue-400"
           />
         </div>
@@ -119,20 +133,6 @@ export const ContactLocationStep = ({
             className="h-12 bg-slate-700/50 border-slate-600 text-white placeholder-slate-400 focus:border-blue-400"
           />
         </div>
-      </div>
-
-      <div className="space-y-3">
-        <Label htmlFor="address" className="text-base font-medium flex items-center space-x-2 text-white">
-          <MapPin className="h-4 w-4 text-green-400" />
-          <span>Service Address *</span>
-        </Label>
-        <Input
-          id="address"
-          value={formData.address}
-          onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-          placeholder="Main Street, Apartment 4B"
-          className="h-12 bg-slate-700/50 border-slate-600 text-white placeholder-slate-400 focus:border-blue-400"
-        />
       </div>
 
       <div className="space-y-3">

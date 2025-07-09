@@ -298,14 +298,14 @@ export const InlineBookingFlow = ({ isOpen, onClose, onSubmit, selectedServices 
                 <div className="space-y-3">
                   <Label htmlFor="houseNumber" className="text-base font-semibold text-gray-700 flex items-center space-x-2">
                     <MapPin className="h-4 w-4 text-green-600" />
-                    <span>House Number</span>
+                    <span>Unit Number</span>
                     <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="houseNumber"
                     value={formData.houseNumber}
                     onChange={(e) => setFormData(prev => ({ ...prev, houseNumber: e.target.value }))}
-                    placeholder="123"
+                    placeholder="Apt 4B"
                     className="h-12 border-2 border-gray-200 focus:border-green-500 focus:ring-green-500/20 rounded-lg bg-gray-50/50 transition-all duration-200"
                   />
                 </div>

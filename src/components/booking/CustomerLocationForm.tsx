@@ -138,6 +138,21 @@ export const CustomerLocationForm = ({ bookingData, onUpdateBookingData, onBack,
                 />
               </div>
             </div>
+
+            <div className="space-y-3">
+              <Label htmlFor="address" className="text-lg font-semibold text-gray-800 flex items-center space-x-2">
+                <MapPin className="h-5 w-5 text-green-600" />
+                <span>Complete Service Address</span>
+                <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="address"
+                value={bookingData.address}
+                onChange={(e) => onUpdateBookingData({ address: e.target.value })}
+                placeholder="123 Main Street, Apartment 4B"
+                className="h-14 text-lg border-2 border-gray-200 focus:border-green-500 focus:ring-green-500/20 rounded-xl bg-gray-50/50 transition-all duration-200"
+              />
+            </div>
           </CardContent>
         </Card>
 
@@ -153,21 +168,6 @@ export const CustomerLocationForm = ({ bookingData, onUpdateBookingData, onBack,
             <p className="text-green-100 mt-2">Where should our technician visit?</p>
           </CardHeader>
           <CardContent className="p-8 space-y-8">
-            <div className="space-y-3">
-              <Label htmlFor="address" className="text-lg font-semibold text-gray-800 flex items-center space-x-2">
-                <MapPin className="h-5 w-5 text-green-600" />
-                <span>Complete Service Address</span>
-                <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="address"
-                value={bookingData.address}
-                onChange={(e) => onUpdateBookingData({ address: e.target.value })}
-                placeholder="123 Main Street, Apartment 4B"
-                className="h-14 text-lg border-2 border-gray-200 focus:border-green-500 focus:ring-green-500/20 rounded-xl bg-gray-50/50 transition-all duration-200"
-              />
-            </div>
-
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <div className="space-y-3">
                 <Label htmlFor="city" className="text-lg font-semibold text-gray-800">
