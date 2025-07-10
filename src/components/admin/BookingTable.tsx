@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -33,7 +33,7 @@ interface BookingTableProps {
   onBookingUpdate?: () => void;
 }
 
-export const BookingTable = ({ bookings, onBookingUpdate }: BookingTableProps) => {
+export const BookingTable = React.memo(({ bookings, onBookingUpdate }: BookingTableProps) => {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -120,40 +120,52 @@ export const BookingTable = ({ bookings, onBookingUpdate }: BookingTableProps) =
     return !booking.worker?.name;
   };
 
-  const handleEdit = (booking: Booking) => {
+  const handleEdit = useCallback((booking: Booking) => {
     setSelectedBooking(booking);
     setShowEditModal(true);
-  };
+  }, []);
 
-  const handleDelete = (booking: Booking) => {
+  const handleDelete = useCallback((booking: Booking) => {
     setSelectedBooking(booking);
     setShowDeleteModal(true);
-  };
+  }, []);
 
-  const handleLateFeeCharge = (booking: Booking) => {
+  const handleLateFeeCharge = useCallback((booking: Booking) => {
     setSelectedBooking(booking);
     setShowManualChargeModal(true);
-  };
+  }, []);
 
-  const handleAssignWorker = (booking: Booking) => {
+  const handleAssignWorker = useCallback((booking: Booking) => {
     setSelectedBooking(booking);
     setShowAssignWorkerModal(true);
-  };
+  }, []);
 
-  const handleModalClose = () => {
+  const handleModalClose = useCallback(() => {
     setSelectedBooking(null);
     setShowEditModal(false);
     setShowDeleteModal(false);
     setShowManualChargeModal(false);
     setShowAssignWorkerModal(false);
-  };
+  }, []);
 
-  const handleBookingUpdated = () => {
+  const handleBookingUpdated = useCallback(() => {
     if (onBookingUpdate) {
       onBookingUpdate();
     }
     handleModalClose();
-  };
+  }, [onBookingUpdate, handleModalClose]);
+
+  // Memoize expensive calculations
+  const processedBookings = useMemo(() => {
+    return bookings.map((booking) => ({
+      ...booking,
+      formattedDateTime: formatDateTime(booking),
+      canChargeFee: isEligibleForLateFee(booking),
+      needsWorkerAssignment: isUnassigned(booking),
+      formattedServices: formatServices(booking),
+      formattedDuration: formatDuration(booking)
+    }));
+  }, [bookings]);
 
   return (
     <>
@@ -174,19 +186,19 @@ export const BookingTable = ({ bookings, onBookingUpdate }: BookingTableProps) =
             </TableRow>
           </TableHeader>
           <TableBody>
-            {bookings.map((booking) => {
-              const { date, time } = formatDateTime(booking);
-              const canChargeFee = isEligibleForLateFee(booking);
-              const needsWorkerAssignment = isUnassigned(booking);
+            {processedBookings.map((booking) => {
+              const { date, time } = booking.formattedDateTime;
+              const canChargeFee = booking.canChargeFee;
+              const needsWorkerAssignment = booking.needsWorkerAssignment;
               
               return (
                 <TableRow key={booking.id}>
                   <TableCell className="font-medium">{booking.id.slice(0, 8)}</TableCell>
                   <TableCell>{booking.customer?.name || 'N/A'}</TableCell>
-                  <TableCell>{formatServices(booking)}</TableCell>
+                  <TableCell>{booking.formattedServices}</TableCell>
                   <TableCell>
                     <span className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                      {formatDuration(booking)}
+                      {booking.formattedDuration}
                     </span>
                   </TableCell>
                   <TableCell>
@@ -293,4 +305,4 @@ export const BookingTable = ({ bookings, onBookingUpdate }: BookingTableProps) =
       />
     </>
   );
-};
+});

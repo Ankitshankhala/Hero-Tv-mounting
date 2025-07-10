@@ -14,19 +14,23 @@ export const useRetryableQuery = () => {
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         const result = await operation();
-        if (attempt > 0) {
+        if (attempt > 0 && process.env.NODE_ENV === 'development') {
           console.log(`${operationName} succeeded on attempt ${attempt + 1}`);
         }
         setRetryCount(0);
         return result;
       } catch (error) {
         lastError = error;
-        console.error(`${operationName} failed on attempt ${attempt + 1}:`, error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error(`${operationName} failed on attempt ${attempt + 1}:`, error);
+        }
         
         if (attempt < maxRetries) {
           // Wait before retrying (exponential backoff)
           const delay = Math.min(1000 * Math.pow(2, attempt), 5000);
-          console.log(`Retrying ${operationName} in ${delay}ms...`);
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`Retrying ${operationName} in ${delay}ms...`);
+          }
           await new Promise(resolve => setTimeout(resolve, delay));
           setRetryCount(attempt + 1);
         }

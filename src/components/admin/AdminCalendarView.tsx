@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
 import { enUS } from 'date-fns/locale';
@@ -39,7 +39,7 @@ interface CalendarEvent {
   resource?: any;
 }
 
-export const AdminCalendarView = () => {
+export const AdminCalendarView = React.memo(() => {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [workers, setWorkers] = useState([]);
   const [selectedWorker, setSelectedWorker] = useState('all');
@@ -47,11 +47,13 @@ export const AdminCalendarView = () => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
+  const handleBookingUpdate = useCallback(() => {
+    fetchEvents();
+  }, []);
+
   const { isConnected, isRefreshing, forceRefresh } = useCalendarSync({
     userRole: 'admin',
-    onBookingUpdate: () => {
-      fetchEvents();
-    }
+    onBookingUpdate: handleBookingUpdate
   });
 
   useEffect(() => {
@@ -75,7 +77,9 @@ export const AdminCalendarView = () => {
       if (error) throw error;
       setWorkers(data || []);
     } catch (error) {
-      console.error('Error fetching workers:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error fetching workers:', error);
+      }
     }
   };
 
@@ -137,7 +141,9 @@ export const AdminCalendarView = () => {
 
       setEvents(transformedEvents);
     } catch (error) {
-      console.error('Error fetching calendar events:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error fetching calendar events:', error);
+      }
       toast({
         title: "Error",
         description: "Failed to load calendar events",
@@ -148,7 +154,7 @@ export const AdminCalendarView = () => {
     }
   };
 
-  const eventStyleGetter = (event: CalendarEvent) => {
+  const eventStyleGetter = useCallback((event: CalendarEvent) => {
     let backgroundColor = '#3174ad';
     
     switch (event.status) {
@@ -176,9 +182,9 @@ export const AdminCalendarView = () => {
         display: 'block'
       }
     };
-  };
+  }, []);
 
-  const handleEventSelect = (event: CalendarEvent) => {
+  const handleEventSelect = useCallback((event: CalendarEvent) => {
     const statusColor = {
       pending: 'yellow',
       confirmed: 'green',
@@ -202,7 +208,7 @@ export const AdminCalendarView = () => {
         </div>
       ),
     });
-  };
+  }, [toast]);
 
   return (
     <Card className="w-full">
@@ -295,4 +301,4 @@ export const AdminCalendarView = () => {
       </CardContent>
     </Card>
   );
-};
+});

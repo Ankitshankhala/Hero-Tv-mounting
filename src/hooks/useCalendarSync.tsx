@@ -25,14 +25,16 @@ export const useCalendarSync = ({
     userId,
     userRole,
     onBookingUpdate: (updatedBooking) => {
-      console.log('Calendar sync: booking update received', updatedBooking);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Calendar sync: booking update received', updatedBooking);
+      }
       if (onBookingUpdate) {
         onBookingUpdate(updatedBooking);
       }
-      // Auto-refresh calendars after booking updates
+      // Auto-refresh calendars after booking updates with debouncing
       setTimeout(() => {
         refreshCalendars();
-      }, 500);
+      }, 1000); // Increased from 500ms to 1s for better performance
     }
   });
 
@@ -51,7 +53,9 @@ export const useCalendarSync = ({
           filter: `worker_id=eq.${userId}`,
         },
         (payload) => {
-          console.log('Calendar sync: schedule update received', payload);
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Calendar sync: schedule update received', payload);
+          }
           if (onScheduleUpdate) {
             onScheduleUpdate();
           }
@@ -81,7 +85,9 @@ export const useCalendarSync = ({
             table: 'worker_availability',
           },
           (payload) => {
-            console.log('Calendar sync: worker availability changed', payload);
+            if (process.env.NODE_ENV === 'development') {
+              console.log('Calendar sync: worker availability changed', payload);
+            }
             refreshCalendars();
           }
         )
@@ -99,7 +105,9 @@ export const useCalendarSync = ({
       // Trigger calendar refreshes based on role
       if (onBookingUpdate) {
         // This will trigger a refresh in the consuming components
-        console.log('Calendar sync: triggering calendar refresh');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Calendar sync: triggering calendar refresh');
+        }
       }
     } catch (error) {
       console.error('Error refreshing calendars:', error);
@@ -109,7 +117,9 @@ export const useCalendarSync = ({
   }, [onBookingUpdate]);
 
   const forceRefresh = useCallback(() => {
-    console.log('Calendar sync: force refresh requested');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Calendar sync: force refresh requested');
+    }
     refreshCalendars();
   }, [refreshCalendars]);
 

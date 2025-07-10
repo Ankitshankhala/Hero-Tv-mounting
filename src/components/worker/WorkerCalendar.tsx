@@ -41,7 +41,9 @@ const WorkerCalendar = ({ workerId }: WorkerCalendarProps) => {
     },
     onScheduleUpdate: () => {
       // Optionally fetch schedule changes here
-      console.log('Worker schedule updated');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Worker schedule updated');
+      }
     }
   });
 
@@ -50,7 +52,9 @@ const WorkerCalendar = ({ workerId }: WorkerCalendarProps) => {
 
     try {
       setLoading(true);
-      console.log('Fetching all jobs for worker:', targetWorkerId);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Fetching all jobs for worker:', targetWorkerId);
+      }
 
       const { data, error } = await supabase
         .from('bookings')
@@ -68,7 +72,9 @@ const WorkerCalendar = ({ workerId }: WorkerCalendarProps) => {
         throw error;
       }
 
-      console.log('All jobs data:', data);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('All jobs data:', data);
+      }
 
       const transformedJobs: Job[] = (data || []).map(job => {
         const startDateTime = new Date(`${job.scheduled_date}T${job.scheduled_start}`);

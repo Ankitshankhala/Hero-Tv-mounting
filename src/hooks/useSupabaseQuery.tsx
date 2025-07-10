@@ -105,7 +105,9 @@ export const useSupabaseQuery = (options: UseSupabaseQueryOptions) => {
         return result;
       }, `load ${table} data`);
     } catch (err) {
-      console.error(`Query execution error for ${table}:`, err);
+      if (process.env.NODE_ENV === 'development') {
+        console.error(`Query execution error for ${table}:`, err);
+      }
       setError(err);
     } finally {
       setLoading(false);

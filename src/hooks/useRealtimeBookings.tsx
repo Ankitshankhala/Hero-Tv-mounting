@@ -21,7 +21,9 @@ export const useRealtimeBookings = ({
 
   useEffect(() => {
     if (!userId || !userRole) {
-      console.log('No userId or userRole, skipping subscription');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('No userId or userRole, skipping subscription');
+      }
       return;
     }
 
@@ -47,15 +49,21 @@ export const useRealtimeBookings = ({
         filter = ''; // No filter for admin
         break;
       default:
-        console.log('Invalid user role, skipping subscription');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Invalid user role, skipping subscription');
+        }
         return;
     }
 
-    console.log(`Setting up realtime subscription for ${userRole}:`, channelName);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`Setting up realtime subscription for ${userRole}:`, channelName);
+    }
 
     // Clean up any existing channel first
     if (channelRef.current) {
-      console.log('Cleaning up existing channel before creating new one');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Cleaning up existing channel before creating new one');
+      }
       supabase.removeChannel(channelRef.current);
       channelRef.current = null;
     }
@@ -76,7 +84,9 @@ export const useRealtimeBookings = ({
       (payload) => {
         // Only process if this is still the current subscription
         if (subscriptionIdRef.current === subscriptionId) {
-          console.log('Realtime booking update:', payload);
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Realtime booking update:', payload);
+          }
           
           const { eventType, new: newRecord, old: oldRecord } = payload;
           
@@ -118,13 +128,17 @@ export const useRealtimeBookings = ({
 
     // Subscribe to the channel
     configuredChannel.subscribe((status) => {
-      console.log('Realtime subscription status:', status, 'for channel:', channelName);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Realtime subscription status:', status, 'for channel:', channelName);
+      }
       
       if (subscriptionIdRef.current === subscriptionId) {
         setIsConnected(status === 'SUBSCRIBED');
         
         if (status === 'SUBSCRIBED') {
-          console.log('Successfully subscribed to realtime updates');
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Successfully subscribed to realtime updates');
+          }
         } else if (status === 'CHANNEL_ERROR') {
           console.error('Channel subscription error');
           setIsConnected(false);
@@ -134,7 +148,9 @@ export const useRealtimeBookings = ({
 
     // Cleanup function
     return () => {
-      console.log('Cleaning up realtime subscription:', channelName);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Cleaning up realtime subscription:', channelName);
+      }
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
