@@ -3,11 +3,13 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Edit, Trash2, DollarSign, UserPlus } from 'lucide-react';
+import { Edit, Trash2, DollarSign, UserPlus, CheckCircle } from 'lucide-react';
 import { EditBookingModal } from './EditBookingModal';
 import { DeleteBookingModal } from './DeleteBookingModal';
 import { ManualChargeModal } from '@/components/worker/payment/ManualChargeModal';
 import { AssignWorkerModal } from './AssignWorkerModal';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface Booking {
   id: string;
@@ -39,6 +41,8 @@ export const BookingTable = React.memo(({ bookings, onBookingUpdate }: BookingTa
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showManualChargeModal, setShowManualChargeModal] = useState(false);
   const [showAssignWorkerModal, setShowAssignWorkerModal] = useState(false);
+  const [isUpdating, setIsUpdating] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
@@ -120,6 +124,10 @@ export const BookingTable = React.memo(({ bookings, onBookingUpdate }: BookingTa
     return !booking.worker?.name;
   };
 
+  const canMarkComplete = (booking: Booking) => {
+    return booking.status === 'in_progress' && booking.worker?.name;
+  };
+
   const handleEdit = useCallback((booking: Booking) => {
     setSelectedBooking(booking);
     setShowEditModal(true);
@@ -139,6 +147,38 @@ export const BookingTable = React.memo(({ bookings, onBookingUpdate }: BookingTa
     setSelectedBooking(booking);
     setShowAssignWorkerModal(true);
   }, []);
+
+  const handleMarkComplete = useCallback(async (booking: Booking) => {
+    if (booking.status === 'completed') return;
+    
+    setIsUpdating(booking.id);
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .update({ status: 'completed' })
+        .eq('id', booking.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Booking Completed",
+        description: "Booking marked as completed. Invoice will be generated automatically.",
+      });
+
+      if (onBookingUpdate) {
+        onBookingUpdate();
+      }
+    } catch (error) {
+      console.error('Error marking booking as complete:', error);
+      toast({
+        title: "Error",
+        description: "Failed to mark booking as completed",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdating(null);
+    }
+  }, [onBookingUpdate, toast]);
 
   const handleModalClose = useCallback(() => {
     setSelectedBooking(null);
@@ -219,46 +259,58 @@ export const BookingTable = React.memo(({ bookings, onBookingUpdate }: BookingTa
                   </TableCell>
                   <TableCell>{getStatusBadge(booking.status)}</TableCell>
                   <TableCell className="font-medium">${booking.total_price || 0}</TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
-                      {needsWorkerAssignment && (
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleAssignWorker(booking)}
-                          className="text-green-600 hover:text-green-700"
-                          title="Assign Worker"
-                        >
-                          <UserPlus className="h-4 w-4" />
-                        </Button>
-                      )}
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleEdit(booking)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleDelete(booking)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                      {canChargeFee && (
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleLateFeeCharge(booking)}
-                          className="text-orange-600 hover:text-orange-700"
-                          title="Charge Late Fee"
-                        >
-                          <DollarSign className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
+                   <TableCell>
+                     <div className="flex space-x-2">
+                       {needsWorkerAssignment && (
+                         <Button 
+                           variant="outline" 
+                           size="sm"
+                           onClick={() => handleAssignWorker(booking)}
+                           className="text-green-600 hover:text-green-700"
+                           title="Assign Worker"
+                         >
+                           <UserPlus className="h-4 w-4" />
+                         </Button>
+                       )}
+                       {canMarkComplete(booking) && (
+                         <Button 
+                           variant="outline" 
+                           size="sm"
+                           onClick={() => handleMarkComplete(booking)}
+                           disabled={isUpdating === booking.id}
+                           className="text-green-600 hover:text-green-700"
+                           title="Mark as Completed"
+                         >
+                           <CheckCircle className="h-4 w-4" />
+                         </Button>
+                       )}
+                       <Button 
+                         variant="outline" 
+                         size="sm"
+                         onClick={() => handleEdit(booking)}
+                       >
+                         <Edit className="h-4 w-4" />
+                       </Button>
+                       <Button 
+                         variant="outline" 
+                         size="sm"
+                         onClick={() => handleDelete(booking)}
+                       >
+                         <Trash2 className="h-4 w-4" />
+                       </Button>
+                       {canChargeFee && (
+                         <Button 
+                           variant="outline" 
+                           size="sm"
+                           onClick={() => handleLateFeeCharge(booking)}
+                           className="text-orange-600 hover:text-orange-700"
+                           title="Charge Late Fee"
+                         >
+                           <DollarSign className="h-4 w-4" />
+                         </Button>
+                       )}
+                     </div>
+                   </TableCell>
                 </TableRow>
               );
             })}
