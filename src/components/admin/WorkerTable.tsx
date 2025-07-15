@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { WorkerTableRow } from './worker-table/WorkerTableRow';
 import { WorkerDetailsModal } from './worker-table/WorkerDetailsModal';
 import { WorkerCalendarModal } from './worker-table/WorkerCalendarModal';
+import { WorkerPasswordManager } from './WorkerPasswordManager';
 
 interface Worker {
   id: string;
@@ -28,6 +29,7 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
   const [selectedWorker, setSelectedWorker] = useState<Worker | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showPasswordManager, setShowPasswordManager] = useState(false);
   const [removingWorkerId, setRemovingWorkerId] = useState<string | null>(null);
   const [reactivatingWorkerId, setReactivatingWorkerId] = useState<string | null>(null);
   const [deletingWorkerId, setDeletingWorkerId] = useState<string | null>(null);
@@ -41,6 +43,11 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
   const handleViewCalendar = (worker: Worker) => {
     setSelectedWorker(worker);
     setShowCalendar(true);
+  };
+
+  const handleManagePassword = (worker: Worker) => {
+    setSelectedWorker(worker);
+    setShowPasswordManager(true);
   };
 
   const handleRemoveWorker = async (workerId: string) => {
@@ -152,6 +159,7 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
   const closeModals = () => {
     setShowCalendar(false);
     setShowEditModal(false);
+    setShowPasswordManager(false);
     setSelectedWorker(null);
   };
 
@@ -177,6 +185,7 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
                 worker={worker}
                 onViewCalendar={handleViewCalendar}
                 onEditWorker={handleEditWorker}
+                onManagePassword={handleManagePassword}
                 onRemoveWorker={handleRemoveWorker}
                 onReactivateWorker={handleReactivateWorker}
                 onPermanentlyDeleteWorker={handlePermanentlyDeleteWorker}
@@ -201,6 +210,16 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
         isOpen={showEditModal}
         onClose={closeModals}
       />
+
+      {selectedWorker && (
+        <WorkerPasswordManager
+          workerId={selectedWorker.id}
+          workerEmail={selectedWorker.email}
+          workerName={selectedWorker.name || selectedWorker.email}
+          isOpen={showPasswordManager}
+          onClose={closeModals}
+        />
+      )}
     </>
   );
 };

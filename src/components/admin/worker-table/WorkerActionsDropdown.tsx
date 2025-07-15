@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { Edit, MoreVertical, UserX, UserCheck, Trash2, MessageSquare } from 'lucide-react';
+import { Edit, MoreVertical, UserX, UserCheck, Trash2, MessageSquare, KeyRound } from 'lucide-react';
 import { useSmsNotifications } from '@/hooks/useSmsNotifications';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -22,6 +22,7 @@ interface Worker {
 interface WorkerActionsDropdownProps {
   worker: Worker;
   onEditWorker: (worker: Worker) => void;
+  onManagePassword: (worker: Worker) => void;
   onRemoveWorker: (workerId: string) => void;
   onReactivateWorker: (workerId: string) => void;
   onPermanentlyDeleteWorker: (workerId: string) => void;
@@ -33,6 +34,7 @@ interface WorkerActionsDropdownProps {
 export const WorkerActionsDropdown = ({ 
   worker, 
   onEditWorker, 
+  onManagePassword,
   onRemoveWorker, 
   onReactivateWorker,
   onPermanentlyDeleteWorker,
@@ -105,6 +107,11 @@ export const WorkerActionsDropdown = ({
         <DropdownMenuItem onClick={() => onEditWorker(worker)}>
           <Edit className="h-4 w-4 mr-2" />
           Edit Details
+        </DropdownMenuItem>
+        
+        <DropdownMenuItem onClick={() => onManagePassword(worker)}>
+          <KeyRound className="h-4 w-4 mr-2" />
+          Manage Password
         </DropdownMenuItem>
         
         <DropdownMenuItem 
