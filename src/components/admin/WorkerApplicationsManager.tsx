@@ -5,10 +5,11 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { CheckCircle, XCircle, Clock, Phone, Mail, MapPin, User, Briefcase, Copy, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Phone, Mail, MapPin, User, Briefcase, Copy, Eye, EyeOff, Trash2, Settings } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Tables } from '@/integrations/supabase/types';
+import { WorkerPasswordManager } from './WorkerPasswordManager';
 
 // Use the Supabase generated type instead of defining our own
 type WorkerApplication = Tables<'worker_applications'>;
@@ -26,6 +27,8 @@ export const WorkerApplicationsManager = () => {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [approvalResult, setApprovalResult] = useState<ApprovalResult | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [passwordManagerOpen, setPasswordManagerOpen] = useState(false);
+  const [selectedWorker, setSelectedWorker] = useState<{ id: string; email: string; name: string } | null>(null);
   const { toast } = useToast();
 
   const copyToClipboard = async (text: string) => {
@@ -43,6 +46,45 @@ export const WorkerApplicationsManager = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const openPasswordManager = (application: WorkerApplication) => {
+    // We need to get the user ID from the users table based on the email
+    const findWorkerAndOpenModal = async () => {
+      try {
+        const { data: worker, error } = await supabase
+          .from('users')
+          .select('id, email, name')
+          .eq('email', application.email)
+          .eq('role', 'worker')
+          .single();
+
+        if (error || !worker) {
+          toast({
+            title: "Error",
+            description: "Worker not found in the system",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        setSelectedWorker({
+          id: worker.id,
+          email: worker.email,
+          name: worker.name || application.name,
+        });
+        setPasswordManagerOpen(true);
+      } catch (error) {
+        console.error('Error finding worker:', error);
+        toast({
+          title: "Error",
+          description: "Failed to find worker",
+          variant: "destructive",
+        });
+      }
+    };
+
+    findWorkerAndOpenModal();
   };
 
   const fetchApplications = async () => {
@@ -346,11 +388,22 @@ export const WorkerApplicationsManager = () => {
                             </>
                           )}
                           
-                          {application.status === 'approved' && (
-                            <div className="text-xs text-green-600 font-medium mr-2">
-                              Profile Created
-                            </div>
-                          )}
+                           {application.status === 'approved' && (
+                             <div className="flex items-center space-x-2">
+                               <div className="text-xs text-green-600 font-medium">
+                                 Profile Created
+                               </div>
+                               <Button
+                                 size="sm"
+                                 variant="outline"
+                                 onClick={() => openPasswordManager(application)}
+                                 className="text-blue-600 hover:text-blue-700"
+                                 title="Manage Password"
+                               >
+                                 <Settings className="h-4 w-4" />
+                               </Button>
+                             </div>
+                           )}
                           
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
@@ -454,6 +507,20 @@ export const WorkerApplicationsManager = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Worker Password Manager */}
+      {selectedWorker && (
+        <WorkerPasswordManager
+          workerId={selectedWorker.id}
+          workerEmail={selectedWorker.email}
+          workerName={selectedWorker.name}
+          isOpen={passwordManagerOpen}
+          onClose={() => {
+            setPasswordManagerOpen(false);
+            setSelectedWorker(null);
+          }}
+        />
+      )}
     </div>
   );
 };
