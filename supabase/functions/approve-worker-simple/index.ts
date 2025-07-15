@@ -46,19 +46,23 @@ serve(async (req) => {
 
     console.log('Application found:', application.email);
 
-    // Check if user already exists
+    // Check if user already exists in users table
     const { data: existingUser } = await supabaseAdmin
       .from('users')
       .select('id, email, role')
       .eq('email', application.email)
       .maybeSingle();
 
+    // Check if user exists in auth.users
+    const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers();
+    const existingAuthUser = authUsers.users.find(user => user.email === application.email);
+
     let workerId: string;
     let isExistingUser = false;
     let temporaryPassword: string | null = null;
 
     if (existingUser) {
-      // Update existing user
+      // Update existing user in users table
       workerId = existingUser.id;
       isExistingUser = true;
       
@@ -74,8 +78,36 @@ serve(async (req) => {
         })
         .eq('id', existingUser.id);
 
+    } else if (existingAuthUser) {
+      // User exists in auth but not in users table (orphaned auth record)
+      workerId = existingAuthUser.id;
+      isExistingUser = true;
+      
+      // Reset password for existing auth user
+      temporaryPassword = Array.from(crypto.getRandomValues(new Uint8Array(12)))
+        .map(b => 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'[b % 58])
+        .join('');
+
+      await supabaseAdmin.auth.admin.updateUserById(existingAuthUser.id, {
+        password: temporaryPassword
+      });
+
+      // Create entry in users table
+      await supabaseAdmin
+        .from('users')
+        .insert({
+          id: existingAuthUser.id,
+          email: application.email,
+          name: application.name,
+          phone: application.phone,
+          city: application.city,
+          zip_code: application.zip_code,
+          role: 'worker',
+          is_active: true,
+        });
+
     } else {
-      // Create new user
+      // Create completely new user
       temporaryPassword = Array.from(crypto.getRandomValues(new Uint8Array(12)))
         .map(b => 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'[b % 58])
         .join('');
