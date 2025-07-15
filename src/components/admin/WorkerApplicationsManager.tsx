@@ -92,8 +92,8 @@ export const WorkerApplicationsManager = () => {
 
         console.log('Approval response:', data);
 
-        // Show password modal only if it's a new user (not existing)
-        if (!data.isExistingUser && data.email && data.temporaryPassword) {
+        // Show password modal if a temporary password was generated
+        if (data.email && data.temporaryPassword) {
           setApprovalResult({
             email: data.email,
             temporaryPassword: data.temporaryPassword
