@@ -7,6 +7,7 @@ import { Shield, Lock, CreditCard, Info } from 'lucide-react';
 import { usePaymentAuthorization } from '@/hooks/usePaymentAuthorization';
 import { StripeCardElement } from '@/components/StripeCardElement';
 import { useBookingOperations } from '@/hooks/booking/useBookingOperations';
+import { PaymentRecoveryAlert } from './PaymentRecoveryAlert';
 
 interface PaymentAuthorizationFormProps {
   amount: number;
@@ -38,6 +39,11 @@ export const PaymentAuthorizationForm = ({
   const [cardElement, setCardElement] = useState<any>(null);
   const [formError, setFormError] = useState('');
   const [creatingBooking, setCreatingBooking] = useState(false);
+  const [paymentRecoveryInfo, setPaymentRecoveryInfo] = useState<{
+    paymentIntentId: string;
+    amount: number;
+    customerEmail?: string;
+  } | null>(null);
   const { createPaymentAuthorization, processing } = usePaymentAuthorization();
   const { handleBookingSubmit } = useBookingOperations();
 
@@ -186,13 +192,76 @@ export const PaymentAuthorizationForm = ({
         if (services && formData && !bookingId) {
           setCreatingBooking(true);
           try {
+            console.log('🎯 Starting booking creation after payment authorization:', {
+              paymentIntentId: confirmResult.paymentIntent?.id,
+              amount,
+              customerEmail,
+              customerName,
+              servicesCount: services?.length,
+              hasFormData: !!formData,
+              formDataKeys: formData ? Object.keys(formData) : []
+            });
+
+            // Validate required booking data before proceeding
+            if (!formData.customerEmail || !formData.customerName) {
+              throw new Error('Customer information is missing');
+            }
+            if (!formData.zipcode) {
+              throw new Error('Zipcode is required for booking creation');
+            }
+            if (!formData.selectedDate || !formData.selectedTime) {
+              throw new Error('Date and time selection is required');
+            }
+            if (!services || services.length === 0) {
+              throw new Error('At least one service must be selected');
+            }
+
             const createdBookingId = await handleBookingSubmit(services, formData);
-            console.log('Booking created after payment authorization:', createdBookingId);
+            console.log('✅ Booking created successfully after payment authorization:', {
+              bookingId: createdBookingId,
+              paymentIntentId: confirmResult.paymentIntent?.id
+            });
             onAuthorizationSuccess(createdBookingId);
           } catch (bookingError) {
-            console.error('Failed to create booking after payment authorization:', bookingError);
-            setFormError('Payment authorized but booking creation failed. Please contact support.');
-            onAuthorizationFailure('Payment authorized but booking creation failed. Please contact support.');
+            console.error('❌ Failed to create booking after payment authorization:', {
+              error: bookingError,
+              errorMessage: bookingError instanceof Error ? bookingError.message : 'Unknown error',
+              errorStack: bookingError instanceof Error ? bookingError.stack : undefined,
+              paymentIntentId: confirmResult.paymentIntent?.id,
+              customerEmail,
+              formDataKeys: formData ? Object.keys(formData) : [],
+              servicesCount: services?.length
+            });
+
+            // Provide more specific error messages based on the error type
+            let errorMessage = 'Payment authorized but booking creation failed. Please contact support.';
+            
+            if (bookingError instanceof Error) {
+              const errorMsg = bookingError.message.toLowerCase();
+              if (errorMsg.includes('customer information')) {
+                errorMessage = 'Payment authorized but customer information is incomplete. Please contact support to complete your booking.';
+              } else if (errorMsg.includes('zipcode')) {
+                errorMessage = 'Payment authorized but zipcode validation failed. Please contact support to complete your booking.';
+              } else if (errorMsg.includes('date') || errorMsg.includes('time')) {
+                errorMessage = 'Payment authorized but booking schedule is invalid. Please contact support to complete your booking.';
+              } else if (errorMsg.includes('service')) {
+                errorMessage = 'Payment authorized but service selection is invalid. Please contact support to complete your booking.';
+              } else if (errorMsg.includes('worker') || errorMsg.includes('assignment')) {
+                errorMessage = 'Payment authorized but worker assignment failed. We will manually assign a worker and contact you soon.';
+              } else if (errorMsg.includes('database') || errorMsg.includes('constraint')) {
+                errorMessage = 'Payment authorized but there was a database error. Please contact support with your payment confirmation.';
+              }
+            }
+
+            // Set payment recovery information for display
+            setPaymentRecoveryInfo({
+              paymentIntentId: confirmResult.paymentIntent?.id || 'unknown',
+              amount,
+              customerEmail
+            });
+
+            setFormError(errorMessage);
+            onAuthorizationFailure(errorMessage + ` Payment ID: ${confirmResult.paymentIntent?.id || 'N/A'}`);
           } finally {
             setCreatingBooking(false);
           }
@@ -244,10 +313,18 @@ export const PaymentAuthorizationForm = ({
         </AlertDescription>
       </Alert>
 
-      {formError && (
+      {formError && !paymentRecoveryInfo && (
         <Alert variant="destructive">
           <AlertDescription>{formError}</AlertDescription>
         </Alert>
+      )}
+
+      {paymentRecoveryInfo && (
+        <PaymentRecoveryAlert
+          paymentIntentId={paymentRecoveryInfo.paymentIntentId}
+          customerEmail={paymentRecoveryInfo.customerEmail}
+          amount={paymentRecoveryInfo.amount}
+        />
       )}
 
       <Card>

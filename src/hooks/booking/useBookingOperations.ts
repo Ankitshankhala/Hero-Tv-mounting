@@ -39,61 +39,160 @@ export const useBookingOperations = () => {
     try {
       setLoading(true);
 
+      console.log('🚀 Starting booking submission process:', {
+        servicesCount: services?.length,
+        formDataKeys: formData ? Object.keys(formData) : [],
+        customerEmail: formData?.customerEmail,
+        customerName: formData?.customerName,
+        selectedDate: formData?.selectedDate,
+        selectedTime: formData?.selectedTime,
+        zipcode: formData?.zipcode
+      });
+
+      // Enhanced validation with detailed error messages
+      if (!services || services.length === 0) {
+        throw new Error('At least one service must be selected for booking');
+      }
+
+      if (!formData) {
+        throw new Error('Booking form data is required');
+      }
+
+      // Validate required customer information
+      if (!formData.customerEmail || !formData.customerEmail.includes('@')) {
+        throw new Error('Valid customer email is required');
+      }
+
+      if (!formData.customerName || formData.customerName.trim().length < 2) {
+        throw new Error('Customer name is required (minimum 2 characters)');
+      }
+
+      // Validate location information
+      if (!formData.zipcode || formData.zipcode.length < 5) {
+        throw new Error('Valid zipcode is required for service location');
+      }
+
+      if (!formData.city || formData.city.trim().length < 2) {
+        throw new Error('City information is required');
+      }
+
+      if (!formData.address || formData.address.trim().length < 5) {
+        throw new Error('Street address is required');
+      }
+
+      // Validate scheduling information
+      if (!formData.selectedDate) {
+        throw new Error('Service date must be selected');
+      }
+
+      if (!formData.selectedTime) {
+        throw new Error('Service time must be selected');
+      }
+
       // Validate minimum cart amount first
       if (!validateMinimumCart(services)) {
-        return; // Stop execution if validation fails
+        throw new Error(`Minimum booking amount of $${MINIMUM_BOOKING_AMOUNT} not met`);
       }
 
       const primaryServiceId = services.length > 0 ? services[0].id : null;
       
       if (!primaryServiceId) {
-        throw new Error('No services selected');
+        throw new Error('Primary service ID not found');
       }
+
+      console.log('✅ All validations passed, proceeding with booking creation');
+
 
       // Support both authenticated and guest bookings
       let customerId = user?.id;
 
+      console.log('🔍 Customer identification process:', {
+        hasAuthenticatedUser: !!user,
+        userEmail: user?.email,
+        formEmail: formData.customerEmail,
+        formName: formData.customerName
+      });
+
       // If no authenticated user, create a guest customer record
       if (!user && formData.customerEmail && formData.customerName) {
-        console.log('Creating guest customer for booking');
+        console.log('🆕 Creating/finding guest customer for booking');
         
-        // Check if guest customer already exists
-        const { data: existingCustomer } = await supabase
-          .from('users')
-          .select('id')
-          .eq('email', formData.customerEmail)
-          .eq('role', 'customer')
-          .maybeSingle();
-
-        if (existingCustomer) {
-          customerId = existingCustomer.id;
-        } else {
-          // Create new guest customer
-          const { data: newCustomer, error: customerError } = await supabase
+        try {
+          // Check if guest customer already exists
+          const { data: existingCustomer, error: findError } = await supabase
             .from('users')
-            .insert({
-              email: formData.customerEmail,
-              name: formData.customerName,
-              phone: formData.customerPhone,
-              city: formData.city,
-              zip_code: formData.zipcode,
-              role: 'customer'
-            })
-            .select('id')
-            .single();
+            .select('id, email, name')
+            .eq('email', formData.customerEmail)
+            .eq('role', 'customer')
+            .maybeSingle();
 
-          if (customerError) {
-            console.error('Failed to create guest customer:', customerError);
-            throw new Error('Failed to create customer profile');
+          if (findError) {
+            console.error('❌ Error searching for existing customer:', findError);
+            throw new Error(`Failed to search for existing customer: ${findError.message}`);
           }
 
-          customerId = newCustomer.id;
+          if (existingCustomer) {
+            console.log('✅ Found existing guest customer:', existingCustomer.id);
+            customerId = existingCustomer.id;
+          } else {
+            console.log('🆕 Creating new guest customer');
+            
+            // Validate guest customer data before creation
+            const customerData = {
+              email: formData.customerEmail,
+              name: formData.customerName,
+              phone: formData.customerPhone || null,
+              city: formData.city,
+              zip_code: formData.zipcode,
+              role: 'customer' as const
+            };
+
+            console.log('👤 Guest customer data:', customerData);
+
+            // Create new guest customer
+            const { data: newCustomer, error: customerError } = await supabase
+              .from('users')
+              .insert(customerData)
+              .select('id')
+              .single();
+
+            if (customerError) {
+              console.error('❌ Failed to create guest customer:', {
+                error: customerError,
+                errorCode: customerError.code,
+                errorDetails: customerError.details,
+                customerData
+              });
+              
+              // Provide more specific error messages
+              if (customerError.code === '23505') {
+                throw new Error('A customer with this email already exists but could not be found');
+              } else if (customerError.code === '23502') {
+                throw new Error('Missing required customer information');
+              } else {
+                throw new Error(`Failed to create customer profile: ${customerError.message}`);
+              }
+            }
+
+            if (!newCustomer) {
+              throw new Error('Failed to create customer profile - no customer data returned');
+            }
+
+            console.log('✅ Created new guest customer:', newCustomer.id);
+            customerId = newCustomer.id;
+          }
+        } catch (customerCreationError) {
+          console.error('❌ Guest customer creation/lookup failed:', customerCreationError);
+          throw new Error(`Customer setup failed: ${customerCreationError instanceof Error ? customerCreationError.message : 'Unknown error'}`);
         }
       }
 
       if (!customerId) {
-        throw new Error('Customer information is required');
+        console.error('❌ No customer ID available after processing');
+        throw new Error('Customer identification failed - please try logging in or check your information');
       }
+
+      console.log('✅ Customer ID established:', customerId);
 
       // Use enhanced booking logic with auto-assignment
       const enhancedBookingData: EnhancedBookingData = {
@@ -105,10 +204,34 @@ export const useBookingOperations = () => {
         customer_zipcode: formData.zipcode
       };
 
+      console.log('📋 Enhanced booking data prepared:', {
+        customer_id: customerId,
+        service_id: primaryServiceId,
+        scheduled_date: enhancedBookingData.scheduled_date,
+        scheduled_start: enhancedBookingData.scheduled_start,
+        customer_zipcode: enhancedBookingData.customer_zipcode,
+        location_notes_length: enhancedBookingData.location_notes?.length
+      });
+
+      console.log('🔄 Calling createEnhancedBooking...');
       const result = await createEnhancedBooking(enhancedBookingData);
       
+      console.log('📊 Enhanced booking result:', {
+        status: result.status,
+        booking_id: result.booking_id,
+        worker_assigned: result.worker_assigned,
+        notifications_sent: result.notifications_sent,
+        message: result.message
+      });
+      
       if (result.status === 'error') {
-        throw new Error(result.message);
+        console.error('❌ Enhanced booking returned error status:', result);
+        throw new Error(result.message || 'Enhanced booking creation failed');
+      }
+
+      if (!result.booking_id) {
+        console.error('❌ No booking ID returned from enhanced booking');
+        throw new Error('Booking was processed but no booking ID was returned');
       }
 
       setBookingId(result.booking_id);
