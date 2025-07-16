@@ -18,21 +18,12 @@ interface WeeklyScheduleCardProps {
   canEdit: boolean;
 }
 
-// Generate time options in ascending order starting from business hours (6 AM)
+// Generate time options in ascending order from 8:00 AM to 8:00 PM
 const generateTimeOptions = () => {
   const times = [];
   
-  // Start from 6:00 AM for business hours focus
-  for (let hour = 6; hour < 24; hour++) {
-    for (let minute = 0; minute < 60; minute += 30) {
-      const time24 = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-      const time12 = formatTimeTo12Hour(time24);
-      times.push({ value: time24, label: time12 });
-    }
-  }
-  
-  // Add early morning hours (midnight to 5:30 AM) at the end for late shifts
-  for (let hour = 0; hour < 6; hour++) {
+  // Generate times from 8:00 AM (hour 8) to 8:00 PM (hour 20)
+  for (let hour = 8; hour <= 20; hour++) {
     for (let minute = 0; minute < 60; minute += 30) {
       const time24 = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
       const time12 = formatTimeTo12Hour(time24);
