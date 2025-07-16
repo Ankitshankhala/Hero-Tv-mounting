@@ -9,6 +9,8 @@ export interface EnhancedBookingData {
   scheduled_start: string;
   location_notes?: string;
   customer_zipcode?: string;
+  payment_intent_id?: string;
+  payment_status?: string;
 }
 
 export interface EnhancedBookingResult {
@@ -35,22 +37,50 @@ export const createEnhancedBooking = async (
       }
     }
 
-    // Create the booking
+    // Create the booking with payment information
+    const bookingInsertData = {
+      customer_id: bookingData.customer_id,
+      service_id: bookingData.service_id,
+      scheduled_date: bookingData.scheduled_date,
+      scheduled_start: bookingData.scheduled_start,
+      location_notes: bookingData.location_notes,
+      status: bookingData.payment_intent_id ? 'authorized' as const : 'pending' as const,
+      payment_intent_id: bookingData.payment_intent_id,
+      payment_status: bookingData.payment_status || 'pending'
+    };
+
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
-      .insert({
-        customer_id: bookingData.customer_id,
-        service_id: bookingData.service_id,
-        scheduled_date: bookingData.scheduled_date,
-        scheduled_start: bookingData.scheduled_start,
-        location_notes: bookingData.location_notes,
-        status: 'pending'
-      })
+      .insert(bookingInsertData)
       .select()
       .single();
 
     if (bookingError) {
+      console.error('Booking creation error:', bookingError);
       throw bookingError;
+    }
+
+    // Create transaction record if payment intent exists
+    if (bookingData.payment_intent_id && booking.id) {
+      console.log('Creating transaction record for payment intent:', bookingData.payment_intent_id);
+      
+      const { error: transactionError } = await supabase
+        .from('transactions')
+        .insert({
+          booking_id: booking.id,
+          payment_intent_id: bookingData.payment_intent_id,
+          amount: 0, // Will be updated when payment is captured
+          status: 'pending',
+          transaction_type: 'authorization',
+          payment_method: 'card'
+        });
+
+      if (transactionError) {
+        console.error('Transaction record creation failed:', transactionError);
+        // Don't fail the booking creation for transaction record issues
+      } else {
+        console.log('Transaction record created successfully');
+      }
     }
 
     // Use enhanced auto-assignment with coverage notifications

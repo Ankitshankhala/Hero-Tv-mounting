@@ -35,7 +35,7 @@ export const useBookingOperations = () => {
     return true;
   };
 
-  const handleBookingSubmit = async (services: ServiceItem[], formData: FormData) => {
+  const handleBookingSubmit = async (services: ServiceItem[], formData: FormData, paymentData?: { payment_intent_id?: string; payment_status?: string; amount?: number }) => {
     try {
       setLoading(true);
 
@@ -201,7 +201,9 @@ export const useBookingOperations = () => {
         scheduled_date: format(formData.selectedDate!, 'yyyy-MM-dd'),
         scheduled_start: formData.selectedTime,
         location_notes: `${formData.houseNumber} ${formData.address}, ${formData.city}\nContact: ${formData.customerName}\nPhone: ${formData.customerPhone}\nEmail: ${formData.customerEmail}\nZIP: ${formData.zipcode}\nSpecial Instructions: ${formData.specialInstructions}`,
-        customer_zipcode: formData.zipcode
+        customer_zipcode: formData.zipcode,
+        payment_intent_id: paymentData?.payment_intent_id,
+        payment_status: paymentData?.payment_status || 'pending'
       };
 
       console.log('📋 Enhanced booking data prepared:', {
