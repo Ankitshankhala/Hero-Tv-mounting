@@ -18,32 +18,33 @@ interface WeeklyScheduleCardProps {
   canEdit: boolean;
 }
 
-// Generate time options (24-hour format for backend, 12-hour for display)
+// Generate time options in ascending order starting from business hours (6 AM)
 const generateTimeOptions = () => {
   const times = [];
-  for (let hour = 0; hour < 24; hour++) {
+  
+  // Start from 6:00 AM for business hours focus
+  for (let hour = 6; hour < 24; hour++) {
     for (let minute = 0; minute < 60; minute += 30) {
       const time24 = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
       const time12 = formatTimeTo12Hour(time24);
       times.push({ value: time24, label: time12 });
     }
   }
+  
+  // Add early morning hours (midnight to 5:30 AM) at the end for late shifts
+  for (let hour = 0; hour < 6; hour++) {
+    for (let minute = 0; minute < 60; minute += 30) {
+      const time24 = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+      const time12 = formatTimeTo12Hour(time24);
+      times.push({ value: time24, label: time12 });
+    }
+  }
+  
   return times;
 };
 
-// Common time presets
-const getCommonPresets = () => [
-  { value: '08:00', label: '8:00 AM' },
-  { value: '09:00', label: '9:00 AM' },
-  { value: '10:00', label: '10:00 AM' },
-  { value: '17:00', label: '5:00 PM' },
-  { value: '18:00', label: '6:00 PM' },
-  { value: '19:00', label: '7:00 PM' },
-];
-
 const WeeklyScheduleCard = ({ day, schedule, onChange, canEdit }: WeeklyScheduleCardProps) => {
   const timeOptions = generateTimeOptions();
-  const commonPresets = getCommonPresets();
 
   const handleToggle = (enabled: boolean) => {
     onChange({
@@ -124,15 +125,8 @@ const WeeklyScheduleCard = ({ day, schedule, onChange, canEdit }: WeeklySchedule
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {/* Common presets first */}
-                    {commonPresets.map(preset => (
-                      <SelectItem key={`start-${preset.value}`} value={preset.value}>
-                        {preset.label}
-                      </SelectItem>
-                    ))}
-                    {/* All options */}
                     {timeOptions.map(time => (
-                      <SelectItem key={`start-full-${time.value}`} value={time.value}>
+                      <SelectItem key={`start-${time.value}`} value={time.value}>
                         {time.label}
                       </SelectItem>
                     ))}
@@ -164,15 +158,8 @@ const WeeklyScheduleCard = ({ day, schedule, onChange, canEdit }: WeeklySchedule
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {/* Common presets first */}
-                    {commonPresets.map(preset => (
-                      <SelectItem key={`end-${preset.value}`} value={preset.value}>
-                        {preset.label}
-                      </SelectItem>
-                    ))}
-                    {/* All options */}
                     {timeOptions.map(time => (
-                      <SelectItem key={`end-full-${time.value}`} value={time.value}>
+                      <SelectItem key={`end-${time.value}`} value={time.value}>
                         {time.label}
                       </SelectItem>
                     ))}
