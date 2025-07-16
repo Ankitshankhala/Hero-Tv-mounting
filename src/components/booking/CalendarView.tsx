@@ -48,7 +48,7 @@ export const CalendarView = ({
     }
   });
 
-  const timeSlots = Array.from({ length: 9 }, (_, i) => {
+  const timeSlots = Array.from({ length: 11 }, (_, i) => {
     const hour = 9 + i;
     return `${hour.toString().padStart(2, '0')}:00`;
   });
