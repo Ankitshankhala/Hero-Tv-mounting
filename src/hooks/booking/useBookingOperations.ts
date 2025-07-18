@@ -203,7 +203,8 @@ export const useBookingOperations = () => {
         location_notes: `${formData.houseNumber} ${formData.address}, ${formData.city}\nContact: ${formData.customerName}\nPhone: ${formData.customerPhone}\nEmail: ${formData.customerEmail}\nZIP: ${formData.zipcode}\nSpecial Instructions: ${formData.specialInstructions}`,
         customer_zipcode: formData.zipcode,
         payment_intent_id: paymentData?.payment_intent_id,
-        payment_status: paymentData?.payment_status || 'pending'
+        payment_status: paymentData?.payment_status || 'pending',
+        payment_amount: paymentData?.amount // Pass the actual payment amount
       };
 
       console.log('📋 Enhanced booking data prepared:', {

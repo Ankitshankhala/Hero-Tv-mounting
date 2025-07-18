@@ -11,6 +11,7 @@ export interface EnhancedBookingData {
   customer_zipcode?: string;
   payment_intent_id?: string;
   payment_status?: string;
+  payment_amount?: number; // Add payment amount field
   payment?: {
     amount: number;
     method: string;
@@ -68,22 +69,43 @@ export const createEnhancedBooking = async (
     if (bookingData.payment_intent_id && booking.id) {
       console.log('Creating transaction record for payment intent:', bookingData.payment_intent_id);
       
+      // Get the payment amount from booking data or payment object
+      const paymentAmount = bookingData.payment_amount || bookingData.payment?.amount || 0;
+      
+      console.log('Transaction details:', {
+        booking_id: booking.id,
+        payment_intent_id: bookingData.payment_intent_id,
+        amount: paymentAmount,
+        payment_status: bookingData.payment_status
+      });
+      
       const { error: transactionError } = await supabase
         .from('transactions')
         .insert({
           booking_id: booking.id,
           payment_intent_id: bookingData.payment_intent_id,
-          amount: 0, // Will be updated when payment is captured
-          status: 'pending',
+          amount: paymentAmount, // Use actual payment amount instead of 0
+          status: bookingData.payment_status === 'authorized' ? 'pending' : 'pending',
           transaction_type: 'authorization',
-          payment_method: 'card'
+          payment_method: 'card',
+          currency: 'USD'
         });
 
       if (transactionError) {
-        console.error('Transaction record creation failed:', transactionError);
-        // Don't fail the booking creation for transaction record issues
+        console.error('Transaction record creation failed:', {
+          error: transactionError,
+          errorCode: transactionError.code,
+          errorDetails: transactionError.details,
+          bookingId: booking.id,
+          paymentIntentId: bookingData.payment_intent_id,
+          amount: paymentAmount
+        });
+        
+        // If transaction creation fails, it could be a critical issue
+        // Log the error but don't fail the booking since payment was already authorized
+        console.error('WARNING: Payment was authorized but transaction record creation failed');
       } else {
-        console.log('Transaction record created successfully');
+        console.log('Transaction record created successfully with amount:', paymentAmount);
       }
     }
 
