@@ -24,18 +24,8 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    // Validate booking exists (skip for temp bookings)
-    if (!bookingId.startsWith('temp-')) {
-      const { data: booking, error: bookingError } = await supabaseServiceRole
-        .from('bookings')
-        .select('id, customer_id, status')
-        .eq('id', bookingId)
-        .single();
-
-      if (bookingError || !booking) {
-        throw new Error('Booking not found');
-      }
-    }
+    // Log request for debugging - no booking validation needed here
+    console.log('Processing payment intent creation for booking:', bookingId);
 
     // Initialize Stripe
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
@@ -75,43 +65,15 @@ serve(async (req) => {
 
     console.log('Payment intent created:', paymentIntent.id);
 
-    // Update booking with payment intent ID if not temp booking
-    if (!bookingId.startsWith('temp-')) {
-      const { error: updateError } = await supabaseServiceRole
-        .from('bookings')
-        .update({
-          payment_intent_id: paymentIntent.id,
-          payment_status: 'authorized',
-          stripe_customer_id: customerId,
-        })
-        .eq('id', bookingId);
-
-      if (updateError) {
-        console.error('Failed to update booking:', updateError);
-        throw updateError;
-      }
-
-      // Create transaction record for authorization
-      const { error: transactionError } = await supabaseServiceRole
-        .from('transactions')
-        .insert({
-          booking_id: bookingId,
-          amount: amount,
-          status: 'pending',
-          payment_intent_id: paymentIntent.id,
-          payment_method: 'card',
-          transaction_type: 'authorization',
-        });
-
-      if (transactionError) {
-        console.error('Failed to create transaction:', transactionError);
-      }
-    }
+    // Only log payment intent creation - do not modify booking or create transactions
+    // This function is now solely responsible for Stripe payment intent creation
+    console.log('Payment intent created successfully, leaving booking management to application logic');
 
     return new Response(JSON.stringify({
       success: true,
       client_secret: paymentIntent.client_secret,
       payment_intent_id: paymentIntent.id,
+      stripe_customer_id: customerId, // Include customer ID for application use
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
