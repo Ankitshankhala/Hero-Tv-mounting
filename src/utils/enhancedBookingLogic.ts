@@ -29,6 +29,9 @@ export interface EnhancedBookingResult {
 export const createEnhancedBooking = async (
   bookingData: EnhancedBookingData
 ): Promise<EnhancedBookingResult> => {
+  let transactionId: string | null = null;
+  let bookingId: string | null = null;
+
   try {
     // Validate zipcode if provided
     if (bookingData.customer_zipcode) {
@@ -42,7 +45,89 @@ export const createEnhancedBooking = async (
       }
     }
 
-    // Create the booking with payment information
+    // PHASE 1: TRANSACTION CREATION FIRST (Only for paid bookings)
+    if (bookingData.payment_intent_id) {
+      console.log('💰 STEP 1: Creating transaction record FIRST for payment intent:', bookingData.payment_intent_id);
+      
+      // Strict validation of payment data
+      const paymentAmount = bookingData.payment_amount || bookingData.payment?.amount;
+      
+      if (!paymentAmount || paymentAmount <= 0) {
+        console.error('❌ FATAL: Invalid payment amount - cannot proceed with booking:', {
+          payment_amount: bookingData.payment_amount,
+          paymentObjectAmount: bookingData.payment?.amount,
+          finalAmount: paymentAmount
+        });
+        
+        return {
+          booking_id: '',
+          status: 'error',
+          message: 'Invalid payment amount. Booking cannot be created without valid payment.'
+        };
+      }
+
+      // Validate payment status
+      if (bookingData.payment_status !== 'authorized') {
+        console.error('❌ FATAL: Payment not authorized - cannot proceed with booking:', {
+          payment_status: bookingData.payment_status,
+          payment_intent_id: bookingData.payment_intent_id
+        });
+        
+        return {
+          booking_id: '',
+          status: 'error',
+          message: 'Payment not authorized. Booking cannot be created without authorized payment.'
+        };
+      }
+
+      console.log('💰 Transaction validation passed:', {
+        payment_intent_id: bookingData.payment_intent_id,
+        amount: paymentAmount,
+        payment_status: bookingData.payment_status
+      });
+
+      // Create transaction record FIRST with temporary booking_id
+      const { data: transactionData, error: transactionError } = await supabase
+        .from('transactions')
+        .insert({
+          booking_id: '00000000-0000-0000-0000-000000000000', // Temporary placeholder
+          payment_intent_id: bookingData.payment_intent_id,
+          amount: paymentAmount,
+          status: 'pending',
+          transaction_type: 'authorization',
+          payment_method: 'card',
+          currency: 'USD'
+        })
+        .select()
+        .single();
+
+      if (transactionError) {
+        console.error('❌ FATAL: Transaction creation failed - cannot proceed with booking:', {
+          error: transactionError,
+          errorCode: transactionError.code,
+          errorMessage: transactionError.message,
+          payment_intent_id: bookingData.payment_intent_id,
+          amount: paymentAmount
+        });
+        
+        return {
+          booking_id: '',
+          status: 'error',
+          message: `Payment processing failed: ${transactionError.message}. Please try again or contact support.`
+        };
+      }
+
+      transactionId = transactionData.id;
+      console.log('✅ STEP 1 SUCCESS: Transaction record created:', {
+        transactionId,
+        amount: paymentAmount,
+        payment_intent_id: bookingData.payment_intent_id
+      });
+    }
+
+    // PHASE 2: BOOKING CREATION (Only after transaction is secured)
+    console.log('📝 STEP 2: Creating booking after transaction verification');
+    
     const bookingInsertData = {
       customer_id: bookingData.customer_id,
       service_id: bookingData.service_id,
@@ -61,92 +146,54 @@ export const createEnhancedBooking = async (
       .single();
 
     if (bookingError) {
-      console.error('Booking creation error:', bookingError);
-      throw bookingError;
-    }
-
-    // Create transaction record if payment intent exists
-    if (bookingData.payment_intent_id && booking.id) {
-      console.log('💰 Creating transaction record for payment intent:', bookingData.payment_intent_id);
-      
-      // Get the payment amount from booking data or payment object
-      const paymentAmount = bookingData.payment_amount || bookingData.payment?.amount;
-      
-      console.log('💰 Transaction amount validation:', {
-        payment_amount: bookingData.payment_amount,
-        paymentObjectAmount: bookingData.payment?.amount,
-        finalAmount: paymentAmount,
-        amountType: typeof paymentAmount,
-        isZero: paymentAmount === 0,
-        isNull: paymentAmount === null,
-        isUndefined: paymentAmount === undefined
+      console.error('❌ FATAL: Booking creation failed after transaction was created:', {
+        error: bookingError,
+        transactionId,
+        payment_intent_id: bookingData.payment_intent_id
       });
-      
-      // If no payment amount is provided, set a default amount to ensure transaction creation
-      let transactionAmount = paymentAmount;
-      if (!transactionAmount || transactionAmount <= 0) {
-        console.warn('⚠️ No valid payment amount provided, setting default amount for transaction tracking');
-        transactionAmount = 75; // Minimum booking amount as fallback
+
+      // ROLLBACK: Delete the transaction since booking failed
+      if (transactionId) {
+        console.log('🔄 ROLLBACK: Deleting transaction due to booking failure');
+        await supabase
+          .from('transactions')
+          .delete()
+          .eq('id', transactionId);
+        console.log('✅ ROLLBACK: Transaction deleted');
       }
       
-      console.log('💰 Transaction details before insert:', {
-        booking_id: booking.id,
-        payment_intent_id: bookingData.payment_intent_id,
-        amount: transactionAmount,
-        original_amount: paymentAmount,
-        payment_status: bookingData.payment_status,
-        transaction_type: 'authorization',
-        payment_method: 'card',
-        currency: 'USD'
-      });
-      
-      const { data: transactionData, error: transactionError } = await supabase
-        .from('transactions')
-        .insert({
-          booking_id: booking.id,
-          payment_intent_id: bookingData.payment_intent_id,
-          amount: transactionAmount,
-          status: bookingData.payment_status === 'authorized' ? 'pending' : 'pending',
-          transaction_type: 'authorization',
-          payment_method: 'card',
-          currency: 'USD'
-        })
-        .select()
-        .single();
+      return {
+        booking_id: '',
+        status: 'error',
+        message: 'Booking creation failed after payment processing. Payment has been reversed. Please try again.'
+      };
+    }
 
-      if (transactionError) {
-        console.error('❌ Transaction record creation failed:', {
-          error: transactionError,
-          errorCode: transactionError.code,
-          errorMessage: transactionError.message,
-          errorDetails: transactionError.details,
-          errorHint: transactionError.hint,
-          bookingId: booking.id,
-          paymentIntentId: bookingData.payment_intent_id,
-          amount: transactionAmount,
-          original_amount: paymentAmount,
-          insertData: {
-            booking_id: booking.id,
-            payment_intent_id: bookingData.payment_intent_id,
-            amount: transactionAmount,
-            status: bookingData.payment_status === 'authorized' ? 'pending' : 'pending',
-            transaction_type: 'authorization',
-            payment_method: 'card',
-            currency: 'USD'
-          }
+    bookingId = booking.id;
+    console.log('✅ STEP 2 SUCCESS: Booking created:', {
+      bookingId,
+      transactionId,
+      payment_intent_id: bookingData.payment_intent_id
+    });
+
+    // PHASE 3: UPDATE TRANSACTION WITH ACTUAL BOOKING ID
+    if (transactionId && bookingId) {
+      console.log('🔗 STEP 3: Linking transaction to booking');
+      
+      const { error: updateError } = await supabase
+        .from('transactions')
+        .update({ booking_id: bookingId })
+        .eq('id', transactionId);
+
+      if (updateError) {
+        console.error('❌ WARNING: Failed to link transaction to booking:', {
+          error: updateError,
+          transactionId,
+          bookingId
         });
-        
-        // If transaction creation fails, log but don't fail the booking
-        console.error('❌ Transaction creation failed, but continuing with booking');
-        // Continue with worker assignment instead of returning error
+        // Don't fail the booking for this, but log it for manual resolution
       } else {
-        console.log('✅ Transaction record created successfully:', {
-          transactionId: transactionData?.id,
-          amount: transactionAmount,
-          original_amount: paymentAmount,
-          bookingId: booking.id,
-          paymentIntentId: bookingData.payment_intent_id
-        });
+        console.log('✅ STEP 3 SUCCESS: Transaction linked to booking');
       }
     }
 
