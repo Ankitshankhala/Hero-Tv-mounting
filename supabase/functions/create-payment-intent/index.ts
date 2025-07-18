@@ -17,18 +17,6 @@ serve(async (req) => {
 
     console.log('Creating payment intent for:', { bookingId, amount, customerEmail });
 
-    // Handle test booking scenario - use properly formatted test client secret
-    if (bookingId === 'temp-booking-ref') {
-      return new Response(JSON.stringify({
-        success: true,
-        client_secret: 'pi_1234567890_secret_test1234567890abcdefghijklmnopqrstuvwxyz',
-        payment_intent_id: 'pi_1234567890_test'
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      });
-    }
-
     // Initialize Supabase client with service role for database operations
     const supabaseServiceRole = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
