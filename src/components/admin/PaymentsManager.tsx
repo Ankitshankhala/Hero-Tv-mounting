@@ -10,6 +10,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import PaymentDetailsModal from './PaymentDetailsModal';
 import { StripeConfigTest } from './StripeConfigTest';
+import { PaymentSyncButton } from './PaymentSyncButton';
+import { PaymentHealthCheck } from './PaymentHealthCheck';
 
 
 interface Transaction {
@@ -199,6 +201,9 @@ export const PaymentsManager = () => {
 
   return (
     <div className="space-y-6">
+      {/* Payment Health Check */}
+      <PaymentHealthCheck />
+      
       {/* Stripe Configuration Test Section */}
       <StripeConfigTest />
 
@@ -262,10 +267,13 @@ export const PaymentsManager = () => {
               <CreditCard className="h-5 w-5" />
               <span>Payment Transactions</span>
             </CardTitle>
-            <Button onClick={fetchTransactions} variant="outline" size="sm">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
-            </Button>
+            <div className="flex items-center space-x-2">
+              <PaymentSyncButton />
+              <Button onClick={fetchTransactions} variant="outline" size="sm">
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>

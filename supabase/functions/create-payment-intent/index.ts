@@ -65,9 +65,30 @@ serve(async (req) => {
 
     console.log('Payment intent created:', paymentIntent.id);
 
-    // Only log payment intent creation - do not modify booking or create transactions
-    // This function is now solely responsible for Stripe payment intent creation
-    console.log('Payment intent created successfully, leaving booking management to application logic');
+    // Create transaction record for payment intent creation
+    try {
+      // Create authorization transaction
+      const { error: transactionError } = await supabaseServiceRole
+        .from('transactions')
+        .insert({
+          booking_id: bookingId,
+          amount: amount,
+          status: 'pending',
+          payment_intent_id: paymentIntent.id,
+          payment_method: 'card',
+          transaction_type: 'authorization',
+          currency: 'USD',
+        });
+
+      if (transactionError) {
+        console.error('Failed to create transaction record:', transactionError);
+        // Don't fail the payment intent creation, but log the issue
+      } else {
+        console.log('Transaction record created for payment intent');
+      }
+    } catch (error) {
+      console.error('Error creating transaction record:', error);
+    }
 
     return new Response(JSON.stringify({
       success: true,

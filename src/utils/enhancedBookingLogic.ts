@@ -1,5 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { TransactionManager } from './transactionManager';
 import { validateUSZipcode, isZipcodeInServiceArea } from '@/utils/zipcodeValidation';
 import { performBookingHealthCheck, logHealthCheck } from '@/utils/bookingHealthCheck';
 

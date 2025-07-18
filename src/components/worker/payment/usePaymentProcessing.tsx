@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { recordCashPayment } from '@/utils/transactionManager';
 
 interface UsePaymentProcessingProps {
   job: any;
@@ -29,16 +30,15 @@ export const usePaymentProcessing = ({
 
       // For cash payments, record the transaction immediately
       if (paymentMethod === 'cash') {
-        const { error: transactionError } = await supabase
-          .from('transactions')
-          .insert({
-            booking_id: job.id,
-            amount: paymentAmount,
-            status: 'completed',
-            payment_method: paymentMethod,
-          });
+        const transactionResult = await recordCashPayment({
+          booking_id: job.id,
+          amount: paymentAmount,
+          currency: 'USD',
+        });
 
-        if (transactionError) throw transactionError;
+        if (!transactionResult.success) {
+          throw new Error(transactionResult.error || 'Failed to record cash payment');
+        }
 
         // Update booking to clear pending payment using the edge function
         const { error: updateError } = await supabase.functions.invoke('update-booking-payment', {
