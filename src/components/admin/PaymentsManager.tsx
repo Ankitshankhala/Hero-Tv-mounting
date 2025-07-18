@@ -201,8 +201,6 @@ export const PaymentsManager = () => {
 
   return (
     <div className="space-y-6">
-      {/* Payment Health Check */}
-      <PaymentHealthCheck />
       
 
       {/* Payment Stats Cards */}
