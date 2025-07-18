@@ -46,7 +46,13 @@ export const useBookingOperations = () => {
         customerName: formData?.customerName,
         selectedDate: formData?.selectedDate,
         selectedTime: formData?.selectedTime,
-        zipcode: formData?.zipcode
+        zipcode: formData?.zipcode,
+        paymentData: {
+          payment_intent_id: paymentData?.payment_intent_id,
+          payment_status: paymentData?.payment_status,
+          amount: paymentData?.amount,
+          amountType: typeof paymentData?.amount
+        }
       });
 
       // Enhanced validation with detailed error messages

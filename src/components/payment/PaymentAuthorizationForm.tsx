@@ -216,10 +216,19 @@ export const PaymentAuthorizationForm = ({
               throw new Error('At least one service must be selected');
             }
 
+            console.log('💰 Payment data being passed to booking:', {
+              payment_intent_id: confirmResult.paymentIntent?.id,
+              payment_status: 'authorized',
+              amount: amount,
+              amountInCents: Math.round(amount * 100),
+              customerEmail,
+              customerName
+            });
+
             const createdBookingId = await handleBookingSubmit(services, formData, {
               payment_intent_id: confirmResult.paymentIntent?.id,
               payment_status: 'authorized',
-              amount: amount
+              amount: amount // Amount in dollars
             });
             console.log('✅ Booking created successfully after payment authorization:', {
               bookingId: createdBookingId,

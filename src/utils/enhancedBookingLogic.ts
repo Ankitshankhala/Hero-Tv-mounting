@@ -67,45 +67,98 @@ export const createEnhancedBooking = async (
 
     // Create transaction record if payment intent exists
     if (bookingData.payment_intent_id && booking.id) {
-      console.log('Creating transaction record for payment intent:', bookingData.payment_intent_id);
+      console.log('💰 Creating transaction record for payment intent:', bookingData.payment_intent_id);
       
       // Get the payment amount from booking data or payment object
       const paymentAmount = bookingData.payment_amount || bookingData.payment?.amount || 0;
       
-      console.log('Transaction details:', {
+      console.log('💰 Transaction amount validation:', {
+        payment_amount: bookingData.payment_amount,
+        paymentObjectAmount: bookingData.payment?.amount,
+        finalAmount: paymentAmount,
+        amountType: typeof paymentAmount,
+        isZero: paymentAmount === 0,
+        isNull: paymentAmount === null,
+        isUndefined: paymentAmount === undefined
+      });
+      
+      // Validate payment amount before creating transaction
+      if (!paymentAmount || paymentAmount <= 0) {
+        console.error('❌ Invalid payment amount for transaction:', {
+          amount: paymentAmount,
+          bookingData: {
+            payment_amount: bookingData.payment_amount,
+            paymentObject: bookingData.payment
+          }
+        });
+        
+        // Don't create transaction with invalid amount, but don't fail booking
+        console.error('WARNING: Skipping transaction creation due to invalid amount');
+        return {
+          booking_id: booking.id,
+          status: 'error',
+          message: 'Booking created but payment amount validation failed. Please contact support.'
+        };
+      }
+      
+      console.log('💰 Transaction details before insert:', {
         booking_id: booking.id,
         payment_intent_id: bookingData.payment_intent_id,
         amount: paymentAmount,
-        payment_status: bookingData.payment_status
+        payment_status: bookingData.payment_status,
+        transaction_type: 'authorization',
+        payment_method: 'card',
+        currency: 'USD'
       });
       
-      const { error: transactionError } = await supabase
+      const { data: transactionData, error: transactionError } = await supabase
         .from('transactions')
         .insert({
           booking_id: booking.id,
           payment_intent_id: bookingData.payment_intent_id,
-          amount: paymentAmount, // Use actual payment amount instead of 0
+          amount: paymentAmount,
           status: bookingData.payment_status === 'authorized' ? 'pending' : 'pending',
           transaction_type: 'authorization',
           payment_method: 'card',
           currency: 'USD'
-        });
+        })
+        .select()
+        .single();
 
       if (transactionError) {
-        console.error('Transaction record creation failed:', {
+        console.error('❌ Transaction record creation failed:', {
           error: transactionError,
           errorCode: transactionError.code,
+          errorMessage: transactionError.message,
           errorDetails: transactionError.details,
+          errorHint: transactionError.hint,
           bookingId: booking.id,
           paymentIntentId: bookingData.payment_intent_id,
-          amount: paymentAmount
+          amount: paymentAmount,
+          insertData: {
+            booking_id: booking.id,
+            payment_intent_id: bookingData.payment_intent_id,
+            amount: paymentAmount,
+            status: bookingData.payment_status === 'authorized' ? 'pending' : 'pending',
+            transaction_type: 'authorization',
+            payment_method: 'card',
+            currency: 'USD'
+          }
         });
         
-        // If transaction creation fails, it could be a critical issue
-        // Log the error but don't fail the booking since payment was already authorized
-        console.error('WARNING: Payment was authorized but transaction record creation failed');
+        // If transaction creation fails, return error status
+        return {
+          booking_id: booking.id,
+          status: 'error',
+          message: `Payment was authorized but transaction record creation failed: ${transactionError.message}`
+        };
       } else {
-        console.log('Transaction record created successfully with amount:', paymentAmount);
+        console.log('✅ Transaction record created successfully:', {
+          transactionId: transactionData?.id,
+          amount: paymentAmount,
+          bookingId: booking.id,
+          paymentIntentId: bookingData.payment_intent_id
+        });
       }
     }
 
