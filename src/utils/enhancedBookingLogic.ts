@@ -45,9 +45,9 @@ export const createEnhancedBooking = async (
       }
     }
 
-    // PHASE 1: TRANSACTION CREATION FIRST (Only for paid bookings)
+    // PHASE 1: CREATE TEMPORARY BOOKING FOR PAID BOOKINGS
     if (bookingData.payment_intent_id) {
-      console.log('💰 STEP 1: Creating transaction record FIRST for payment intent:', bookingData.payment_intent_id);
+      console.log('📝 STEP 1: Creating temporary booking for payment intent:', bookingData.payment_intent_id);
       
       // Strict validation of payment data
       const paymentAmount = bookingData.payment_amount || bookingData.payment?.amount;
@@ -80,17 +80,50 @@ export const createEnhancedBooking = async (
         };
       }
 
-      console.log('💰 Transaction validation passed:', {
+      // Create temporary booking with payment_pending status
+      const tempBookingInsertData = {
+        customer_id: bookingData.customer_id,
+        service_id: bookingData.service_id,
+        scheduled_date: bookingData.scheduled_date,
+        scheduled_start: bookingData.scheduled_start,
+        location_notes: bookingData.location_notes,
+        status: 'payment_pending' as const,
         payment_intent_id: bookingData.payment_intent_id,
-        amount: paymentAmount,
-        payment_status: bookingData.payment_status
+        payment_status: 'pending'
+      };
+
+      const { data: tempBooking, error: tempBookingError } = await supabase
+        .from('bookings')
+        .insert(tempBookingInsertData)
+        .select()
+        .single();
+
+      if (tempBookingError) {
+        console.error('❌ FATAL: Temporary booking creation failed:', {
+          error: tempBookingError,
+          payment_intent_id: bookingData.payment_intent_id
+        });
+        
+        return {
+          booking_id: '',
+          status: 'error',
+          message: `Booking creation failed: ${tempBookingError.message}. Please try again.`
+        };
+      }
+
+      bookingId = tempBooking.id;
+      console.log('✅ STEP 1 SUCCESS: Temporary booking created:', {
+        bookingId,
+        payment_intent_id: bookingData.payment_intent_id
       });
 
-      // Create transaction record FIRST with temporary booking_id
+      // PHASE 2: CREATE TRANSACTION WITH REAL BOOKING ID
+      console.log('💰 STEP 2: Creating transaction record with real booking ID');
+      
       const { data: transactionData, error: transactionError } = await supabase
         .from('transactions')
         .insert({
-          booking_id: '00000000-0000-0000-0000-000000000000', // Temporary placeholder
+          booking_id: bookingId,
           payment_intent_id: bookingData.payment_intent_id,
           amount: paymentAmount,
           status: 'pending',
@@ -102,13 +135,14 @@ export const createEnhancedBooking = async (
         .single();
 
       if (transactionError) {
-        console.error('❌ FATAL: Transaction creation failed - cannot proceed with booking:', {
+        console.error('❌ FATAL: Transaction creation failed - rolling back temporary booking:', {
           error: transactionError,
-          errorCode: transactionError.code,
-          errorMessage: transactionError.message,
-          payment_intent_id: bookingData.payment_intent_id,
-          amount: paymentAmount
+          bookingId,
+          payment_intent_id: bookingData.payment_intent_id
         });
+
+        // Rollback: Delete temporary booking
+        await supabase.from('bookings').delete().eq('id', bookingId);
         
         return {
           booking_id: '',
@@ -118,138 +152,109 @@ export const createEnhancedBooking = async (
       }
 
       transactionId = transactionData.id;
-      console.log('✅ STEP 1 SUCCESS: Transaction record created:', {
+      console.log('✅ STEP 2 SUCCESS: Transaction record created:', {
         transactionId,
-        amount: paymentAmount,
-        payment_intent_id: bookingData.payment_intent_id
-      });
-    }
-
-    // PHASE 2: BOOKING CREATION (Only after transaction is secured)
-    console.log('📝 STEP 2: Creating booking after transaction verification');
-    
-    const bookingInsertData = {
-      customer_id: bookingData.customer_id,
-      service_id: bookingData.service_id,
-      scheduled_date: bookingData.scheduled_date,
-      scheduled_start: bookingData.scheduled_start,
-      location_notes: bookingData.location_notes,
-      status: bookingData.payment_intent_id ? 'authorized' as const : 'pending' as const,
-      payment_intent_id: bookingData.payment_intent_id,
-      payment_status: bookingData.payment_status || 'pending'
-    };
-
-    const { data: booking, error: bookingError } = await supabase
-      .from('bookings')
-      .insert(bookingInsertData)
-      .select()
-      .single();
-
-    if (bookingError) {
-      console.error('❌ FATAL: Booking creation failed after transaction was created:', {
-        error: bookingError,
-        transactionId,
-        payment_intent_id: bookingData.payment_intent_id
+        bookingId,
+        amount: paymentAmount
       });
 
-      // Enhanced Rollback: Cancel Stripe payment AND delete transaction
-      if (transactionId && bookingData.payment_intent_id) {
-        console.log('🔄 ROLLBACK: Cancelling payment and deleting transaction due to booking failure');
-        
+      // PHASE 3: UPDATE BOOKING STATUS TO AUTHORIZED
+      console.log('🔄 STEP 3: Updating booking status to authorized');
+      
+      const { data: updatedBooking, error: updateError } = await supabase
+        .from('bookings')
+        .update({ 
+          status: 'authorized',
+          payment_status: bookingData.payment_status 
+        })
+        .eq('id', bookingId)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('❌ FATAL: Failed to update booking status - implementing rollback:', {
+          error: updateError,
+          bookingId,
+          transactionId
+        });
+
+        // Enhanced Rollback: Cancel payment, delete transaction, delete booking
         try {
-          // First, cancel the payment with Stripe
+          // Cancel the payment with Stripe
           const { data: cancelResult, error: cancelError } = await supabase.functions.invoke(
             'cancel-payment-intent',
             {
               body: {
                 paymentIntentId: bookingData.payment_intent_id,
-                reason: 'booking_creation_failed'
+                reason: 'booking_authorization_failed'
               }
             }
           );
 
-          if (cancelError || !cancelResult?.success) {
-            console.error('❌ Failed to cancel payment with Stripe:', cancelError || cancelResult);
-            // Continue with database cleanup even if Stripe cancellation fails
-          } else {
-            console.log('✅ Payment cancelled successfully:', cancelResult);
+          // Delete transaction record
+          if (transactionId) {
+            await supabase.from('transactions').delete().eq('id', transactionId);
           }
-
-          // Then delete the transaction record
-          const { error: deleteError } = await supabase
-            .from('transactions')
-            .delete()
-            .eq('id', transactionId);
           
-          if (deleteError) {
-            console.error('❌ Failed to rollback transaction:', deleteError);
-          } else {
-            console.log('✅ Transaction deleted successfully');
-          }
+          // Delete temporary booking
+          await supabase.from('bookings').delete().eq('id', bookingId);
 
-          // Return enhanced error with payment cancellation info
-          return {
-            booking_id: '',
-            status: 'error',
-            message: `Booking creation failed. ${cancelResult?.success ? 'Payment has been cancelled and will be refunded.' : 'Please contact support for payment refund.'}`,
-          };
-          
+          console.log('✅ Complete rollback performed');
         } catch (rollbackError) {
-          console.error('❌ Critical error during rollback:', rollbackError);
-          return {
-            booking_id: '',
-            status: 'error',
-            message: 'Booking creation failed and automatic refund failed. Please contact support immediately.',
-          };
+          console.error('❌ Rollback failed:', rollbackError);
         }
-      } else {
-        // For non-payment bookings, just return error
+        
+        return {
+          booking_id: '',
+          status: 'error',
+          message: 'Booking authorization failed. Payment has been cancelled and will be refunded.'
+        };
+      }
+
+      console.log('✅ STEP 3 SUCCESS: Booking authorized:', { bookingId });
+      
+    } else {
+      // PHASE 1 (No Payment): DIRECT BOOKING CREATION
+      console.log('📝 Creating booking without payment');
+      
+      const bookingInsertData = {
+        customer_id: bookingData.customer_id,
+        service_id: bookingData.service_id,
+        scheduled_date: bookingData.scheduled_date,
+        scheduled_start: bookingData.scheduled_start,
+        location_notes: bookingData.location_notes,
+        status: 'pending' as const,
+        payment_status: 'pending'
+      };
+
+      const { data: noPmtBooking, error: noPmtBookingError } = await supabase
+        .from('bookings')
+        .insert(bookingInsertData)
+        .select()
+        .single();
+
+      if (noPmtBookingError) {
+        console.error('❌ FATAL: Booking creation failed:', noPmtBookingError);
         return {
           booking_id: '',
           status: 'error',
           message: 'Booking creation failed. Please try again.'
         };
       }
-    }
 
-    bookingId = booking.id;
-    console.log('✅ STEP 2 SUCCESS: Booking created:', {
-      bookingId,
-      transactionId,
-      payment_intent_id: bookingData.payment_intent_id
-    });
-
-    // PHASE 3: UPDATE TRANSACTION WITH ACTUAL BOOKING ID
-    if (transactionId && bookingId) {
-      console.log('🔗 STEP 3: Linking transaction to booking');
-      
-      const { error: updateError } = await supabase
-        .from('transactions')
-        .update({ booking_id: bookingId })
-        .eq('id', transactionId);
-
-      if (updateError) {
-        console.error('❌ WARNING: Failed to link transaction to booking:', {
-          error: updateError,
-          transactionId,
-          bookingId
-        });
-        // Don't fail the booking for this, but log it for manual resolution
-      } else {
-        console.log('✅ STEP 3 SUCCESS: Transaction linked to booking');
-      }
+      bookingId = noPmtBooking.id;
     }
 
     // Use enhanced auto-assignment with coverage notifications
     const { data: assignmentResult, error: assignmentError } = await supabase
       .rpc('auto_assign_workers_with_coverage', {
-        p_booking_id: booking.id
+        p_booking_id: bookingId
       });
 
     if (assignmentError) {
       console.error('Assignment error:', assignmentError);
       return {
-        booking_id: booking.id,
+        booking_id: bookingId!,
         status: 'pending',
         message: 'Booking created but assignment failed. Admin will assign manually.'
       };
@@ -259,7 +264,7 @@ export const createEnhancedBooking = async (
     
     if (result?.assignment_status === 'direct_assigned') {
       return {
-        booking_id: booking.id,
+        booking_id: bookingId!,
         status: 'confirmed',
         message: 'Booking confirmed! Worker assigned.',
         worker_assigned: true
@@ -268,7 +273,7 @@ export const createEnhancedBooking = async (
       // Trigger the notification sending using Supabase functions
       try {
         const { error: notificationError } = await supabase.functions.invoke('notify-workers-coverage', {
-          body: { bookingId: booking.id }
+          body: { bookingId }
         });
 
         if (notificationError) {
@@ -281,7 +286,7 @@ export const createEnhancedBooking = async (
       }
 
       return {
-        booking_id: booking.id,
+        booking_id: bookingId!,
         status: 'pending',
         message: `Coverage requests sent to ${result.notifications_sent} workers in your area.`,
         notifications_sent: result.notifications_sent
@@ -289,7 +294,7 @@ export const createEnhancedBooking = async (
     }
 
     return {
-      booking_id: booking.id,
+      booking_id: bookingId!,
       status: 'pending',
       message: 'Booking created but no workers available. Admin will assign manually.',
       notifications_sent: 0
