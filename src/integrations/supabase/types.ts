@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      booking_audit_log: {
+        Row: {
+          booking_id: string | null
+          created_at: string
+          created_by: string | null
+          details: Json | null
+          error_message: string | null
+          id: string
+          operation: string
+          payment_intent_id: string | null
+          status: string | null
+        }
+        Insert: {
+          booking_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          details?: Json | null
+          error_message?: string | null
+          id?: string
+          operation: string
+          payment_intent_id?: string | null
+          status?: string | null
+        }
+        Update: {
+          booking_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          details?: Json | null
+          error_message?: string | null
+          id?: string
+          operation?: string
+          payment_intent_id?: string | null
+          status?: string | null
+        }
+        Relationships: []
+      }
       booking_service_modifications: {
         Row: {
           booking_id: string
@@ -950,6 +986,10 @@ export type Database = {
       calculate_cancellation_deadline: {
         Args: { scheduled_date: string; scheduled_start: string }
         Returns: string
+      }
+      cleanup_orphaned_payment_records: {
+        Args: Record<PropertyKey, never>
+        Returns: number
       }
       find_available_workers: {
         Args: {

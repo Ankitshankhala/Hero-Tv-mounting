@@ -3,6 +3,125 @@ import { supabase } from '@/integrations/supabase/client';
 import { validateUSZipcode, isZipcodeInServiceArea } from '@/utils/zipcodeValidation';
 import { performBookingHealthCheck, logHealthCheck } from '@/utils/bookingHealthCheck';
 
+// Retry configuration
+const RETRY_CONFIG = {
+  maxRetries: 3,
+  baseDelay: 1000, // 1 second
+  maxDelay: 5000, // 5 seconds
+};
+
+// Audit logging utility
+const logAuditEvent = async (
+  bookingId: string | null,
+  paymentIntentId: string | null,
+  operation: string,
+  status: 'success' | 'error' | 'warning',
+  details?: any,
+  errorMessage?: string
+) => {
+  try {
+    await supabase.rpc('log_booking_operation', {
+      p_booking_id: bookingId,
+      p_payment_intent_id: paymentIntentId,
+      p_operation: operation,
+      p_status: status,
+      p_details: details ? JSON.stringify(details) : null,
+      p_error_message: errorMessage
+    });
+  } catch (auditError) {
+    console.error('Failed to log audit event:', auditError);
+  }
+};
+
+// Retry utility with exponential backoff
+const retryWithBackoff = async <T>(
+  operation: () => Promise<T>,
+  context: string,
+  maxRetries = RETRY_CONFIG.maxRetries
+): Promise<T> => {
+  let lastError: Error;
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error as Error;
+      console.error(`${context} - Attempt ${attempt + 1} failed:`, error);
+      
+      if (attempt === maxRetries) {
+        break;
+      }
+      
+      const delay = Math.min(
+        RETRY_CONFIG.baseDelay * Math.pow(2, attempt),
+        RETRY_CONFIG.maxDelay
+      );
+      
+      console.log(`${context} - Retrying in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  
+  throw lastError!;
+};
+
+// Enhanced rollback with retry
+const performEnhancedRollback = async (
+  bookingId: string,
+  paymentIntentId: string,
+  transactionId: string | null,
+  reason: string
+) => {
+  await logAuditEvent(bookingId, paymentIntentId, 'rollback_started', 'warning', { reason });
+  
+  try {
+    // Step 1: Cancel payment with retry
+    await retryWithBackoff(async () => {
+      const { error: cancelError } = await supabase.functions.invoke(
+        'cancel-payment-intent',
+        {
+          body: {
+            paymentIntentId,
+            reason
+          }
+        }
+      );
+      
+      if (cancelError) throw new Error(`Payment cancellation failed: ${cancelError.message}`);
+    }, 'Payment Cancellation');
+
+    // Step 2: Delete transaction with retry
+    if (transactionId) {
+      await retryWithBackoff(async () => {
+        const { error: transactionDeleteError } = await supabase
+          .from('transactions')
+          .delete()
+          .eq('id', transactionId);
+          
+        if (transactionDeleteError) throw new Error(`Transaction deletion failed: ${transactionDeleteError.message}`);
+      }, 'Transaction Deletion');
+    }
+
+    // Step 3: Delete booking with retry
+    await retryWithBackoff(async () => {
+      const { error: bookingDeleteError } = await supabase
+        .from('bookings')
+        .delete()
+        .eq('id', bookingId);
+        
+      if (bookingDeleteError) throw new Error(`Booking deletion failed: ${bookingDeleteError.message}`);
+    }, 'Booking Deletion');
+
+    await logAuditEvent(bookingId, paymentIntentId, 'rollback_completed', 'success', { reason });
+    console.log('✅ Enhanced rollback completed successfully');
+    
+  } catch (rollbackError) {
+    await logAuditEvent(bookingId, paymentIntentId, 'rollback_failed', 'error', { reason }, rollbackError.message);
+    console.error('❌ Enhanced rollback failed:', rollbackError);
+    throw rollbackError;
+  }
+};
+
 export interface EnhancedBookingData {
   customer_id: string;
   service_id: string;
