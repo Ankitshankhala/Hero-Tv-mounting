@@ -1,121 +1,154 @@
-
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+};
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabase = createClient(
+    const { bookingId } = await req.json();
+
+    console.log('Sending coverage notifications for booking:', bookingId);
+
+    // Initialize Supabase client with service role
+    const supabaseServiceRole = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      { auth: { persistSession: false } }
+    );
 
-    const { booking_id, urgent = false } = await req.json()
-
-    if (!booking_id) {
-      return new Response(
-        JSON.stringify({ error: 'booking_id is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    // Get coverage notifications that were just created
-    const { data: notifications, error: notificationError } = await supabase
+    // Get workers who need coverage notifications for this booking
+    const { data: notifications, error: notificationsError } = await supabaseServiceRole
       .from('worker_coverage_notifications')
       .select(`
-        *,
-        worker:users!worker_id(name, email, phone),
-        booking:bookings!booking_id(
-          *,
-          customer:users!customer_id(name, city),
-          service:services!service_id(name, base_price)
+        id,
+        worker_id,
+        booking_id,
+        distance_priority,
+        notification_type,
+        response,
+        bookings (
+          id,
+          scheduled_date,
+          scheduled_start,
+          services (name)
+        ),
+        users (
+          name,
+          phone,
+          email
         )
       `)
-      .eq('booking_id', booking_id)
-      .is('response', null)
-      .order('distance_priority')
+      .eq('booking_id', bookingId)
+      .is('response', null);
 
-    if (notificationError) {
-      throw notificationError
+    if (notificationsError) {
+      console.error('Failed to get notifications:', notificationsError);
+      throw notificationsError;
     }
 
     if (!notifications || notifications.length === 0) {
-      return new Response(
-        JSON.stringify({ message: 'No notifications to send' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      console.log('No pending notifications found for booking');
+      return new Response(JSON.stringify({
+        success: true,
+        message: 'No notifications to send',
+        notifications_sent: 0,
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
     }
 
-    const notificationPromises = notifications.map(async (notification) => {
-      const { worker, booking } = notification
-      
-      // Create in-app notification
-      const { error: inAppError } = await supabase
-        .from('worker_notifications')
-        .insert({
-          worker_id: worker.id,
-          title: urgent ? '🚨 Urgent Job Coverage Needed' : '📋 Job Coverage Available',
-          body: `${booking.service?.name || 'Service'} needed in ${booking.customer?.city || 'your area'} on ${booking.scheduled_date} at ${booking.scheduled_start}. ${urgent ? 'Urgent coverage required!' : 'Can you help cover this job?'}`
-        })
+    let notificationsSent = 0;
 
-      if (inAppError) {
-        console.error('Error creating in-app notification:', inAppError)
-      }
+    // Send notifications to workers
+    for (const notification of notifications) {
+      try {
+        const worker = notification.users;
+        const booking = notification.bookings;
 
-      // Send SMS if worker has phone number
-      if (worker.phone) {
-        try {
-          const smsResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-sms-notification`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              phone: worker.phone,
-              message: `${urgent ? '🚨 URGENT' : '📋'} Job coverage needed: ${booking.service?.name || 'Service'} in ${booking.customer?.city || 'your area'} on ${booking.scheduled_date} at ${booking.scheduled_start}. Reply Y to accept, N to decline. Coverage ID: ${notification.id.slice(0, 8)}`
-            })
-          })
-
-          if (!smsResponse.ok) {
-            console.error('SMS sending failed:', await smsResponse.text())
-          }
-        } catch (smsError) {
-          console.error('SMS error:', smsError)
+        if (!worker || !booking) {
+          console.error('Missing worker or booking data for notification:', notification.id);
+          continue;
         }
+
+        // Create in-app notification
+        const { error: inAppError } = await supabaseServiceRole
+          .from('worker_notifications')
+          .insert({
+            worker_id: notification.worker_id,
+            title: 'New Coverage Request',
+            body: `Coverage needed for ${booking.services?.name || 'service'} on ${booking.scheduled_date} at ${booking.scheduled_start}`,
+            is_read: false,
+          });
+
+        if (inAppError) {
+          console.error('Failed to create in-app notification:', inAppError);
+        }
+
+        // Send SMS if phone number available
+        if (worker.phone) {
+          try {
+            const { error: smsError } = await supabaseServiceRole.functions.invoke('send-sms-notification', {
+              body: {
+                to: worker.phone,
+                message: `Coverage request: ${booking.services?.name || 'Service'} on ${booking.scheduled_date} at ${booking.scheduled_start}. Reply Y to accept or N to decline.`,
+                bookingId: booking.id,
+              }
+            });
+
+            if (smsError) {
+              console.error('Failed to send SMS:', smsError);
+            }
+          } catch (smsError) {
+            console.error('SMS sending failed:', smsError);
+          }
+        }
+
+        // Update notification as sent
+        const { error: updateError } = await supabaseServiceRole
+          .from('worker_coverage_notifications')
+          .update({
+            sent_at: new Date().toISOString(),
+          })
+          .eq('id', notification.id);
+
+        if (updateError) {
+          console.error('Failed to update notification status:', updateError);
+        } else {
+          notificationsSent++;
+        }
+
+      } catch (error) {
+        console.error('Error processing notification:', error);
       }
+    }
 
-      return {
-        worker_id: worker.id,
-        worker_name: worker.name,
-        notification_sent: true
-      }
-    })
+    console.log(`Successfully sent ${notificationsSent} notifications`);
 
-    const results = await Promise.all(notificationPromises)
-
-    return new Response(
-      JSON.stringify({
-        message: `Coverage notifications sent to ${results.length} workers`,
-        notifications_sent: results.length,
-        results
-      }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    return new Response(JSON.stringify({
+      success: true,
+      notifications_sent: notificationsSent,
+      booking_id: bookingId,
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
+    });
 
   } catch (error) {
-    console.error('Error in notify-workers-coverage:', error)
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    console.error('Error sending coverage notifications:', error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message,
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 500,
+    });
   }
-})
+});

@@ -1,34 +1,31 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
+  if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const { bookingId } = await req.json();
 
-    if (!bookingId) {
-      throw new Error('Missing required field: bookingId');
-    }
+    console.log('Capturing payment for booking:', bookingId);
 
-    // Initialize Supabase client with service role key
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    // Initialize Supabase client with service role
+    const supabaseServiceRole = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       { auth: { persistSession: false } }
     );
 
-    // Get booking with payment intent ID
-    const { data: booking, error: bookingError } = await supabaseAdmin
+    // Get booking details
+    const { data: booking, error: bookingError } = await supabaseServiceRole
       .from('bookings')
       .select('payment_intent_id, payment_status')
       .eq('id', bookingId)
@@ -42,116 +39,86 @@ serve(async (req) => {
       throw new Error('No payment intent found for this booking');
     }
 
-    if (booking.payment_status === 'captured') {
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: 'Payment already captured',
-        }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200,
-        }
-      );
-    }
-
     // Initialize Stripe
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
-      apiVersion: "2023-10-16",
+    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
+      apiVersion: '2023-10-16',
     });
 
     // Capture the payment intent
-    const paymentIntent = await stripe.paymentIntents.capture(booking.payment_intent_id);
+    const paymentIntent = await stripe.paymentIntents.capture(
+      booking.payment_intent_id
+    );
 
-    // Update booking status based on capture result
-    let newStatus = 'confirmed';
-    let newPaymentStatus = 'captured';
+    console.log('Payment capture result:', paymentIntent.status);
 
     if (paymentIntent.status === 'succeeded') {
-      // Update existing transaction record from 'authorized' to 'success'
-      const { error: transactionError } = await supabaseAdmin
+      // Update booking status to captured
+      const { error: updateError } = await supabaseServiceRole
+        .from('bookings')
+        .update({
+          payment_status: 'captured',
+          status: 'completed',
+        })
+        .eq('id', bookingId);
+
+      if (updateError) {
+        console.error('Failed to update booking:', updateError);
+        throw updateError;
+      }
+
+      // Update transaction record
+      const { error: transactionError } = await supabaseServiceRole
         .from('transactions')
         .update({
-          status: 'success',
-          transaction_type: 'capture'
+          status: 'completed',
+          transaction_type: 'capture',
         })
-        .eq('booking_id', bookingId)
-        .eq('payment_intent_id', paymentIntent.id);
+        .eq('payment_intent_id', booking.payment_intent_id);
 
       if (transactionError) {
-        console.error('Failed to update transaction record:', transactionError);
-        // If no existing record found, create a new one
-        await supabaseAdmin.from('transactions').insert({
-          booking_id: bookingId,
-          payment_intent_id: paymentIntent.id,
-          amount: paymentIntent.amount / 100, // Convert from cents
-          status: 'success',
-          payment_method: 'card',
-          transaction_type: 'capture',
-        });
+        console.error('Failed to update transaction:', transactionError);
       }
-    } else {
-      newStatus = 'payment_failed';
-      newPaymentStatus = 'failed';
-      
-      // Update transaction status to failed
-      await supabaseAdmin
-        .from('transactions')
-        .update({ status: 'failed' })
-        .eq('booking_id', bookingId)
-        .eq('payment_intent_id', paymentIntent.id);
-    }
 
-    // Update booking
-    const { error: updateError } = await supabaseAdmin
-      .from('bookings')
-      .update({ 
-        status: newStatus,
-        payment_status: newPaymentStatus
-      })
-      .eq('id', bookingId);
-
-    if (updateError) {
-      console.error('Failed to update booking:', updateError);
-      throw updateError;
-    }
-
-    return new Response(
-      JSON.stringify({
+      return new Response(JSON.stringify({
         success: true,
-        payment_status: paymentIntent.status,
-        amount_captured: paymentIntent.amount / 100,
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        payment_status: 'captured',
+        booking_id: bookingId,
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
+      });
+
+    } else {
+      // Capture failed
+      const { error: updateError } = await supabaseServiceRole
+        .from('bookings')
+        .update({
+          payment_status: 'capture_failed',
+        })
+        .eq('id', bookingId);
+
+      if (updateError) {
+        console.error('Failed to update booking status:', updateError);
       }
-    );
+
+      throw new Error(`Payment capture failed: ${paymentIntent.status}`);
+    }
 
   } catch (error) {
     console.error('Error capturing payment:', error);
     
     // Handle specific Stripe errors
     let errorMessage = 'Payment capture failed';
-    if (error instanceof Error) {
-      if (error.message.includes('cannot be captured')) {
-        errorMessage = 'Payment authorization has expired. Please create a new booking.';
-      } else if (error.message.includes('insufficient_funds')) {
-        errorMessage = 'Insufficient funds on the payment method.';
-      } else {
-        errorMessage = error.message;
-      }
+    if (error.type && error.type.includes('Stripe')) {
+      errorMessage = error.message;
     }
 
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: errorMessage,
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500,
-      }
-    );
+    return new Response(JSON.stringify({
+      success: false,
+      error: errorMessage,
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 500,
+    });
   }
 });

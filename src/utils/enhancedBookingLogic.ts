@@ -11,6 +11,10 @@ export interface EnhancedBookingData {
   customer_zipcode?: string;
   payment_intent_id?: string;
   payment_status?: string;
+  payment?: {
+    amount: number;
+    method: string;
+  };
 }
 
 export interface EnhancedBookingResult {
@@ -108,19 +112,17 @@ export const createEnhancedBooking = async (
         worker_assigned: true
       };
     } else if (result?.assignment_status === 'coverage_notifications_sent') {
-      // Trigger the notification sending
+      // Trigger the notification sending using Supabase functions
       try {
-        await fetch('/functions/v1/notify-workers-coverage', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
-          },
-          body: JSON.stringify({
-            booking_id: booking.id,
-            urgent: false
-          })
+        const { error: notificationError } = await supabase.functions.invoke('notify-workers-coverage', {
+          body: { bookingId: booking.id }
         });
+
+        if (notificationError) {
+          console.error('Failed to send worker notifications:', notificationError);
+        } else {
+          console.log('Worker notifications sent successfully');
+        }
       } catch (notificationError) {
         console.error('Failed to send notifications:', notificationError);
       }
