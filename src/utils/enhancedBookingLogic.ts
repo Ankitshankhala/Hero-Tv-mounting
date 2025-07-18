@@ -152,21 +152,64 @@ export const createEnhancedBooking = async (
         payment_intent_id: bookingData.payment_intent_id
       });
 
-      // ROLLBACK: Delete the transaction since booking failed
-      if (transactionId) {
-        console.log('🔄 ROLLBACK: Deleting transaction due to booking failure');
-        await supabase
-          .from('transactions')
-          .delete()
-          .eq('id', transactionId);
-        console.log('✅ ROLLBACK: Transaction deleted');
+      // Enhanced Rollback: Cancel Stripe payment AND delete transaction
+      if (transactionId && bookingData.payment_intent_id) {
+        console.log('🔄 ROLLBACK: Cancelling payment and deleting transaction due to booking failure');
+        
+        try {
+          // First, cancel the payment with Stripe
+          const { data: cancelResult, error: cancelError } = await supabase.functions.invoke(
+            'cancel-payment-intent',
+            {
+              body: {
+                paymentIntentId: bookingData.payment_intent_id,
+                reason: 'booking_creation_failed'
+              }
+            }
+          );
+
+          if (cancelError || !cancelResult?.success) {
+            console.error('❌ Failed to cancel payment with Stripe:', cancelError || cancelResult);
+            // Continue with database cleanup even if Stripe cancellation fails
+          } else {
+            console.log('✅ Payment cancelled successfully:', cancelResult);
+          }
+
+          // Then delete the transaction record
+          const { error: deleteError } = await supabase
+            .from('transactions')
+            .delete()
+            .eq('id', transactionId);
+          
+          if (deleteError) {
+            console.error('❌ Failed to rollback transaction:', deleteError);
+          } else {
+            console.log('✅ Transaction deleted successfully');
+          }
+
+          // Return enhanced error with payment cancellation info
+          return {
+            booking_id: '',
+            status: 'error',
+            message: `Booking creation failed. ${cancelResult?.success ? 'Payment has been cancelled and will be refunded.' : 'Please contact support for payment refund.'}`,
+          };
+          
+        } catch (rollbackError) {
+          console.error('❌ Critical error during rollback:', rollbackError);
+          return {
+            booking_id: '',
+            status: 'error',
+            message: 'Booking creation failed and automatic refund failed. Please contact support immediately.',
+          };
+        }
+      } else {
+        // For non-payment bookings, just return error
+        return {
+          booking_id: '',
+          status: 'error',
+          message: 'Booking creation failed. Please try again.'
+        };
       }
-      
-      return {
-        booking_id: '',
-        status: 'error',
-        message: 'Booking creation failed after payment processing. Payment has been reversed. Please try again.'
-      };
     }
 
     bookingId = booking.id;

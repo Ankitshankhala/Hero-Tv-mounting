@@ -562,34 +562,49 @@ export type Database = {
         Row: {
           amount: number
           booking_id: string
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           created_at: string | null
           currency: string | null
           id: string
           payment_intent_id: string | null
           payment_method: string | null
+          refund_amount: number | null
           status: Database["public"]["Enums"]["payment_status"] | null
+          stripe_refund_id: string | null
           transaction_type: string | null
         }
         Insert: {
           amount: number
           booking_id: string
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           created_at?: string | null
           currency?: string | null
           id?: string
           payment_intent_id?: string | null
           payment_method?: string | null
+          refund_amount?: number | null
           status?: Database["public"]["Enums"]["payment_status"] | null
+          stripe_refund_id?: string | null
           transaction_type?: string | null
         }
         Update: {
           amount?: number
           booking_id?: string
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           created_at?: string | null
           currency?: string | null
           id?: string
           payment_intent_id?: string | null
           payment_method?: string | null
+          refund_amount?: number | null
           status?: Database["public"]["Enums"]["payment_status"] | null
+          stripe_refund_id?: string | null
           transaction_type?: string | null
         }
         Relationships: [
@@ -598,6 +613,13 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_cancelled_by_fkey"
+            columns: ["cancelled_by"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
