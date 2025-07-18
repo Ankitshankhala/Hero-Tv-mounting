@@ -20,7 +20,7 @@ const logAuditEvent = async (
   errorMessage?: string
 ) => {
   try {
-    await supabase.rpc('log_booking_operation', {
+    await (supabase.rpc as any)('log_booking_operation', {
       p_booking_id: bookingId,
       p_payment_intent_id: paymentIntentId,
       p_operation: operation,
