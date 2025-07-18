@@ -9,7 +9,7 @@ import { CreditCard, DollarSign, RefreshCw, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import PaymentDetailsModal from './PaymentDetailsModal';
-import { StripeConfigTest } from './StripeConfigTest';
+
 import { PaymentSyncButton } from './PaymentSyncButton';
 import { PaymentHealthCheck } from './PaymentHealthCheck';
 
@@ -204,8 +204,6 @@ export const PaymentsManager = () => {
       {/* Payment Health Check */}
       <PaymentHealthCheck />
       
-      {/* Stripe Configuration Test Section */}
-      <StripeConfigTest />
 
       {/* Payment Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
