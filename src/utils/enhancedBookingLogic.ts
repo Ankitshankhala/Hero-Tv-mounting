@@ -1,6 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { validateUSZipcode, isZipcodeInServiceArea } from '@/utils/zipcodeValidation';
+import { performBookingHealthCheck, logHealthCheck } from '@/utils/bookingHealthCheck';
 
 export interface EnhancedBookingData {
   customer_id: string;
@@ -120,39 +121,58 @@ export const createEnhancedBooking = async (
       // PHASE 2: CREATE TRANSACTION WITH REAL BOOKING ID
       console.log('💰 STEP 2: Creating transaction record with real booking ID');
       
-      const { data: transactionData, error: transactionError } = await supabase
+      // Check if transaction already exists to prevent duplicates
+      const { data: existingTransaction } = await supabase
         .from('transactions')
-        .insert({
-          booking_id: bookingId,
-          payment_intent_id: bookingData.payment_intent_id,
-          amount: paymentAmount,
-          status: 'pending',
-          transaction_type: 'authorization',
-          payment_method: 'card',
-          currency: 'USD'
-        })
-        .select()
+        .select('id')
+        .eq('booking_id', bookingId)
+        .eq('payment_intent_id', bookingData.payment_intent_id)
+        .eq('transaction_type', 'authorization')
         .single();
 
-      if (transactionError) {
-        console.error('❌ FATAL: Transaction creation failed - rolling back temporary booking:', {
-          error: transactionError,
+      if (existingTransaction) {
+        console.log('⚠️ STEP 2 SKIP: Transaction already exists for this booking/payment:', {
+          existingTransactionId: existingTransaction.id,
           bookingId,
           payment_intent_id: bookingData.payment_intent_id
         });
+        transactionId = existingTransaction.id;
+      } else {
+        const { data: transactionData, error: transactionError } = await supabase
+          .from('transactions')
+          .insert({
+            booking_id: bookingId,
+            payment_intent_id: bookingData.payment_intent_id,
+            amount: paymentAmount,
+            status: 'pending',
+            transaction_type: 'authorization',
+            payment_method: 'card',
+            currency: 'USD'
+          })
+          .select()
+          .single();
 
-        // Rollback: Delete temporary booking
-        await supabase.from('bookings').delete().eq('id', bookingId);
-        
-        return {
-          booking_id: '',
-          status: 'error',
-          message: `Payment processing failed: ${transactionError.message}. Please try again or contact support.`
-        };
+        if (transactionError) {
+          console.error('❌ FATAL: Transaction creation failed - rolling back temporary booking:', {
+            error: transactionError,
+            bookingId,
+            payment_intent_id: bookingData.payment_intent_id
+          });
+
+          // Rollback: Delete temporary booking
+          await supabase.from('bookings').delete().eq('id', bookingId);
+          
+          return {
+            booking_id: '',
+            status: 'error',
+            message: `Payment processing failed: ${transactionError.message}. Please try again or contact support.`
+          };
+        }
+
+        transactionId = transactionData.id;
       }
 
-      transactionId = transactionData.id;
-      console.log('✅ STEP 2 SUCCESS: Transaction record created:', {
+      console.log('✅ STEP 2 SUCCESS: Transaction ready:', {
         transactionId,
         bookingId,
         amount: paymentAmount
@@ -160,6 +180,43 @@ export const createEnhancedBooking = async (
 
       // PHASE 3: UPDATE BOOKING STATUS TO AUTHORIZED
       console.log('🔄 STEP 3: Updating booking status to authorized');
+      
+      // Perform health check before final update
+      const healthCheck = await performBookingHealthCheck(bookingId, bookingData.payment_intent_id);
+      logHealthCheck(bookingId, healthCheck);
+      
+      if (!healthCheck.isHealthy) {
+        console.error('❌ FATAL: Health check failed before authorization:', healthCheck.issues);
+        
+        // Enhanced Rollback: Cancel payment, delete transaction, delete booking
+        try {
+          const { data: cancelResult, error: cancelError } = await supabase.functions.invoke(
+            'cancel-payment-intent',
+            {
+              body: {
+                paymentIntentId: bookingData.payment_intent_id,
+                reason: 'health_check_failed'
+              }
+            }
+          );
+
+          if (transactionId) {
+            await supabase.from('transactions').delete().eq('id', transactionId);
+          }
+          
+          await supabase.from('bookings').delete().eq('id', bookingId);
+
+          console.log('✅ Complete rollback performed due to health check failure');
+        } catch (rollbackError) {
+          console.error('❌ Rollback failed:', rollbackError);
+        }
+        
+        return {
+          booking_id: '',
+          status: 'error',
+          message: `Booking validation failed: ${healthCheck.issues.join(', ')}. Payment has been cancelled.`
+        };
+      }
       
       const { data: updatedBooking, error: updateError } = await supabase
         .from('bookings')
