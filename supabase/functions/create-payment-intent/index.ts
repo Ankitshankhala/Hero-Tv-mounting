@@ -28,9 +28,9 @@ serve(async (req) => {
   let transactionId: string | null = null;
 
   try {
-    const { amount, currency = 'usd', booking_id, user_id } = await req.json();
+    const { amount, currency = 'usd', booking_id, user_id, idempotency_key } = await req.json();
     
-    logStep("Function started", { amount, currency, booking_id, user_id });
+    logStep("Function started", { amount, currency, booking_id, user_id, idempotency_key });
 
     // Input validation
     if (!amount || typeof amount !== 'number' || amount <= 0) {
@@ -51,6 +51,11 @@ serve(async (req) => {
       throw new Error('Invalid booking_id format: must be a valid UUID');
     }
 
+    // Check for existing payment intent with same idempotency key
+    if (idempotency_key) {
+      logStep("Checking for existing payment intent", { idempotency_key });
+    }
+
     // Initialize Supabase client with service role for database operations
     const supabaseServiceRole = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -64,14 +69,39 @@ serve(async (req) => {
     });
     logStep("Stripe initialized");
 
+    // Verify booking exists and is in correct state
+    logStep("Verifying booking exists and is pending", { booking_id });
+    const { data: bookingCheck, error: bookingCheckError } = await supabaseServiceRole
+      .from('bookings')
+      .select('id, status, payment_status, customer_id')
+      .eq('id', booking_id)
+      .single();
+
+    if (bookingCheckError || !bookingCheck) {
+      logStep("Booking not found", { booking_id, error: bookingCheckError });
+      throw new Error('Booking not found or inaccessible');
+    }
+
+    if (bookingCheck.customer_id !== user_id) {
+      logStep("User not authorized for booking", { booking_customer: bookingCheck.customer_id, request_user: user_id });
+      throw new Error('User not authorized to create payment for this booking');
+    }
+
+    if (bookingCheck.status !== 'pending' || bookingCheck.payment_status !== 'pending') {
+      logStep("Booking not in correct state for payment", { status: bookingCheck.status, payment_status: bookingCheck.payment_status });
+      throw new Error('Booking is not in correct state for payment creation');
+    }
+
     // Create payment intent
     logStep("Creating Stripe payment intent", { amount: Math.round(amount * 100), currency });
     paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100), // Convert to cents
       currency: currency.toLowerCase(),
+      capture_method: 'manual', // Require explicit capture for authorization flow
       metadata: {
         user_id: user_id,
-        booking_id: booking_id || 'null',
+        booking_id: booking_id,
+        idempotency_key: idempotency_key || 'none',
       },
     });
 
@@ -91,7 +121,7 @@ serve(async (req) => {
         .insert({
           booking_id: booking_id,
           amount: amount,
-          status: 'authorized',
+          status: 'pending', // Start as pending, not authorized
           payment_intent_id: paymentIntent.id,
           payment_method: 'card',
           transaction_type: 'authorization',

@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -9,7 +10,7 @@ const corsHeaders = {
 // Enhanced logging function
 const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
-  console.log(`[CLEANUP-UNPAID] ${step}${detailsStr}`);
+  console.log(`[CLEANUP-UNPAID-BOOKINGS] ${step}${detailsStr}`);
 };
 
 serve(async (req) => {
@@ -27,44 +28,63 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    // Find bookings that are older than 30 minutes and still pending payment
+    // Initialize Stripe
+    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
+      apiVersion: '2023-10-16',
+    });
+
+    // Find bookings older than 30 minutes that are still pending payment
     const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
     
-    logStep("Searching for unpaid bookings", { cutoff: thirtyMinutesAgo });
-
-    const { data: unpaidBookings, error: searchError } = await supabaseServiceRole
+    logStep("Finding abandoned bookings", { olderThan: thirtyMinutesAgo });
+    
+    const { data: abandonedBookings, error: bookingError } = await supabaseServiceRole
       .from('bookings')
-      .select('id, created_at, payment_intent_id')
+      .select('id, payment_intent_id, created_at')
       .eq('status', 'pending')
       .eq('payment_status', 'pending')
-      .lt('created_at', thirtyMinutesAgo);
+      .lt('created_at', thirtyMinutesAgo)
+      .limit(50); // Process in batches
 
-    if (searchError) {
-      logStep("Failed to search for unpaid bookings", { error: searchError });
-      throw new Error(`Failed to search for unpaid bookings: ${searchError.message}`);
+    if (bookingError) {
+      throw new Error(`Failed to fetch abandoned bookings: ${bookingError.message}`);
     }
 
-    if (!unpaidBookings || unpaidBookings.length === 0) {
-      logStep("No unpaid bookings found to cleanup");
+    if (!abandonedBookings || abandonedBookings.length === 0) {
+      logStep("No abandoned bookings found");
       return new Response(JSON.stringify({
         success: true,
-        cleaned_up: 0,
-        message: 'No unpaid bookings found to cleanup'
+        cleaned_count: 0,
+        message: 'No abandoned bookings found'
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       });
     }
 
-    logStep("Found unpaid bookings to cleanup", { count: unpaidBookings.length });
+    logStep(`Found ${abandonedBookings.length} abandoned bookings to clean up`);
 
-    let cleanedUp = 0;
-    let errors = [];
+    let cleanupCount = 0;
+    let stripeCleanupCount = 0;
 
-    // Process each unpaid booking
-    for (const booking of unpaidBookings) {
+    for (const booking of abandonedBookings) {
       try {
-        logStep("Cleaning up booking", { booking_id: booking.id });
+        logStep(`Cleaning up booking`, { booking_id: booking.id, created_at: booking.created_at });
+
+        // Cancel Stripe payment intent if it exists
+        if (booking.payment_intent_id) {
+          try {
+            await stripe.paymentIntents.cancel(booking.payment_intent_id);
+            stripeCleanupCount++;
+            logStep("Cancelled Stripe payment intent", { payment_intent_id: booking.payment_intent_id });
+          } catch (stripeError) {
+            logStep("Failed to cancel Stripe payment intent", { 
+              payment_intent_id: booking.payment_intent_id, 
+              error: stripeError.message 
+            });
+            // Continue with booking cleanup even if Stripe fails
+          }
+        }
 
         // Update booking status to cancelled
         const { error: updateError } = await supabaseServiceRole
@@ -76,47 +96,40 @@ serve(async (req) => {
           .eq('id', booking.id);
 
         if (updateError) {
-          logStep("Failed to update booking", { booking_id: booking.id, error: updateError });
-          errors.push(`Failed to update booking ${booking.id}: ${updateError.message}`);
+          logStep("Failed to update booking status", { booking_id: booking.id, error: updateError });
           continue;
         }
 
-        // Update related transactions if they exist
+        // Update transaction status if it exists
         if (booking.payment_intent_id) {
-          const { error: transactionError } = await supabaseServiceRole
+          await supabaseServiceRole
             .from('transactions')
             .update({ 
               status: 'expired',
-              cancellation_reason: 'automatic_cleanup_unpaid',
+              cancellation_reason: 'payment_timeout',
               cancelled_at: new Date().toISOString()
             })
             .eq('payment_intent_id', booking.payment_intent_id);
-
-          if (transactionError) {
-            logStep("Failed to update transaction", { 
-              booking_id: booking.id, 
-              payment_intent_id: booking.payment_intent_id,
-              error: transactionError 
-            });
-            // Don't add to errors array as booking cleanup was successful
-          }
         }
 
-        cleanedUp++;
+        cleanupCount++;
         logStep("Successfully cleaned up booking", { booking_id: booking.id });
 
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        logStep("Error cleaning up booking", { booking_id: booking.id, error: errorMessage });
-        errors.push(`Error cleaning up booking ${booking.id}: ${errorMessage}`);
+        logStep("Error cleaning up individual booking", { 
+          booking_id: booking.id, 
+          error: error.message 
+        });
+        // Continue with other bookings
       }
     }
 
     const response = {
       success: true,
-      cleaned_up: cleanedUp,
-      total_found: unpaidBookings.length,
-      errors: errors.length > 0 ? errors : undefined
+      cleaned_count: cleanupCount,
+      stripe_cancelled_count: stripeCleanupCount,
+      total_found: abandonedBookings.length,
+      message: `Cleaned up ${cleanupCount} abandoned bookings`
     };
 
     logStep("Cleanup completed", response);

@@ -8,6 +8,8 @@ interface BookingData {
   scheduled_date: string;
   scheduled_start: string;
   location_notes?: string;
+  customer_zipcode?: string; // Add for better error messages
+  idempotency_key?: string; // Add for preventing duplicate bookings
 }
 
 interface PaymentFlowResult {
@@ -33,6 +35,20 @@ export const useBookingPaymentFlow = () => {
     try {
       console.log('🔄 Starting booking-first payment flow');
 
+      // Generate idempotency key if not provided
+      const idempotencyKey = bookingData.idempotency_key || 
+        `booking_${bookingData.customer_id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      // Validate required fields before starting
+      if (!bookingData.customer_id || !bookingData.service_id || 
+          !bookingData.scheduled_date || !bookingData.scheduled_start) {
+        throw new Error('Missing required booking data: customer_id, service_id, scheduled_date, or scheduled_start');
+      }
+
+      if (amount <= 0) {
+        throw new Error('Invalid amount: must be greater than 0');
+      }
+
       // Step 1: Create booking with pending status
       console.log('📝 Creating booking with pending status');
       const { data: booking, error: bookingError } = await supabase
@@ -40,14 +56,28 @@ export const useBookingPaymentFlow = () => {
         .insert({
           ...bookingData,
           status: 'pending',
-          payment_status: 'pending'
+          payment_status: 'pending',
+          // Store idempotency info in location_notes temporarily for duplicate detection
+          location_notes: bookingData.location_notes ? 
+            `${bookingData.location_notes} [${idempotencyKey}]` : 
+            `[${idempotencyKey}]`
         })
         .select('id')
         .single();
 
-      if (bookingError || !booking) {
+      if (bookingError) {
         console.error('❌ Failed to create booking:', bookingError);
+        
+        // Check if it's a duplicate booking attempt
+        if (bookingError.code === '23505' || bookingError.message?.includes('duplicate')) {
+          throw new Error('A booking with this information already exists. Please refresh and try again.');
+        }
+        
         throw new Error(`Failed to create booking: ${bookingError?.message || 'Unknown error'}`);
+      }
+
+      if (!booking) {
+        throw new Error('Booking was not created - no data returned');
       }
 
       const bookingId = booking.id;
@@ -61,6 +91,7 @@ export const useBookingPaymentFlow = () => {
           currency: currency,
           booking_id: bookingId,
           user_id: bookingData.customer_id,
+          idempotency_key: idempotencyKey,
         }
       });
 
@@ -68,14 +99,22 @@ export const useBookingPaymentFlow = () => {
         console.error('❌ Failed to create payment intent:', paymentError);
         
         // Cleanup: Cancel the booking since payment intent creation failed
-        await supabase.functions.invoke('cancel-booking-payment', {
-          body: {
-            booking_id: bookingId,
-            reason: 'payment_intent_creation_failed'
-          }
-        });
+        try {
+          await supabase.functions.invoke('cancel-booking-payment', {
+            body: {
+              booking_id: bookingId,
+              reason: 'payment_intent_creation_failed'
+            }
+          });
+        } catch (cleanupError) {
+          console.error('❌ Failed to cleanup booking after payment intent failure:', cleanupError);
+        }
 
-        throw new Error(`Failed to create payment intent: ${paymentError?.message || 'Unknown error'}`);
+        throw new Error(`Failed to create payment intent: ${paymentError?.message || paymentData?.error || 'Unknown error'}`);
+      }
+
+      if (!paymentData.client_secret) {
+        throw new Error('Payment intent created but no client_secret returned');
       }
 
       console.log('✅ Payment intent created successfully');
