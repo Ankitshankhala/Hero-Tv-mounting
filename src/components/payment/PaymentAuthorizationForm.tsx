@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Shield, Lock, CreditCard, Info } from 'lucide-react';
+import { Shield, Lock, CreditCard, Info, AlertTriangle } from 'lucide-react';
 import { useBookingPaymentFlow } from '@/hooks/useBookingPaymentFlow';
+import { useAuth } from '@/hooks/useAuth';
 import { StripeCardElement } from '@/components/StripeCardElement';
 import { PaymentRecoveryAlert } from './PaymentRecoveryAlert';
 
@@ -44,6 +45,7 @@ export const PaymentAuthorizationForm = ({
   } | null>(null);
   
   const { createBookingWithPayment, loading } = useBookingPaymentFlow();
+  const { user, loading: authLoading } = useAuth();
 
   const handleStripeReady = (stripeInstance: any, elementsInstance: any, cardElementInstance: any) => {
     console.log('Stripe ready for payment authorization');
@@ -116,6 +118,11 @@ export const PaymentAuthorizationForm = ({
         try {
           console.log('🎯 Creating booking with payment using new flow');
           
+          // Validate authentication and customer ID
+          if (!user?.id) {
+            throw new Error('Authentication required. Please log in to complete your booking.');
+          }
+
           // Validate required booking data before proceeding
           if (!formData.customerEmail || !formData.customerName) {
             throw new Error('Customer information is missing');
@@ -130,9 +137,9 @@ export const PaymentAuthorizationForm = ({
             throw new Error('At least one service must be selected');
           }
 
-          // Create booking data from form
+          // Create booking data from form with authenticated user ID
           const bookingData = {
-            customer_id: formData.customerId || '', // This should be set from auth or guest
+            customer_id: user.id, // Always use authenticated user's ID
             service_id: services[0].id, // Primary service
             scheduled_date: formData.selectedDate,
             scheduled_start: formData.selectedTime,
@@ -227,6 +234,34 @@ export const PaymentAuthorizationForm = ({
     }
   };
 
+  // Show authentication warning if user is not logged in
+  if (authLoading) {
+    return (
+      <div className="space-y-6">
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            Loading authentication status...
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  if (!user && (services && formData)) {
+    return (
+      <div className="space-y-6">
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            <strong>Authentication Required:</strong> You must be logged in to create a booking. 
+            Please sign in to continue with your payment.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <Alert>
@@ -305,15 +340,17 @@ export const PaymentAuthorizationForm = ({
 
             <Button 
               type="submit"
-              disabled={!stripeReady || loading || creatingBooking || !!formError}
+              disabled={!stripeReady || loading || creatingBooking || !!formError || !user}
               className="w-full"
               size="lg"
             >
-              {loading 
-                ? 'Authorizing...' 
-                : creatingBooking 
-                  ? 'Creating Booking...' 
-                  : `Authorize $${amount.toFixed(2)}`
+              {!user 
+                ? 'Please Log In' 
+                : loading 
+                  ? 'Authorizing...' 
+                  : creatingBooking 
+                    ? 'Creating Booking...' 
+                    : `Authorize $${amount.toFixed(2)}`
               }
             </Button>
           </form>
