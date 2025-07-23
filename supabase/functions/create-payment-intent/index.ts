@@ -25,35 +25,26 @@ serve(async (req) => {
   }
 
   let paymentIntent: any = null;
+  let transactionId: string | null = null;
 
   try {
-    const { bookingId, amount, customerEmail, customerName, requireAuth } = await req.json();
+    const { amount, currency = 'usd', booking_id, user_id } = await req.json();
     
-    logStep("Function started", { bookingId, amount, customerEmail });
+    logStep("Function started", { amount, currency, booking_id, user_id });
 
     // Input validation
-    if (!amount || amount <= 0) {
-      throw new Error('Invalid amount: must be greater than 0');
+    if (!amount || typeof amount !== 'number' || amount <= 0) {
+      throw new Error('Invalid amount: must be a positive number');
     }
 
-    if (!customerEmail) {
-      throw new Error('Customer email is required');
+    if (!user_id || typeof user_id !== 'string') {
+      throw new Error('user_id is required and must be a string');
     }
 
     // Validate booking ID format if provided
-    let validBookingId = null;
-    let requiresBookingCreation = false;
-
-    if (bookingId && bookingId !== "temp-booking-ref") {
-      if (!isValidUUID(bookingId)) {
-        logStep("Invalid booking ID format", { bookingId });
-        throw new Error('Invalid booking ID format: must be a valid UUID');
-      }
-      validBookingId = bookingId;
-      logStep("Valid booking ID provided", { validBookingId });
-    } else {
-      requiresBookingCreation = true;
-      logStep("No valid booking ID - payment intent will be created without transaction record");
+    if (booking_id && !isValidUUID(booking_id)) {
+      logStep("Invalid booking ID format", { booking_id });
+      throw new Error('Invalid booking_id format: must be a valid UUID or null');
     }
 
     // Initialize Supabase client with service role for database operations
@@ -63,109 +54,85 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    logStep("Processing payment intent creation", { validBookingId, requiresBookingCreation });
-
     // Initialize Stripe
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
       apiVersion: '2023-10-16',
     });
     logStep("Stripe initialized");
 
-    let customerId;
-    
-    // Create or find Stripe customer if email provided
-    if (customerEmail) {
-      logStep("Looking for existing Stripe customer", { customerEmail });
-      const customers = await stripe.customers.list({ 
-        email: customerEmail, 
-        limit: 1 
-      });
-      
-      if (customers.data.length > 0) {
-        customerId = customers.data[0].id;
-        logStep("Found existing customer", { customerId });
-      } else {
-        logStep("Creating new Stripe customer");
-        const customer = await stripe.customers.create({
-          email: customerEmail,
-          name: customerName || undefined,
-        });
-        customerId = customer.id;
-        logStep("Created new customer", { customerId });
-      }
-    }
-
-    // Create payment intent with manual capture
-    logStep("Creating Stripe payment intent", { amount: Math.round(amount * 100) });
+    // Create payment intent
+    logStep("Creating Stripe payment intent", { amount: Math.round(amount * 100), currency });
     paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100), // Convert to cents
-      currency: 'usd',
-      customer: customerId,
-      capture_method: 'manual',
+      currency: currency.toLowerCase(),
       metadata: {
-        booking_id: validBookingId || bookingId || 'no-booking',
+        user_id: user_id,
+        booking_id: booking_id || 'null',
       },
     });
 
     logStep("Payment intent created successfully", { paymentIntentId: paymentIntent.id });
 
-    // Create transaction record only if we have a valid booking ID
-    if (validBookingId) {
-      try {
-        logStep("Creating transaction record", { validBookingId, paymentIntentId: paymentIntent.id });
-        
-        const { error: transactionError } = await supabaseServiceRole
-          .from('transactions')
-          .insert({
-            booking_id: validBookingId,
-            amount: amount,
-            status: 'pending',
-            payment_intent_id: paymentIntent.id,
-            payment_method: 'card',
-            transaction_type: 'authorization',
-            currency: 'USD',
-          });
+    // Insert transaction record
+    try {
+      logStep("Creating transaction record", { 
+        booking_id, 
+        user_id, 
+        amount, 
+        paymentIntentId: paymentIntent.id 
+      });
+      
+      const { data: transactionData, error: transactionError } = await supabaseServiceRole
+        .from('transactions')
+        .insert({
+          booking_id: booking_id || null,
+          amount: amount,
+          status: 'authorized',
+          payment_intent_id: paymentIntent.id,
+          payment_method: 'card',
+          transaction_type: 'authorization',
+          currency: currency.toUpperCase(),
+        })
+        .select('id')
+        .single();
 
-        if (transactionError) {
-          logStep("Transaction creation failed - rolling back payment intent", { error: transactionError });
-          
-          // Rollback: Cancel the payment intent if transaction creation fails
-          try {
-            await stripe.paymentIntents.cancel(paymentIntent.id);
-            logStep("Payment intent cancelled successfully");
-          } catch (cancelError) {
-            logStep("Failed to cancel payment intent", { cancelError });
-          }
-          
-          throw new Error(`Database transaction failed: ${transactionError.message}`);
-        } else {
-          logStep("Transaction record created successfully");
-        }
-      } catch (error) {
-        logStep("Error in transaction creation", { error: error.message });
+      if (transactionError) {
+        logStep("Transaction creation failed - rolling back payment intent", { error: transactionError });
         
         // Rollback: Cancel the payment intent if transaction creation fails
-        if (paymentIntent?.id) {
-          try {
-            await stripe.paymentIntents.cancel(paymentIntent.id);
-            logStep("Payment intent cancelled due to database error");
-          } catch (cancelError) {
-            logStep("Failed to cancel payment intent during rollback", { cancelError });
-          }
+        try {
+          await stripe.paymentIntents.cancel(paymentIntent.id);
+          logStep("Payment intent cancelled successfully");
+        } catch (cancelError) {
+          logStep("Failed to cancel payment intent", { cancelError });
         }
         
-        throw error; // Re-throw to be caught by outer try-catch
+        throw new Error(`Database transaction failed: ${transactionError.message}`);
       }
-    } else {
-      logStep("Skipping transaction creation - no valid booking ID provided");
+
+      transactionId = transactionData.id;
+      logStep("Transaction record created successfully", { transactionId });
+
+    } catch (error) {
+      logStep("Error in transaction creation", { error: error.message });
+      
+      // Rollback: Cancel the payment intent if transaction creation fails
+      if (paymentIntent?.id) {
+        try {
+          await stripe.paymentIntents.cancel(paymentIntent.id);
+          logStep("Payment intent cancelled due to database error");
+        } catch (cancelError) {
+          logStep("Failed to cancel payment intent during rollback", { cancelError });
+        }
+      }
+      
+      throw error; // Re-throw to be caught by outer try-catch
     }
 
     const response = {
-      success: true,
       client_secret: paymentIntent.client_secret,
+      transaction_id: transactionId,
       payment_intent_id: paymentIntent.id,
-      stripe_customer_id: customerId,
-      requires_booking_creation: requiresBookingCreation,
     };
 
     logStep("Payment intent creation completed successfully", response);
@@ -192,27 +159,19 @@ serve(async (req) => {
       }
     }
     
-    // Determine error code for frontend handling
-    let errorCode = 'UNKNOWN_ERROR';
-    if (errorMessage.includes('Invalid booking ID format')) {
-      errorCode = 'INVALID_BOOKING_ID';
-    } else if (errorMessage.includes('Invalid amount')) {
-      errorCode = 'INVALID_AMOUNT';
-    } else if (errorMessage.includes('Customer email is required')) {
-      errorCode = 'MISSING_EMAIL';
-    } else if (errorMessage.includes('Database transaction failed')) {
-      errorCode = 'DATABASE_ERROR';
-    } else if (errorMessage.includes('Stripe')) {
-      errorCode = 'STRIPE_ERROR';
+    // Determine appropriate HTTP status code
+    let statusCode = 500;
+    if (errorMessage.includes('Invalid amount') || 
+        errorMessage.includes('user_id is required') ||
+        errorMessage.includes('Invalid booking_id format')) {
+      statusCode = 400;
     }
 
     return new Response(JSON.stringify({
-      success: false,
       error: errorMessage,
-      error_code: errorCode,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
+      status: statusCode,
     });
   }
 });
