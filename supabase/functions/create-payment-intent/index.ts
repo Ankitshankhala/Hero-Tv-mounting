@@ -41,16 +41,17 @@ serve(async (req) => {
       throw new Error('user_id is required and must be a string');
     }
 
-    // For booking-first flow, booking_id is required
-    if (!booking_id || typeof booking_id !== 'string') {
-      throw new Error('booking_id is required and must be a valid UUID');
+    // Validate booking ID format if provided (backward compatibility)
+    let isBookingFirstFlow = false;
+    if (booking_id && booking_id !== 'temp-booking-ref' && !booking_id.startsWith('temp-')) {
+      if (!isValidUUID(booking_id)) {
+        logStep("Invalid booking ID format", { booking_id });
+        throw new Error('Invalid booking_id format: must be a valid UUID');
+      }
+      isBookingFirstFlow = true;
     }
 
-    // Validate booking ID format
-    if (!isValidUUID(booking_id)) {
-      logStep("Invalid booking ID format", { booking_id });
-      throw new Error('Invalid booking_id format: must be a valid UUID');
-    }
+    logStep("Flow type determined", { isBookingFirstFlow, booking_id });
 
     // Initialize Supabase client with service role for database operations
     const supabaseServiceRole = createClient(
@@ -90,7 +91,7 @@ serve(async (req) => {
       const { data: transactionData, error: transactionError } = await supabaseServiceRole
         .from('transactions')
         .insert({
-          booking_id: booking_id,
+          booking_id: isBookingFirstFlow ? booking_id : null,
           amount: amount,
           status: 'authorized',
           payment_intent_id: paymentIntent.id,
