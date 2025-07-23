@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { mapStripeStatus, getStatusForFrontend } from "../shared/status-mapping.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -48,20 +49,34 @@ serve(async (req) => {
     logStep("Retrieving payment intent from Stripe", { payment_intent_id });
     const paymentIntent = await stripe.paymentIntents.retrieve(payment_intent_id);
     
-    if (paymentIntent.status !== 'succeeded') {
-      logStep("Payment intent not succeeded", { status: paymentIntent.status });
-      throw new Error(`Payment not completed. Status: ${paymentIntent.status}`);
+    logStep("Payment intent retrieved", { 
+      status: paymentIntent.status, 
+      amount: paymentIntent.amount,
+      capture_method: paymentIntent.capture_method 
+    });
+
+    // Map Stripe status to internal status
+    const statusMapping = mapStripeStatus(paymentIntent.status);
+
+    // Check if payment is in a successful state
+    if (!['requires_capture', 'succeeded'].includes(paymentIntent.status)) {
+      logStep("Payment intent not in successful state", { status: paymentIntent.status });
+      throw new Error(`Payment not completed. Status: ${paymentIntent.status} - ${statusMapping.user_message}`);
     }
 
-    logStep("Payment intent verified as succeeded", { amount: paymentIntent.amount });
+    logStep("Payment intent verified as successful", { 
+      amount: paymentIntent.amount,
+      status: paymentIntent.status,
+      mapped_status: statusMapping.internal_status
+    });
 
-    // Update booking status to confirmed
-    logStep("Updating booking status to confirmed", { booking_id });
+    // Update booking status based on payment status
+    logStep("Updating booking status", { booking_id, mapped_status: statusMapping.booking_status });
     const { error: bookingError } = await supabaseServiceRole
       .from('bookings')
       .update({ 
-        status: 'confirmed',
-        payment_status: 'authorized',
+        status: statusMapping.booking_status,
+        payment_status: statusMapping.payment_status,
         payment_intent_id: payment_intent_id
       })
       .eq('id', booking_id);
@@ -71,12 +86,12 @@ serve(async (req) => {
       throw new Error(`Failed to update booking: ${bookingError.message}`);
     }
 
-    // Update transaction status to authorized
-    logStep("Updating transaction status to authorized", { payment_intent_id });
+    // Update transaction status
+    logStep("Updating transaction status", { payment_intent_id, mapped_status: statusMapping.internal_status });
     const { error: transactionError } = await supabaseServiceRole
       .from('transactions')
       .update({ 
-        status: 'authorized',
+        status: statusMapping.internal_status,
         booking_id: booking_id
       })
       .eq('payment_intent_id', payment_intent_id);
@@ -87,11 +102,21 @@ serve(async (req) => {
       // Just log the error for manual review
     }
 
+    // Get frontend-friendly status
+    const frontendStatus = getStatusForFrontend(
+      statusMapping.booking_status,
+      statusMapping.payment_status,
+      statusMapping.internal_status
+    );
+
     const response = {
       success: true,
       booking_id: booking_id,
       payment_intent_id: payment_intent_id,
-      status: 'confirmed'
+      status: statusMapping.booking_status,
+      payment_status: statusMapping.payment_status,
+      frontend_status: frontendStatus,
+      user_message: statusMapping.user_message
     };
 
     logStep("Payment confirmation completed successfully", response);

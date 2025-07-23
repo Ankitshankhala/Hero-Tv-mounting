@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { IdempotencyManager } from "../shared/idempotency.ts";
+import { mapStripeStatus } from "../shared/status-mapping.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,6 +15,14 @@ const logStep = (step: string, details?: any) => {
   console.log(`[CLEANUP-UNPAID-BOOKINGS] ${step}${detailsStr}`);
 };
 
+// Configuration for cleanup timeouts
+const CLEANUP_CONFIG = {
+  BOOKING_TIMEOUT_MINUTES: 30,
+  IDEMPOTENCY_TIMEOUT_MINUTES: 60,
+  BATCH_SIZE: 50,
+  MAX_CONCURRENT_STRIPE_CALLS: 5
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -21,30 +31,37 @@ serve(async (req) => {
   try {
     logStep("Starting cleanup of unpaid bookings");
 
-    // Initialize Supabase client with service role for database operations
+    // Initialize services
     const supabaseServiceRole = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       { auth: { persistSession: false } }
     );
 
-    // Initialize Stripe
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
       apiVersion: '2023-10-16',
     });
 
-    // Find bookings older than 30 minutes that are still pending payment
-    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const idempotencyManager = new IdempotencyManager(Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
+
+    // Step 1: Cleanup expired idempotency records
+    logStep("Starting idempotency records cleanup");
+    const idempotencyCleanupCount = await idempotencyManager.cleanupExpiredRecords();
+    logStep(`Cleaned up ${idempotencyCleanupCount} expired idempotency records`);
+
+    // Step 2: Find and cleanup abandoned bookings
+    const timeoutCutoff = new Date(Date.now() - CLEANUP_CONFIG.BOOKING_TIMEOUT_MINUTES * 60 * 1000).toISOString();
     
-    logStep("Finding abandoned bookings", { olderThan: thirtyMinutesAgo });
+    
+    logStep("Finding abandoned bookings", { olderThan: timeoutCutoff });
     
     const { data: abandonedBookings, error: bookingError } = await supabaseServiceRole
       .from('bookings')
-      .select('id, payment_intent_id, created_at')
+      .select('id, payment_intent_id, created_at, customer_id')
       .eq('status', 'pending')
       .eq('payment_status', 'pending')
-      .lt('created_at', thirtyMinutesAgo)
-      .limit(50); // Process in batches
+      .lt('created_at', timeoutCutoff)
+      .limit(CLEANUP_CONFIG.BATCH_SIZE);
 
     if (bookingError) {
       throw new Error(`Failed to fetch abandoned bookings: ${bookingError.message}`);
@@ -54,8 +71,10 @@ serve(async (req) => {
       logStep("No abandoned bookings found");
       return new Response(JSON.stringify({
         success: true,
-        cleaned_count: 0,
-        message: 'No abandoned bookings found'
+        cleaned_bookings: 0,
+        cleaned_idempotency: idempotencyCleanupCount,
+        stripe_cancelled: 0,
+        message: 'No abandoned bookings found, but cleaned idempotency records'
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
@@ -66,70 +85,124 @@ serve(async (req) => {
 
     let cleanupCount = 0;
     let stripeCleanupCount = 0;
+    let stripeErrors = 0;
 
+    // Process bookings in batches to avoid overwhelming Stripe API
+    const processStripePromises = [];
+    
     for (const booking of abandonedBookings) {
-      try {
-        logStep(`Cleaning up booking`, { booking_id: booking.id, created_at: booking.created_at });
+      const processBooking = async () => {
+        try {
+          logStep(`Processing abandoned booking`, { 
+            booking_id: booking.id, 
+            created_at: booking.created_at,
+            customer_id: booking.customer_id
+          });
 
-        // Cancel Stripe payment intent if it exists
-        if (booking.payment_intent_id) {
-          try {
-            await stripe.paymentIntents.cancel(booking.payment_intent_id);
-            stripeCleanupCount++;
-            logStep("Cancelled Stripe payment intent", { payment_intent_id: booking.payment_intent_id });
-          } catch (stripeError) {
-            logStep("Failed to cancel Stripe payment intent", { 
-              payment_intent_id: booking.payment_intent_id, 
-              error: stripeError.message 
-            });
-            // Continue with booking cleanup even if Stripe fails
+          let stripeStatus = null;
+          
+          // Check and cancel Stripe payment intent if it exists
+          if (booking.payment_intent_id) {
+            try {
+              // First, check the current status of the payment intent
+              const paymentIntent = await stripe.paymentIntents.retrieve(booking.payment_intent_id);
+              stripeStatus = paymentIntent.status;
+              
+              logStep("Retrieved payment intent status", { 
+                payment_intent_id: booking.payment_intent_id,
+                status: stripeStatus 
+              });
+
+              // Only cancel if it's still cancelable
+              if (['requires_payment_method', 'requires_confirmation', 'requires_action', 'processing'].includes(stripeStatus)) {
+                await stripe.paymentIntents.cancel(booking.payment_intent_id);
+                stripeCleanupCount++;
+                logStep("Cancelled Stripe payment intent", { payment_intent_id: booking.payment_intent_id });
+              } else {
+                logStep("Payment intent not cancelable", { 
+                  payment_intent_id: booking.payment_intent_id,
+                  status: stripeStatus 
+                });
+              }
+            } catch (stripeError) {
+              stripeErrors++;
+              logStep("Failed to process Stripe payment intent", { 
+                payment_intent_id: booking.payment_intent_id, 
+                error: stripeError.message 
+              });
+              // Continue with booking cleanup even if Stripe fails
+            }
           }
-        }
 
-        // Update booking status to cancelled
-        const { error: updateError } = await supabaseServiceRole
-          .from('bookings')
-          .update({ 
-            status: 'cancelled',
-            payment_status: 'expired'
-          })
-          .eq('id', booking.id);
+          // Determine appropriate status based on Stripe status
+          const finalStatus = stripeStatus === 'succeeded' ? 'completed' : 'cancelled';
+          const finalPaymentStatus = stripeStatus === 'succeeded' ? 'paid' : 'expired';
 
-        if (updateError) {
-          logStep("Failed to update booking status", { booking_id: booking.id, error: updateError });
-          continue;
-        }
-
-        // Update transaction status if it exists
-        if (booking.payment_intent_id) {
-          await supabaseServiceRole
-            .from('transactions')
+          // Update booking status
+          const { error: updateError } = await supabaseServiceRole
+            .from('bookings')
             .update({ 
-              status: 'expired',
-              cancellation_reason: 'payment_timeout',
-              cancelled_at: new Date().toISOString()
+              status: finalStatus,
+              payment_status: finalPaymentStatus
             })
-            .eq('payment_intent_id', booking.payment_intent_id);
+            .eq('id', booking.id);
+
+          if (updateError) {
+            logStep("Failed to update booking status", { booking_id: booking.id, error: updateError });
+            return;
+          }
+
+          // Update transaction status if it exists
+          if (booking.payment_intent_id) {
+            const transactionStatus = stripeStatus === 'succeeded' ? 'paid' : 'expired';
+            await supabaseServiceRole
+              .from('transactions')
+              .update({ 
+                status: transactionStatus,
+                cancellation_reason: stripeStatus === 'succeeded' ? null : 'payment_timeout',
+                cancelled_at: stripeStatus === 'succeeded' ? null : new Date().toISOString()
+              })
+              .eq('payment_intent_id', booking.payment_intent_id);
+          }
+
+          cleanupCount++;
+          logStep("Successfully processed booking", { 
+            booking_id: booking.id,
+            final_status: finalStatus,
+            stripe_status: stripeStatus
+          });
+
+        } catch (error) {
+          logStep("Error processing individual booking", { 
+            booking_id: booking.id, 
+            error: error.message 
+          });
+          // Continue with other bookings
         }
+      };
 
-        cleanupCount++;
-        logStep("Successfully cleaned up booking", { booking_id: booking.id });
-
-      } catch (error) {
-        logStep("Error cleaning up individual booking", { 
-          booking_id: booking.id, 
-          error: error.message 
-        });
-        // Continue with other bookings
+      processStripePromises.push(processBooking());
+      
+      // Process in batches to avoid rate limiting
+      if (processStripePromises.length >= CLEANUP_CONFIG.MAX_CONCURRENT_STRIPE_CALLS) {
+        await Promise.allSettled(processStripePromises);
+        processStripePromises.length = 0; // Clear array
       }
+    }
+
+    // Process remaining promises
+    if (processStripePromises.length > 0) {
+      await Promise.allSettled(processStripePromises);
     }
 
     const response = {
       success: true,
-      cleaned_count: cleanupCount,
-      stripe_cancelled_count: stripeCleanupCount,
+      cleaned_bookings: cleanupCount,
+      cleaned_idempotency: idempotencyCleanupCount,
+      stripe_cancelled: stripeCleanupCount,
+      stripe_errors: stripeErrors,
       total_found: abandonedBookings.length,
-      message: `Cleaned up ${cleanupCount} abandoned bookings`
+      message: `Cleaned up ${cleanupCount} abandoned bookings and ${idempotencyCleanupCount} idempotency records`
     };
 
     logStep("Cleanup completed", response);

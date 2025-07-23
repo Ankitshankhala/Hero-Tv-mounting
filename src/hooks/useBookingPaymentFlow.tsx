@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { generateBookingIdempotencyKey } from '@/utils/statusUtils';
 
 interface BookingData {
   customer_id: string;
@@ -19,6 +20,19 @@ interface PaymentFlowResult {
   payment_intent_id?: string;
   transaction_id?: string;
   error?: string;
+  status_mapping?: {
+    internal_status: string;
+    payment_status: string;
+    booking_status: string;
+    user_message: string;
+    action_required: boolean;
+  };
+  frontend_status?: {
+    display_status: string;
+    status_color: 'green' | 'yellow' | 'red' | 'blue' | 'gray';
+    user_message: string;
+    action_required: boolean;
+  };
 }
 
 export const useBookingPaymentFlow = () => {
@@ -37,7 +51,7 @@ export const useBookingPaymentFlow = () => {
 
       // Generate idempotency key if not provided
       const idempotencyKey = bookingData.idempotency_key || 
-        `booking_${bookingData.customer_id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        generateBookingIdempotencyKey(bookingData.customer_id);
 
       // Validate required fields before starting
       if (!bookingData.customer_id || !bookingData.service_id || 

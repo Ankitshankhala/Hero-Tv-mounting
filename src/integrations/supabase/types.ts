@@ -179,6 +179,45 @@ export type Database = {
           },
         ]
       }
+      idempotency_records: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          idempotency_key: string
+          operation_type: string
+          request_hash: string
+          response_data: Json | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          idempotency_key: string
+          operation_type: string
+          request_hash: string
+          response_data?: Json | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          idempotency_key?: string
+          operation_type?: string
+          request_hash?: string
+          response_data?: Json | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       invoice_items: {
         Row: {
           created_at: string | null
@@ -986,6 +1025,10 @@ export type Database = {
       calculate_cancellation_deadline: {
         Args: { scheduled_date: string; scheduled_start: string }
         Returns: string
+      }
+      cleanup_expired_idempotency_records: {
+        Args: Record<PropertyKey, never>
+        Returns: number
       }
       cleanup_orphaned_payment_records: {
         Args: Record<PropertyKey, never>
