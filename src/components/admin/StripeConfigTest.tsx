@@ -37,10 +37,10 @@ export const StripeConfigTest = () => {
       try {
         const { data, error } = await supabase.functions.invoke('create-payment-intent', {
           body: {
-            bookingId: 'test-booking-id',
             amount: 10.00,
-            customerEmail: 'test@example.com',
-            customerName: 'Test User'
+            currency: 'usd',
+            booking_id: 'test-booking-id',
+            user_id: 'test-user-id'
           }
         });
         

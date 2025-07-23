@@ -4,8 +4,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 interface PaymentAuthorizationData {
-  bookingId: string;
+  booking_id?: string | null;
   amount: number;
+  currency?: string;
+  // Legacy fields for backwards compatibility
+  bookingId?: string;
   customerEmail?: string;
   customerName?: string;
   requireAuth?: boolean;
@@ -15,6 +18,7 @@ interface PaymentAuthorizationResult {
   success: boolean;
   client_secret?: string;
   payment_intent_id?: string;
+  transaction_id?: string;
   error?: string;
 }
 
@@ -29,23 +33,32 @@ export const usePaymentAuthorization = () => {
     
     try {
       console.log('🔄 Starting payment authorization with data:', {
-        bookingId: data.bookingId,
+        booking_id: data.booking_id || data.bookingId,
         amount: data.amount,
-        customerEmail: data.customerEmail,
-        requireAuth: data.requireAuth
+        currency: data.currency
       });
 
       // Validate required fields
-      if (!data.bookingId) {
-        throw new Error('Booking ID is required for payment authorization');
-      }
-      
       if (!data.amount || data.amount <= 0) {
         throw new Error('Valid payment amount is required');
       }
 
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        throw new Error('Authentication required for payment authorization');
+      }
+
+      // Handle booking_id - can be null, a valid UUID, or legacy bookingId
+      let booking_id: string | null = null;
+      if (data.booking_id) {
+        booking_id = data.booking_id;
+      } else if (data.bookingId && data.bookingId !== 'test-booking-id' && !data.bookingId.startsWith('temp-')) {
+        booking_id = data.bookingId;
+      }
+
       // Additional validation for booking ID format
-      if (data.bookingId === 'test-booking-id') {
+      if (data.bookingId === 'test-booking-id' || data.booking_id === 'test-booking-id') {
         throw new Error('Test booking ID cannot be used for real payments');
       }
 
@@ -53,11 +66,10 @@ export const usePaymentAuthorization = () => {
       
       const { data: result, error } = await supabase.functions.invoke('create-payment-intent', {
         body: {
-          bookingId: data.bookingId || `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           amount: data.amount,
-          customerEmail: data.customerEmail,
-          customerName: data.customerName,
-          requireAuth: data.requireAuth || false,
+          currency: data.currency || 'usd',
+          booking_id: booking_id,
+          user_id: user.id,
         }
       });
       
@@ -84,18 +96,7 @@ export const usePaymentAuthorization = () => {
         }
       }
 
-      if (!result?.success) {
-        console.error('❌ Payment authorization failed:', result);
-        const errorMsg = result?.error || 'Payment authorization failed';
-        
-        if (errorMsg.includes('booking')) {
-          throw new Error('Booking validation failed. Please try creating a new booking.');
-        } else {
-          throw new Error(errorMsg);
-        }
-      }
-
-      if (!result.client_secret) {
+      if (!result?.client_secret) {
         console.error('❌ No client secret received:', result);
         throw new Error('Invalid payment authorization response - missing client secret');
       }
@@ -110,7 +111,8 @@ export const usePaymentAuthorization = () => {
       return {
         success: true,
         client_secret: result.client_secret,
-        payment_intent_id: result.payment_intent_id
+        payment_intent_id: result.payment_intent_id,
+        transaction_id: result.transaction_id
       };
 
     } catch (error) {
