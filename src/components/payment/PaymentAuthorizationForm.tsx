@@ -1,14 +1,11 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Shield, Lock, CreditCard, Info } from 'lucide-react';
-import { usePaymentAuthorization } from '@/hooks/usePaymentAuthorization';
+import { useBookingPaymentFlow } from '@/hooks/useBookingPaymentFlow';
 import { StripeCardElement } from '@/components/StripeCardElement';
-import { useBookingOperations } from '@/hooks/booking/useBookingOperations';
 import { PaymentRecoveryAlert } from './PaymentRecoveryAlert';
-import BookingCreationDebugger from '@/components/debug/BookingCreationDebugger';
 
 interface PaymentAuthorizationFormProps {
   amount: number;
@@ -19,7 +16,7 @@ interface PaymentAuthorizationFormProps {
   formData?: any;
   onAuthorizationSuccess: (createdBookingId?: string) => void;
   onAuthorizationFailure: (error: string) => void;
-  requireAuth?: boolean; // New prop to control authentication requirement
+  requireAuth?: boolean;
 }
 
 export const PaymentAuthorizationForm = ({
@@ -31,7 +28,7 @@ export const PaymentAuthorizationForm = ({
   formData,
   onAuthorizationSuccess,
   onAuthorizationFailure,
-  requireAuth = false, // Default to false for guest checkout
+  requireAuth = false,
 }: PaymentAuthorizationFormProps) => {
   const [cardError, setCardError] = useState('');
   const [stripeReady, setStripeReady] = useState(false);
@@ -45,10 +42,8 @@ export const PaymentAuthorizationForm = ({
     amount: number;
     customerEmail?: string;
   } | null>(null);
-  const [showDebugger, setShowDebugger] = useState(false);
-  const [currentOperationId, setCurrentOperationId] = useState<string>('');
-  const { createPaymentAuthorization, processing } = usePaymentAuthorization();
-  const { handleBookingSubmit } = useBookingOperations();
+  
+  const { createBookingWithPayment, loading } = useBookingPaymentFlow();
 
   const handleStripeReady = (stripeInstance: any, elementsInstance: any, cardElementInstance: any) => {
     console.log('Stripe ready for payment authorization');
@@ -62,17 +57,13 @@ export const PaymentAuthorizationForm = ({
 
   const handleStripeError = (error: string) => {
     if (error && error.trim()) {
-      // Only treat non-empty errors as actual errors
       console.error('Stripe error:', error);
       setCardError(error);
       setFormError(error);
       setStripeReady(false);
     } else {
-      // Empty error means clearing previous errors - this is normal
       console.log('✅ Stripe error cleared, card validation successful');
       setCardError('');
-      // Don't reset stripeReady here - keep it true if Stripe was already initialized
-      // Only clear form error if it was a card validation error
       if (formError && !formError.includes('Payment form not ready') && !formError.includes('Payment system')) {
         setFormError('');
       }
@@ -109,7 +100,6 @@ export const PaymentAuthorizationForm = ({
       return;
     }
 
-    // For guest checkout, ensure we have customer details
     if (!requireAuth && (!customerEmail || !customerName)) {
       const error = 'Customer information is required for payment.';
       setFormError(error);
@@ -120,224 +110,112 @@ export const PaymentAuthorizationForm = ({
     try {
       console.log('Starting payment authorization process...');
 
-      // Create payment authorization (works for both authenticated and guest users)
-      console.log('🔄 Creating payment authorization...');
-      const result = await createPaymentAuthorization({
-        bookingId: bookingId || 'temp-booking-ref',
-        amount,
-        customerEmail,
-        customerName,
-        requireAuth,
-      });
-      
-      console.log('📡 Payment authorization result:', result);
-
-      if (!result.success || !result.client_secret) {
-        const error = result.error || 'Failed to create payment authorization';
-        setFormError(error);
-        onAuthorizationFailure(error);
-        return;
-      }
-
-      console.log('Payment intent created, confirming with card...');
-
-      // Confirm payment intent to authorize the card
-      const confirmResult = await stripe.confirmCardPayment(result.client_secret, {
-        payment_method: {
-          card: cardElement,
-          billing_details: {
-            name: customerName,
-            email: customerEmail,
-          },
-        },
-      });
-
-      if (confirmResult.error) {
-        console.error('Payment confirmation error:', confirmResult.error);
-        
-        // Improved Stripe error handling
-        let errorMessage = 'Payment authorization failed';
-        const stripeError = confirmResult.error;
-        
-        switch (stripeError.type) {
-          case 'card_error':
-            if (stripeError.code === 'card_declined') {
-              errorMessage = 'Your card was declined. Please try a different payment method.';
-            } else if (stripeError.code === 'insufficient_funds') {
-              errorMessage = 'Insufficient funds. Please try a different card.';
-            } else if (stripeError.code === 'expired_card') {
-              errorMessage = 'Your card has expired. Please use a different card.';
-            } else if (stripeError.code === 'incorrect_cvc') {
-              errorMessage = 'The security code is incorrect. Please check your card details.';
-            } else {
-              errorMessage = stripeError.message || 'There was an issue with your card. Please try again.';
-            }
-            break;
-          case 'validation_error':
-            errorMessage = 'Please check your card details and try again.';
-            break;
-          case 'api_error':
-            errorMessage = 'Payment service temporarily unavailable. Please try again.';
-            break;
-          default:
-            errorMessage = stripeError.message || 'Payment authorization failed. Please try again.';
-        }
-        
-        setFormError(errorMessage);
-        onAuthorizationFailure(errorMessage);
-        return;
-      }
-
-      if (confirmResult.paymentIntent?.status === 'requires_capture') {
-        console.log('Payment authorized successfully, now creating booking...');
-        
-        // If we have booking data, create the booking now
-        if (services && formData && !bookingId) {
-          setCreatingBooking(true);
-          try {
-            console.log('🎯 Starting booking creation after payment authorization:', {
-              paymentIntentId: confirmResult.paymentIntent?.id,
-              amount,
-              customerEmail,
-              customerName,
-              servicesCount: services?.length,
-              hasFormData: !!formData,
-              formDataKeys: formData ? Object.keys(formData) : []
-            });
-
-            // Validate required booking data before proceeding
-            if (!formData.customerEmail || !formData.customerName) {
-              throw new Error('Customer information is missing');
-            }
-            if (!formData.zipcode) {
-              throw new Error('Zipcode is required for booking creation');
-            }
-            if (!formData.selectedDate || !formData.selectedTime) {
-              throw new Error('Date and time selection is required');
-            }
-            if (!services || services.length === 0) {
-              throw new Error('At least one service must be selected');
-            }
-
-            console.log('💰 Payment data being passed to booking:', {
-              payment_intent_id: confirmResult.paymentIntent?.id,
-              payment_status: 'authorized',
-              amount: amount,
-              amountInCents: Math.round(amount * 100),
-              customerEmail,
-              customerName
-            });
-
-            console.log('🎯 Calling handleBookingSubmit with enhanced logging...');
-            const bookingOperationId = `payment-booking-${Date.now()}`;
-            console.log(`📋 [${bookingOperationId}] Starting booking creation after payment authorization`);
-            
-            setCurrentOperationId(bookingOperationId);
-            if (process.env.NODE_ENV === 'development') {
-              setShowDebugger(true);
-            }
-
-            const createdBookingId = await handleBookingSubmit(services, formData, {
-              payment_intent_id: confirmResult.paymentIntent?.id,
-              payment_status: 'authorized',
-              amount: amount // Amount in dollars
-            });
-
-            if (!createdBookingId) {
-              throw new Error('Booking creation returned no booking ID - this indicates a serious system error');
-            }
-
-            console.log(`✅ [${bookingOperationId}] Booking created successfully:`, {
-              bookingId: createdBookingId,
-              paymentIntentId: confirmResult.paymentIntent?.id,
-              timestamp: new Date().toISOString()
-            });
-
-            onAuthorizationSuccess(createdBookingId);
-          } catch (bookingError) {
-            const errorTimestamp = new Date().toISOString();
-            const errorId = `error-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
-            
-            console.error(`❌ [${errorId}] CRITICAL: Booking creation failed after payment authorization`, {
-              errorId,
-              timestamp: errorTimestamp,
-              error: bookingError,
-              errorMessage: bookingError instanceof Error ? bookingError.message : 'Unknown error',
-              errorStack: bookingError instanceof Error ? bookingError.stack : undefined,
-              errorName: bookingError instanceof Error ? bookingError.name : 'UnknownError',
-              paymentIntentId: confirmResult.paymentIntent?.id,
-              paymentAmount: amount,
-              customerEmail,
-              customerName,
-              formDataKeys: formData ? Object.keys(formData) : [],
-              servicesCount: services?.length,
-              formDataSnapshot: formData ? {
-                hasCustomerEmail: !!formData.customerEmail,
-                hasCustomerName: !!formData.customerName,
-                hasZipcode: !!formData.zipcode,
-                hasSelectedDate: !!formData.selectedDate,
-                hasSelectedTime: !!formData.selectedTime,
-                hasAddress: !!formData.address,
-                hasCity: !!formData.city
-              } : null,
-              servicesSnapshot: services ? services.map(s => ({ id: s.id, name: s.name, price: s.price, quantity: s.quantity })) : null
-            });
-
-            // Enhanced error categorization with more specific messages
-            let errorMessage = 'Payment authorized but booking creation failed. Please contact support.';
-            let errorCategory = 'unknown';
-            
-            if (bookingError instanceof Error) {
-              const errorMsg = bookingError.message.toLowerCase();
-              
-              if (errorMsg.includes('customer information') || errorMsg.includes('customer email') || errorMsg.includes('customer name')) {
-                errorMessage = 'Payment authorized but customer information is incomplete. Please contact support to complete your booking.';
-                errorCategory = 'customer_validation';
-              } else if (errorMsg.includes('zipcode') || errorMsg.includes('zip code') || errorMsg.includes('postal')) {
-                errorMessage = 'Payment authorized but location validation failed. Please contact support to complete your booking.';
-                errorCategory = 'location_validation';
-              } else if (errorMsg.includes('date') || errorMsg.includes('time') || errorMsg.includes('schedule')) {
-                errorMessage = 'Payment authorized but booking schedule is invalid. Please contact support to complete your booking.';
-                errorCategory = 'schedule_validation';
-              } else if (errorMsg.includes('service') || errorMsg.includes('minimum') || errorMsg.includes('cart')) {
-                errorMessage = 'Payment authorized but service selection is invalid. Please contact support to complete your booking.';
-                errorCategory = 'service_validation';
-              } else if (errorMsg.includes('worker') || errorMsg.includes('assignment') || errorMsg.includes('coverage')) {
-                errorMessage = 'Payment authorized and booking created! We are finding available workers and will contact you soon.';
-                errorCategory = 'worker_assignment';
-              } else if (errorMsg.includes('database') || errorMsg.includes('constraint') || errorMsg.includes('foreign key')) {
-                errorMessage = 'Payment authorized but there was a database error. Please contact support with your payment confirmation.';
-                errorCategory = 'database_error';
-              } else if (errorMsg.includes('network') || errorMsg.includes('connection') || errorMsg.includes('timeout')) {
-                errorMessage = 'Payment authorized but network error occurred. Please contact support to verify your booking status.';
-                errorCategory = 'network_error';
-              } else if (errorMsg.includes('authorization') || errorMsg.includes('permission') || errorMsg.includes('rls')) {
-                errorMessage = 'Payment authorized but authorization error occurred. Please refresh and try again or contact support.';
-                errorCategory = 'authorization_error';
-              }
-            }
-
-            console.log(`🏷️ [${errorId}] Error categorized as: ${errorCategory}`);
-
-            // Set payment recovery information for display
-            setPaymentRecoveryInfo({
-              paymentIntentId: confirmResult.paymentIntent?.id || 'unknown',
-              amount,
-              customerEmail
-            });
-
-            const finalErrorMessage = `${errorMessage} [Error ID: ${errorId}]`;
-            setFormError(finalErrorMessage);
-            onAuthorizationFailure(`${errorMessage} Payment ID: ${confirmResult.paymentIntent?.id || 'N/A'} | Error ID: ${errorId}`);
-          } finally {
-            setCreatingBooking(false);
+      // Create the booking first if we have all the required data
+      if (services && formData && !bookingId) {
+        setCreatingBooking(true);
+        try {
+          console.log('🎯 Creating booking with payment using new flow');
+          
+          // Validate required booking data before proceeding
+          if (!formData.customerEmail || !formData.customerName) {
+            throw new Error('Customer information is missing');
           }
-        } else {
-          // If we already have a booking or no booking data, just proceed
-          onAuthorizationSuccess(bookingId);
+          if (!formData.zipcode) {
+            throw new Error('Zipcode is required for booking creation');
+          }
+          if (!formData.selectedDate || !formData.selectedTime) {
+            throw new Error('Date and time selection is required');
+          }
+          if (!services || services.length === 0) {
+            throw new Error('At least one service must be selected');
+          }
+
+          // Create booking data from form
+          const bookingData = {
+            customer_id: formData.customerId || '', // This should be set from auth or guest
+            service_id: services[0].id, // Primary service
+            scheduled_date: formData.selectedDate,
+            scheduled_start: formData.selectedTime,
+            location_notes: formData.locationNotes || formData.address,
+          };
+
+          const result = await createBookingWithPayment(bookingData, amount);
+          
+          if (!result.success || !result.client_secret) {
+            const error = result.error || 'Failed to create booking and payment';
+            setFormError(error);
+            onAuthorizationFailure(error);
+            return;
+          }
+
+          console.log('Payment intent created, confirming with card...');
+
+          // Confirm payment intent to authorize the card
+          const confirmResult = await stripe.confirmCardPayment(result.client_secret, {
+            payment_method: {
+              card: cardElement,
+              billing_details: {
+                name: customerName,
+                email: customerEmail,
+              },
+            },
+          });
+
+          if (confirmResult.error) {
+            console.error('Payment confirmation error:', confirmResult.error);
+            
+            // Improved Stripe error handling
+            let errorMessage = 'Payment authorization failed';
+            const stripeError = confirmResult.error;
+            
+            switch (stripeError.type) {
+              case 'card_error':
+                if (stripeError.code === 'card_declined') {
+                  errorMessage = 'Your card was declined. Please try a different payment method.';
+                } else if (stripeError.code === 'insufficient_funds') {
+                  errorMessage = 'Insufficient funds. Please try a different card.';
+                } else if (stripeError.code === 'expired_card') {
+                  errorMessage = 'Your card has expired. Please use a different card.';
+                } else if (stripeError.code === 'incorrect_cvc') {
+                  errorMessage = 'The security code is incorrect. Please check your card details.';
+                } else {
+                  errorMessage = stripeError.message || 'There was an issue with your card. Please try again.';
+                }
+                break;
+              case 'validation_error':
+                errorMessage = 'Please check your card details and try again.';
+                break;
+              case 'api_error':
+                errorMessage = 'Payment service temporarily unavailable. Please try again.';
+                break;
+              default:
+                errorMessage = stripeError.message || 'Payment authorization failed. Please try again.';
+            }
+            
+            setFormError(errorMessage);
+            onAuthorizationFailure(errorMessage);
+            return;
+          }
+
+          if (confirmResult.paymentIntent?.status === 'requires_capture') {
+            console.log('Payment authorized successfully!');
+            onAuthorizationSuccess(result.booking_id);
+          } else {
+            const error = 'Payment authorization was not successful';
+            setFormError(error);
+            onAuthorizationFailure(error);
+          }
+        } catch (bookingError) {
+          const errorMessage = bookingError instanceof Error ? bookingError.message : 'Booking creation failed';
+          console.error('Booking creation error:', bookingError);
+          setFormError(errorMessage);
+          onAuthorizationFailure(errorMessage);
+        } finally {
+          setCreatingBooking(false);
         }
       } else {
-        const error = 'Payment authorization was not successful';
+        // Old flow - this shouldn't happen with the new implementation
+        const error = 'Invalid booking flow - please refresh and try again';
         setFormError(error);
         onAuthorizationFailure(error);
       }
@@ -361,7 +239,6 @@ export const PaymentAuthorizationForm = ({
         </AlertDescription>
       </Alert>
 
-      {/* Development Test Card Helper */}
       {process.env.NODE_ENV === 'development' && (
         <Alert className="bg-blue-50 border-blue-200">
           <Info className="h-4 w-4 text-blue-600" />
@@ -391,14 +268,6 @@ export const PaymentAuthorizationForm = ({
           paymentIntentId={paymentRecoveryInfo.paymentIntentId}
           customerEmail={paymentRecoveryInfo.customerEmail}
           amount={paymentRecoveryInfo.amount}
-        />
-      )}
-
-      {showDebugger && currentOperationId && process.env.NODE_ENV === 'development' && (
-        <BookingCreationDebugger
-          isVisible={true}
-          operationId={currentOperationId}
-          onClose={() => setShowDebugger(false)}
         />
       )}
 
@@ -436,11 +305,11 @@ export const PaymentAuthorizationForm = ({
 
             <Button 
               type="submit"
-              disabled={!stripeReady || processing || creatingBooking || !!formError}
+              disabled={!stripeReady || loading || creatingBooking || !!formError}
               className="w-full"
               size="lg"
             >
-              {processing 
+              {loading 
                 ? 'Authorizing...' 
                 : creatingBooking 
                   ? 'Creating Booking...' 
