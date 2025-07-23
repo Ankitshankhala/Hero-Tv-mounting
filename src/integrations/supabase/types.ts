@@ -597,7 +597,7 @@ export type Database = {
       transactions: {
         Row: {
           amount: number
-          booking_id: string
+          booking_id: string | null
           cancellation_reason: string | null
           cancelled_at: string | null
           cancelled_by: string | null
@@ -613,7 +613,7 @@ export type Database = {
         }
         Insert: {
           amount: number
-          booking_id: string
+          booking_id?: string | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
@@ -629,7 +629,7 @@ export type Database = {
         }
         Update: {
           amount?: number
-          booking_id?: string
+          booking_id?: string | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
@@ -1076,7 +1076,7 @@ export type Database = {
         | "Thursday"
         | "Friday"
         | "Saturday"
-      payment_status: "pending" | "completed" | "failed"
+      payment_status: "pending" | "completed" | "failed" | "authorized"
       session_status: "created" | "paid" | "expired" | "cancelled"
       sms_status: "sent" | "failed"
       user_role: "customer" | "worker" | "admin"
@@ -1226,7 +1226,7 @@ export const Constants = {
         "Friday",
         "Saturday",
       ],
-      payment_status: ["pending", "completed", "failed"],
+      payment_status: ["pending", "completed", "failed", "authorized"],
       session_status: ["created", "paid", "expired", "cancelled"],
       sms_status: ["sent", "failed"],
       user_role: ["customer", "worker", "admin"],
