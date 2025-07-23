@@ -222,16 +222,36 @@ export const useBookingOperations = () => {
         location_notes_length: enhancedBookingData.location_notes?.length
       });
 
-      console.log('🔄 Calling createEnhancedBooking...');
+      console.log('🔄 Calling createEnhancedBooking with comprehensive logging...');
+      const enhancedBookingOperationId = `enhanced-booking-${Date.now()}`;
+      console.log(`📋 [${enhancedBookingOperationId}] About to call createEnhancedBooking`, {
+        enhancedBookingData,
+        timestamp: new Date().toISOString()
+      });
+
       const result = await createEnhancedBooking(enhancedBookingData);
       
-      console.log('📊 Enhanced booking result:', {
+      console.log(`📊 [${enhancedBookingOperationId}] Enhanced booking result received:`, {
+        operationId: enhancedBookingOperationId,
         status: result.status,
         booking_id: result.booking_id,
         worker_assigned: result.worker_assigned,
         notifications_sent: result.notifications_sent,
-        message: result.message
+        message: result.message,
+        timestamp: new Date().toISOString(),
+        success: result.status !== 'error'
       });
+
+      // Additional validation of the result
+      if (result.status === 'error' && !result.message) {
+        console.error(`❌ [${enhancedBookingOperationId}] Error result missing message:`, result);
+        throw new Error('Enhanced booking returned error status but no error message');
+      }
+      
+      if (result.status !== 'error' && !result.booking_id) {
+        console.error(`❌ [${enhancedBookingOperationId}] Success result missing booking_id:`, result);
+        throw new Error('Enhanced booking succeeded but returned no booking ID');
+      }
       
       if (result.status === 'error') {
         console.error('❌ Enhanced booking returned error status:', result);

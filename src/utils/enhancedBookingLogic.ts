@@ -152,6 +152,49 @@ export const createEnhancedBooking = async (
 ): Promise<EnhancedBookingResult> => {
   let transactionId: string | null = null;
   let bookingId: string | null = null;
+  const operationId = `booking-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+  // Comprehensive input validation and logging
+  console.log(`🚀 [${operationId}] Enhanced booking creation started`, {
+    timestamp: new Date().toISOString(),
+    customer_id: bookingData.customer_id,
+    service_id: bookingData.service_id,
+    scheduled_date: bookingData.scheduled_date,
+    scheduled_start: bookingData.scheduled_start,
+    customer_zipcode: bookingData.customer_zipcode,
+    payment_intent_id: bookingData.payment_intent_id,
+    payment_status: bookingData.payment_status,
+    payment_amount: bookingData.payment_amount,
+    location_notes_length: bookingData.location_notes?.length || 0
+  });
+
+  // Input validation with detailed error messages
+  const validationErrors: string[] = [];
+
+  if (!bookingData.customer_id) {
+    validationErrors.push('customer_id is required');
+  }
+  if (!bookingData.service_id) {
+    validationErrors.push('service_id is required');
+  }
+  if (!bookingData.scheduled_date) {
+    validationErrors.push('scheduled_date is required');
+  }
+  if (!bookingData.scheduled_start) {
+    validationErrors.push('scheduled_start is required');
+  }
+
+  if (validationErrors.length > 0) {
+    const errorMessage = `Input validation failed: ${validationErrors.join(', ')}`;
+    console.error(`❌ [${operationId}] ${errorMessage}`, { bookingData, validationErrors });
+    await logAuditEvent(null, bookingData.payment_intent_id, 'validation_failed', 'error', { validationErrors }, errorMessage);
+    
+    return {
+      booking_id: '',
+      status: 'error',
+      message: errorMessage
+    };
+  }
 
   try {
     // Validate zipcode if provided
@@ -258,6 +301,17 @@ export const createEnhancedBooking = async (
         });
         transactionId = existingTransaction.id;
       } else {
+        // Enhanced transaction creation with detailed logging
+        console.log(`💳 [${operationId}] Creating transaction with data:`, {
+          booking_id: bookingId,
+          payment_intent_id: bookingData.payment_intent_id,
+          amount: paymentAmount,
+          status: 'pending',
+          transaction_type: 'authorization',
+          payment_method: 'card',
+          currency: 'USD'
+        });
+
         const { data: transactionData, error: transactionError } = await supabase
           .from('transactions')
           .insert({
@@ -273,19 +327,71 @@ export const createEnhancedBooking = async (
           .single();
 
         if (transactionError) {
-          console.error('❌ FATAL: Transaction creation failed - rolling back temporary booking:', {
+          console.error(`❌ [${operationId}] CRITICAL: Transaction creation failed`, {
             error: transactionError,
+            errorCode: transactionError.code,
+            errorDetails: transactionError.details,
+            errorHint: transactionError.hint,
+            errorMessage: transactionError.message,
             bookingId,
-            payment_intent_id: bookingData.payment_intent_id
+            payment_intent_id: bookingData.payment_intent_id,
+            attempted_transaction_data: {
+              booking_id: bookingId,
+              payment_intent_id: bookingData.payment_intent_id,
+              amount: paymentAmount,
+              status: 'pending',
+              transaction_type: 'authorization',
+              payment_method: 'card',
+              currency: 'USD'
+            }
           });
 
-          // Rollback: Delete temporary booking
-          await supabase.from('bookings').delete().eq('id', bookingId);
+          await logAuditEvent(bookingId, bookingData.payment_intent_id, 'transaction_creation_failed', 'error', {
+            transactionError: transactionError.message,
+            errorCode: transactionError.code,
+            paymentAmount
+          }, transactionError.message);
+
+          // Enhanced rollback: Delete temporary booking with detailed logging
+          console.log(`🔄 [${operationId}] Rolling back temporary booking due to transaction failure`);
+          try {
+            const { error: rollbackError } = await supabase.from('bookings').delete().eq('id', bookingId);
+            if (rollbackError) {
+              console.error(`❌ [${operationId}] Rollback failed:`, rollbackError);
+              await logAuditEvent(bookingId, bookingData.payment_intent_id, 'rollback_failed', 'error', { rollbackError }, rollbackError.message);
+            } else {
+              console.log(`✅ [${operationId}] Successfully rolled back temporary booking`);
+              await logAuditEvent(bookingId, bookingData.payment_intent_id, 'rollback_success', 'success', { reason: 'transaction_creation_failed' });
+            }
+          } catch (rollbackException) {
+            console.error(`❌ [${operationId}] Rollback exception:`, rollbackException);
+          }
+          
+          // Provide specific error message based on error type
+          let userMessage = 'Payment processing failed. Please try again or contact support.';
+          if (transactionError.code === '23503') {
+            userMessage = 'Booking reference error. Please try creating a new booking.';
+          } else if (transactionError.code === '23505') {
+            userMessage = 'Duplicate transaction detected. Please refresh and try again.';
+          } else if (transactionError.message?.includes('constraint')) {
+            userMessage = 'Database constraint error. Please contact support with booking details.';
+          }
+
+          return {
+            booking_id: '',
+            status: 'error',
+            message: `${userMessage} (Error: ${transactionError.code || 'UNKNOWN'})`
+          };
+        }
+
+        if (!transactionData) {
+          console.error(`❌ [${operationId}] Transaction created but no data returned`);
+          await logAuditEvent(bookingId, bookingData.payment_intent_id, 'transaction_no_data', 'error', {}, 'Transaction insert succeeded but no data returned');
           
           return {
             booking_id: '',
             status: 'error',
-            message: `Payment processing failed: ${transactionError.message}. Please try again or contact support.`
+            message: 'Transaction processing error. Please try again.'
           };
         }
 
@@ -478,11 +584,97 @@ export const createEnhancedBooking = async (
     };
 
   } catch (error) {
-    console.error('Error creating enhanced booking:', error);
+    // Comprehensive error logging for debugging
+    console.error(`❌ [${operationId}] FATAL: Unhandled error in createEnhancedBooking`, {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorStack: error instanceof Error ? error.stack : undefined,
+      bookingId,
+      transactionId,
+      payment_intent_id: bookingData.payment_intent_id,
+      customer_id: bookingData.customer_id,
+      service_id: bookingData.service_id,
+      scheduled_date: bookingData.scheduled_date,
+      scheduled_start: bookingData.scheduled_start,
+      timestamp: new Date().toISOString()
+    });
+
+    // Log audit event for unhandled errors
+    await logAuditEvent(bookingId, bookingData.payment_intent_id, 'unhandled_error', 'error', {
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorStack: error instanceof Error ? error.stack : undefined,
+      bookingId,
+      transactionId
+    }, error instanceof Error ? error.message : 'Unknown error occurred');
+
+    // Attempt rollback if we have a booking or transaction ID
+    if (bookingId || transactionId) {
+      console.log(`🔄 [${operationId}] Attempting emergency rollback due to unhandled error`);
+      try {
+        if (bookingData.payment_intent_id) {
+          // Cancel payment if payment was involved
+          const { error: cancelError } = await supabase.functions.invoke('cancel-payment-intent', {
+            body: {
+              paymentIntentId: bookingData.payment_intent_id,
+              reason: 'unhandled_error_rollback'
+            }
+          });
+          if (cancelError) {
+            console.error(`❌ [${operationId}] Payment cancellation failed during emergency rollback:`, cancelError);
+          } else {
+            console.log(`✅ [${operationId}] Payment cancelled during emergency rollback`);
+          }
+        }
+
+        if (transactionId) {
+          // Delete transaction
+          const { error: transactionDeleteError } = await supabase.from('transactions').delete().eq('id', transactionId);
+          if (transactionDeleteError) {
+            console.error(`❌ [${operationId}] Transaction deletion failed during emergency rollback:`, transactionDeleteError);
+          } else {
+            console.log(`✅ [${operationId}] Transaction deleted during emergency rollback`);
+          }
+        }
+
+        if (bookingId) {
+          // Delete booking
+          const { error: bookingDeleteError } = await supabase.from('bookings').delete().eq('id', bookingId);
+          if (bookingDeleteError) {
+            console.error(`❌ [${operationId}] Booking deletion failed during emergency rollback:`, bookingDeleteError);
+          } else {
+            console.log(`✅ [${operationId}] Booking deleted during emergency rollback`);
+          }
+        }
+
+        await logAuditEvent(bookingId, bookingData.payment_intent_id, 'emergency_rollback_success', 'success', { reason: 'unhandled_error' });
+      } catch (rollbackError) {
+        console.error(`❌ [${operationId}] Emergency rollback failed:`, rollbackError);
+        await logAuditEvent(bookingId, bookingData.payment_intent_id, 'emergency_rollback_failed', 'error', { rollbackError }, rollbackError.message);
+      }
+    }
+
+    // Provide user-friendly error message based on error type
+    let userMessage = 'Failed to create booking. Please try again.';
+    
+    if (error instanceof Error) {
+      const errorMessage = error.message.toLowerCase();
+      if (errorMessage.includes('network') || errorMessage.includes('connection')) {
+        userMessage = 'Network error occurred. Please check your connection and try again.';
+      } else if (errorMessage.includes('timeout')) {
+        userMessage = 'Request timed out. Please try again.';
+      } else if (errorMessage.includes('authorization') || errorMessage.includes('permission')) {
+        userMessage = 'Authorization error. Please refresh the page and try again.';
+      } else if (errorMessage.includes('payment')) {
+        userMessage = 'Payment processing error. If your card was charged, please contact support.';
+      } else if (errorMessage.includes('database') || errorMessage.includes('constraint')) {
+        userMessage = 'Database error occurred. Please contact support if the issue persists.';
+      }
+    }
+
     return {
       booking_id: '',
       status: 'error',
-      message: 'Failed to create booking. Please try again.'
+      message: `${userMessage} (Operation ID: ${operationId.split('-').pop()})`
     };
   }
 };

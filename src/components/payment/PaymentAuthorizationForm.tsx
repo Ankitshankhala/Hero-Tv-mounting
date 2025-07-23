@@ -8,6 +8,7 @@ import { usePaymentAuthorization } from '@/hooks/usePaymentAuthorization';
 import { StripeCardElement } from '@/components/StripeCardElement';
 import { useBookingOperations } from '@/hooks/booking/useBookingOperations';
 import { PaymentRecoveryAlert } from './PaymentRecoveryAlert';
+import BookingCreationDebugger from '@/components/debug/BookingCreationDebugger';
 
 interface PaymentAuthorizationFormProps {
   amount: number;
@@ -44,6 +45,8 @@ export const PaymentAuthorizationForm = ({
     amount: number;
     customerEmail?: string;
   } | null>(null);
+  const [showDebugger, setShowDebugger] = useState(false);
+  const [currentOperationId, setCurrentOperationId] = useState<string>('');
   const { createPaymentAuthorization, processing } = usePaymentAuthorization();
   const { handleBookingSubmit } = useBookingOperations();
 
@@ -225,46 +228,96 @@ export const PaymentAuthorizationForm = ({
               customerName
             });
 
+            console.log('🎯 Calling handleBookingSubmit with enhanced logging...');
+            const bookingOperationId = `payment-booking-${Date.now()}`;
+            console.log(`📋 [${bookingOperationId}] Starting booking creation after payment authorization`);
+            
+            setCurrentOperationId(bookingOperationId);
+            if (process.env.NODE_ENV === 'development') {
+              setShowDebugger(true);
+            }
+
             const createdBookingId = await handleBookingSubmit(services, formData, {
               payment_intent_id: confirmResult.paymentIntent?.id,
               payment_status: 'authorized',
               amount: amount // Amount in dollars
             });
-            console.log('✅ Booking created successfully after payment authorization:', {
+
+            if (!createdBookingId) {
+              throw new Error('Booking creation returned no booking ID - this indicates a serious system error');
+            }
+
+            console.log(`✅ [${bookingOperationId}] Booking created successfully:`, {
               bookingId: createdBookingId,
-              paymentIntentId: confirmResult.paymentIntent?.id
+              paymentIntentId: confirmResult.paymentIntent?.id,
+              timestamp: new Date().toISOString()
             });
+
             onAuthorizationSuccess(createdBookingId);
           } catch (bookingError) {
-            console.error('❌ Failed to create booking after payment authorization:', {
+            const errorTimestamp = new Date().toISOString();
+            const errorId = `error-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+            
+            console.error(`❌ [${errorId}] CRITICAL: Booking creation failed after payment authorization`, {
+              errorId,
+              timestamp: errorTimestamp,
               error: bookingError,
               errorMessage: bookingError instanceof Error ? bookingError.message : 'Unknown error',
               errorStack: bookingError instanceof Error ? bookingError.stack : undefined,
+              errorName: bookingError instanceof Error ? bookingError.name : 'UnknownError',
               paymentIntentId: confirmResult.paymentIntent?.id,
+              paymentAmount: amount,
               customerEmail,
+              customerName,
               formDataKeys: formData ? Object.keys(formData) : [],
-              servicesCount: services?.length
+              servicesCount: services?.length,
+              formDataSnapshot: formData ? {
+                hasCustomerEmail: !!formData.customerEmail,
+                hasCustomerName: !!formData.customerName,
+                hasZipcode: !!formData.zipcode,
+                hasSelectedDate: !!formData.selectedDate,
+                hasSelectedTime: !!formData.selectedTime,
+                hasAddress: !!formData.address,
+                hasCity: !!formData.city
+              } : null,
+              servicesSnapshot: services ? services.map(s => ({ id: s.id, name: s.name, price: s.price, quantity: s.quantity })) : null
             });
 
-            // Provide more specific error messages based on the error type
+            // Enhanced error categorization with more specific messages
             let errorMessage = 'Payment authorized but booking creation failed. Please contact support.';
+            let errorCategory = 'unknown';
             
             if (bookingError instanceof Error) {
               const errorMsg = bookingError.message.toLowerCase();
-              if (errorMsg.includes('customer information')) {
+              
+              if (errorMsg.includes('customer information') || errorMsg.includes('customer email') || errorMsg.includes('customer name')) {
                 errorMessage = 'Payment authorized but customer information is incomplete. Please contact support to complete your booking.';
-              } else if (errorMsg.includes('zipcode')) {
-                errorMessage = 'Payment authorized but zipcode validation failed. Please contact support to complete your booking.';
-              } else if (errorMsg.includes('date') || errorMsg.includes('time')) {
+                errorCategory = 'customer_validation';
+              } else if (errorMsg.includes('zipcode') || errorMsg.includes('zip code') || errorMsg.includes('postal')) {
+                errorMessage = 'Payment authorized but location validation failed. Please contact support to complete your booking.';
+                errorCategory = 'location_validation';
+              } else if (errorMsg.includes('date') || errorMsg.includes('time') || errorMsg.includes('schedule')) {
                 errorMessage = 'Payment authorized but booking schedule is invalid. Please contact support to complete your booking.';
-              } else if (errorMsg.includes('service')) {
+                errorCategory = 'schedule_validation';
+              } else if (errorMsg.includes('service') || errorMsg.includes('minimum') || errorMsg.includes('cart')) {
                 errorMessage = 'Payment authorized but service selection is invalid. Please contact support to complete your booking.';
-              } else if (errorMsg.includes('worker') || errorMsg.includes('assignment')) {
-                errorMessage = 'Payment authorized but worker assignment failed. We will manually assign a worker and contact you soon.';
-              } else if (errorMsg.includes('database') || errorMsg.includes('constraint')) {
+                errorCategory = 'service_validation';
+              } else if (errorMsg.includes('worker') || errorMsg.includes('assignment') || errorMsg.includes('coverage')) {
+                errorMessage = 'Payment authorized and booking created! We are finding available workers and will contact you soon.';
+                errorCategory = 'worker_assignment';
+              } else if (errorMsg.includes('database') || errorMsg.includes('constraint') || errorMsg.includes('foreign key')) {
                 errorMessage = 'Payment authorized but there was a database error. Please contact support with your payment confirmation.';
+                errorCategory = 'database_error';
+              } else if (errorMsg.includes('network') || errorMsg.includes('connection') || errorMsg.includes('timeout')) {
+                errorMessage = 'Payment authorized but network error occurred. Please contact support to verify your booking status.';
+                errorCategory = 'network_error';
+              } else if (errorMsg.includes('authorization') || errorMsg.includes('permission') || errorMsg.includes('rls')) {
+                errorMessage = 'Payment authorized but authorization error occurred. Please refresh and try again or contact support.';
+                errorCategory = 'authorization_error';
               }
             }
+
+            console.log(`🏷️ [${errorId}] Error categorized as: ${errorCategory}`);
 
             // Set payment recovery information for display
             setPaymentRecoveryInfo({
@@ -273,8 +326,9 @@ export const PaymentAuthorizationForm = ({
               customerEmail
             });
 
-            setFormError(errorMessage);
-            onAuthorizationFailure(errorMessage + ` Payment ID: ${confirmResult.paymentIntent?.id || 'N/A'}`);
+            const finalErrorMessage = `${errorMessage} [Error ID: ${errorId}]`;
+            setFormError(finalErrorMessage);
+            onAuthorizationFailure(`${errorMessage} Payment ID: ${confirmResult.paymentIntent?.id || 'N/A'} | Error ID: ${errorId}`);
           } finally {
             setCreatingBooking(false);
           }
@@ -337,6 +391,14 @@ export const PaymentAuthorizationForm = ({
           paymentIntentId={paymentRecoveryInfo.paymentIntentId}
           customerEmail={paymentRecoveryInfo.customerEmail}
           amount={paymentRecoveryInfo.amount}
+        />
+      )}
+
+      {showDebugger && currentOperationId && process.env.NODE_ENV === 'development' && (
+        <BookingCreationDebugger
+          isVisible={true}
+          operationId={currentOperationId}
+          onClose={() => setShowDebugger(false)}
         />
       )}
 
