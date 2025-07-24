@@ -1,7 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { withIdempotency, IdempotencyManager } from "../shared/idempotency.ts";
 import { mapStripeStatus } from "../shared/status-mapping.ts";
 
 const corsHeaders = {
@@ -9,16 +8,16 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Utility function to validate UUID
-const isValidUUID = (str: string): boolean => {
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(str);
-};
-
 // Enhanced logging function
 const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
   console.log(`[CREATE-PAYMENT-INTENT] ${step}${detailsStr}`);
+};
+
+// Utility function to validate UUID
+const isValidUUID = (str: string): boolean => {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
 };
 
 serve(async (req) => {
@@ -30,20 +29,29 @@ serve(async (req) => {
     const { 
       amount, 
       currency = 'usd', 
-      booking_id, 
-      user_id, 
       idempotency_key,
+      user_id, 
       guest_customer_info 
     } = await req.json();
     
-    logStep("Function started", { amount, currency, booking_id, user_id, guest_customer_info: !!guest_customer_info, idempotency_key });
+    logStep("Function started", { 
+      amount, 
+      currency, 
+      idempotency_key,
+      user_id, 
+      guest_customer_info: !!guest_customer_info 
+    });
 
     // Input validation
     if (!amount || typeof amount !== 'number' || amount <= 0) {
       throw new Error('Invalid amount: must be a positive number');
     }
 
-    // For guest bookings, user_id is optional but guest_customer_info is required
+    if (!idempotency_key || !isValidUUID(idempotency_key)) {
+      throw new Error('Invalid idempotency_key: must be a valid UUID');
+    }
+
+    // For guest checkout, user_id is optional but guest_customer_info is required
     if (!user_id && !guest_customer_info) {
       throw new Error('Either user_id or guest_customer_info is required');
     }
@@ -52,121 +60,58 @@ serve(async (req) => {
       throw new Error('user_id must be a string when provided');
     }
 
-    // booking_id is optional for new bookings created during payment flow
-    if (booking_id && typeof booking_id !== 'string') {
-      throw new Error('booking_id must be a string when provided');
+    if (guest_customer_info && (!guest_customer_info.name || !guest_customer_info.email)) {
+      throw new Error('guest_customer_info must include name and email');
     }
 
-    if (booking_id && !isValidUUID(booking_id)) {
-      logStep("Invalid booking ID format", { booking_id });
-      throw new Error('Invalid booking_id format: must be a valid UUID');
-    }
-
-    // Generate idempotency key if not provided
-    const manager = new IdempotencyManager(Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
-    const finalIdempotencyKey = idempotency_key || 
-      manager.generateIdempotencyKey('payment_intent', user_id || guest_customer_info?.email || 'guest');
-
-    // Wrap operation in idempotency handler
-    const result = await withIdempotency(
-      finalIdempotencyKey,
-      'payment_intent',
-      { amount, currency, booking_id, user_id, guest_customer_info },
-      user_id || guest_customer_info?.email || 'guest',
-      async () => {
-        return await createPaymentIntentInternal(amount, currency, booking_id, user_id, guest_customer_info);
-      },
-      30 // 30 minute TTL for payment intents
+    // Initialize Supabase client with service role for database operations
+    const supabaseServiceRole = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      { auth: { persistSession: false } }
     );
 
-    return new Response(JSON.stringify(result), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
-    });
+    // Check for existing transaction with same idempotency key
+    logStep("Checking for existing transaction", { idempotency_key });
+    const { data: existingTransaction, error: existingError } = await supabaseServiceRole
+      .from('transactions')
+      .select('id, payment_intent_id, status, amount')
+      .eq('idempotency_key', idempotency_key)
+      .single();
 
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("ERROR in create-payment-intent", { error: errorMessage });
-    
-    // Determine appropriate HTTP status code
-    let statusCode = 500;
-    if (errorMessage.includes('Invalid amount') || 
-        errorMessage.includes('user_id is required') ||
-        errorMessage.includes('Invalid booking_id format') ||
-        errorMessage.includes('idempotency key reused')) {
-      statusCode = 400;
+    if (existingError && existingError.code !== 'PGRST116') { // PGRST116 = no rows found
+      logStep("Error checking existing transaction", { error: existingError });
+      throw new Error(`Database error: ${existingError.message}`);
     }
 
-    return new Response(JSON.stringify({
-      error: errorMessage,
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: statusCode,
-    });
-  }
-});
-
-// Internal function that performs the actual payment intent creation
-async function createPaymentIntentInternal(
-  amount: number, 
-  currency: string, 
-  booking_id: string | undefined, 
-  user_id: string | undefined,
-  guest_customer_info?: any
-) {
-  let paymentIntent: any = null;
-
-  // Initialize Supabase client with service role for database operations
-  const supabaseServiceRole = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-    { auth: { persistSession: false } }
-  );
-
-  // Initialize Stripe
-  const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
-    apiVersion: '2023-10-16',
-  });
-
-  try {
-    // For existing bookings, verify they exist and are in correct state
-    if (booking_id) {
-      logStep("Verifying existing booking", { booking_id });
-      const { data: bookingCheck, error: bookingCheckError } = await supabaseServiceRole
-        .from('bookings')
-        .select('id, status, payment_status, customer_id, guest_customer_info')
-        .eq('id', booking_id)
-        .single();
-
-      if (bookingCheckError || !bookingCheck) {
-        logStep("Booking not found", { booking_id, error: bookingCheckError });
-        throw new Error('Booking not found or inaccessible');
+    if (existingTransaction) {
+      logStep("Found existing transaction", { transaction_id: existingTransaction.id });
+      
+      // Verify amount matches (prevent tampering)
+      if (existingTransaction.amount !== amount) {
+        throw new Error('Amount mismatch with existing transaction');
       }
 
-      // Check authorization for authenticated users or guest bookings
-      if (user_id && bookingCheck.customer_id !== user_id) {
-        logStep("User not authorized for booking", { booking_customer: bookingCheck.customer_id, request_user: user_id });
-        throw new Error('User not authorized to create payment for this booking');
-      }
-
-      if (bookingCheck.status !== 'pending' || bookingCheck.payment_status !== 'pending') {
-        logStep("Booking not in correct state for payment", { status: bookingCheck.status, payment_status: bookingCheck.payment_status });
-        throw new Error('Booking is not in correct state for payment creation');
-      }
-    } else {
-      logStep("Creating payment intent without existing booking", { is_guest: !user_id });
+      return new Response(JSON.stringify({
+        client_secret: null, // Will need to fetch from Stripe if needed
+        payment_intent_id: existingTransaction.payment_intent_id,
+        transaction_id: existingTransaction.id,
+        status: existingTransaction.status,
+        is_existing: true
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
     }
 
-    // Create payment intent with guest support
-    logStep("Creating Stripe payment intent", { 
-      amount: Math.round(amount * 100), 
-      currency, 
-      is_guest: !user_id,
-      guest_email: guest_customer_info?.email 
+    // Initialize Stripe
+    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
+      apiVersion: '2023-10-16',
     });
-    
+
+    // Create payment intent metadata
     const metadata: any = {
-      booking_id: booking_id || 'pending_creation',
+      idempotency_key,
     };
     
     if (user_id) {
@@ -176,12 +121,21 @@ async function createPaymentIntentInternal(
       metadata.guest_name = guest_customer_info.name;
       metadata.is_guest = 'true';
     }
+
+    // Create Stripe payment intent (payment-first approach)
+    logStep("Creating Stripe payment intent", { 
+      amount: Math.round(amount * 100), 
+      currency, 
+      is_guest: !user_id,
+      guest_email: guest_customer_info?.email 
+    });
     
-    paymentIntent = await stripe.paymentIntents.create({
+    const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100), // Convert to cents
       currency: currency.toLowerCase(),
       capture_method: 'manual', // Require explicit capture for authorization flow
       metadata,
+      idempotency_key, // Stripe-level idempotency
     });
 
     logStep("Payment intent created successfully", { paymentIntentId: paymentIntent.id });
@@ -189,10 +143,8 @@ async function createPaymentIntentInternal(
     // Map Stripe status to internal status
     const statusMapping = mapStripeStatus(paymentIntent.status);
 
-    // Insert transaction record
+    // Create transaction record (booking_id = null initially)
     logStep("Creating transaction record", { 
-      booking_id, 
-      user_id, 
       amount, 
       paymentIntentId: paymentIntent.id,
       mappedStatus: statusMapping.internal_status,
@@ -206,11 +158,9 @@ async function createPaymentIntentInternal(
       payment_method: 'card',
       transaction_type: 'authorization',
       currency: currency.toUpperCase(),
+      idempotency_key: idempotency_key,
+      booking_id: null, // No booking created yet - payment first!
     };
-    
-    if (booking_id) {
-      transactionInsert.booking_id = booking_id;
-    }
     
     if (guest_customer_info && !user_id) {
       transactionInsert.guest_customer_email = guest_customer_info.email;
@@ -219,7 +169,7 @@ async function createPaymentIntentInternal(
     const { data: transactionData, error: transactionError } = await supabaseServiceRole
       .from('transactions')
       .insert(transactionInsert)
-      .select('id')
+      .select('id, status')
       .single();
 
     if (transactionError) {
@@ -243,26 +193,35 @@ async function createPaymentIntentInternal(
       client_secret: paymentIntent.client_secret,
       transaction_id: transactionId,
       payment_intent_id: paymentIntent.id,
-      status_mapping: statusMapping,
+      status: transactionData.status,
     };
 
     logStep("Payment intent creation completed successfully", response);
-    return response;
+    
+    return new Response(JSON.stringify(response), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
+    });
 
   } catch (error) {
-    // If we have a payment intent but an error occurred, try to cancel it
-    if (paymentIntent?.id) {
-      try {
-        const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
-          apiVersion: '2023-10-16',
-        });
-        await stripe.paymentIntents.cancel(paymentIntent.id);
-        logStep("Payment intent cancelled due to error");
-      } catch (cancelError) {
-        logStep("Failed to cancel payment intent in error handler", { cancelError });
-      }
-    }
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logStep("ERROR in create-payment-intent", { error: errorMessage });
     
-    throw error;
+    // Determine appropriate HTTP status code
+    let statusCode = 500;
+    if (errorMessage.includes('Invalid amount') || 
+        errorMessage.includes('Invalid idempotency_key') ||
+        errorMessage.includes('user_id') ||
+        errorMessage.includes('guest_customer_info') ||
+        errorMessage.includes('Amount mismatch')) {
+      statusCode = 400;
+    }
+
+    return new Response(JSON.stringify({
+      error: errorMessage,
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: statusCode,
+    });
   }
-}
+});

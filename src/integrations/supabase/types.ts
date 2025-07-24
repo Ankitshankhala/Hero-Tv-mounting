@@ -647,6 +647,7 @@ export type Database = {
           currency: string | null
           guest_customer_email: string | null
           id: string
+          idempotency_key: string
           payment_intent_id: string | null
           payment_method: string | null
           refund_amount: number | null
@@ -664,6 +665,7 @@ export type Database = {
           currency?: string | null
           guest_customer_email?: string | null
           id?: string
+          idempotency_key?: string
           payment_intent_id?: string | null
           payment_method?: string | null
           refund_amount?: number | null
@@ -681,6 +683,7 @@ export type Database = {
           currency?: string | null
           guest_customer_email?: string | null
           id?: string
+          idempotency_key?: string
           payment_intent_id?: string | null
           payment_method?: string | null
           refund_amount?: number | null
