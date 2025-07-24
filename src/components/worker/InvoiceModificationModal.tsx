@@ -92,13 +92,11 @@ const InvoiceModificationModal = ({
 
     setLoading(true);
     try {
-      // Update booking with new total and pending payment amount
-      const { error: updateError } = await supabase.functions.invoke('update-booking-payment', {
-        body: {
-          booking_id: job.id,
-          new_pending_amount: difference
-        }
-      });
+      // Update booking with new total and pending payment amount directly
+      const { error: updateError } = await supabase
+        .from('bookings')
+        .update({ pending_payment_amount: difference })
+        .eq('id', job.id);
 
       if (updateError) {
         console.error('Failed to update booking:', updateError);

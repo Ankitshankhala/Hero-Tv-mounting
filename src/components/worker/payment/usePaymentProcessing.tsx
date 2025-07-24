@@ -1,8 +1,8 @@
-
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { recordCashPayment } from '@/utils/transactionManager';
+import { useStripePayment } from '@/hooks/useStripePayment';
 
 interface UsePaymentProcessingProps {
   job: any;
@@ -17,6 +17,7 @@ export const usePaymentProcessing = ({
 }: UsePaymentProcessingProps) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
+  const { createPaymentLink } = useStripePayment();
 
   const processPayment = async (paymentMethod: 'cash' | 'online', amount: string, notes: string) => {
     setIsProcessing(true);
@@ -40,13 +41,11 @@ export const usePaymentProcessing = ({
           throw new Error(transactionResult.error || 'Failed to record cash payment');
         }
 
-        // Update booking to clear pending payment using the edge function
-        const { error: updateError } = await supabase.functions.invoke('update-booking-payment', {
-          body: {
-            booking_id: job.id,
-            new_pending_amount: 0
-          }
-        });
+        // Update booking to clear pending payment amount
+        const { error: updateError } = await supabase
+          .from('bookings')
+          .update({ pending_payment_amount: 0 })
+          .eq('id', job.id);
 
         if (updateError) {
           console.error('Failed to update booking:', updateError);
@@ -58,10 +57,26 @@ export const usePaymentProcessing = ({
           description: `Successfully collected $${amount} in cash`,
         });
       } else {
-        // For online payments, we just show success since the payment link handles the transaction
+        // For online payments, create a payment link
+        const linkResult = await createPaymentLink({
+          bookingId: job.id,
+          amount: paymentAmount,
+          description: `Payment for ${job.service_name || 'service'}`,
+          customerEmail: job.customer_email
+        });
+
+        if (!linkResult.success) {
+          throw new Error(linkResult.error || 'Failed to create payment link');
+        }
+
+        // Open payment link in new tab
+        if (linkResult.paymentUrl) {
+          window.open(linkResult.paymentUrl, '_blank');
+        }
+
         toast({
-          title: "Online Payment Initiated",
-          description: "Payment link has been created for the customer",
+          title: "Online Payment Link Created",
+          description: "Payment link has been opened for the customer",
         });
       }
 

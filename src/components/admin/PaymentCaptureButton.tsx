@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { CreditCard, Loader2 } from 'lucide-react';
-import { usePaymentAuthorization } from '@/hooks/usePaymentAuthorization';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 interface PaymentCaptureButtonProps {
@@ -17,7 +17,6 @@ interface PaymentCaptureButtonProps {
 
 export const PaymentCaptureButton = ({ transaction, onCaptureSuccess }: PaymentCaptureButtonProps) => {
   const [capturing, setCapturing] = useState(false);
-  const { capturePayment } = usePaymentAuthorization();
   const { toast } = useToast();
 
   const handleCapture = async () => {
@@ -31,20 +30,35 @@ export const PaymentCaptureButton = ({ transaction, onCaptureSuccess }: PaymentC
     }
 
     setCapturing(true);
+    
     try {
-      const result = await capturePayment(transaction.booking_id);
-      if (result.success) {
-        toast({
-          title: "Payment Captured",
-          description: `Successfully captured $${transaction.amount.toFixed(2)}`,
-        });
-        onCaptureSuccess();
+      const { data, error } = await supabase.functions.invoke('capture-payment-intent', {
+        body: { 
+          payment_intent_id: transaction.payment_intent_id,
+          booking_id: transaction.booking_id 
+        }
+      });
+
+      if (error) {
+        throw new Error(error.message);
       }
+
+      if (!data?.success) {
+        throw new Error(data?.error || 'Payment capture failed');
+      }
+
+      toast({
+        title: "Payment Captured Successfully",
+        description: `$${transaction.amount.toFixed(2)} has been charged`,
+      });
+
+      onCaptureSuccess();
+
     } catch (error) {
       console.error('Payment capture error:', error);
       toast({
-        title: "Capture Failed",
-        description: "Failed to capture payment. Please try again.",
+        title: "Payment Capture Failed",
+        description: error instanceof Error ? error.message : "Failed to capture payment",
         variant: "destructive",
       });
     } finally {

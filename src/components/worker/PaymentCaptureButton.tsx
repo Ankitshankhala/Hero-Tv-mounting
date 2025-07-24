@@ -1,8 +1,9 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { CreditCard, CheckCircle } from 'lucide-react';
-import { usePaymentAuthorization } from '@/hooks/usePaymentAuthorization';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface PaymentCaptureButtonProps {
   bookingId: string;
@@ -15,12 +16,43 @@ export const PaymentCaptureButton = ({
   paymentStatus, 
   onCaptureSuccess 
 }: PaymentCaptureButtonProps) => {
-  const { capturePayment, processing } = usePaymentAuthorization();
+  const [processing, setProcessing] = useState(false);
+  const { toast } = useToast();
 
   const handleCapturePayment = async () => {
-    const result = await capturePayment(bookingId);
-    if (result.success && onCaptureSuccess) {
-      onCaptureSuccess();
+    setProcessing(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('capture-payment-intent', {
+        body: { booking_id: bookingId }
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (!data?.success) {
+        throw new Error(data?.error || 'Payment capture failed');
+      }
+
+      toast({
+        title: "Payment Captured Successfully",
+        description: "Job completed and payment collected",
+      });
+
+      if (onCaptureSuccess) {
+        onCaptureSuccess();
+      }
+
+    } catch (error) {
+      console.error('Payment capture error:', error);
+      toast({
+        title: "Payment Capture Failed",
+        description: error instanceof Error ? error.message : "Failed to capture payment",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessing(false);
     }
   };
 
