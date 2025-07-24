@@ -1,9 +1,9 @@
 
 // Stripe configuration with proper validation
 export const STRIPE_CONFIG = {
-  publishableKey: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY,
-  isDevelopment: import.meta.env.DEV,
-  isProduction: import.meta.env.PROD
+  publishableKey: "pk_test_51QTbVnH4VhBb8ohtLo8YjdxNZpVCvTNlh8jnyKK4lksKXHFP5OpKZdhNJNBqMNaT5T2rMhOAGR8tZgMXS8z1dTel00sDGzVGRp",
+  isDevelopment: true,
+  isProduction: false
 };
 
 // Log configuration for debugging
