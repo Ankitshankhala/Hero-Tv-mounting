@@ -247,7 +247,30 @@ export const PaymentAuthorizationForm = ({
           if (paymentIntent?.status === 'requires_capture' || paymentIntent?.status === 'succeeded') {
             console.log('✅ Payment authorized successfully!');
             
-            // Create booking after successful payment authorization
+            // Update transaction status to 'authorized' after successful payment
+            try {
+              const { TransactionManager } = await import('@/utils/transactionManager');
+              const transactionManager = new TransactionManager();
+              const updateResult = await transactionManager.updateTransactionByPaymentIntent(
+                intentData.payment_intent_id,
+                { status: 'authorized' }
+              );
+              
+              if (!updateResult.success) {
+                console.error('Failed to update transaction status:', updateResult.error);
+                throw new Error(updateResult.error || 'Failed to update transaction status');
+              }
+              
+              console.log('Transaction status updated to authorized');
+            } catch (error) {
+              console.error('Error updating transaction status:', error);
+              const errorMessage = 'Payment authorized but failed to update transaction status';
+              setFormError(errorMessage);
+              onAuthorizationFailure(errorMessage);
+              return;
+            }
+            
+            // Create booking after successful payment authorization and transaction update
             if (!requireAuth && paymentRecoveryInfo?.guestBookingData) {
               console.log('Creating guest booking after payment authorization...');
               
