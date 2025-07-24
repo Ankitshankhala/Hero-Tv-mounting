@@ -25,7 +25,7 @@ BEGIN
   RETURN QUERY
   SELECT DISTINCT
     u.id,
-    u.full_name,
+    u.name,
     u.email,
     u.phone,
     CASE 
@@ -57,12 +57,12 @@ BEGIN
         b.scheduled_date = p_scheduled_date AND
         (
           (b.scheduled_start <= p_scheduled_start AND 
-           b.scheduled_start + (b.total_duration_minutes * INTERVAL '1 minute') > p_scheduled_start)
+           b.scheduled_start + (p_duration_minutes * INTERVAL '1 minute') > p_scheduled_start)
           OR
           (b.scheduled_start >= p_scheduled_start AND 
            b.scheduled_start < service_end_time)
         )
     )
-  ORDER BY distance_priority, u.full_name;
+  ORDER BY distance_priority, u.name;
 END;
 $$ LANGUAGE plpgsql;
