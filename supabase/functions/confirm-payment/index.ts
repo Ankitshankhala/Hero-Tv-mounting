@@ -86,20 +86,45 @@ serve(async (req) => {
       throw new Error(`Failed to update booking: ${bookingError.message}`);
     }
 
-    // Update transaction status
+    // Update transaction status with payment method info
     logStep("Updating transaction status", { payment_intent_id, mapped_status: statusMapping.internal_status });
-    const { error: transactionError } = await supabaseServiceRole
+    
+    // Get payment method details from Stripe
+    let paymentMethodDetails = null;
+    try {
+      if (paymentIntent.payment_method) {
+        const paymentMethod = await stripe.paymentMethods.retrieve(paymentIntent.payment_method);
+        paymentMethodDetails = {
+          type: paymentMethod.type,
+          last4: paymentMethod.card?.last4,
+          brand: paymentMethod.card?.brand,
+          exp_month: paymentMethod.card?.exp_month,
+          exp_year: paymentMethod.card?.exp_year
+        };
+        logStep("Retrieved payment method details", paymentMethodDetails);
+      }
+    } catch (pmError) {
+      logStep("Failed to retrieve payment method details", { error: pmError });
+    }
+
+    const { data: transactionUpdate, error: transactionError } = await supabaseServiceRole
       .from('transactions')
       .update({ 
         status: statusMapping.internal_status,
-        booking_id: booking_id
+        booking_id: booking_id,
+        payment_method: paymentMethodDetails ? `${paymentMethodDetails.brand} ending in ${paymentMethodDetails.last4}` : 'card',
+        transaction_type: paymentIntent.capture_method === 'manual' ? 'authorization' : 'charge'
       })
-      .eq('payment_intent_id', payment_intent_id);
+      .eq('payment_intent_id', payment_intent_id)
+      .select('id, status')
+      .single();
 
     if (transactionError) {
       logStep("Failed to update transaction", { error: transactionError });
       // Don't throw here as booking is already confirmed
       // Just log the error for manual review
+    } else {
+      logStep("Transaction updated successfully", { transactionUpdate });
     }
 
     // Get frontend-friendly status

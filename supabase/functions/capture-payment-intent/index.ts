@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { mapStripeStatus } from "../shared/status-mapping.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -51,13 +52,17 @@ serve(async (req) => {
 
     console.log('Payment capture result:', paymentIntent.status);
 
+    // Map Stripe status to internal status
+    const statusMapping = mapStripeStatus(paymentIntent.status, 'charge');
+    console.log('Status mapping:', statusMapping);
+
     if (paymentIntent.status === 'succeeded') {
-      // Update booking status to captured
+      // Update booking status using mapped statuses
       const { error: updateError } = await supabaseServiceRole
         .from('bookings')
         .update({
-          payment_status: 'captured',
-          status: 'completed',
+          payment_status: statusMapping.payment_status,
+          status: statusMapping.booking_status,
         })
         .eq('id', bookingId);
 
@@ -66,17 +71,33 @@ serve(async (req) => {
         throw updateError;
       }
 
-      // Update transaction record
+      // Update transaction record with proper status and create a capture transaction
       const { error: transactionError } = await supabaseServiceRole
         .from('transactions')
         .update({
-          status: 'completed',
-          transaction_type: 'capture',
+          status: statusMapping.internal_status,
         })
         .eq('payment_intent_id', booking.payment_intent_id);
 
       if (transactionError) {
         console.error('Failed to update transaction:', transactionError);
+      }
+
+      // Create a separate capture transaction record
+      const { error: captureTransactionError } = await supabaseServiceRole
+        .from('transactions')
+        .insert({
+          booking_id: bookingId,
+          amount: paymentIntent.amount / 100, // Convert from cents
+          status: statusMapping.internal_status,
+          payment_intent_id: booking.payment_intent_id,
+          payment_method: 'card',
+          transaction_type: 'capture',
+          currency: paymentIntent.currency.toUpperCase(),
+        });
+
+      if (captureTransactionError) {
+        console.error('Failed to create capture transaction:', captureTransactionError);
       }
 
       return new Response(JSON.stringify({

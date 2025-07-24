@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 export interface TransactionData {
   booking_id: string;
   amount: number;
-  status: 'pending' | 'completed' | 'failed' | 'authorized' | 'captured' | 'refunded';
+  status: 'pending' | 'completed' | 'failed' | 'authorized' | 'captured' | 'refunded' | 'paid';
   payment_intent_id?: string;
   payment_method?: string;
   transaction_type?: 'charge' | 'authorization' | 'capture' | 'refund' | 'void' | 'cash';
@@ -256,8 +256,8 @@ export class TransactionManager {
   async recordCashPayment(data: Omit<TransactionData, 'payment_intent_id' | 'transaction_type' | 'status'>): Promise<PaymentOperationResult> {
     const cashData = {
       ...data,
-      status: 'completed' as const,
-      transaction_type: 'cash' as const,
+      status: 'paid' as const, // Use 'paid' to match status mapping
+      transaction_type: 'charge' as const, // Use 'charge' instead of 'cash'
       payment_method: 'cash',
     };
     return await this.createTransaction(cashData);
