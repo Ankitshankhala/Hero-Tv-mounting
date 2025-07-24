@@ -136,7 +136,9 @@ serve(async (req) => {
       capture_method: 'manual', // Require explicit capture for authorization flow
       metadata,
     }, {
-      idempotencyKey: idempotency_key, // Stripe idempotency as option, not parameter
+      // Stripe requires idempotencyKey to be passed as an option (second parameter)
+      // rather than as a parameter in the PaymentIntent object to prevent duplicate requests
+      idempotencyKey: idempotency_key,
     });
 
     logStep("Payment intent created successfully", { paymentIntentId: paymentIntent.id });
