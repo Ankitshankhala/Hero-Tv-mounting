@@ -129,7 +129,7 @@ export const PaymentStep = ({
         <p className="text-gray-600">
           {requireAuth 
             ? `Authorize your payment method. You will be charged $${totalPrice.toFixed(2)} after service completion.`
-            : `Authorize your payment method as a guest. You will be charged $${totalPrice.toFixed(2)} after service completion.`
+            : `Authorize your payment method as a guest. You will be charged $${totalPrice.toFixed(2)} after service completion. No account required.`
           }
         </p>
       </div>

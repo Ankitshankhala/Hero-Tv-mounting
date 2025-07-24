@@ -7,6 +7,7 @@ import { useBookingPaymentFlow } from '@/hooks/useBookingPaymentFlow';
 import { useAuth } from '@/hooks/useAuth';
 import { StripeCardElement } from '@/components/StripeCardElement';
 import { PaymentRecoveryAlert } from './PaymentRecoveryAlert';
+import { supabase } from '@/integrations/supabase/client';
 
 interface PaymentAuthorizationFormProps {
   amount: number;
@@ -42,6 +43,8 @@ export const PaymentAuthorizationForm = ({
     paymentIntentId: string;
     amount: number;
     customerEmail?: string;
+    guestBookingData?: any;
+    payment_intent_id?: string;
   } | null>(null);
   
   const { createBookingWithPayment, loading } = useBookingPaymentFlow();
@@ -112,18 +115,13 @@ export const PaymentAuthorizationForm = ({
     try {
       console.log('Starting payment authorization process...');
 
-      // Create the booking first if we have all the required data
+      // Handle booking creation - different flow for authenticated vs guest users
       if (services && formData && !bookingId) {
         setCreatingBooking(true);
         try {
-          console.log('🎯 Creating booking with payment using new flow');
+          console.log('🎯 Creating payment intent for', requireAuth ? 'authenticated user' : 'guest user');
           
-          // Validate authentication and customer ID
-          if (!user?.id) {
-            throw new Error('Authentication required. Please log in to complete your booking.');
-          }
-
-          // Validate required booking data before proceeding
+          // Validate required booking data
           if (!formData.customerEmail || !formData.customerName) {
             throw new Error('Customer information is missing');
           }
@@ -137,19 +135,70 @@ export const PaymentAuthorizationForm = ({
             throw new Error('At least one service must be selected');
           }
 
-          // Create booking data from form with authenticated user ID
-          const bookingData = {
-            customer_id: user.id, // Always use authenticated user's ID
-            service_id: services[0].id, // Primary service
-            scheduled_date: formData.selectedDate,
-            scheduled_start: formData.selectedTime,
-            location_notes: formData.locationNotes || formData.address,
-          };
+          let paymentIntentResult;
 
-          const result = await createBookingWithPayment(bookingData, amount);
+          if (requireAuth && user?.id) {
+            // Authenticated user flow - create booking first, then payment intent
+            const bookingData = {
+              customer_id: user.id,
+              service_id: services[0].id,
+              scheduled_date: formData.selectedDate,
+              scheduled_start: formData.selectedTime,
+              location_notes: formData.locationNotes || formData.address,
+            };
+
+            paymentIntentResult = await createBookingWithPayment(bookingData, amount);
+          } else {
+            // Guest user flow - create payment intent first, booking after authorization
+            const guestCustomerInfo = {
+              email: formData.customerEmail,
+              name: formData.customerName,
+              phone: formData.customerPhone,
+              address: formData.address,
+              city: formData.city,
+              zipcode: formData.zipcode,
+            };
+
+            console.log('Creating payment intent for guest user');
+            const { data: intentData, error: intentError } = await supabase.functions.invoke(
+              'create-payment-intent',
+              {
+                body: {
+                  amount,
+                  currency: 'usd',
+                  guest_customer_info: guestCustomerInfo,
+                },
+              }
+            );
+
+            if (intentError || !intentData?.client_secret) {
+              throw new Error(intentError?.message || 'Failed to create payment intent');
+            }
+
+            paymentIntentResult = {
+              success: true,
+              client_secret: intentData.client_secret,
+              payment_intent_id: intentData.payment_intent_id,
+            };
+
+            // Store guest booking data for later creation
+            setPaymentRecoveryInfo({
+              paymentIntentId: intentData.payment_intent_id,
+              amount,
+              customerEmail: formData.customerEmail,
+              guestBookingData: {
+                service_id: services[0].id,
+                scheduled_date: formData.selectedDate,
+                scheduled_start: formData.selectedTime,
+                location_notes: formData.locationNotes || formData.address,
+                guest_customer_info: guestCustomerInfo,
+              },
+              payment_intent_id: intentData.payment_intent_id,
+            });
+          }
           
-          if (!result.success || !result.client_secret) {
-            const error = result.error || 'Failed to create booking and payment';
+          if (!paymentIntentResult.success || !paymentIntentResult.client_secret) {
+            const error = paymentIntentResult.error || 'Failed to create payment intent';
             setFormError(error);
             onAuthorizationFailure(error);
             return;
@@ -158,7 +207,7 @@ export const PaymentAuthorizationForm = ({
           console.log('Payment intent created, confirming with card...');
 
           // Confirm payment intent to authorize the card
-          const confirmResult = await stripe.confirmCardPayment(result.client_secret, {
+          const confirmResult = await stripe.confirmCardPayment(paymentIntentResult.client_secret, {
             payment_method: {
               card: cardElement,
               billing_details: {
@@ -205,8 +254,32 @@ export const PaymentAuthorizationForm = ({
           }
 
           if (confirmResult.paymentIntent?.status === 'requires_capture') {
-            console.log('Payment authorized successfully!');
-            onAuthorizationSuccess(result.booking_id);
+            console.log('✅ Payment authorized successfully!');
+            
+            // For guest users, we need to confirm the payment and create the booking
+            if (!requireAuth && paymentRecoveryInfo?.guestBookingData) {
+              console.log('Confirming guest payment and creating booking...');
+              
+              const { data: confirmData, error: confirmError } = await supabase.functions.invoke(
+                'confirm-payment',
+                {
+                  body: {
+                    payment_intent_id: confirmResult.paymentIntent.id,
+                    guest_booking_data: paymentRecoveryInfo.guestBookingData,
+                  },
+                }
+              );
+
+              if (confirmError || !confirmData?.success) {
+                throw new Error(confirmError?.message || 'Failed to confirm payment and create booking');
+              }
+
+              console.log('Guest booking created successfully:', confirmData.booking_id);
+              onAuthorizationSuccess(confirmData.booking_id);
+            } else {
+              // Authenticated user flow - booking already exists
+              onAuthorizationSuccess(paymentIntentResult.booking_id || bookingId);
+            }
           } else {
             const error = 'Payment authorization was not successful';
             setFormError(error);
@@ -248,7 +321,8 @@ export const PaymentAuthorizationForm = ({
     );
   }
 
-  if (!user && (services && formData)) {
+  // Only show auth requirement for requireAuth mode
+  if (requireAuth && !user && (services && formData)) {
     return (
       <div className="space-y-6">
         <Alert variant="destructive">
@@ -340,11 +414,11 @@ export const PaymentAuthorizationForm = ({
 
             <Button 
               type="submit"
-              disabled={!stripeReady || loading || creatingBooking || !!formError || !user}
+              disabled={!stripeReady || loading || creatingBooking || !!formError || (requireAuth && !user)}
               className="w-full"
               size="lg"
             >
-              {!user 
+              {(requireAuth && !user)
                 ? 'Please Log In' 
                 : loading 
                   ? 'Authorizing...' 

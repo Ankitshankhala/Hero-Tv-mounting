@@ -27,24 +27,37 @@ serve(async (req) => {
   }
 
   try {
-    const { amount, currency = 'usd', booking_id, user_id, idempotency_key } = await req.json();
+    const { 
+      amount, 
+      currency = 'usd', 
+      booking_id, 
+      user_id, 
+      idempotency_key,
+      guest_customer_info 
+    } = await req.json();
     
-    logStep("Function started", { amount, currency, booking_id, user_id, idempotency_key });
+    logStep("Function started", { amount, currency, booking_id, user_id, guest_customer_info: !!guest_customer_info, idempotency_key });
 
     // Input validation
     if (!amount || typeof amount !== 'number' || amount <= 0) {
       throw new Error('Invalid amount: must be a positive number');
     }
 
-    if (!user_id || typeof user_id !== 'string') {
-      throw new Error('user_id is required and must be a string');
+    // For guest bookings, user_id is optional but guest_customer_info is required
+    if (!user_id && !guest_customer_info) {
+      throw new Error('Either user_id or guest_customer_info is required');
     }
 
-    if (!booking_id || typeof booking_id !== 'string') {
-      throw new Error('booking_id is required and must be a string');
+    if (user_id && typeof user_id !== 'string') {
+      throw new Error('user_id must be a string when provided');
     }
 
-    if (!isValidUUID(booking_id)) {
+    // booking_id is optional for new bookings created during payment flow
+    if (booking_id && typeof booking_id !== 'string') {
+      throw new Error('booking_id must be a string when provided');
+    }
+
+    if (booking_id && !isValidUUID(booking_id)) {
       logStep("Invalid booking ID format", { booking_id });
       throw new Error('Invalid booking_id format: must be a valid UUID');
     }
@@ -52,16 +65,16 @@ serve(async (req) => {
     // Generate idempotency key if not provided
     const manager = new IdempotencyManager(Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
     const finalIdempotencyKey = idempotency_key || 
-      manager.generateIdempotencyKey('payment_intent', user_id);
+      manager.generateIdempotencyKey('payment_intent', user_id || guest_customer_info?.email || 'guest');
 
     // Wrap operation in idempotency handler
     const result = await withIdempotency(
       finalIdempotencyKey,
       'payment_intent',
-      { amount, currency, booking_id, user_id },
-      user_id,
+      { amount, currency, booking_id, user_id, guest_customer_info },
+      user_id || guest_customer_info?.email || 'guest',
       async () => {
-        return await createPaymentIntentInternal(amount, currency, booking_id, user_id);
+        return await createPaymentIntentInternal(amount, currency, booking_id, user_id, guest_customer_info);
       },
       30 // 30 minute TTL for payment intents
     );
@@ -97,8 +110,9 @@ serve(async (req) => {
 async function createPaymentIntentInternal(
   amount: number, 
   currency: string, 
-  booking_id: string, 
-  user_id: string
+  booking_id: string | undefined, 
+  user_id: string | undefined,
+  guest_customer_info?: any
 ) {
   let paymentIntent: any = null;
 
@@ -115,39 +129,59 @@ async function createPaymentIntentInternal(
   });
 
   try {
-    // Verify booking exists and is in correct state
-    logStep("Verifying booking exists and is pending", { booking_id });
-    const { data: bookingCheck, error: bookingCheckError } = await supabaseServiceRole
-      .from('bookings')
-      .select('id, status, payment_status, customer_id')
-      .eq('id', booking_id)
-      .single();
+    // For existing bookings, verify they exist and are in correct state
+    if (booking_id) {
+      logStep("Verifying existing booking", { booking_id });
+      const { data: bookingCheck, error: bookingCheckError } = await supabaseServiceRole
+        .from('bookings')
+        .select('id, status, payment_status, customer_id, guest_customer_info')
+        .eq('id', booking_id)
+        .single();
 
-    if (bookingCheckError || !bookingCheck) {
-      logStep("Booking not found", { booking_id, error: bookingCheckError });
-      throw new Error('Booking not found or inaccessible');
+      if (bookingCheckError || !bookingCheck) {
+        logStep("Booking not found", { booking_id, error: bookingCheckError });
+        throw new Error('Booking not found or inaccessible');
+      }
+
+      // Check authorization for authenticated users or guest bookings
+      if (user_id && bookingCheck.customer_id !== user_id) {
+        logStep("User not authorized for booking", { booking_customer: bookingCheck.customer_id, request_user: user_id });
+        throw new Error('User not authorized to create payment for this booking');
+      }
+
+      if (bookingCheck.status !== 'pending' || bookingCheck.payment_status !== 'pending') {
+        logStep("Booking not in correct state for payment", { status: bookingCheck.status, payment_status: bookingCheck.payment_status });
+        throw new Error('Booking is not in correct state for payment creation');
+      }
+    } else {
+      logStep("Creating payment intent without existing booking", { is_guest: !user_id });
     }
 
-    if (bookingCheck.customer_id !== user_id) {
-      logStep("User not authorized for booking", { booking_customer: bookingCheck.customer_id, request_user: user_id });
-      throw new Error('User not authorized to create payment for this booking');
+    // Create payment intent with guest support
+    logStep("Creating Stripe payment intent", { 
+      amount: Math.round(amount * 100), 
+      currency, 
+      is_guest: !user_id,
+      guest_email: guest_customer_info?.email 
+    });
+    
+    const metadata: any = {
+      booking_id: booking_id || 'pending_creation',
+    };
+    
+    if (user_id) {
+      metadata.user_id = user_id;
+    } else if (guest_customer_info) {
+      metadata.guest_email = guest_customer_info.email;
+      metadata.guest_name = guest_customer_info.name;
+      metadata.is_guest = 'true';
     }
-
-    if (bookingCheck.status !== 'pending' || bookingCheck.payment_status !== 'pending') {
-      logStep("Booking not in correct state for payment", { status: bookingCheck.status, payment_status: bookingCheck.payment_status });
-      throw new Error('Booking is not in correct state for payment creation');
-    }
-
-    // Create payment intent
-    logStep("Creating Stripe payment intent", { amount: Math.round(amount * 100), currency });
+    
     paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100), // Convert to cents
       currency: currency.toLowerCase(),
       capture_method: 'manual', // Require explicit capture for authorization flow
-      metadata: {
-        user_id: user_id,
-        booking_id: booking_id,
-      },
+      metadata,
     });
 
     logStep("Payment intent created successfully", { paymentIntentId: paymentIntent.id });
@@ -161,20 +195,30 @@ async function createPaymentIntentInternal(
       user_id, 
       amount, 
       paymentIntentId: paymentIntent.id,
-      mappedStatus: statusMapping.internal_status
+      mappedStatus: statusMapping.internal_status,
+      is_guest: !user_id
     });
+    
+    const transactionInsert: any = {
+      amount: amount,
+      status: statusMapping.internal_status,
+      payment_intent_id: paymentIntent.id,
+      payment_method: 'card',
+      transaction_type: 'authorization',
+      currency: currency.toUpperCase(),
+    };
+    
+    if (booking_id) {
+      transactionInsert.booking_id = booking_id;
+    }
+    
+    if (guest_customer_info && !user_id) {
+      transactionInsert.guest_customer_email = guest_customer_info.email;
+    }
     
     const { data: transactionData, error: transactionError } = await supabaseServiceRole
       .from('transactions')
-      .insert({
-        booking_id: booking_id,
-        amount: amount,
-        status: statusMapping.internal_status,
-        payment_intent_id: paymentIntent.id,
-        payment_method: 'card',
-        transaction_type: 'authorization',
-        currency: currency.toUpperCase(),
-      })
+      .insert(transactionInsert)
       .select('id')
       .single();
 

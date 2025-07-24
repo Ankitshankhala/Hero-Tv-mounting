@@ -20,17 +20,26 @@ serve(async (req) => {
   }
 
   try {
-    const { payment_intent_id, booking_id } = await req.json();
+    const { 
+      payment_intent_id, 
+      booking_id, 
+      guest_booking_data 
+    } = await req.json();
     
-    logStep("Function started", { payment_intent_id, booking_id });
+    logStep("Function started", { 
+      payment_intent_id, 
+      booking_id, 
+      has_guest_data: !!guest_booking_data 
+    });
 
     // Input validation
     if (!payment_intent_id || typeof payment_intent_id !== 'string') {
       throw new Error('payment_intent_id is required and must be a string');
     }
 
-    if (!booking_id || typeof booking_id !== 'string') {
-      throw new Error('booking_id is required and must be a string');
+    // booking_id is optional if we're creating a guest booking after payment
+    if (!booking_id && !guest_booking_data) {
+      throw new Error('Either booking_id or guest_booking_data is required');
     }
 
     // Initialize Supabase client with service role for database operations
@@ -70,20 +79,54 @@ serve(async (req) => {
       mapped_status: statusMapping.internal_status
     });
 
-    // Update booking status based on payment status
-    logStep("Updating booking status", { booking_id, mapped_status: statusMapping.booking_status });
-    const { error: bookingError } = await supabaseServiceRole
-      .from('bookings')
-      .update({ 
+    let finalBookingId = booking_id;
+
+    // Handle guest booking creation or existing booking update
+    if (guest_booking_data && !booking_id) {
+      // Create guest booking after payment authorization
+      logStep("Creating guest booking after payment authorization");
+      
+      const bookingInsert = {
+        ...guest_booking_data,
         status: statusMapping.booking_status,
         payment_status: statusMapping.payment_status,
-        payment_intent_id: payment_intent_id
-      })
-      .eq('id', booking_id);
+        payment_intent_id: payment_intent_id,
+        customer_id: null, // Guest booking
+        guest_customer_info: guest_booking_data.guest_customer_info,
+      };
+      
+      const { data: newBooking, error: bookingCreateError } = await supabaseServiceRole
+        .from('bookings')
+        .insert(bookingInsert)
+        .select('id')
+        .single();
 
-    if (bookingError) {
-      logStep("Failed to update booking", { error: bookingError });
-      throw new Error(`Failed to update booking: ${bookingError.message}`);
+      if (bookingCreateError) {
+        logStep("Guest booking creation failed", { error: bookingCreateError });
+        throw new Error(`Failed to create guest booking: ${bookingCreateError.message}`);
+      }
+
+      finalBookingId = newBooking.id;
+      logStep("Guest booking created successfully", { bookingId: newBooking.id });
+      
+    } else if (booking_id) {
+      // Update existing booking status
+      logStep("Updating existing booking status", { booking_id, mapped_status: statusMapping.booking_status });
+      const { error: bookingError } = await supabaseServiceRole
+        .from('bookings')
+        .update({ 
+          status: statusMapping.booking_status,
+          payment_status: statusMapping.payment_status,
+          payment_intent_id: payment_intent_id
+        })
+        .eq('id', booking_id);
+
+      if (bookingError) {
+        logStep("Failed to update booking", { error: bookingError });
+        throw new Error(`Failed to update booking: ${bookingError.message}`);
+      }
+
+      logStep("Booking updated successfully", { booking_id });
     }
 
     // Update transaction status with payment method info
@@ -111,7 +154,7 @@ serve(async (req) => {
       .from('transactions')
       .update({ 
         status: statusMapping.internal_status,
-        booking_id: booking_id,
+        booking_id: finalBookingId,
         payment_method: paymentMethodDetails ? `${paymentMethodDetails.brand} ending in ${paymentMethodDetails.last4}` : 'card',
         transaction_type: paymentIntent.capture_method === 'manual' ? 'authorization' : 'charge'
       })
@@ -136,12 +179,13 @@ serve(async (req) => {
 
     const response = {
       success: true,
-      booking_id: booking_id,
+      booking_id: finalBookingId,
       payment_intent_id: payment_intent_id,
       status: statusMapping.booking_status,
       payment_status: statusMapping.payment_status,
       frontend_status: frontendStatus,
-      user_message: statusMapping.user_message
+      user_message: statusMapping.user_message,
+      booking_created: !!guest_booking_data && !booking_id
     };
 
     logStep("Payment confirmation completed successfully", response);

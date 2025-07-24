@@ -95,7 +95,8 @@ export type Database = {
         Row: {
           cancellation_deadline: string | null
           created_at: string | null
-          customer_id: string
+          customer_id: string | null
+          guest_customer_info: Json | null
           has_modifications: boolean | null
           id: string
           late_fee_amount: number | null
@@ -116,7 +117,8 @@ export type Database = {
         Insert: {
           cancellation_deadline?: string | null
           created_at?: string | null
-          customer_id: string
+          customer_id?: string | null
+          guest_customer_info?: Json | null
           has_modifications?: boolean | null
           id?: string
           late_fee_amount?: number | null
@@ -137,7 +139,8 @@ export type Database = {
         Update: {
           cancellation_deadline?: string | null
           created_at?: string | null
-          customer_id?: string
+          customer_id?: string | null
+          guest_customer_info?: Json | null
           has_modifications?: boolean | null
           id?: string
           late_fee_amount?: number | null
@@ -642,6 +645,7 @@ export type Database = {
           cancelled_by: string | null
           created_at: string | null
           currency: string | null
+          guest_customer_email: string | null
           id: string
           payment_intent_id: string | null
           payment_method: string | null
@@ -658,6 +662,7 @@ export type Database = {
           cancelled_by?: string | null
           created_at?: string | null
           currency?: string | null
+          guest_customer_email?: string | null
           id?: string
           payment_intent_id?: string | null
           payment_method?: string | null
@@ -674,6 +679,7 @@ export type Database = {
           cancelled_by?: string | null
           created_at?: string | null
           currency?: string | null
+          guest_customer_email?: string | null
           id?: string
           payment_intent_id?: string | null
           payment_method?: string | null
