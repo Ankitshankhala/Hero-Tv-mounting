@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Shield, Lock, CreditCard, Info, AlertTriangle } from 'lucide-react';
-import { useBookingPaymentFlow } from '@/hooks/useBookingPaymentFlow';
+// Removed useBookingPaymentFlow import that was causing Stripe context issues
 import { useAuth } from '@/hooks/useAuth';
 import { StripeCardElement } from '@/components/StripeCardElement';
 import { PaymentRecoveryAlert } from './PaymentRecoveryAlert';
@@ -47,7 +47,8 @@ export const PaymentAuthorizationForm = ({
     payment_intent_id?: string;
   } | null>(null);
   
-  const { processPaymentFirstBooking, processing } = useBookingPaymentFlow();
+  // Remove useBookingPaymentFlow hook that requires Stripe context
+  const [loading, setLoading] = useState(false);
   const { user, loading: authLoading } = useAuth();
 
   const handleStripeReady = (stripeInstance: any, elementsInstance: any, cardElementInstance: any) => {
@@ -135,45 +136,151 @@ export const PaymentAuthorizationForm = ({
             throw new Error('At least one service must be selected');
           }
 
-          let paymentIntentResult;
+          // Create payment intent using direct Supabase call
+          const guestCustomerInfo = !requireAuth ? {
+            email: formData.customerEmail,
+            name: formData.customerName,
+            phone: formData.customerPhone,
+            address: formData.address,
+            city: formData.city,
+            zipcode: formData.zipcode,
+          } : undefined;
 
-          // Use new payment-first flow for both authenticated and guest users
-          const paymentData = {
-            bookingId: bookingId || '',
-            customerEmail: formData.customerEmail,
-            customerName: formData.customerName,
-            amount: amount
-          };
-
-          const bookingPayload = {
-            service_id: services[0].id,
-            scheduled_date: formData.selectedDate,
-            scheduled_start: formData.selectedTime,
-            location_notes: formData.locationNotes || formData.address,
-            guest_customer_info: requireAuth ? undefined : {
-              email: formData.customerEmail,
-              name: formData.customerName,
-              phone: formData.customerPhone,
-              address: formData.address,
-              city: formData.city,
-              zipcode: formData.zipcode,
+          console.log('Creating payment intent for', requireAuth ? 'authenticated user' : 'guest user');
+          const { data: intentData, error: intentError } = await supabase.functions.invoke(
+            'create-payment-intent',
+            {
+              body: {
+                amount,
+                currency: 'usd',
+                guest_customer_info: guestCustomerInfo,
+                user_id: requireAuth && user?.id ? user.id : undefined,
+              },
             }
-          };
+          );
 
-          paymentIntentResult = await processPaymentFirstBooking(paymentData, bookingPayload);
-          
-          if (!paymentIntentResult.success || !paymentIntentResult.client_secret) {
-            const error = paymentIntentResult.error || 'Failed to create payment intent';
-            setFormError(error);
-            onAuthorizationFailure(error);
+          if (intentError || !intentData?.client_secret) {
+            throw new Error(intentError?.message || 'Failed to create payment intent');
+          }
+
+          // Store payment intent data
+          setPaymentRecoveryInfo({
+            paymentIntentId: intentData.payment_intent_id,
+            amount,
+            customerEmail: formData.customerEmail,
+            guestBookingData: !requireAuth ? {
+              service_id: services[0].id,
+              scheduled_date: formData.selectedDate,
+              scheduled_start: formData.selectedTime,
+              location_notes: formData.locationNotes || formData.address,
+              guest_customer_info: guestCustomerInfo,
+            } : undefined,
+            payment_intent_id: intentData.payment_intent_id,
+          });
+
+          console.log('Payment intent created, confirming with card...');
+
+          // Confirm payment intent to authorize the card
+          const confirmResult = await stripe.confirmCardPayment(intentData.client_secret, {
+            payment_method: {
+              card: cardElement,
+              billing_details: {
+                name: customerName,
+                email: customerEmail,
+              },
+            },
+          });
+
+          if (confirmResult.error) {
+            console.error('Payment confirmation error:', confirmResult.error);
+            
+            // Handle Stripe errors
+            let errorMessage = 'Payment authorization failed';
+            const stripeError = confirmResult.error;
+            
+            switch (stripeError.type) {
+              case 'card_error':
+                if (stripeError.code === 'card_declined') {
+                  errorMessage = 'Your card was declined. Please try a different payment method.';
+                } else if (stripeError.code === 'insufficient_funds') {
+                  errorMessage = 'Insufficient funds. Please try a different card.';
+                } else if (stripeError.code === 'expired_card') {
+                  errorMessage = 'Your card has expired. Please use a different card.';
+                } else if (stripeError.code === 'incorrect_cvc') {
+                  errorMessage = 'The security code is incorrect. Please check your card details.';
+                } else {
+                  errorMessage = stripeError.message || 'There was an issue with your card. Please try again.';
+                }
+                break;
+              case 'validation_error':
+                errorMessage = 'Please check your card details and try again.';
+                break;
+              case 'api_error':
+                errorMessage = 'Payment service temporarily unavailable. Please try again.';
+                break;
+              default:
+                errorMessage = stripeError.message || 'Payment authorization failed. Please try again.';
+            }
+            
+            setFormError(errorMessage);
+            onAuthorizationFailure(errorMessage);
             return;
           }
 
-          if (paymentIntentResult.success && paymentIntentResult.bookingId) {
-            console.log('✅ Payment-first booking completed successfully!');
-            onAuthorizationSuccess(paymentIntentResult.bookingId);
+          if (confirmResult.paymentIntent?.status === 'requires_capture') {
+            console.log('✅ Payment authorized successfully!');
+            
+            // Create booking after successful payment authorization
+            if (!requireAuth && paymentRecoveryInfo?.guestBookingData) {
+              console.log('Creating guest booking after payment authorization...');
+              
+              const { data: bookingData, error: bookingError } = await supabase.functions.invoke(
+                'create-booking',
+                {
+                  body: {
+                    transaction_id: intentData.transaction_id,
+                    booking_payload: paymentRecoveryInfo.guestBookingData,
+                  },
+                }
+              );
+
+              if (bookingError || !bookingData?.success) {
+                throw new Error(bookingError?.message || 'Failed to create booking after payment authorization');
+              }
+
+              console.log('Guest booking created successfully:', bookingData.booking_id);
+              onAuthorizationSuccess(bookingData.booking_id);
+            } else if (requireAuth) {
+              // For authenticated users, create booking
+              const bookingPayload = {
+                customer_id: user?.id,
+                service_id: services[0].id,
+                scheduled_date: formData.selectedDate,
+                scheduled_start: formData.selectedTime,
+                location_notes: formData.locationNotes || formData.address,
+              };
+
+              const { data: bookingData, error: bookingError } = await supabase.functions.invoke(
+                'create-booking',
+                {
+                  body: {
+                    transaction_id: intentData.transaction_id,
+                    booking_payload: bookingPayload,
+                  },
+                }
+              );
+
+              if (bookingError || !bookingData?.success) {
+                throw new Error(bookingError?.message || 'Failed to create booking after payment authorization');
+              }
+
+              console.log('Authenticated user booking created successfully:', bookingData.booking_id);
+              onAuthorizationSuccess(bookingData.booking_id);
+            } else {
+              onAuthorizationSuccess(intentData.payment_intent_id);
+            }
           } else {
-            const error = paymentIntentResult.error || 'Payment authorization failed';
+            const error = 'Payment authorization was not successful';
             setFormError(error);
             onAuthorizationFailure(error);
           }
@@ -196,6 +303,8 @@ export const PaymentAuthorizationForm = ({
       console.error('Payment authorization error:', error);
       setFormError(errorMessage);
       onAuthorizationFailure(errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -306,13 +415,13 @@ export const PaymentAuthorizationForm = ({
 
             <Button 
               type="submit"
-              disabled={!stripeReady || processing || creatingBooking || !!formError || (requireAuth && !user)}
+              disabled={!stripeReady || loading || creatingBooking || !!formError || (requireAuth && !user)}
               className="w-full"
               size="lg"
             >
               {(requireAuth && !user)
                 ? 'Please Log In' 
-                : processing 
+                : loading 
                   ? 'Authorizing...' 
                   : creatingBooking 
                     ? 'Creating Booking...' 
