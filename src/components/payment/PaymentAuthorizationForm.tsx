@@ -186,7 +186,10 @@ export const PaymentAuthorizationForm = ({
 
           console.log('Payment intent created, confirming with card...');
 
-          // Confirm payment intent to authorize the card
+          // Confirm payment intent to authorize the card with 3D Secure support
+          setLoading(true);
+          console.log('Confirming card payment with 3D Secure support...');
+          
           const confirmResult = await stripe.confirmCardPayment(intentData.client_secret, {
             payment_method: {
               card: cardElement,
@@ -200,7 +203,7 @@ export const PaymentAuthorizationForm = ({
           if (confirmResult.error) {
             console.error('Payment confirmation error:', confirmResult.error);
             
-            // Handle Stripe errors
+            // Handle Stripe errors with specific 3D Secure messaging
             let errorMessage = 'Payment authorization failed';
             const stripeError = confirmResult.error;
             
@@ -208,6 +211,10 @@ export const PaymentAuthorizationForm = ({
               case 'card_error':
                 if (stripeError.code === 'card_declined') {
                   errorMessage = 'Your card was declined. Please try a different payment method.';
+                } else if (stripeError.code === 'authentication_required') {
+                  errorMessage = 'Authentication failed. Please try again or use a different card.';
+                } else if (stripeError.code === 'payment_intent_authentication_failure') {
+                  errorMessage = 'Card authentication failed. Please verify your card details and try again.';
                 } else if (stripeError.code === 'insufficient_funds') {
                   errorMessage = 'Insufficient funds. Please try a different card.';
                 } else if (stripeError.code === 'expired_card') {
@@ -233,7 +240,11 @@ export const PaymentAuthorizationForm = ({
             return;
           }
 
-          if (confirmResult.paymentIntent?.status === 'requires_capture') {
+          // Check payment intent status - handle all valid authorization states
+          const paymentIntent = confirmResult.paymentIntent;
+          console.log('Payment intent status after confirmation:', paymentIntent?.status);
+
+          if (paymentIntent?.status === 'requires_capture' || paymentIntent?.status === 'succeeded') {
             console.log('✅ Payment authorized successfully!');
             
             // Create booking after successful payment authorization
@@ -286,7 +297,8 @@ export const PaymentAuthorizationForm = ({
               onAuthorizationSuccess(intentData.payment_intent_id);
             }
           } else {
-            const error = 'Payment authorization was not successful';
+            const error = `Payment authorization incomplete. Status: ${paymentIntent?.status || 'unknown'}`;
+            console.error('Payment not authorized:', paymentIntent?.status);
             setFormError(error);
             onAuthorizationFailure(error);
           }
@@ -428,7 +440,7 @@ export const PaymentAuthorizationForm = ({
               {(requireAuth && !user)
                 ? 'Please Log In' 
                 : loading 
-                  ? 'Authorizing...' 
+                  ? 'Processing Payment...' 
                   : creatingBooking 
                     ? 'Creating Booking...' 
                     : `Authorize $${amount.toFixed(2)}`
