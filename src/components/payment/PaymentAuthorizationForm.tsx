@@ -147,12 +147,18 @@ export const PaymentAuthorizationForm = ({
           } : undefined;
 
           console.log('Creating payment intent for', requireAuth ? 'authenticated user' : 'guest user');
+          
+          // Generate idempotency key for this payment attempt
+          const idempotencyKey = crypto.randomUUID();
+          console.log('Generated idempotency key:', idempotencyKey);
+          
           const { data: intentData, error: intentError } = await supabase.functions.invoke(
             'create-payment-intent',
             {
               body: {
                 amount,
                 currency: 'usd',
+                idempotency_key: idempotencyKey,
                 guest_customer_info: guestCustomerInfo,
                 user_id: requireAuth && user?.id ? user.id : undefined,
               },
