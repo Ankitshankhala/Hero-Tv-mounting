@@ -1,9 +1,9 @@
 
 // Stripe configuration with proper validation
 export const STRIPE_CONFIG = {
-  publishableKey: "pk_test_51QTbVnH4VhBb8ohtLo8YjdxNZpVCvTNlh8jnyKK4lksKXHFP5OpKZdhNJNBqMNaT5T2rMhOAGR8tZgMXS8z1dTel00sDGzVGRp",
-  isDevelopment: true,
-  isProduction: false
+  publishableKey: "pk_live_YOUR_LIVE_PUBLISHABLE_KEY_HERE", // Replace with your live publishable key
+  isDevelopment: false,
+  isProduction: true
 };
 
 // Log configuration for debugging
