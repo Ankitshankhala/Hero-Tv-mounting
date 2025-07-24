@@ -135,7 +135,8 @@ serve(async (req) => {
       currency: currency.toLowerCase(),
       capture_method: 'manual', // Require explicit capture for authorization flow
       metadata,
-      idempotency_key, // Stripe-level idempotency
+    }, {
+      idempotencyKey: idempotency_key, // Stripe idempotency as option, not parameter
     });
 
     logStep("Payment intent created successfully", { paymentIntentId: paymentIntent.id });
