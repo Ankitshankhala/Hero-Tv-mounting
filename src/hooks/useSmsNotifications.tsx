@@ -63,6 +63,41 @@ export const useSmsNotifications = () => {
     }
   };
 
+  const resendWorkerEmail = async (bookingId: string) => {
+    try {
+      console.log('Resending email notification for booking:', bookingId);
+      
+      const { data, error } = await supabase.functions.invoke('send-worker-assignment-email', {
+        body: { bookingId }
+      });
+
+      if (error) {
+        console.error('Error resending email:', error);
+        toast({
+          title: "Email Error",
+          description: "Failed to resend email notification",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      console.log('Email resend triggered:', data);
+      toast({
+        title: "Email Sent",
+        description: "Email notification resent to worker",
+      });
+      return true;
+    } catch (error) {
+      console.error('Failed to resend email notification:', error);
+      toast({
+        title: "Email Error", 
+        description: "Failed to resend email notification",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   const getSmsLogs = async (bookingId?: string) => {
     try {
       let query = supabase
@@ -88,9 +123,36 @@ export const useSmsNotifications = () => {
     }
   };
 
+  const getEmailLogs = async (bookingId?: string) => {
+    try {
+      let query = supabase
+        .from('email_logs')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (bookingId) {
+        query = query.eq('booking_id', bookingId);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching email logs:', error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Failed to fetch email logs:', error);
+      return [];
+    }
+  };
+
   return {
     sendWorkerAssignmentSms,
     resendWorkerSms,
-    getSmsLogs
+    resendWorkerEmail,
+    getSmsLogs,
+    getEmailLogs
   };
 };
