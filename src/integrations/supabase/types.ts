@@ -182,6 +182,42 @@ export type Database = {
           },
         ]
       }
+      email_logs: {
+        Row: {
+          booking_id: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          message: string
+          recipient_email: string
+          sent_at: string | null
+          status: string
+          subject: string
+        }
+        Insert: {
+          booking_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          message: string
+          recipient_email: string
+          sent_at?: string | null
+          status?: string
+          subject: string
+        }
+        Update: {
+          booking_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          message?: string
+          recipient_email?: string
+          sent_at?: string | null
+          status?: string
+          subject?: string
+        }
+        Relationships: []
+      }
       idempotency_records: {
         Row: {
           created_at: string
