@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PaymentAuthorizationForm } from '@/components/payment/PaymentAuthorizationForm';
+import { SimplePaymentAuthorizationForm } from '@/components/payment/SimplePaymentAuthorizationForm';
 import { useToast } from '@/hooks/use-toast';
 import { useBookingOperations } from '@/hooks/booking/useBookingOperations';
 
@@ -13,7 +14,7 @@ interface PaymentStepProps {
   customerName: string;
   services?: any[];
   formData?: any;
-  onPaymentAuthorized: () => void;
+  onPaymentAuthorized: (paymentIntentId?: string) => void;
   onBack: () => void;
   requireAuth?: boolean;
 }
@@ -52,9 +53,10 @@ export const PaymentStep = ({
         return;
       }
 
-      if (!services || services.length === 0) {
-        console.error('PaymentStep: No services selected');
-        setAuthorizationError('No services selected. Please go back and select services.');
+      // For new flow with bookingId, services validation is not needed
+      if (!bookingId && (!services || services.length === 0)) {
+        console.error('PaymentStep: No services selected and no booking ID');
+        setAuthorizationError('No services selected and no booking created. Please go back and select services.');
         setIsValidatingBooking(false);
         return;
       }
@@ -67,13 +69,15 @@ export const PaymentStep = ({
     validateProps();
   }, [totalPrice, customerEmail, customerName, services]);
 
-  const handleAuthorizationSuccess = async (createdBookingId?: string) => {
-    console.log('✅ Payment authorization successful, booking ID:', createdBookingId);
+  const handleAuthorizationSuccess = async (paymentIntentIdOrBookingId?: string) => {
+    console.log('✅ Payment authorization successful, payment intent or booking ID:', paymentIntentIdOrBookingId);
     toast({
       title: "Payment Authorized! 🎉",
       description: "Your payment method has been authorized successfully. You will be charged after service completion.",
     });
-    onPaymentAuthorized();
+    // For the new flow, we need to extract the payment intent ID and pass it
+    // The PaymentAuthorizationForm should now return the payment intent ID
+    onPaymentAuthorized(paymentIntentIdOrBookingId);
   };
 
   const handleAuthorizationFailure = (error: string) => {
@@ -109,7 +113,7 @@ export const PaymentStep = ({
   }
 
   // Show error if we have validation issues
-  if (authorizationError && (!totalPrice || !customerEmail || !customerName || !services?.length)) {
+  if (authorizationError && (!totalPrice || !customerEmail || !customerName || (!bookingId && !services?.length))) {
     return (
       <div className="space-y-6">
         <Alert variant="destructive">
@@ -140,17 +144,28 @@ export const PaymentStep = ({
         </Alert>
       )}
 
-      <PaymentAuthorizationForm
-        amount={totalPrice}
-        bookingId={bookingId}
-        customerEmail={customerEmail}
-        customerName={customerName}
-        services={services}
-        formData={formData}
-        onAuthorizationSuccess={handleAuthorizationSuccess}
-        onAuthorizationFailure={handleAuthorizationFailure}
-        requireAuth={requireAuth}
-      />
+      {bookingId ? (
+        <SimplePaymentAuthorizationForm
+          amount={totalPrice}
+          bookingId={bookingId}
+          customerEmail={customerEmail}
+          customerName={customerName}
+          onAuthorizationSuccess={handleAuthorizationSuccess}
+          onAuthorizationFailure={handleAuthorizationFailure}
+        />
+      ) : (
+        <PaymentAuthorizationForm
+          amount={totalPrice}
+          bookingId={bookingId}
+          customerEmail={customerEmail}
+          customerName={customerName}
+          services={services}
+          formData={formData}
+          onAuthorizationSuccess={handleAuthorizationSuccess}
+          onAuthorizationFailure={handleAuthorizationFailure}
+          requireAuth={requireAuth}
+        />
+      )}
 
       <div className="flex space-x-4">
         <Button 

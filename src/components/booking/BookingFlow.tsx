@@ -38,7 +38,8 @@ export const BookingFlow = ({ onClose, initialServices = [] }: BookingFlowProps)
     setPaymentCompleted,
     successAnimation,
     setSuccessAnimation,
-    handleBookingSubmit,
+    createInitialBooking,
+    confirmBookingAfterPayment,
     user
   } = useBookingOperations();
 
@@ -49,19 +50,39 @@ export const BookingFlow = ({ onClose, initialServices = [] }: BookingFlowProps)
     const updatedFormData = { ...formData, ...scheduleData };
     setFormData(updatedFormData);
     
-    // Proceed to payment step without creating booking yet
-    setCurrentStep(4);
+    try {
+      // Create booking immediately with payment_pending status
+      console.log('Creating initial booking before payment...');
+      const createdBookingId = await createInitialBooking(services, updatedFormData);
+      setBookingId(createdBookingId);
+      
+      // Proceed to payment step
+      setCurrentStep(4);
+    } catch (error) {
+      console.error('Failed to create initial booking:', error);
+      // Stay on schedule step if booking creation fails
+    }
   };
 
-  const handlePaymentAuthorized = () => {
-    setPaymentCompleted(true);
-    setShowSuccess(true);
-    setCurrentStep(5);
-    
-    // Trigger success animation
-    setTimeout(() => {
-      setSuccessAnimation(true);
-    }, 100);
+  const handlePaymentAuthorized = async (paymentIntentId?: string) => {
+    try {
+      if (bookingId && paymentIntentId) {
+        // Confirm the existing booking after successful payment
+        await confirmBookingAfterPayment(bookingId, paymentIntentId);
+      }
+      
+      setPaymentCompleted(true);
+      setShowSuccess(true);
+      setCurrentStep(5);
+      
+      // Trigger success animation
+      setTimeout(() => {
+        setSuccessAnimation(true);
+      }, 100);
+    } catch (error) {
+      console.error('Failed to confirm booking after payment:', error);
+      // Handle the error appropriately
+    }
   };
 
   // Ensure we have the necessary data for payment step

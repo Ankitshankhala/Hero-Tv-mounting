@@ -21,6 +21,7 @@ interface Booking {
   scheduled_at?: string;
   worker?: { name?: string };
   status: string;
+  payment_status?: string;
   total_price?: number;
   customer_address?: string;
   location_notes?: string;
@@ -47,6 +48,7 @@ export const BookingTable = React.memo(({ bookings, onBookingUpdate }: BookingTa
   const getStatusBadge = (status: string) => {
     const statusConfig = {
       pending: { label: 'Pending', variant: 'secondary' as const },
+      payment_pending: { label: 'Payment Pending', variant: 'secondary' as const },
       confirmed: { label: 'Confirmed', variant: 'default' as const },
       'in_progress': { label: 'In Progress', variant: 'secondary' as const },
       completed: { label: 'Completed', variant: 'outline' as const },
@@ -55,6 +57,23 @@ export const BookingTable = React.memo(({ bookings, onBookingUpdate }: BookingTa
     
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
     return <Badge variant={config.variant}>{config.label}</Badge>;
+  };
+
+  const getPaymentStatusBadge = (paymentStatus?: string) => {
+    if (!paymentStatus) return null;
+    
+    const statusConfig = {
+      pending: { label: 'Payment Pending', variant: 'secondary' as const },
+      authorized: { label: 'Payment Authorized', variant: 'default' as const },
+      captured: { label: 'Payment Captured', variant: 'default' as const },
+      failed: { label: 'Payment Failed', variant: 'destructive' as const },
+      cancelled: { label: 'Payment Cancelled', variant: 'destructive' as const },
+    };
+    
+    const config = statusConfig[paymentStatus as keyof typeof statusConfig];
+    if (!config) return null;
+    
+    return <Badge variant={config.variant} className="ml-2">{config.label}</Badge>;
   };
 
   const formatServices = (booking: Booking) => {
@@ -221,6 +240,7 @@ export const BookingTable = React.memo(({ bookings, onBookingUpdate }: BookingTa
               <TableHead>Location</TableHead>
               <TableHead>Worker</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Payment</TableHead>
               <TableHead>Price</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
@@ -258,6 +278,7 @@ export const BookingTable = React.memo(({ bookings, onBookingUpdate }: BookingTa
                     )}
                   </TableCell>
                   <TableCell>{getStatusBadge(booking.status)}</TableCell>
+                  <TableCell>{getPaymentStatusBadge(booking.payment_status)}</TableCell>
                   <TableCell className="font-medium">${booking.total_price || 0}</TableCell>
                    <TableCell>
                      <div className="flex space-x-2">

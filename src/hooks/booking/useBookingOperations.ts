@@ -35,25 +35,11 @@ export const useBookingOperations = () => {
     return true;
   };
 
-  const handleBookingSubmit = async (services: ServiceItem[], formData: FormData, paymentData?: { payment_intent_id?: string; payment_status?: string; amount?: number }) => {
+  const createInitialBooking = async (services: ServiceItem[], formData: FormData) => {
     try {
       setLoading(true);
 
-      console.log('🚀 Starting booking submission process:', {
-        servicesCount: services?.length,
-        formDataKeys: formData ? Object.keys(formData) : [],
-        customerEmail: formData?.customerEmail,
-        customerName: formData?.customerName,
-        selectedDate: formData?.selectedDate,
-        selectedTime: formData?.selectedTime,
-        zipcode: formData?.zipcode,
-        paymentData: {
-          payment_intent_id: paymentData?.payment_intent_id,
-          payment_status: paymentData?.payment_status,
-          amount: paymentData?.amount,
-          amountType: typeof paymentData?.amount
-        }
-      });
+      console.log('🚀 Creating initial booking with payment_pending status');
 
       // Enhanced validation with detailed error messages
       if (!services || services.length === 0) {
@@ -107,7 +93,6 @@ export const useBookingOperations = () => {
       }
 
       console.log('✅ All validations passed, proceeding with booking creation');
-
 
       // Support both authenticated and guest bookings
       let customerId = user?.id;
@@ -200,87 +185,54 @@ export const useBookingOperations = () => {
 
       console.log('✅ Customer ID established:', customerId);
 
-      // Use enhanced booking logic with auto-assignment
-      const enhancedBookingData: EnhancedBookingData = {
+      // Create booking with payment_pending status
+      const bookingData = {
         customer_id: customerId,
         service_id: primaryServiceId,
         scheduled_date: format(formData.selectedDate!, 'yyyy-MM-dd'),
         scheduled_start: formData.selectedTime,
         location_notes: `${formData.houseNumber} ${formData.address}, ${formData.city}\nContact: ${formData.customerName}\nPhone: ${formData.customerPhone}\nEmail: ${formData.customerEmail}\nZIP: ${formData.zipcode}\nSpecial Instructions: ${formData.specialInstructions}`,
-        customer_zipcode: formData.zipcode,
-        payment_intent_id: paymentData?.payment_intent_id,
-        payment_status: paymentData?.payment_status || 'pending',
-        payment_amount: paymentData?.amount // Pass the actual payment amount
+        status: 'payment_pending' as const,
+        payment_status: 'pending',
+        requires_manual_payment: false,
+        guest_customer_info: !user ? {
+          email: formData.customerEmail,
+          name: formData.customerName,
+          phone: formData.customerPhone,
+          address: formData.address,
+          city: formData.city,
+          zipcode: formData.zipcode,
+        } : null
       };
 
-      console.log('📋 Enhanced booking data prepared:', {
-        customer_id: customerId,
-        service_id: primaryServiceId,
-        scheduled_date: enhancedBookingData.scheduled_date,
-        scheduled_start: enhancedBookingData.scheduled_start,
-        customer_zipcode: enhancedBookingData.customer_zipcode,
-        location_notes_length: enhancedBookingData.location_notes?.length
-      });
+      console.log('📋 Creating booking with payment_pending status');
 
-      console.log('🔄 Calling createEnhancedBooking with comprehensive logging...');
-      const enhancedBookingOperationId = `enhanced-booking-${Date.now()}`;
-      console.log(`📋 [${enhancedBookingOperationId}] About to call createEnhancedBooking`, {
-        enhancedBookingData,
-        timestamp: new Date().toISOString()
-      });
+      const { data: newBooking, error: bookingError } = await supabase
+        .from('bookings')
+        .insert(bookingData)
+        .select('id')
+        .single();
 
-      const result = await createEnhancedBooking(enhancedBookingData);
-      
-      console.log(`📊 [${enhancedBookingOperationId}] Enhanced booking result received:`, {
-        operationId: enhancedBookingOperationId,
-        status: result.status,
-        booking_id: result.booking_id,
-        worker_assigned: result.worker_assigned,
-        notifications_sent: result.notifications_sent,
-        message: result.message,
-        timestamp: new Date().toISOString(),
-        success: result.status !== 'error'
-      });
-
-      // Additional validation of the result
-      if (result.status === 'error' && !result.message) {
-        console.error(`❌ [${enhancedBookingOperationId}] Error result missing message:`, result);
-        throw new Error('Enhanced booking returned error status but no error message');
-      }
-      
-      if (result.status !== 'error' && !result.booking_id) {
-        console.error(`❌ [${enhancedBookingOperationId}] Success result missing booking_id:`, result);
-        throw new Error('Enhanced booking succeeded but returned no booking ID');
-      }
-      
-      if (result.status === 'error') {
-        console.error('❌ Enhanced booking returned error status:', result);
-        throw new Error(result.message || 'Enhanced booking creation failed');
+      if (bookingError) {
+        console.error('❌ Booking creation failed:', bookingError);
+        throw new Error(`Failed to create booking: ${bookingError.message}`);
       }
 
-      if (!result.booking_id) {
-        console.error('❌ No booking ID returned from enhanced booking');
-        throw new Error('Booking was processed but no booking ID was returned');
+      if (!newBooking) {
+        throw new Error('Failed to create booking - no booking data returned');
       }
 
-      setBookingId(result.booking_id);
-      
-      // Show appropriate message based on assignment status
-      let toastMessage = result.message;
-      if (result.worker_assigned) {
-        toastMessage = "Booking confirmed! Worker has been automatically assigned.";
-      } else if (result.notifications_sent && result.notifications_sent > 0) {
-        toastMessage = `Booking created! Coverage requests sent to ${result.notifications_sent} workers in your area.`;
-      }
+      console.log('✅ Initial booking created with ID:', newBooking.id);
+      setBookingId(newBooking.id);
       
       toast({
-        title: result.status === 'confirmed' ? "Booking Confirmed" : "Booking Created",
-        description: toastMessage,
+        title: "Booking Created",
+        description: "Please complete payment to confirm your booking.",
       });
 
-      return result.booking_id;
+      return newBooking.id;
     } catch (error) {
-      console.error('Error creating booking:', error);
+      console.error('Error creating initial booking:', error);
       toast({
         title: "Error",
         description: "Failed to create booking. Please try again.",
@@ -290,6 +242,71 @@ export const useBookingOperations = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const confirmBookingAfterPayment = async (bookingId: string, paymentIntentId: string) => {
+    try {
+      console.log('🎯 Confirming booking after successful payment:', { bookingId, paymentIntentId });
+
+      const { data: updatedBooking, error: updateError } = await supabase
+        .from('bookings')
+        .update({
+          status: 'confirmed' as const,
+          payment_status: 'authorized',
+          payment_intent_id: paymentIntentId
+        })
+        .eq('id', bookingId)
+        .select(`
+          *,
+          customer:users!customer_id(*),
+          service:services(*)
+        `)
+        .single();
+
+      if (updateError) {
+        console.error('❌ Failed to confirm booking:', updateError);
+        throw new Error(`Failed to confirm booking: ${updateError.message}`);
+      }
+
+      console.log('✅ Booking confirmed successfully:', updatedBooking.id);
+
+      // Auto-assign worker after confirmation
+      if (updatedBooking.customer?.zip_code) {
+        console.log('🔄 Attempting worker auto-assignment for confirmed booking');
+        
+        const { data: assignmentData, error: assignmentError } = await supabase.rpc(
+          'auto_assign_workers_with_coverage',
+          { p_booking_id: bookingId }
+        );
+
+        if (assignmentError) {
+          console.error('❌ Worker assignment failed:', assignmentError);
+        } else {
+          console.log('✅ Worker assignment completed:', assignmentData);
+        }
+      }
+
+      toast({
+        title: "Booking Confirmed!",
+        description: "Your payment has been authorized and your booking is now confirmed.",
+      });
+
+      return updatedBooking;
+    } catch (error) {
+      console.error('Error confirming booking:', error);
+      toast({
+        title: "Error",
+        description: "Payment succeeded but failed to confirm booking. Please contact support.",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
+  // Legacy method for backward compatibility
+  const handleBookingSubmit = async (services: ServiceItem[], formData: FormData, paymentData?: { payment_intent_id?: string; payment_status?: string; amount?: number }) => {
+    // This now just calls the createInitialBooking method
+    return await createInitialBooking(services, formData);
   };
 
   return {
@@ -304,6 +321,8 @@ export const useBookingOperations = () => {
     successAnimation,
     setSuccessAnimation,
     handleBookingSubmit,
+    createInitialBooking,
+    confirmBookingAfterPayment,
     validateMinimumCart,
     user,
     MINIMUM_BOOKING_AMOUNT
