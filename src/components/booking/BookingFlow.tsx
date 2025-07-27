@@ -51,15 +51,16 @@ export const BookingFlow = ({ onClose, initialServices = [] }: BookingFlowProps)
     setFormData(updatedFormData);
     
     try {
-      // Create booking immediately with payment_pending status
-      console.log('Creating initial booking before payment...');
+      // Create booking with payment_pending status
+      console.log('Creating booking with payment_pending status...');
       const createdBookingId = await createInitialBooking(services, updatedFormData);
       setBookingId(createdBookingId);
+      console.log('✅ Booking created successfully with ID:', createdBookingId);
       
-      // Proceed to payment step
+      // Move to payment authorization step
       setCurrentStep(4);
     } catch (error) {
-      console.error('Failed to create initial booking:', error);
+      console.error('❌ Failed to create booking:', error);
       // Stay on schedule step if booking creation fails
     }
   };
@@ -76,8 +77,10 @@ export const BookingFlow = ({ onClose, initialServices = [] }: BookingFlowProps)
   const handlePaymentAuthorized = async (paymentIntentId?: string) => {
     try {
       if (bookingId && paymentIntentId) {
+        console.log('🔄 Confirming booking after payment authorization...');
         // Confirm the existing booking after successful payment
         await confirmBookingAfterPayment(bookingId, paymentIntentId);
+        console.log('✅ Booking confirmed after payment authorization');
       }
       
       setPaymentCompleted(true);
@@ -89,7 +92,7 @@ export const BookingFlow = ({ onClose, initialServices = [] }: BookingFlowProps)
         setSuccessAnimation(true);
       }, 100);
     } catch (error) {
-      console.error('Failed to confirm booking after payment:', error);
+      console.error('❌ Failed to confirm booking after payment:', error);
       // Handle the error appropriately
     }
   };

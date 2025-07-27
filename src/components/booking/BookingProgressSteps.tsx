@@ -18,8 +18,8 @@ export const BookingProgressSteps = ({ currentStep }: BookingProgressStepsProps)
   const steps: Step[] = [
     { number: 1, title: 'Services', description: 'Configure services', icon: Star },
     { number: 2, title: 'Details', description: 'Contact & location', icon: User },
-    { number: 3, title: 'Schedule', description: 'Date & time', icon: CalendarIcon },
-    { number: 4, title: 'Payment', description: 'Secure payment', icon: CreditCard }
+    { number: 3, title: 'Schedule', description: 'Create booking', icon: CalendarIcon },
+    { number: 4, title: 'Payment', description: 'Authorize payment', icon: CreditCard }
   ];
 
   return (
