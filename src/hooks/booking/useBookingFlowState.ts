@@ -29,6 +29,7 @@ export const useBookingFlowState = (selectedServices: ServiceItem[] = []) => {
     if (bookingId) {
       formState.setCurrentStep(4);
     }
+    return bookingId;
   };
 
   return {

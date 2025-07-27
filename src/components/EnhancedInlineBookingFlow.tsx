@@ -99,9 +99,32 @@ export const EnhancedInlineBookingFlow = ({
       return;
     }
 
-    // Proceed to payment step without creating booking yet
-    console.log('Proceeding to payment step...');
-    setCurrentStep(4);
+    try {
+      // Create booking with payment_pending status
+      console.log('🚀 Creating booking and proceeding to payment...');
+      const createdBookingId = await handleBookingSubmit();
+      
+      if (createdBookingId) {
+        setBookingId(createdBookingId);
+        
+        // Show success message
+        toast({
+          title: "Your booking is created!",
+          description: "To confirm it, please complete the payment now.",
+        });
+        
+        // Move to payment step
+        setCurrentStep(4);
+        console.log('✅ Booking created successfully with ID:', createdBookingId);
+      }
+    } catch (error) {
+      console.error('❌ Failed to create booking:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create booking. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handlePaymentAuthorizationSuccess = (createdBookingId?: string) => {
@@ -219,6 +242,7 @@ export const EnhancedInlineBookingFlow = ({
                   blockedSlots={blockedSlots}
                   workerCount={workerCount}
                   loading={loading}
+                  hideActionButton={true}
                 />
               )}
 

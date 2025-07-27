@@ -21,6 +21,7 @@ interface ScheduleStepProps {
   blockedSlots: string[];
   workerCount: number;
   loading: boolean;
+  hideActionButton?: boolean;
 }
 
 export const ScheduleStep = ({
@@ -29,7 +30,8 @@ export const ScheduleStep = ({
   timeSlots,
   blockedSlots,
   workerCount,
-  loading
+  loading,
+  hideActionButton = false
 }: ScheduleStepProps) => {
   // Get current time to filter out past time slots for today
   const now = new Date();
@@ -207,8 +209,8 @@ export const ScheduleStep = ({
         </div>
       </div>
       
-      {/* Action Buttons */}
-      {formData.selectedDate && formData.selectedTime && (
+      {/* Action Buttons - only show if not hidden */}
+      {!hideActionButton && formData.selectedDate && formData.selectedTime && (
         <div className="flex justify-center pt-6 space-x-4">
           <Button
             onClick={() => {
