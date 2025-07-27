@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Shield, Lock, CreditCard, Info, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { StripeCardTabbedElement } from '@/components/StripeCardTabbedElement';
+import { StripeCardElement } from '@/components/StripeCardElement';
 import { supabase } from '@/integrations/supabase/client';
 
 interface SimplePaymentAuthorizationFormProps {
@@ -28,17 +28,17 @@ export const SimplePaymentAuthorizationForm = ({
   const [stripeReady, setStripeReady] = useState(false);
   const [stripe, setStripe] = useState<any>(null);
   const [elements, setElements] = useState<any>(null);
-  const [cardElements, setCardElements] = useState<any>(null);
+  const [cardElement, setCardElement] = useState<any>(null);
   const [formError, setFormError] = useState('');
   const [loading, setLoading] = useState(false);
   
   const { user } = useAuth();
 
-  const handleStripeReady = (stripeInstance: any, elementsInstance: any, cardElementsInstance: any) => {
+  const handleStripeReady = (stripeInstance: any, elementsInstance: any, cardElementInstance: any) => {
     console.log('Stripe ready for payment authorization');
     setStripe(stripeInstance);
     setElements(elementsInstance);
-    setCardElements(cardElementsInstance);
+    setCardElement(cardElementInstance);
     setStripeReady(true);
     setFormError('');
     setCardError('');
@@ -65,7 +65,7 @@ export const SimplePaymentAuthorizationForm = ({
     console.log('💳 Payment authorization started:', {
       hasStripe: !!stripe,
       hasElements: !!elements,
-      hasCardElements: !!cardElements,
+      hasCardElement: !!cardElement,
       amount,
       customerEmail,
       bookingId
@@ -74,9 +74,9 @@ export const SimplePaymentAuthorizationForm = ({
     setCardError('');
     setFormError('');
 
-    if (!stripe || !elements || !cardElements) {
+    if (!stripe || !elements || !cardElement) {
       const error = 'Payment form not ready. Please wait or refresh the page.';
-      console.error('❌ Payment form not ready:', { stripe: !!stripe, elements: !!elements, cardElements: !!cardElements });
+      console.error('❌ Payment form not ready:', { stripe: !!stripe, elements: !!elements, cardElement: !!cardElement });
       setFormError(error);
       onAuthorizationFailure(error);
       return;
@@ -122,7 +122,7 @@ export const SimplePaymentAuthorizationForm = ({
       
       const confirmResult = await stripe.confirmCardPayment(intentData.client_secret, {
         payment_method: {
-          card: cardElements.cardNumber,
+          card: cardElement,
           billing_details: {
             name: customerName,
             email: customerEmail,
@@ -261,7 +261,7 @@ export const SimplePaymentAuthorizationForm = ({
               <label className="text-sm font-medium text-gray-700">
                 Card Information
               </label>
-              <StripeCardTabbedElement
+              <StripeCardElement
                 onReady={handleStripeReady}
                 onError={handleStripeError}
               />

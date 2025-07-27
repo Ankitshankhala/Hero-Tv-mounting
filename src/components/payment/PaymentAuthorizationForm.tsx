@@ -5,7 +5,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Shield, Lock, CreditCard, Info, AlertTriangle } from 'lucide-react';
 // Removed useBookingPaymentFlow import that was causing Stripe context issues
 import { useAuth } from '@/hooks/useAuth';
-import { StripeCardTabbedElement } from '@/components/StripeCardTabbedElement';
+import { StripeCardElement } from '@/components/StripeCardElement';
 import { PaymentRecoveryAlert } from './PaymentRecoveryAlert';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -36,7 +36,7 @@ export const PaymentAuthorizationForm = ({
   const [stripeReady, setStripeReady] = useState(false);
   const [stripe, setStripe] = useState<any>(null);
   const [elements, setElements] = useState<any>(null);
-  const [cardElements, setCardElements] = useState<any>(null);
+  const [cardElement, setCardElement] = useState<any>(null);
   const [formError, setFormError] = useState('');
   const [creatingBooking, setCreatingBooking] = useState(false);
   const [paymentRecoveryInfo, setPaymentRecoveryInfo] = useState<{
@@ -51,11 +51,11 @@ export const PaymentAuthorizationForm = ({
   const [loading, setLoading] = useState(false);
   const { user, loading: authLoading } = useAuth();
 
-  const handleStripeReady = (stripeInstance: any, elementsInstance: any, cardElementsInstance: any) => {
+  const handleStripeReady = (stripeInstance: any, elementsInstance: any, cardElementInstance: any) => {
     console.log('Stripe ready for payment authorization');
     setStripe(stripeInstance);
     setElements(elementsInstance);
-    setCardElements(cardElementsInstance);
+    setCardElement(cardElementInstance);
     setStripeReady(true);
     setFormError('');
     setCardError('');
@@ -82,7 +82,7 @@ export const PaymentAuthorizationForm = ({
     console.log('💳 Payment authorization started:', {
       hasStripe: !!stripe,
       hasElements: !!elements,
-      hasCardElements: !!cardElements,
+      hasCardElement: !!cardElement,
       amount,
       customerEmail,
       bookingId
@@ -91,9 +91,9 @@ export const PaymentAuthorizationForm = ({
     setCardError('');
     setFormError('');
 
-    if (!stripe || !elements || !cardElements) {
+    if (!stripe || !elements || !cardElement) {
       const error = 'Payment form not ready. Please wait or refresh the page.';
-      console.error('❌ Payment form not ready:', { stripe: !!stripe, elements: !!elements, cardElements: !!cardElements });
+      console.error('❌ Payment form not ready:', { stripe: !!stripe, elements: !!elements, cardElement: !!cardElement });
       setFormError(error);
       onAuthorizationFailure(error);
       return;
@@ -192,7 +192,7 @@ export const PaymentAuthorizationForm = ({
           
           const confirmResult = await stripe.confirmCardPayment(intentData.client_secret, {
             payment_method: {
-              card: cardElements.cardNumber,
+              card: cardElement,
               billing_details: {
                 name: customerName,
                 email: customerEmail,
@@ -435,10 +435,10 @@ export const PaymentAuthorizationForm = ({
               <label className="text-sm font-medium text-gray-700">
                 Card Information
               </label>
-            <StripeCardTabbedElement
-              onReady={handleStripeReady}
-              onError={handleStripeError}
-            />
+              <StripeCardElement
+                onReady={handleStripeReady}
+                onError={handleStripeError}
+              />
               {!cardError && stripeReady && (
                 <div className="flex items-center space-x-1 text-green-600 text-xs">
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
