@@ -11,6 +11,7 @@ interface FormData {
   selectedDate: Date | undefined;
   selectedTime: string;
   zipcode: string;
+  bookingCreated?: boolean;
 }
 
 interface ScheduleStepProps {
@@ -206,30 +207,52 @@ export const ScheduleStep = ({
         </div>
       </div>
       
-      {/* Create Booking Button */}
+      {/* Action Buttons */}
       {formData.selectedDate && formData.selectedTime && (
-        <div className="flex justify-center pt-6">
-          <Button
-            onClick={() => {
-              console.log('Creating booking...');
-              // This will trigger handleScheduleNext in BookingFlow
-              setFormData(prev => ({ ...prev, proceedToPayment: true }));
-            }}
-            className="bg-green-600 hover:bg-green-700 text-white px-12 py-4 rounded-lg font-semibold text-lg shadow-lg transition-all duration-200 hover:shadow-xl"
-            disabled={loading}
-          >
-            {loading ? (
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                <span>Creating Booking...</span>
+        <div className="flex justify-center pt-6 space-x-4">
+          {!formData.bookingCreated ? (
+            <Button
+              onClick={() => {
+                console.log('Creating booking...');
+                setFormData(prev => ({ ...prev, createBooking: true }));
+              }}
+              className="bg-green-600 hover:bg-green-700 text-white px-12 py-4 rounded-lg font-semibold text-lg shadow-lg transition-all duration-200 hover:shadow-xl"
+              disabled={loading}
+            >
+              {loading ? (
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>Creating Booking...</span>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <CalendarIcon className="h-5 w-5" />
+                  <span>Create Booking</span>
+                </div>
+              )}
+            </Button>
+          ) : (
+            <div className="flex flex-col items-center space-y-4">
+              <div className="flex items-center space-x-2 text-green-600 bg-green-50 px-4 py-2 rounded-lg border border-green-200">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="font-medium">Booking Created Successfully!</span>
               </div>
-            ) : (
-              <div className="flex items-center space-x-2">
-                <CalendarIcon className="h-5 w-5" />
-                <span>Create Booking</span>
-              </div>
-            )}
-          </Button>
+              <Button
+                onClick={() => {
+                  console.log('Proceeding to payment...');
+                  setFormData(prev => ({ ...prev, proceedToPayment: true }));
+                }}
+                className="bg-purple-600 hover:bg-purple-700 text-white px-12 py-4 rounded-lg font-semibold text-lg shadow-lg transition-all duration-200 hover:shadow-xl"
+              >
+                <div className="flex items-center space-x-2">
+                  <span>Continue to Payment</span>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>

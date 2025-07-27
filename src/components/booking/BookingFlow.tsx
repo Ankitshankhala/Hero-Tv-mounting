@@ -25,7 +25,10 @@ export const BookingFlow = ({ onClose, initialServices = [] }: BookingFlowProps)
     zipcode: '',
     selectedDate: null,
     selectedTime: '',
-    specialInstructions: ''
+    specialInstructions: '',
+    createBooking: false,
+    bookingCreated: false,
+    proceedToPayment: false
   });
 
   const {
@@ -65,14 +68,42 @@ export const BookingFlow = ({ onClose, initialServices = [] }: BookingFlowProps)
     }
   };
 
+  // Watch for createBooking trigger from ScheduleStep
+  React.useEffect(() => {
+    if (formData.createBooking && currentStep === 3 && !formData.bookingCreated) {
+      handleCreateBooking();
+    }
+  }, [formData.createBooking, currentStep, formData.bookingCreated]);
+
   // Watch for proceedToPayment trigger from ScheduleStep
   React.useEffect(() => {
-    if (formData.proceedToPayment && currentStep === 3) {
-      handleScheduleNext(formData);
+    if (formData.proceedToPayment && formData.bookingCreated && currentStep === 3) {
+      setCurrentStep(4);
       // Reset the trigger
       setFormData(prev => ({ ...prev, proceedToPayment: false }));
     }
-  }, [formData.proceedToPayment, currentStep]);
+  }, [formData.proceedToPayment, formData.bookingCreated, currentStep]);
+
+  const handleCreateBooking = async () => {
+    try {
+      console.log('🚀 Creating booking immediately...');
+      const createdBookingId = await createInitialBooking(services, formData);
+      setBookingId(createdBookingId);
+      
+      // Mark booking as created and reset create trigger
+      setFormData(prev => ({ 
+        ...prev, 
+        createBooking: false, 
+        bookingCreated: true 
+      }));
+      
+      console.log('✅ Booking created successfully with ID:', createdBookingId);
+    } catch (error) {
+      console.error('❌ Failed to create booking:', error);
+      // Reset the create trigger on failure
+      setFormData(prev => ({ ...prev, createBooking: false }));
+    }
+  };
 
   const handlePaymentAuthorized = async (paymentIntentId?: string) => {
     try {
