@@ -16,7 +16,7 @@ import { PaymentHealthCheck } from './PaymentHealthCheck';
 
 interface Transaction {
   id: string;
-  booking_id: string;
+  booking_id: string | null;
   amount: number;
   status: string;
   payment_method: string;
@@ -27,7 +27,7 @@ interface Transaction {
     customer: {
       name: string;
     };
-  };
+  } | null;
 }
 
 interface PaymentStats {
@@ -186,7 +186,7 @@ export const PaymentsManager = () => {
     const customerName = transaction.booking?.customer?.name || '';
     const matchesSearch = customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          transaction.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         transaction.booking_id.toLowerCase().includes(searchTerm.toLowerCase());
+                         (transaction.booking_id && transaction.booking_id.toLowerCase().includes(searchTerm.toLowerCase()));
     return matchesFilter && matchesSearch;
   });
 
@@ -319,12 +319,16 @@ export const PaymentsManager = () => {
                   {filteredTransactions.map((transaction) => (
                     <TableRow key={transaction.id}>
                       <TableCell className="font-medium">
-                        {transaction.id.slice(0, 8)}...
+                        {transaction.id?.slice(0, 8) || 'N/A'}...
                       </TableCell>
                       <TableCell>
-                        <Button variant="link" className="p-0 h-auto">
-                          {transaction.booking_id.slice(0, 8)}...
-                        </Button>
+                        {transaction.booking_id ? (
+                          <Button variant="link" className="p-0 h-auto">
+                            {transaction.booking_id.slice(0, 8)}...
+                          </Button>
+                        ) : (
+                          <span className="text-gray-500">No booking</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         {transaction.booking?.customer?.name || 'Unknown Customer'}
