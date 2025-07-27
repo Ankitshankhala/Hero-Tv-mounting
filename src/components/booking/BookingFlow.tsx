@@ -64,6 +64,15 @@ export const BookingFlow = ({ onClose, initialServices = [] }: BookingFlowProps)
     }
   };
 
+  // Watch for proceedToPayment trigger from ScheduleStep
+  React.useEffect(() => {
+    if (formData.proceedToPayment && currentStep === 3) {
+      handleScheduleNext(formData);
+      // Reset the trigger
+      setFormData(prev => ({ ...prev, proceedToPayment: false }));
+    }
+  }, [formData.proceedToPayment, currentStep]);
+
   const handlePaymentAuthorized = async (paymentIntentId?: string) => {
     try {
       if (bookingId && paymentIntentId) {

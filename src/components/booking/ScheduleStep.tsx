@@ -205,6 +205,23 @@ export const ScheduleStep = ({
           </div>
         </div>
       </div>
+      
+      {/* Next Button */}
+      {formData.selectedDate && formData.selectedTime && (
+        <div className="flex justify-center pt-6">
+          <Button
+            onClick={() => {
+              console.log('Proceeding to payment step...');
+              // This will trigger handleScheduleNext in BookingFlow
+              setFormData(prev => ({ ...prev, proceedToPayment: true }));
+            }}
+            className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-lg font-medium"
+            disabled={loading}
+          >
+            {loading ? 'Creating Booking...' : 'Proceed to Payment'}
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

@@ -18,4 +18,5 @@ export interface FormData {
   selectedDate: Date | undefined;
   selectedTime: string;
   specialInstructions: string;
+  proceedToPayment?: boolean;
 }
