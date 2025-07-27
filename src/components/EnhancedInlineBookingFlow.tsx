@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { X, ArrowRight, Shield, AlertCircle } from 'lucide-react';
 import { CalendarIcon } from 'lucide-react';
@@ -65,6 +65,9 @@ export const EnhancedInlineBookingFlow = ({
 
   const { toast } = useToast();
   
+  // State to track if booking has been created in this session
+  const [hasCreatedBooking, setHasCreatedBooking] = useState(false);
+  
   const isMinimumCartMet = getTotalPrice() >= MINIMUM_BOOKING_AMOUNT;
   const amountNeeded = MINIMUM_BOOKING_AMOUNT - getTotalPrice();
 
@@ -99,6 +102,17 @@ export const EnhancedInlineBookingFlow = ({
       return;
     }
 
+    // Check if booking already exists
+    if (bookingId && hasCreatedBooking) {
+      console.log('📝 Booking already exists, proceeding to payment...');
+      toast({
+        title: "Proceeding to Payment",
+        description: "Your booking is ready. Please complete the payment authorization.",
+      });
+      setCurrentStep(4);
+      return;
+    }
+
     try {
       // Create booking with payment_pending status
       console.log('🚀 Creating booking and proceeding to payment...');
@@ -106,6 +120,7 @@ export const EnhancedInlineBookingFlow = ({
       
       if (createdBookingId) {
         setBookingId(createdBookingId);
+        setHasCreatedBooking(true);
         
         // Show success message
         toast({
