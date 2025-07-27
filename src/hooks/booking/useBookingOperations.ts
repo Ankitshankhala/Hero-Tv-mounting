@@ -226,8 +226,8 @@ export const useBookingOperations = () => {
       setBookingId(newBooking.id);
       
       toast({
-        title: "Booking Created",
-        description: "Please complete payment to confirm your booking.",
+        title: "Your booking is created!",
+        description: "To confirm it, please complete the payment now.",
       });
 
       return newBooking.id;

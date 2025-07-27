@@ -25,10 +25,7 @@ export const BookingFlow = ({ onClose, initialServices = [] }: BookingFlowProps)
     zipcode: '',
     selectedDate: null,
     selectedTime: '',
-    specialInstructions: '',
-    createBooking: false,
-    bookingCreated: false,
-    proceedToPayment: false
+    specialInstructions: ''
   });
 
   const {
@@ -68,40 +65,28 @@ export const BookingFlow = ({ onClose, initialServices = [] }: BookingFlowProps)
     }
   };
 
-  // Watch for createBooking trigger from ScheduleStep
+  // Watch for continueToPayment trigger from ScheduleStep
   React.useEffect(() => {
-    if (formData.createBooking && currentStep === 3 && !formData.bookingCreated) {
-      handleCreateBooking();
+    if (formData.continueToPayment && currentStep === 3) {
+      handleContinueToPayment();
     }
-  }, [formData.createBooking, currentStep, formData.bookingCreated]);
+  }, [formData.continueToPayment, currentStep]);
 
-  // Watch for proceedToPayment trigger from ScheduleStep
-  React.useEffect(() => {
-    if (formData.proceedToPayment && formData.bookingCreated && currentStep === 3) {
-      setCurrentStep(4);
-      // Reset the trigger
-      setFormData(prev => ({ ...prev, proceedToPayment: false }));
-    }
-  }, [formData.proceedToPayment, formData.bookingCreated, currentStep]);
-
-  const handleCreateBooking = async () => {
+  const handleContinueToPayment = async () => {
     try {
-      console.log('🚀 Creating booking immediately...');
+      console.log('🚀 Creating booking and proceeding to payment...');
       const createdBookingId = await createInitialBooking(services, formData);
       setBookingId(createdBookingId);
       
-      // Mark booking as created and reset create trigger
-      setFormData(prev => ({ 
-        ...prev, 
-        createBooking: false, 
-        bookingCreated: true 
-      }));
+      // Reset the trigger and move to payment step
+      setFormData(prev => ({ ...prev, continueToPayment: false }));
+      setCurrentStep(4);
       
       console.log('✅ Booking created successfully with ID:', createdBookingId);
     } catch (error) {
       console.error('❌ Failed to create booking:', error);
-      // Reset the create trigger on failure
-      setFormData(prev => ({ ...prev, createBooking: false }));
+      // Reset the trigger on failure
+      setFormData(prev => ({ ...prev, continueToPayment: false }));
     }
   };
 

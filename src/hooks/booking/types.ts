@@ -18,7 +18,5 @@ export interface FormData {
   selectedDate: Date | undefined;
   selectedTime: string;
   specialInstructions: string;
-  createBooking?: boolean;
-  bookingCreated?: boolean;
-  proceedToPayment?: boolean;
+  continueToPayment?: boolean;
 }
