@@ -72,3 +72,6 @@ verify_jwt = false
 
 [functions.notify-workers-coverage]
 verify_jwt = false
+
+[functions.test-email-sending]
+verify_jwt = false
