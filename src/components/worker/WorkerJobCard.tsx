@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { MapPin, Clock, User, Phone, Mail, DollarSign } from 'lucide-react';
 
 import JobActions from './JobActions';
-import InvoiceModificationModal from './InvoiceModificationModal';
+import { EnhancedInvoiceModificationModal } from './EnhancedInvoiceModificationModal';
 import OnSiteChargeModal from './OnSiteChargeModal';
 import PaymentCollectionModal from './PaymentCollectionModal';
 
@@ -176,7 +176,7 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
 
       {/* Modals */}
       {showModifyModal && (
-        <InvoiceModificationModal
+        <EnhancedInvoiceModificationModal
           isOpen={showModifyModal}
           onClose={() => setShowModifyModal(false)}
           job={job}

@@ -91,6 +91,42 @@ export type Database = {
           },
         ]
       }
+      booking_services: {
+        Row: {
+          base_price: number
+          booking_id: string
+          configuration: Json | null
+          created_at: string
+          id: string
+          quantity: number
+          service_id: string
+          service_name: string
+          updated_at: string
+        }
+        Insert: {
+          base_price?: number
+          booking_id: string
+          configuration?: Json | null
+          created_at?: string
+          id?: string
+          quantity?: number
+          service_id: string
+          service_name: string
+          updated_at?: string
+        }
+        Update: {
+          base_price?: number
+          booking_id?: string
+          configuration?: Json | null
+          created_at?: string
+          id?: string
+          quantity?: number
+          service_id?: string
+          service_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bookings: {
         Row: {
           cancellation_deadline: string | null
@@ -297,6 +333,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      invoice_service_modifications: {
+        Row: {
+          booking_id: string
+          created_at: string
+          id: string
+          modification_type: string
+          new_configuration: Json | null
+          old_configuration: Json | null
+          price_change: number
+          service_name: string
+          worker_id: string
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          id?: string
+          modification_type: string
+          new_configuration?: Json | null
+          old_configuration?: Json | null
+          price_change?: number
+          service_name: string
+          worker_id: string
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          id?: string
+          modification_type?: string
+          new_configuration?: Json | null
+          old_configuration?: Json | null
+          price_change?: number
+          service_name?: string
+          worker_id?: string
+        }
+        Relationships: []
       }
       invoices: {
         Row: {
