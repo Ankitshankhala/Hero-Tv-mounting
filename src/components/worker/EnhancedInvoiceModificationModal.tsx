@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -73,14 +73,23 @@ export const EnhancedInvoiceModificationModal = ({
     };
   }, [isOpen, job?.id]);
 
-  // Calculate total price when services change
-  useEffect(() => {
-    const total = services.reduce((sum, service) => {
+  // Calculate total price with useMemo for better performance
+  const currentTotalPrice = useMemo(() => {
+    return services.reduce((sum, service) => {
       const servicePrice = calculateServicePrice(service);
       return sum + (servicePrice * service.quantity);
     }, 0);
-    setTotalPrice(total);
   }, [services]);
+
+  // Update total price when calculated value changes
+  useEffect(() => {
+    setTotalPrice(currentTotalPrice);
+  }, [currentTotalPrice]);
+
+  // Calculate difference with useMemo
+  const priceDifference = useMemo(() => {
+    return currentTotalPrice - originalPrice;
+  }, [currentTotalPrice, originalPrice]);
 
   const fetchBookingServices = async () => {
     if (!job?.id) return;
@@ -97,11 +106,14 @@ export const EnhancedInvoiceModificationModal = ({
 
       if (data && data.length > 0) {
         setServices(data);
-        const original = data.reduce((sum, service) => {
-          const servicePrice = calculateServicePrice(service);
-          return sum + (servicePrice * service.quantity);
-        }, 0);
-        setOriginalPrice(original);
+        // Only set original price if it hasn't been set yet
+        if (originalPrice === 0) {
+          const original = data.reduce((sum, service) => {
+            const servicePrice = calculateServicePrice(service);
+            return sum + (servicePrice * service.quantity);
+          }, 0);
+          setOriginalPrice(original);
+        }
       } else {
         // Migrate from legacy single service
         await migrateLegacyService();
@@ -298,7 +310,7 @@ export const EnhancedInvoiceModificationModal = ({
   const handleSubmitModification = async () => {
     setSaving(true);
     try {
-      const difference = totalPrice - originalPrice;
+      const difference = currentTotalPrice - originalPrice;
 
       // Update booking with new pending payment amount
       const { error: updateError } = await supabase
@@ -368,8 +380,8 @@ export const EnhancedInvoiceModificationModal = ({
 
           <RealTimePriceDisplay
             originalPrice={originalPrice}
-            currentPrice={totalPrice}
-            difference={totalPrice - originalPrice}
+            currentPrice={currentTotalPrice}
+            difference={priceDifference}
           />
 
           <Tabs defaultValue="configure" className="w-full">
@@ -400,7 +412,7 @@ export const EnhancedInvoiceModificationModal = ({
 
           <ModificationSummary
             originalTotal={originalPrice}
-            newTotal={totalPrice}
+            newTotal={currentTotalPrice}
           />
 
           <div className="flex justify-end space-x-4 pt-4 border-t border-slate-700">
@@ -408,14 +420,14 @@ export const EnhancedInvoiceModificationModal = ({
               variant="outline"
               onClick={onClose}
               disabled={saving}
-              className="border-slate-600 text-white hover:bg-slate-700"
+              className="border-border text-foreground hover:bg-accent hover:text-accent-foreground"
             >
               Cancel
             </Button>
             <Button
               onClick={handleSubmitModification}
               disabled={saving || services.length === 0}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
               {saving ? (
                 <>

@@ -74,7 +74,7 @@ export const ServiceConfigurationTab: React.FC<ServiceConfigurationTabProps> = (
                       variant="outline"
                       size="sm"
                       onClick={() => onTvMountingConfiguration(service.id)}
-                      className="border-slate-500 text-white hover:bg-slate-600"
+                      className="border-border text-foreground hover:bg-accent hover:text-accent-foreground"
                     >
                       <Settings className="h-4 w-4 mr-1" />
                       Configure
@@ -84,7 +84,7 @@ export const ServiceConfigurationTab: React.FC<ServiceConfigurationTabProps> = (
                     variant="outline"
                     size="sm"
                     onClick={() => onRemoveService(service.id)}
-                    className="border-red-500 text-red-400 hover:bg-red-900/20"
+                    className="border-destructive text-destructive hover:bg-destructive/10"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -117,18 +117,18 @@ export const ServiceConfigurationTab: React.FC<ServiceConfigurationTabProps> = (
                       size="sm"
                       onClick={() => onUpdateQuantity(service.id, service.quantity - 1)}
                       disabled={service.quantity <= 1}
-                      className="h-8 w-8 p-0 border-slate-500 text-white hover:bg-slate-600"
+                      className="h-8 w-8 p-0 border-border text-foreground hover:bg-accent hover:text-accent-foreground"
                     >
                       <Minus className="h-4 w-4" />
                     </Button>
-                    <span className="w-8 text-center text-white font-medium">
+                    <span className="w-8 text-center text-foreground font-medium">
                       {service.quantity}
                     </span>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => onUpdateQuantity(service.id, service.quantity + 1)}
-                      className="h-8 w-8 p-0 border-slate-500 text-white hover:bg-slate-600"
+                      className="h-8 w-8 p-0 border-border text-foreground hover:bg-accent hover:text-accent-foreground"
                     >
                       <Plus className="h-4 w-4" />
                     </Button>
