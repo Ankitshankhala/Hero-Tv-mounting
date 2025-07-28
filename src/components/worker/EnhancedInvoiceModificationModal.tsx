@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -41,57 +41,63 @@ export const EnhancedInvoiceModificationModal = ({
   const [originalPrice, setOriginalPrice] = useState(0);
   const { toast } = useToast();
 
-  // Fetch booking services
-  useEffect(() => {
-    if (isOpen && job?.id) {
-      fetchBookingServices();
+  // Define calculateServicePrice function with useCallback
+  const calculateServicePrice = useCallback((service: BookingService) => {
+    let price = service.base_price;
+    const config = service.configuration || {};
+
+    // TV Mounting specific pricing
+    if (service.service_name === 'TV Mounting') {
+      if (config.over65) price += 50;
+      if (config.frameMount) price += 75;
+      if (config.wallType === 'stone' || config.wallType === 'brick' || config.wallType === 'tile') {
+        price += 100;
+      }
+      if (config.soundbar) price += 30;
     }
-  }, [isOpen, job?.id]);
 
-  // Real-time subscription for booking services
-  useEffect(() => {
-    if (!isOpen || !job?.id) return;
+    return price;
+  }, []);
 
-    const channel = supabase
-      .channel('booking-services-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'booking_services',
-          filter: `booking_id=eq.${job.id}`
-        },
-        () => {
-          fetchBookingServices();
-        }
-      )
-      .subscribe();
+  const migrateLegacyService = useCallback(async () => {
+    if (!job?.service_id) return;
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [isOpen, job?.id]);
+    try {
+      // Get service details
+      const { data: serviceData, error: serviceError } = await supabase
+        .from('services')
+        .select('*')
+        .eq('id', job.service_id)
+        .single();
 
-  // Calculate total price with useMemo for better performance
-  const currentTotalPrice = useMemo(() => {
-    return services.reduce((sum, service) => {
-      const servicePrice = calculateServicePrice(service);
-      return sum + (servicePrice * service.quantity);
-    }, 0);
-  }, [services]);
+      if (serviceError) throw serviceError;
 
-  // Update total price when calculated value changes
-  useEffect(() => {
-    setTotalPrice(currentTotalPrice);
-  }, [currentTotalPrice]);
+      // Create booking service entry
+      const bookingService = {
+        booking_id: job.id,
+        service_id: job.service_id,
+        service_name: serviceData.name,
+        base_price: serviceData.base_price,
+        quantity: 1,
+        configuration: {}
+      };
 
-  // Calculate difference with useMemo
-  const priceDifference = useMemo(() => {
-    return currentTotalPrice - originalPrice;
-  }, [currentTotalPrice, originalPrice]);
+      const { data, error } = await supabase
+        .from('booking_services')
+        .insert(bookingService)
+        .select()
+        .single();
 
-  const fetchBookingServices = async () => {
+      if (error) throw error;
+
+      setServices([data]);
+      setOriginalPrice(serviceData.base_price);
+    } catch (error) {
+      console.error('Error migrating legacy service:', error);
+    }
+  }, [job?.service_id, job?.id]);
+
+  const fetchBookingServices = useCallback(async () => {
     if (!job?.id) return;
 
     setLoading(true);
@@ -128,62 +134,57 @@ export const EnhancedInvoiceModificationModal = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [job?.id, originalPrice, calculateServicePrice, migrateLegacyService, toast]);
 
-  const migrateLegacyService = async () => {
-    if (!job?.service_id) return;
+  // Calculate total price with useMemo for better performance
+  const currentTotalPrice = useMemo(() => {
+    return services.reduce((sum, service) => {
+      const servicePrice = calculateServicePrice(service);
+      return sum + (servicePrice * service.quantity);
+    }, 0);
+  }, [services, calculateServicePrice]);
 
-    try {
-      // Get service details
-      const { data: serviceData, error: serviceError } = await supabase
-        .from('services')
-        .select('*')
-        .eq('id', job.service_id)
-        .single();
+  // Update total price when calculated value changes
+  useEffect(() => {
+    setTotalPrice(currentTotalPrice);
+  }, [currentTotalPrice]);
 
-      if (serviceError) throw serviceError;
+  // Calculate difference with useMemo
+  const priceDifference = useMemo(() => {
+    return currentTotalPrice - originalPrice;
+  }, [currentTotalPrice, originalPrice]);
 
-      // Create booking service entry
-      const bookingService = {
-        booking_id: job.id,
-        service_id: job.service_id,
-        service_name: serviceData.name,
-        base_price: serviceData.base_price,
-        quantity: 1,
-        configuration: {}
-      };
-
-      const { data, error } = await supabase
-        .from('booking_services')
-        .insert(bookingService)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      setServices([data]);
-      setOriginalPrice(serviceData.base_price);
-    } catch (error) {
-      console.error('Error migrating legacy service:', error);
+  // Fetch booking services effect
+  useEffect(() => {
+    if (isOpen && job?.id) {
+      fetchBookingServices();
     }
-  };
+  }, [isOpen, job?.id, fetchBookingServices]);
 
-  const calculateServicePrice = (service: BookingService) => {
-    let price = service.base_price;
-    const config = service.configuration || {};
+  // Real-time subscription for booking services
+  useEffect(() => {
+    if (!isOpen || !job?.id) return;
 
-    // TV Mounting specific pricing
-    if (service.service_name === 'TV Mounting') {
-      if (config.over65) price += 50;
-      if (config.frameMount) price += 75;
-      if (config.wallType === 'stone' || config.wallType === 'brick' || config.wallType === 'tile') {
-        price += 100;
-      }
-      if (config.soundbar) price += 30;
-    }
+    const channel = supabase
+      .channel('booking-services-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'booking_services',
+          filter: `booking_id=eq.${job.id}`
+        },
+        () => {
+          fetchBookingServices();
+        }
+      )
+      .subscribe();
 
-    return price;
-  };
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isOpen, job?.id, fetchBookingServices]);
 
   const updateServiceQuantity = async (serviceId: string, newQuantity: number) => {
     if (newQuantity < 0) return;
