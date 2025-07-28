@@ -79,17 +79,17 @@ export const TvMountingConfigurationModal: React.FC<TvMountingConfigurationModal
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl bg-slate-800 border-slate-700 max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="flex flex-row items-center justify-between pb-4 border-b border-slate-700">
+      <DialogContent className="max-w-4xl bg-card border-border max-h-[90vh] overflow-y-auto">
+        <DialogHeader className="flex flex-row items-center justify-between pb-4 border-b border-border">
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center">
-              <span className="text-white font-bold">📺</span>
+            <div className="w-8 h-8 bg-primary rounded flex items-center justify-center">
+              <span className="text-primary-foreground font-bold">📺</span>
             </div>
             <div>
-              <DialogTitle className="text-xl font-bold text-white">
+              <DialogTitle className="text-xl font-bold text-card-foreground">
                 Configure TV Mounting Service
               </DialogTitle>
-              <p className="text-slate-400 text-sm">Customize your TV mounting service for each TV</p>
+              <p className="text-muted-foreground text-sm">Customize your TV mounting service for each TV</p>
             </div>
           </div>
         </DialogHeader>
@@ -105,7 +105,7 @@ export const TvMountingConfigurationModal: React.FC<TvMountingConfigurationModal
 
           {/* Configure Each TV */}
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-white">Configure Each TV</h3>
+            <h3 className="text-lg font-semibold text-card-foreground">Configure Each TV</h3>
             {tvConfigurations.map((config, index) => (
               <IndividualTvConfig
                 key={config.id}
@@ -120,20 +120,20 @@ export const TvMountingConfigurationModal: React.FC<TvMountingConfigurationModal
           </div>
 
           {/* Services Summary */}
-          <Card className="bg-slate-900 border-slate-600">
+          <Card className="bg-muted border-border">
             <CardContent className="p-4">
-              <h3 className="text-lg font-semibold text-white mb-3">Services Summary</h3>
+              <h3 className="text-lg font-semibold text-card-foreground mb-3">Services Summary</h3>
               <div className="space-y-2">
                 {buildServicesList().map((service, index) => (
-                  <div key={index} className="flex justify-between text-slate-300">
+                  <div key={index} className="flex justify-between text-muted-foreground">
                     <span>{service.name}</span>
                     <span>${service.price.toFixed(2)}</span>
                   </div>
                 ))}
-                <div className="border-t border-slate-600 pt-2 mt-3">
-                  <div className="flex justify-between text-white font-bold text-xl">
+                <div className="border-t border-border pt-2 mt-3">
+                  <div className="flex justify-between text-card-foreground font-bold text-xl">
                     <span>Total:</span>
-                    <span className="text-green-400">${totalPrice.toFixed(2)}</span>
+                    <span className="text-primary">${totalPrice.toFixed(2)}</span>
                   </div>
                 </div>
               </div>
@@ -141,17 +141,16 @@ export const TvMountingConfigurationModal: React.FC<TvMountingConfigurationModal
           </Card>
         </div>
 
-        <div className="flex justify-end space-x-4 pt-4 border-t border-slate-700">
+        <div className="flex justify-end space-x-4 pt-4 border-t border-border">
           <Button
             variant="outline"
             onClick={onClose}
-            className="border-slate-600 text-white hover:bg-slate-700"
           >
             Cancel
           </Button>
           <Button
             onClick={handleComplete}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
+            variant="default"
           >
             Apply Configuration
           </Button>
