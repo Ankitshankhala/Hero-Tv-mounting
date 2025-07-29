@@ -19,7 +19,7 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
   const retryCountRef = useRef(0);
   const maxRetries = 5;
 
-  const waitForDomElement = async (maxAttempts = 10, interval = 100): Promise<boolean> => {
+  const waitForDomElement = async (maxAttempts = 8, interval = 150): Promise<boolean> => {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       console.log(`🔄 DOM check attempt ${attempt}/${maxAttempts}`);
       
@@ -72,7 +72,7 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
       console.log('🔄 Waiting for DOM element...');
       setLoadingMessage('Preparing payment form container...');
       
-      const domReady = await waitForDomElement(15, 200);
+      const domReady = await waitForDomElement(8, 200);
       if (!domReady) {
         throw new Error('Payment form container could not be initialized. Please refresh the page and try again.');
       }
@@ -159,11 +159,15 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
           if (error.code === 'incomplete_number') {
             userFriendlyError = 'Please enter a complete card number';
           } else if (error.code === 'incomplete_expiry') {
-            userFriendlyError = 'Please enter a valid expiry date';
+            userFriendlyError = 'Please enter a valid expiry date (MM/YY)';
           } else if (error.code === 'incomplete_cvc') {
             userFriendlyError = 'Please enter a valid security code (CVC)';
           } else if (error.code === 'invalid_number') {
             userFriendlyError = 'Please enter a valid card number';
+          } else if (error.code === 'invalid_expiry_year_past') {
+            userFriendlyError = 'Your card\'s expiration year is in the past';
+          } else if (error.code === 'invalid_expiry_month_past') {
+            userFriendlyError = 'Your card\'s expiration month is in the past';
           }
           
           onError(userFriendlyError);

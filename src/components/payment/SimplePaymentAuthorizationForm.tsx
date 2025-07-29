@@ -48,12 +48,17 @@ export const SimplePaymentAuthorizationForm = ({
     if (error && error.trim()) {
       console.error('Stripe error:', error);
       setCardError(error);
-      setFormError(error);
-      setStripeReady(false);
+      // Don't set formError for card validation errors - these should only show in the card input area
+      // Only set formError for critical system errors
+      if (error.includes('Payment form container') || error.includes('Payment system') || error.includes('configuration')) {
+        setFormError(error);
+        setStripeReady(false);
+      }
     } else {
       console.log('✅ Stripe error cleared, card validation successful');
       setCardError('');
-      if (formError && !formError.includes('Payment form not ready') && !formError.includes('Payment system')) {
+      // Only clear formError if it was a card validation error, preserve system errors
+      if (formError && !formError.includes('Payment form not ready') && !formError.includes('Payment system') && !formError.includes('configuration')) {
         setFormError('');
       }
     }
@@ -156,7 +161,20 @@ export const SimplePaymentAuthorizationForm = ({
             }
             break;
           case 'validation_error':
-            errorMessage = 'Please check your card details and try again.';
+            // For validation errors, use the specific Stripe message
+            if (stripeError.code === 'invalid_expiry_year_past') {
+              errorMessage = 'Your card\'s expiration year is in the past. Please check your card details.';
+            } else if (stripeError.code === 'invalid_expiry_month_past') {
+              errorMessage = 'Your card\'s expiration month is in the past. Please check your card details.';
+            } else if (stripeError.code === 'incomplete_expiry') {
+              errorMessage = 'Please enter a valid expiry date (MM/YY format).';
+            } else if (stripeError.code === 'incomplete_number') {
+              errorMessage = 'Please enter a complete card number.';
+            } else if (stripeError.code === 'incomplete_cvc') {
+              errorMessage = 'Please enter a valid security code (CVC).';
+            } else {
+              errorMessage = stripeError.message || 'Please check your card details and try again.';
+            }
             break;
           case 'api_error':
             errorMessage = 'Payment service temporarily unavailable. Please try again.';
@@ -244,7 +262,16 @@ export const SimplePaymentAuthorizationForm = ({
 
       {formError && (
         <Alert variant="destructive">
-          <AlertDescription>{formError}</AlertDescription>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            <div className="font-medium">Payment Error</div>
+            <div className="mt-1">{formError}</div>
+            {formError.includes('expiration') && (
+              <div className="mt-2 text-sm">
+                Please enter your card's expiry date in MM/YY format (e.g., 12/25 for December 2025).
+              </div>
+            )}
+          </AlertDescription>
         </Alert>
       )}
 
@@ -261,6 +288,9 @@ export const SimplePaymentAuthorizationForm = ({
               <label className="text-sm font-medium text-gray-700">
                 Card Information
               </label>
+              <p className="text-xs text-gray-500 mb-2">
+                Enter your card number, expiry date (MM/YY), and security code (CVC)
+              </p>
               <StripeCardElement
                 onReady={handleStripeReady}
                 onError={handleStripeError}
