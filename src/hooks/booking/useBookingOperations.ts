@@ -192,26 +192,77 @@ export const useBookingOperations = () => {
 
       console.log('✅ Booking confirmed successfully:', updatedBooking.id);
 
-      // Auto-assign worker after confirmation
-      if (updatedBooking.customer?.zip_code) {
-        console.log('🔄 Attempting worker auto-assignment for confirmed booking');
+      // Auto-assign worker after confirmation - handle both authenticated users and guests
+      const guestInfo = updatedBooking.guest_customer_info as any;
+      const hasZipcode = updatedBooking.customer?.zip_code || guestInfo?.zipcode;
+      let assignmentCompleted = false;
+      
+      if (hasZipcode) {
+        console.log('🔄 Attempting worker auto-assignment for confirmed booking', {
+          isGuest: !updatedBooking.customer_id,
+          zipcode: updatedBooking.customer?.zip_code || guestInfo?.zipcode
+        });
         
-        const { data: assignmentData, error: assignmentError } = await supabase.rpc(
-          'auto_assign_workers_with_coverage',
-          { p_booking_id: bookingId }
-        );
+        try {
+          const { data: assignmentData, error: assignmentError } = await supabase.rpc(
+            'auto_assign_workers_with_coverage',
+            { p_booking_id: bookingId }
+          );
 
-        if (assignmentError) {
-          console.error('❌ Worker assignment failed:', assignmentError);
-        } else {
-          console.log('✅ Worker assignment completed:', assignmentData);
+          if (assignmentError) {
+            console.error('❌ Worker assignment failed:', assignmentError);
+            // Add user-friendly error handling
+            toast({
+              title: "Booking Confirmed",
+              description: "Your booking is confirmed, but we're still finding the best worker for you. You'll be notified soon!",
+            });
+            assignmentCompleted = true;
+          } else {
+            console.log('✅ Worker assignment completed:', assignmentData);
+            
+            // Check assignment results and provide appropriate feedback
+            if (assignmentData && assignmentData.length > 0) {
+              const result = assignmentData[0];
+              if (result.assignment_status === 'direct_assigned') {
+                toast({
+                  title: "Great News!",
+                  description: "Your booking is confirmed and a worker has been assigned to your job!",
+                });
+                assignmentCompleted = true;
+              } else if (result.assignment_status === 'coverage_notifications_sent') {
+                toast({
+                  title: "Booking Confirmed!",
+                  description: `We've notified ${result.notifications_sent} workers in your area. You'll hear from one soon!`,
+                });
+                assignmentCompleted = true;
+              }
+            }
+          }
+        } catch (assignmentError) {
+          console.error('❌ Worker assignment error:', assignmentError);
+          // Don't fail the booking confirmation for assignment errors
+          toast({
+            title: "Booking Confirmed",
+            description: "Your payment was successful! We're working on assigning a worker to your booking.",
+          });
+          assignmentCompleted = true;
         }
+      } else {
+        console.warn('⚠️ No zipcode found for worker assignment');
+        toast({
+          title: "Booking Confirmed",
+          description: "Your booking is confirmed. Please contact support to complete the service assignment.",
+        });
+        assignmentCompleted = true;
       }
 
-      toast({
-        title: "Booking Confirmed!",
-        description: "Your payment has been authorized and your booking is now confirmed.",
-      });
+      // Only show the generic success message if no specific assignment message was shown
+      if (!assignmentCompleted) {
+        toast({
+          title: "Booking Confirmed!",
+          description: "Your payment has been authorized and your booking is now confirmed.",
+        });
+      }
 
       return updatedBooking;
     } catch (error) {

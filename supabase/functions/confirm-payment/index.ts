@@ -108,6 +108,24 @@ serve(async (req) => {
 
       finalBookingId = newBooking.id;
       logStep("Guest booking created successfully", { bookingId: newBooking.id });
+
+      // Trigger worker assignment for guest booking
+      try {
+        logStep("Attempting worker auto-assignment for guest booking");
+        const { data: assignmentData, error: assignmentError } = await supabaseServiceRole.rpc(
+          'auto_assign_workers_with_coverage',
+          { p_booking_id: newBooking.id }
+        );
+
+        if (assignmentError) {
+          logStep("Guest booking worker assignment failed", { error: assignmentError });
+        } else {
+          logStep("Guest booking worker assignment completed", assignmentData);
+        }
+      } catch (assignmentError) {
+        logStep("Guest booking worker assignment error", { error: assignmentError });
+        // Don't fail the payment confirmation for assignment errors
+      }
       
     } else if (booking_id) {
       // Update existing booking status
