@@ -52,7 +52,9 @@ export const CreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingM
     address: '',
     region: '',
     worker: '',
-    specialInstructions: ''
+    specialInstructions: '',
+    zipcode: '',
+    city: ''
   });
   
   const [workers, setWorkers] = useState<Worker[]>([]);
@@ -148,45 +150,19 @@ export const CreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingM
 
     setLoading(true);
     try {
-      console.log('Creating customer and booking with data:', formData);
+      console.log('Creating guest booking with data:', formData);
 
-      // Create customer first
-      const { data: customerData, error: customerError } = await supabase
-        .from('users')
-        .insert({
-          name: formData.customerName,
-          email: formData.customerEmail,
-          phone: formData.customerPhone,
-          role: 'customer' as const
-        })
-        .select()
-        .single();
+      // Create guest customer info (no user account needed)
+      const guestCustomerInfo = {
+        name: formData.customerName,
+        email: formData.customerEmail,
+        phone: formData.customerPhone,
+        zipcode: formData.zipcode || '',
+        city: formData.city || '',
+        address: formData.address || ''
+      };
 
-      if (customerError) {
-        console.error('Customer creation error:', customerError);
-        
-        // Check if it's a duplicate email error
-        if (customerError.message?.includes('duplicate key value')) {
-          // Try to find existing customer
-          const { data: existingCustomer } = await supabase
-            .from('users')
-            .select('id')
-            .eq('email', formData.customerEmail)
-            .eq('role', 'customer')
-            .single();
-            
-          if (existingCustomer) {
-            // Use existing customer
-            customerData.id = existingCustomer.id;
-          } else {
-            throw customerError;
-          }
-        } else {
-          throw customerError;
-        }
-      }
-
-      console.log('Customer resolved:', customerData);
+      console.log('Guest customer info:', guestCustomerInfo);
 
       // Build location notes with TV mounting config if applicable
       let locationNotes = `${formData.address}\n\nRegion: ${formData.region}`;
@@ -205,7 +181,8 @@ export const CreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingM
       // If specific worker selected, use regular booking creation
       if (formData.worker && formData.worker !== 'auto') {
         const bookingData = {
-          customer_id: customerData.id,
+          customer_id: null, // Always null for guest bookings
+          guest_customer_info: guestCustomerInfo,
           service_id: formData.service,
           scheduled_date: formData.date,
           scheduled_start: formData.time,
@@ -227,7 +204,8 @@ export const CreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingM
       } else {
         // Use enhanced booking logic with auto-assignment
         const enhancedBookingData: EnhancedBookingData = {
-          customer_id: customerData.id,
+          customer_id: null, // Always null for guest bookings
+          guest_customer_info: guestCustomerInfo,
           service_id: formData.service,
           scheduled_date: formData.date,
           scheduled_start: formData.time,
