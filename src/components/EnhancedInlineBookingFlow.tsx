@@ -12,6 +12,7 @@ import { ScheduleStep } from '@/components/booking/ScheduleStep';
 import { BookingSuccessModal } from '@/components/booking/BookingSuccessModal';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { optimizedLog } from '@/utils/performanceOptimizer';
 
 interface ServiceItem {
   id: string;
@@ -105,7 +106,7 @@ export const EnhancedInlineBookingFlow = ({
 
     // Check if booking already exists
     if (bookingId && hasCreatedBooking) {
-      console.log('📝 Booking already exists, proceeding to payment...');
+      optimizedLog('📝 Booking already exists, proceeding to payment...');
       toast({
         title: "Proceeding to Payment",
         description: "Your booking is ready. Please complete the payment authorization.",
@@ -116,7 +117,7 @@ export const EnhancedInlineBookingFlow = ({
 
     try {
       // Create booking with payment_pending status
-      console.log('🚀 Creating booking and proceeding to payment...');
+      optimizedLog('🚀 Creating booking and proceeding to payment...');
       const createdBookingId = await handleBookingSubmit();
       
       if (createdBookingId) {
@@ -131,7 +132,7 @@ export const EnhancedInlineBookingFlow = ({
         
         // Move to payment step
         setCurrentStep(4);
-        console.log('✅ Booking created successfully with ID:', createdBookingId);
+        optimizedLog('✅ Booking created successfully with ID:', createdBookingId);
       }
     } catch (error) {
       console.error('❌ Failed to create booking:', error);
@@ -147,7 +148,7 @@ export const EnhancedInlineBookingFlow = ({
     try {
       if (bookingId && paymentIntentId) {
         // Confirm booking after successful payment
-        console.log('✅ Payment authorized, confirming booking...');
+        optimizedLog('✅ Payment authorized, confirming booking...');
         
         const { data: confirmResult, error: confirmError } = await supabase.functions.invoke(
           'confirm-payment',
@@ -163,7 +164,7 @@ export const EnhancedInlineBookingFlow = ({
           throw new Error(confirmError?.message || 'Failed to confirm booking after payment');
         }
 
-        console.log('✅ Booking confirmed after payment:', confirmResult);
+        optimizedLog('✅ Booking confirmed after payment:', confirmResult);
         
         toast({
           title: "Payment Authorized & Booking Confirmed! 🎉",
