@@ -94,96 +94,18 @@ export const useBookingOperations = () => {
 
       console.log('✅ All validations passed, proceeding with booking creation');
 
-      // Support both authenticated and guest bookings
-      let customerId = user?.id;
+      // Support both authenticated users and guests
+      const customerId = user?.id || null; // NULL for guests, user ID for authenticated users
 
       console.log('🔍 Customer identification process:', {
         hasAuthenticatedUser: !!user,
         userEmail: user?.email,
         formEmail: formData.customerEmail,
-        formName: formData.customerName
+        formName: formData.customerName,
+        isGuest: !user
       });
 
-      // If no authenticated user, create a guest customer record
-      if (!user && formData.customerEmail && formData.customerName) {
-        console.log('🆕 Creating/finding guest customer for booking');
-        
-        try {
-          // Check if guest customer already exists
-          const { data: existingCustomer, error: findError } = await supabase
-            .from('users')
-            .select('id, email, name')
-            .eq('email', formData.customerEmail)
-            .eq('role', 'customer')
-            .maybeSingle();
-
-          if (findError) {
-            console.error('❌ Error searching for existing customer:', findError);
-            throw new Error(`Failed to search for existing customer: ${findError.message}`);
-          }
-
-          if (existingCustomer) {
-            console.log('✅ Found existing guest customer:', existingCustomer.id);
-            customerId = existingCustomer.id;
-          } else {
-            console.log('🆕 Creating new guest customer');
-            
-            // Validate guest customer data before creation
-            const customerData = {
-              email: formData.customerEmail,
-              name: formData.customerName,
-              phone: formData.customerPhone || null,
-              city: formData.city,
-              zip_code: formData.zipcode,
-              role: 'customer' as const
-            };
-
-            console.log('👤 Guest customer data:', customerData);
-
-            // Create new guest customer
-            const { data: newCustomer, error: customerError } = await supabase
-              .from('users')
-              .insert(customerData)
-              .select('id')
-              .single();
-
-            if (customerError) {
-              console.error('❌ Failed to create guest customer:', {
-                error: customerError,
-                errorCode: customerError.code,
-                errorDetails: customerError.details,
-                customerData
-              });
-              
-              // Provide more specific error messages
-              if (customerError.code === '23505') {
-                throw new Error('A customer with this email already exists but could not be found');
-              } else if (customerError.code === '23502') {
-                throw new Error('Missing required customer information');
-              } else {
-                throw new Error(`Failed to create customer profile: ${customerError.message}`);
-              }
-            }
-
-            if (!newCustomer) {
-              throw new Error('Failed to create customer profile - no customer data returned');
-            }
-
-            console.log('✅ Created new guest customer:', newCustomer.id);
-            customerId = newCustomer.id;
-          }
-        } catch (customerCreationError) {
-          console.error('❌ Guest customer creation/lookup failed:', customerCreationError);
-          throw new Error(`Customer setup failed: ${customerCreationError instanceof Error ? customerCreationError.message : 'Unknown error'}`);
-        }
-      }
-
-      if (!customerId) {
-        console.error('❌ No customer ID available after processing');
-        throw new Error('Customer identification failed - please try logging in or check your information');
-      }
-
-      console.log('✅ Customer ID established:', customerId);
+      console.log('✅ Customer ID established:', customerId || 'guest');
 
       // Create booking with payment_pending status
       const bookingData = {
