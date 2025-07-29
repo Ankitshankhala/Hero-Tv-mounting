@@ -1184,14 +1184,6 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: number
       }
-      debug_guest_booking_insertion: {
-        Args: { p_customer_id: string; p_guest_customer_info: Json }
-        Returns: string
-      }
-      debug_guest_booking_policy: {
-        Args: { p_customer_id: string; p_guest_customer_info: Json }
-        Returns: string
-      }
       find_available_workers: {
         Args:
           | {
@@ -1264,10 +1256,6 @@ export type Database = {
       set_worker_weekly_availability: {
         Args: { p_worker_id: string; p_availability: Json }
         Returns: boolean
-      }
-      test_guest_booking_insertion: {
-        Args: Record<PropertyKey, never>
-        Returns: string
       }
     }
     Enums: {

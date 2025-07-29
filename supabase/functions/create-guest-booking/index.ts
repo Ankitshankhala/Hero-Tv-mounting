@@ -14,8 +14,6 @@ serve(async (req) => {
 
   try {
     const { bookingData } = await req.json();
-    
-    console.log('Creating guest booking with data:', JSON.stringify(bookingData, null, 2));
 
     // Create Supabase client with service role key for admin access
     const supabase = createClient(
@@ -48,11 +46,8 @@ serve(async (req) => {
       .single();
 
     if (bookingError) {
-      console.error('Booking creation error:', bookingError);
       throw new Error(`Failed to create booking: ${bookingError.message}`);
     }
-
-    console.log('✅ Guest booking created successfully:', newBooking.id);
 
     // Also create booking services if provided
     if (bookingData.services && bookingData.services.length > 0) {
@@ -70,8 +65,7 @@ serve(async (req) => {
         .insert(bookingServices);
 
       if (servicesError) {
-        console.error('Error creating booking services:', servicesError);
-        // Don't fail the whole operation, just log it
+        // Don't fail the whole operation
       }
     }
 
@@ -88,8 +82,6 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error in create-guest-booking:', error);
-    
     return new Response(
       JSON.stringify({ 
         success: false, 
