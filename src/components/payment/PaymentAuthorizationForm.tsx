@@ -338,16 +338,30 @@ export const PaymentAuthorizationForm = ({
         console.log('🎯 Authorizing payment for existing booking:', bookingId);
         
         try {
+          // Prepare user data for authentication
+          const paymentRequestBody: any = {
+            amount,
+            currency: 'usd',
+            booking_id: bookingId,
+            idempotency_key: crypto.randomUUID(),
+          };
+
+          // Add authentication data
+          if (user) {
+            paymentRequestBody.user_id = user.id;
+          } else {
+            // For guest bookings, get guest info from formData or props
+            paymentRequestBody.guest_customer_info = {
+              email: customerEmail || formData?.email,
+              name: customerName || formData?.name || formData?.fullName,
+            };
+          }
+          
           // Create payment intent for existing booking
           const { data: intentData, error: intentError } = await supabase.functions.invoke(
             'create-payment-intent',
             {
-              body: {
-                amount,
-                currency: 'usd',
-                booking_id: bookingId,
-                idempotency_key: crypto.randomUUID(),
-              },
+              body: paymentRequestBody,
             }
           );
 
