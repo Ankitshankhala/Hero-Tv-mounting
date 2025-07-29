@@ -22,7 +22,7 @@ import { CoverageRequestsManager } from '@/components/admin/CoverageRequestsMana
 import { InvoicesManager } from '@/components/admin/InvoicesManager';
 import { PerformanceDashboard } from '@/components/admin/PerformanceDashboard';
 import { DeploymentPanel } from '@/components/admin/DeploymentPanel';
-import { EmailTestButton } from '@/components/admin/EmailTestButton';
+import { EmailTestSuite } from '@/components/admin/EmailTestSuite';
 import { InvoiceTestButton } from '@/components/admin/InvoiceTestButton';
 import { BookingStatusTestButton } from '@/components/admin/BookingStatusTestButton';
 
@@ -118,7 +118,7 @@ const Admin = () => {
         <AdminHeader />
         <main className="flex-1 p-6">
           <div className="mb-4 flex gap-2">
-            <EmailTestButton />
+            <EmailTestSuite />
             <InvoiceTestButton />
             <BookingStatusTestButton />
           </div>
