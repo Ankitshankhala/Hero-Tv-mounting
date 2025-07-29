@@ -1265,6 +1265,10 @@ export type Database = {
         Args: { p_worker_id: string; p_availability: Json }
         Returns: boolean
       }
+      test_guest_booking_insertion: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
     }
     Enums: {
       booking_status:

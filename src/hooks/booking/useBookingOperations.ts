@@ -128,36 +128,55 @@ export const useBookingOperations = () => {
       };
 
       console.log('📋 Creating booking with payment_pending status');
-      console.log('🔍 Booking data being inserted:', JSON.stringify(bookingData, null, 2));
 
-      // Debug the guest policy before attempting insert
+      let newBooking;
+      
       if (!user) {
-        const { data: debugResult, error: debugError } = await supabase.rpc('debug_guest_booking_insertion', {
-          p_customer_id: bookingData.customer_id,
-          p_guest_customer_info: bookingData.guest_customer_info
+        // For guest users, use the edge function to bypass RLS issues
+        console.log('🔧 Using edge function for guest booking creation');
+        
+        const { data: edgeResult, error: edgeError } = await supabase.functions.invoke('create-guest-booking', {
+          body: { 
+            bookingData: {
+              ...bookingData,
+              services // Include services for booking_services table
+            }
+          }
         });
-        console.log('🔍 Guest policy debug result:', debugResult);
-        if (debugError) {
-          console.error('Debug function error:', debugError);
+
+        if (edgeError) {
+          console.error('❌ Edge function error:', edgeError);
+          throw new Error(`Failed to create guest booking: ${edgeError.message}`);
         }
-      }
 
-      const { data: newBooking, error: bookingError } = await supabase
-        .from('bookings')
-        .insert(bookingData)
-        .select('id')
-        .single();
+        if (!edgeResult?.success) {
+          throw new Error(`Failed to create guest booking: ${edgeResult?.error || 'Unknown error'}`);
+        }
 
-      if (bookingError) {
-        console.error('❌ Booking creation failed:', bookingError);
-        throw new Error(`Failed to create booking: ${bookingError.message}`);
+        newBooking = { id: edgeResult.booking_id };
+        console.log('✅ Guest booking created via edge function:', newBooking.id);
+        
+      } else {
+        // For authenticated users, use direct database access
+        const { data: authBooking, error: bookingError } = await supabase
+          .from('bookings')
+          .insert(bookingData)
+          .select('id')
+          .single();
+
+        if (bookingError) {
+          console.error('❌ Booking creation failed:', bookingError);
+          throw new Error(`Failed to create booking: ${bookingError.message}`);
+        }
+
+        newBooking = authBooking;
+        console.log('✅ Authenticated user booking created:', newBooking.id);
       }
 
       if (!newBooking) {
         throw new Error('Failed to create booking - no booking data returned');
       }
 
-      console.log('✅ Initial booking created with ID:', newBooking.id);
       setBookingId(newBooking.id);
       
       toast({
