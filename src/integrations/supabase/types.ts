@@ -1249,10 +1249,6 @@ export type Database = {
         Args: { state_abbreviation: string }
         Returns: number
       }
-      log_booking_insert_attempt: {
-        Args: { p_customer_id: string; p_guest_customer_info: Json }
-        Returns: boolean
-      }
       resend_worker_sms: {
         Args: { booking_id_param: string }
         Returns: boolean
