@@ -98,8 +98,14 @@ export const useTvMountingModal = (services: PublicService[]) => {
   const buildServicesList = () => {
     const selectedServices = [];
     
+    // Main TV mounting service - ensure we have a valid UUID
+    if (!tvMountingService?.id) {
+      console.error('❌ TV Mounting service not found in database');
+      throw new Error('TV Mounting service is not available. Please contact support.');
+    }
+    
     selectedServices.push({
-      id: 'tv-mounting-base',
+      id: tvMountingService.id,
       name: `TV Mounting${numberOfTvs > 1 ? ` (${numberOfTvs} TVs)` : ''}`,
       price: calculateTvMountingPrice(numberOfTvs),
       quantity: 1
@@ -107,43 +113,61 @@ export const useTvMountingModal = (services: PublicService[]) => {
 
     const over65Count = tvConfigurations.filter(config => config.over65).length;
     if (over65Count > 0) {
+      if (!over65Service?.id) {
+        console.error('❌ Over 65" TV Add-on service not found in database');
+        throw new Error('Over 65" TV Add-on service is not available. Please contact support.');
+      }
       selectedServices.push({
-        id: over65Service?.id || 'over65-addon',
+        id: over65Service.id,
         name: `Over 65" TV Add-on${over65Count > 1 ? ` (${over65Count} TVs)` : ''}`,
-        price: (over65Service?.base_price || 25) * over65Count,
+        price: over65Service.base_price * over65Count,
         quantity: 1
       });
     }
     
     const frameMountCount = tvConfigurations.filter(config => config.frameMount).length;
     if (frameMountCount > 0) {
+      if (!frameMountService?.id) {
+        console.error('❌ Frame Mount Add-on service not found in database');
+        throw new Error('Frame Mount Add-on service is not available. Please contact support.');
+      }
       selectedServices.push({
-        id: frameMountService?.id || 'frame-mount-addon',
+        id: frameMountService.id,
         name: `Frame Mount Add-on${frameMountCount > 1 ? ` (${frameMountCount} TVs)` : ''}`,
-        price: (frameMountService?.base_price || 25) * frameMountCount,
+        price: frameMountService.base_price * frameMountCount,
         quantity: 1
       });
     }
     
     const specialWallCount = tvConfigurations.filter(config => config.wallType !== 'standard').length;
     if (specialWallCount > 0) {
+      if (!stoneWallService?.id) {
+        console.error('❌ Stone/Brick/Tile Wall service not found in database');
+        throw new Error('Special wall service is not available. Please contact support.');
+      }
       const wallTypes = [...new Set(tvConfigurations.filter(config => config.wallType !== 'standard').map(config => config.wallType))];
       selectedServices.push({
-        id: stoneWallService?.id || 'wall-type-addon',
+        id: stoneWallService.id,
         name: `Special Wall Service (${wallTypes.join(', ')})${specialWallCount > 1 ? ` (${specialWallCount} TVs)` : ''}`,
-        price: (stoneWallService?.base_price || 50) * specialWallCount,
+        price: stoneWallService.base_price * specialWallCount,
         quantity: 1
       });
     }
 
     const soundbarCount = tvConfigurations.filter(config => config.soundbar).length;
     if (soundbarCount > 0) {
-      selectedServices.push({
-        id: 'soundbar-mount-addon',
-        name: `Soundbar Mount${soundbarCount > 1 ? ` (${soundbarCount} soundbars)` : ''}`,
-        price: 40 * soundbarCount,
-        quantity: 1
-      });
+      // Find soundbar service or skip if not available
+      const soundbarService = services.find(s => s.name.includes('Sound') || s.name.includes('soundbar'));
+      if (soundbarService?.id) {
+        selectedServices.push({
+          id: soundbarService.id,
+          name: `Soundbar Mount${soundbarCount > 1 ? ` (${soundbarCount} soundbars)` : ''}`,
+          price: (soundbarService.base_price || 40) * soundbarCount,
+          quantity: 1
+        });
+      } else {
+        console.warn('⚠️ Soundbar service not found in database, skipping');
+      }
     }
 
     return selectedServices;
