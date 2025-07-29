@@ -24,8 +24,12 @@ interface Transaction {
   currency: string;
   payment_intent_id?: string;
   booking?: {
-    customer: {
+    guest_customer_info: {
       name: string;
+      email: string;
+      phone: string;
+      zipcode?: string;
+      city?: string;
     };
   } | null;
 }
@@ -95,7 +99,7 @@ export const PaymentsManager = () => {
           created_at,
           currency,
           booking:bookings(
-            customer:users!customer_id(name)
+            guest_customer_info
           )
         `)
         .order('created_at', { ascending: false });
@@ -183,8 +187,10 @@ export const PaymentsManager = () => {
 
   const filteredTransactions = transactions.filter(transaction => {
     const matchesFilter = filterType === 'all' || transaction.status === filterType;
-    const customerName = transaction.booking?.customer?.name || '';
+    const customerName = transaction.booking?.guest_customer_info?.name || '';
+    const customerEmail = transaction.booking?.guest_customer_info?.email || '';
     const matchesSearch = customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         customerEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          transaction.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (transaction.booking_id && transaction.booking_id.toLowerCase().includes(searchTerm.toLowerCase()));
     return matchesFilter && matchesSearch;
@@ -331,7 +337,7 @@ export const PaymentsManager = () => {
                         )}
                       </TableCell>
                       <TableCell>
-                        {transaction.booking?.customer?.name || 'Unknown Customer'}
+                        {transaction.booking?.guest_customer_info?.name || 'Unknown Customer'}
                       </TableCell>
                       <TableCell className="font-medium">
                         {formatCurrency(transaction.amount, transaction.currency)}
