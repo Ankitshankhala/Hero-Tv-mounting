@@ -710,6 +710,7 @@ export type Database = {
           error_message: string | null
           id: string
           message: string
+          recipient_name: string | null
           recipient_number: string
           sent_at: string | null
           status: Database["public"]["Enums"]["sms_status"]
@@ -721,6 +722,7 @@ export type Database = {
           error_message?: string | null
           id?: string
           message: string
+          recipient_name?: string | null
           recipient_number: string
           sent_at?: string | null
           status: Database["public"]["Enums"]["sms_status"]
@@ -732,6 +734,7 @@ export type Database = {
           error_message?: string | null
           id?: string
           message?: string
+          recipient_name?: string | null
           recipient_number?: string
           sent_at?: string | null
           status?: Database["public"]["Enums"]["sms_status"]
