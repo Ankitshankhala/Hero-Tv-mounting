@@ -342,6 +342,27 @@ export const CreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingM
               </div>
             )}
 
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="zipcode">Zipcode *</Label>
+                <Input
+                  id="zipcode"
+                  value={formData.zipcode}
+                  onChange={(e) => setFormData({...formData, zipcode: e.target.value})}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="city">City *</Label>
+                <Input
+                  id="city"
+                  value={formData.city}
+                  onChange={(e) => setFormData({...formData, city: e.target.value})}
+                  required
+                />
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="date">Date *</Label>

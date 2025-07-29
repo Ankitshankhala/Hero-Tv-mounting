@@ -50,9 +50,9 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
         scheduled_start: booking.scheduled_start || '',
         service_id: booking.service_id || booking.service?.id || '',
         location_notes: booking.location_notes || '',
-        customer_name: booking.customer?.name || '',
-        customer_email: booking.customer?.email || '',
-        customer_phone: booking.customer?.phone || ''
+        customer_name: booking.guest_customer_info?.name || booking.customer?.name || '',
+        customer_email: booking.guest_customer_info?.email || booking.customer?.email || '',
+        customer_phone: booking.guest_customer_info?.phone || booking.customer?.phone || ''
       });
     }
   }, [booking, isOpen]);
