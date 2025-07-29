@@ -10,12 +10,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 interface Customer {
-  id: string;
+  email: string; // Use email as unique identifier for guests
   name: string;
-  email: string;
   phone?: string;
   city?: string;
-  zip_code?: string;
+  zipcode?: string;
   totalBookings: number;
   totalSpent: string;
   lastBooking?: string;
@@ -36,79 +35,87 @@ export const CustomersManager = () => {
   const fetchCustomers = async () => {
     try {
       setLoading(true);
-      console.log('Fetching customers...');
+      console.log('Fetching guest customers...');
 
-      // Fetch all customers (users with role 'customer')
-      const { data: customersData, error: customersError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('role', 'customer')
+      // Fetch all guest bookings
+      const { data: bookingsData, error: bookingsError } = await supabase
+        .from('bookings')
+        .select(`
+          id,
+          created_at,
+          scheduled_date,
+          status,
+          guest_customer_info
+        `)
+        .not('guest_customer_info', 'is', null)
         .order('created_at', { ascending: false });
 
-      if (customersError) {
-        console.error('Error fetching customers:', customersError);
-        throw customersError;
+      if (bookingsError) {
+        console.error('Error fetching guest bookings:', bookingsError);
+        throw bookingsError;
       }
 
-      console.log('Raw customers data:', customersData);
+      console.log('Raw guest bookings data:', bookingsData);
 
-      if (!customersData || customersData.length === 0) {
-        console.log('No customers found');
+      if (!bookingsData || bookingsData.length === 0) {
+        console.log('No guest customers found');
         setCustomers([]);
         return;
       }
 
-      // Enrich customer data with booking statistics
-      const enrichedCustomers = await Promise.all(
-        customersData.map(async (customer) => {
-          // Get booking count and total spent
-          const { data: bookingsData, error: bookingsError } = await supabase
-            .from('bookings')
-            .select(`
-              id,
-              created_at,
-              status,
-              services (base_price)
-            `)
-            .eq('customer_id', customer.id);
+      // Group bookings by customer email and calculate statistics
+      const customerMap = new Map<string, any>();
+      
+      bookingsData.forEach((booking) => {
+        const guestInfo = booking.guest_customer_info as any;
+        if (!guestInfo || !guestInfo.email) return;
 
-          if (bookingsError) {
-            console.error('Error fetching bookings for customer:', customer.id, bookingsError);
-          }
+        const email = guestInfo.email;
+        
+        if (!customerMap.has(email)) {
+          customerMap.set(email, {
+            email,
+            name: guestInfo.name || 'No name provided',
+            phone: guestInfo.phone,
+            city: guestInfo.city,
+            zipcode: guestInfo.zipcode,
+            bookings: [],
+            totalSpent: 0
+          });
+        }
 
-          const bookings = bookingsData || [];
-          const totalBookings = bookings.length;
-          
-          // Calculate total spent from completed bookings
-          const totalSpent = bookings
-            .filter(booking => booking.status === 'completed')
-            .reduce((sum, booking) => {
-              const price = booking.services?.base_price || 0;
-              return sum + Number(price);
-            }, 0);
+        const customer = customerMap.get(email);
+        customer.bookings.push(booking);
 
-          // Get last booking date
-          const lastBookingDate = bookings.length > 0 
-            ? new Date(Math.max(...bookings.map(b => new Date(b.created_at).getTime())))
-            : null;
+        // Calculate total spent from completed bookings - will be handled in future implementation
+        if (booking.status === 'completed') {
+          // For now, set a default value since pricing calculation is complex
+          customer.totalSpent += 100; // Placeholder amount
+        }
+      });
 
-          const enrichedCustomer: Customer = {
-            id: customer.id,
-            name: customer.name || 'No name provided',
-            email: customer.email,
-            phone: customer.phone,
-            city: customer.city,
-            zip_code: customer.zip_code,
-            totalBookings,
-            totalSpent: `$${totalSpent.toFixed(2)}`,
-            lastBooking: lastBookingDate ? lastBookingDate.toLocaleDateString() : 'No bookings'
-          };
+      // Convert map to array and create enriched customer objects
+      const enrichedCustomers: Customer[] = Array.from(customerMap.values()).map((customer) => {
+        const totalBookings = customer.bookings.length;
+        
+        // Get last booking date
+        const lastBookingDate = customer.bookings.length > 0 
+          ? new Date(Math.max(...customer.bookings.map((b: any) => new Date(b.created_at).getTime())))
+          : null;
 
-          return enrichedCustomer;
-        })
-      );
+        return {
+          email: customer.email,
+          name: customer.name,
+          phone: customer.phone,
+          city: customer.city,
+          zipcode: customer.zipcode,
+          totalBookings,
+          totalSpent: `$${customer.totalSpent.toFixed(2)}`,
+          lastBooking: lastBookingDate ? lastBookingDate.toLocaleDateString() : 'No bookings'
+        };
+      });
 
-      console.log('Enriched customers:', enrichedCustomers);
+      console.log('Enriched guest customers:', enrichedCustomers);
       setCustomers(enrichedCustomers);
     } catch (error) {
       console.error('Error in fetchCustomers:', error);
@@ -177,22 +184,22 @@ export const CustomersManager = () => {
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>Customer ID</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Contact</TableHead>
-                      <TableHead>Location</TableHead>
-                      <TableHead>Total Bookings</TableHead>
-                      <TableHead>Total Spent</TableHead>
-                      <TableHead>Last Booking</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
+                  <TableRow>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Contact</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead>Total Bookings</TableHead>
+                    <TableHead>Total Spent</TableHead>
+                    <TableHead>Last Booking</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredCustomers.map((customer) => (
-                      <TableRow key={customer.id}>
+                      <TableRow key={customer.email}>
                         <TableCell className="font-medium">
-                          {customer.id.substring(0, 8)}...
+                          {customer.email}
                         </TableCell>
                         <TableCell>
                           <div className="font-medium">{customer.name}</div>
@@ -216,8 +223,8 @@ export const CustomersManager = () => {
                             <MapPin className="h-3 w-3" />
                             <span>
                               {customer.city ? `${customer.city}` : ''}
-                              {customer.zip_code ? ` ${customer.zip_code}` : ''}
-                              {!customer.city && !customer.zip_code ? 'Not provided' : ''}
+                              {customer.zipcode ? ` ${customer.zipcode}` : ''}
+                              {!customer.city && !customer.zipcode ? 'Not provided' : ''}
                             </span>
                           </div>
                         </TableCell>

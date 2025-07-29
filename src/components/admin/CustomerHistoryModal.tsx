@@ -26,32 +26,30 @@ export const CustomerHistoryModal = ({ customer, isOpen, onClose }: CustomerHist
 
   const fetchCustomerBookings = async () => {
     try {
-      // First, find the customer by name in the users table
-      const { data: users, error: userError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('name', customer.name)
-        .limit(1);
+      // Fetch bookings for guest customer by email
+      const { data, error } = await supabase
+        .from('bookings')
+        .select(`
+          *,
+          worker:users!worker_id(name),
+          booking_services (
+            service_name,
+            base_price,
+            quantity
+          )
+        `)
+        .not('guest_customer_info', 'is', null)
+        .order('created_at', { ascending: false });
 
-      if (userError) throw userError;
+      if (error) throw error;
 
-      if (users && users.length > 0) {
-        const customerId = users[0].id;
+      // Filter bookings for this specific customer email
+      const customerBookings = data?.filter(booking => {
+        const guestInfo = booking.guest_customer_info as any;
+        return guestInfo?.email === customer.email;
+      }) || [];
 
-        const { data, error } = await supabase
-          .from('bookings')
-          .select(`
-            *,
-            worker:users!worker_id(name)
-          `)
-          .eq('customer_id', customerId)
-          .order('scheduled_at', { ascending: false });
-
-        if (error) throw error;
-        setBookings(data || []);
-      } else {
-        setBookings([]);
-      }
+      setBookings(customerBookings);
     } catch (error) {
       console.error('Error fetching customer bookings:', error);
       toast({
@@ -125,57 +123,58 @@ export const CustomerHistoryModal = ({ customer, isOpen, onClose }: CustomerHist
               <p className="text-gray-600">No bookings found for this customer</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Booking History</h3>
-              {bookings.map((booking: any) => (
-                <Card key={booking.id}>
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <h4 className="font-semibold">Booking #{booking.id.slice(0, 8)}</h4>
-                        <p className="text-sm text-gray-600">
-                          {formatServices(booking.services)}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        {getStatusBadge(booking.status)}
-                        <p className="text-lg font-bold mt-1">${booking.total_price}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div className="flex items-center space-x-2">
-                        <Calendar className="h-4 w-4" />
-                        <span>
-                          {new Date(booking.scheduled_at).toLocaleDateString()} at{' '}
-                          {new Date(booking.scheduled_at).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Clock className="h-4 w-4" />
-                        <span>{booking.total_duration_minutes} minutes</span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <MapPin className="h-4 w-4" />
-                        <span className="truncate">{booking.customer_address}</span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <DollarSign className="h-4 w-4" />
-                        <span>Worker: {booking.worker?.name || 'Unassigned'}</span>
-                      </div>
-                    </div>
+                  <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Booking History</h3>
+                {bookings.map((booking: any) => {
+                  const totalPrice = booking.booking_services?.reduce((sum: number, service: any) => 
+                    sum + (Number(service.base_price) * service.quantity), 0
+                  ) || 0;
+                  
+                  return (
+                    <Card key={booking.id}>
+                      <CardContent className="p-4">
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <h4 className="font-semibold">Booking #{booking.id.slice(0, 8)}</h4>
+                            <p className="text-sm text-gray-600">
+                              {booking.booking_services?.map((s: any) => s.service_name).join(', ') || 'Services'}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            {getStatusBadge(booking.status)}
+                            <p className="text-lg font-bold mt-1">${totalPrice.toFixed(2)}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div className="flex items-center space-x-2">
+                            <Calendar className="h-4 w-4" />
+                            <span>
+                              {new Date(booking.scheduled_date).toLocaleDateString()} at{' '}
+                              {booking.scheduled_start}
+                            </span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Clock className="h-4 w-4" />
+                            <span>{booking.worker?.name || 'Unassigned'}</span>
+                          </div>
+                          <div className="flex items-center space-x-2 col-span-2">
+                            <MapPin className="h-4 w-4" />
+                            <span className="truncate">
+                              {booking.guest_customer_info?.city}, {booking.guest_customer_info?.zipcode}
+                            </span>
+                          </div>
+                        </div>
 
-                    {booking.special_instructions && (
-                      <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm">
-                        <strong>Instructions:</strong> {booking.special_instructions}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
+                        {booking.location_notes && (
+                          <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm">
+                            <strong>Location Notes:</strong> {booking.location_notes}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
             </div>
           )}
         </div>
