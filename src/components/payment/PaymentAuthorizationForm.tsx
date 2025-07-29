@@ -333,9 +333,101 @@ export const PaymentAuthorizationForm = ({
         } finally {
           setCreatingBooking(false);
         }
+      } else if (bookingId) {
+        // Payment authorization for existing booking
+        console.log('🎯 Authorizing payment for existing booking:', bookingId);
+        
+        try {
+          // Create payment intent for existing booking
+          const { data: intentData, error: intentError } = await supabase.functions.invoke(
+            'create-payment-intent',
+            {
+              body: {
+                amount,
+                currency: 'usd',
+                booking_id: bookingId,
+                idempotency_key: crypto.randomUUID(),
+              },
+            }
+          );
+
+          if (intentError || !intentData?.client_secret) {
+            throw new Error(intentError?.message || 'Failed to create payment intent for existing booking');
+          }
+
+          console.log('Payment intent created for existing booking, confirming with card...');
+          
+          setLoading(true);
+          const confirmResult = await stripe.confirmCardPayment(intentData.client_secret, {
+            payment_method: {
+              card: cardElement,
+              billing_details: {
+                name: customerName,
+                email: customerEmail,
+              },
+            },
+          });
+
+          if (confirmResult.error) {
+            console.error('Payment confirmation error:', confirmResult.error);
+            let errorMessage = 'Payment authorization failed';
+            const stripeError = confirmResult.error;
+            
+            switch (stripeError.type) {
+              case 'card_error':
+                if (stripeError.code === 'card_declined') {
+                  errorMessage = 'Your card was declined. Please try a different payment method.';
+                } else if (stripeError.code === 'authentication_required') {
+                  errorMessage = 'Authentication failed. Please try again or use a different card.';
+                } else {
+                  errorMessage = stripeError.message || 'There was an issue with your card. Please try again.';
+                }
+                break;
+              default:
+                errorMessage = stripeError.message || 'Payment authorization failed. Please try again.';
+            }
+            
+            throw new Error(errorMessage);
+          }
+
+          const paymentIntent = confirmResult.paymentIntent;
+          console.log('Payment intent status after confirmation:', paymentIntent?.status);
+
+          if (paymentIntent?.status === 'requires_capture' || paymentIntent?.status === 'succeeded') {
+            console.log('✅ Payment authorized successfully for existing booking!');
+            
+            // Update transaction status to 'authorized'
+            try {
+              const { TransactionManager } = await import('@/utils/transactionManager');
+              const transactionManager = new TransactionManager();
+              const updateResult = await transactionManager.updateTransactionByPaymentIntent(
+                intentData.payment_intent_id,
+                { status: 'authorized' }
+              );
+              
+              if (!updateResult.success) {
+                throw new Error(updateResult.error || 'Failed to update transaction status');
+              }
+              
+              console.log('Transaction status updated to authorized for existing booking');
+              onAuthorizationSuccess(bookingId);
+            } catch (error) {
+              console.error('Error updating transaction status:', error);
+              throw new Error('Payment authorized but failed to update transaction status');
+            }
+          } else {
+            throw new Error(`Payment authorization incomplete. Status: ${paymentIntent?.status || 'unknown'}`);
+          }
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Payment authorization failed for existing booking';
+          console.error('Existing booking payment error:', error);
+          setFormError(errorMessage);
+          onAuthorizationFailure(errorMessage);
+        }
       } else {
-        // Old flow - this shouldn't happen with the new implementation
-        const error = 'Invalid booking flow - please refresh and try again';
+        // Invalid flow - missing required data
+        const error = 'Invalid payment flow: Missing booking data or booking ID. Please refresh and try again.';
+        console.error('Invalid flow state:', { bookingId, hasServices: !!services, hasFormData: !!formData });
         setFormError(error);
         onAuthorizationFailure(error);
       }
