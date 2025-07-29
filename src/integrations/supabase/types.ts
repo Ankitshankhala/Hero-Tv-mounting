@@ -1151,6 +1151,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: number
       }
+      debug_guest_booking_policy: {
+        Args: { p_customer_id: string; p_guest_customer_info: Json }
+        Returns: string
+      }
       find_available_workers: {
         Args:
           | {
