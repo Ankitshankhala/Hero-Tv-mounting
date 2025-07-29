@@ -21,6 +21,9 @@ const isValidUUID = (str: string): boolean => {
 };
 
 serve(async (req) => {
+  const startTime = performance.now();
+  
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -199,6 +202,7 @@ serve(async (req) => {
     const transactionId = transactionData.id;
     logStep("Transaction record created successfully", { transactionId });
 
+    const duration = performance.now() - startTime;
     const response = {
       client_secret: paymentIntent.client_secret,
       transaction_id: transactionId,
@@ -206,7 +210,10 @@ serve(async (req) => {
       status: transactionData.status,
     };
 
-    logStep("Payment intent creation completed successfully", response);
+    logStep("Payment intent creation completed successfully", { 
+      ...response, 
+      duration_ms: duration.toFixed(2) 
+    });
     
     return new Response(JSON.stringify(response), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
