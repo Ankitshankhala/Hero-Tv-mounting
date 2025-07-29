@@ -128,6 +128,19 @@ export const useBookingOperations = () => {
       };
 
       console.log('📋 Creating booking with payment_pending status');
+      console.log('🔍 Booking data being inserted:', JSON.stringify(bookingData, null, 2));
+
+      // Debug the guest policy before attempting insert
+      if (!user) {
+        const { data: debugResult, error: debugError } = await supabase.rpc('debug_guest_booking_insertion', {
+          p_customer_id: bookingData.customer_id,
+          p_guest_customer_info: bookingData.guest_customer_info
+        });
+        console.log('🔍 Guest policy debug result:', debugResult);
+        if (debugError) {
+          console.error('Debug function error:', debugError);
+        }
+      }
 
       const { data: newBooking, error: bookingError } = await supabase
         .from('bookings')
