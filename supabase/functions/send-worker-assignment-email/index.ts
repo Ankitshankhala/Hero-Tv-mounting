@@ -170,8 +170,8 @@ serve(async (req) => {
             <p style="font-size: 14px; color: #6b7280; margin-bottom: 10px;">
               Please log into your worker dashboard to view more details and update the job status.
             </p>
-            <p style="font-size: 14px; color: #6b7280; margin-bottom: 0;">
-              If you have any questions, please contact support immediately.
+            <p style="font-size: 14px; color: #6b7280; margin-bottom: 10px;">
+              If you have any questions, please contact us at: <strong>captain@herotvmounting.com</strong>
             </p>
           </div>
           

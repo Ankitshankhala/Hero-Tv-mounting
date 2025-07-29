@@ -191,7 +191,7 @@ serve(async (req) => {
                 <div class="highlight">
                   <h3>📞 Need Help?</h3>
                   <p>If you have any questions or need to reschedule, please contact us:</p>
-                  <p><strong>Email:</strong> support@herotvmounting.com</p>
+                  <p><strong>Email:</strong> captain@herotvmounting.com</p>
                   <p><strong>Phone:</strong> (555) 123-4567</p>
                 </div>
               </div>
