@@ -192,6 +192,24 @@ export const useBookingOperations = () => {
 
       console.log('✅ Booking confirmed successfully:', updatedBooking.id);
 
+      // Send customer confirmation email immediately after booking confirmation
+      try {
+        console.log('📧 Sending customer confirmation email...');
+        const { error: emailError } = await supabase.functions.invoke('send-customer-booking-confirmation-email', {
+          body: { bookingId }
+        });
+        
+        if (emailError) {
+          console.error('❌ Error sending customer confirmation email:', emailError);
+          // Don't fail the booking process for email errors
+        } else {
+          console.log('✅ Customer confirmation email sent successfully');
+        }
+      } catch (emailError) {
+        console.error('❌ Failed to send customer confirmation email:', emailError);
+        // Continue with booking process even if email fails
+      }
+
       // Auto-assign worker after confirmation - handle both authenticated users and guests
       const guestInfo = updatedBooking.guest_customer_info as any;
       const hasZipcode = updatedBooking.customer?.zip_code || guestInfo?.zipcode;
