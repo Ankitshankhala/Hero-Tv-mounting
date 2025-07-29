@@ -631,6 +631,39 @@ export type Database = {
           },
         ]
       }
+      rls_debug_logs: {
+        Row: {
+          auth_uid: string | null
+          created_at: string | null
+          debug_data: Json | null
+          id: string
+          operation: string
+          policy_result: string | null
+          table_name: string
+          user_id: string | null
+        }
+        Insert: {
+          auth_uid?: string | null
+          created_at?: string | null
+          debug_data?: Json | null
+          id?: string
+          operation: string
+          policy_result?: string | null
+          table_name: string
+          user_id?: string | null
+        }
+        Update: {
+          auth_uid?: string | null
+          created_at?: string | null
+          debug_data?: Json | null
+          id?: string
+          operation?: string
+          policy_result?: string | null
+          table_name?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       services: {
         Row: {
           base_price: number | null
@@ -1215,6 +1248,10 @@ export type Database = {
       get_tax_rate_by_state: {
         Args: { state_abbreviation: string }
         Returns: number
+      }
+      log_booking_insert_attempt: {
+        Args: { p_customer_id: string; p_guest_customer_info: Json }
+        Returns: boolean
       }
       resend_worker_sms: {
         Args: { booking_id_param: string }
