@@ -11,6 +11,7 @@ import { ContactLocationStep } from '@/components/booking/ContactLocationStep';
 import { ScheduleStep } from '@/components/booking/ScheduleStep';
 import { BookingSuccessModal } from '@/components/booking/BookingSuccessModal';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ServiceItem {
   id: string;
@@ -142,27 +143,59 @@ export const EnhancedInlineBookingFlow = ({
     }
   };
 
-  const handlePaymentAuthorizationSuccess = (createdBookingId?: string) => {
-    if (createdBookingId) {
-      setBookingId(createdBookingId);
-    }
-    setShowSuccess(true);
-    
-    toast({
-      title: "Payment Authorized! 🎉",
-      description: "Your booking is confirmed. Payment will be charged after service completion.",
-    });
+  const handlePaymentAuthorizationSuccess = async (paymentIntentId?: string) => {
+    try {
+      if (bookingId && paymentIntentId) {
+        // Confirm booking after successful payment
+        console.log('✅ Payment authorized, confirming booking...');
+        
+        const { data: confirmResult, error: confirmError } = await supabase.functions.invoke(
+          'confirm-payment',
+          {
+            body: {
+              payment_intent_id: paymentIntentId,
+              booking_id: bookingId
+            }
+          }
+        );
 
-    // Auto-close after 5 seconds
-    setTimeout(() => {
-      onClose();
-      onSubmit?.({
-        bookingId,
-        services,
-        formData,
-        totalAmount: getTotalPrice()
+        if (confirmError || !confirmResult.success) {
+          throw new Error(confirmError?.message || 'Failed to confirm booking after payment');
+        }
+
+        console.log('✅ Booking confirmed after payment:', confirmResult);
+        
+        toast({
+          title: "Payment Authorized & Booking Confirmed! 🎉",
+          description: "Your booking is confirmed. Payment will be charged after service completion.",
+        });
+      } else {
+        toast({
+          title: "Payment Authorized! 🎉",
+          description: "Your booking is confirmed. Payment will be charged after service completion.",
+        });
+      }
+      
+      setShowSuccess(true);
+
+      // Auto-close after 5 seconds
+      setTimeout(() => {
+        onClose();
+        onSubmit?.({
+          bookingId,
+          services,
+          formData,
+          totalAmount: getTotalPrice()
+        });
+      }, 5000);
+    } catch (error) {
+      console.error('❌ Error confirming booking after payment:', error);
+      toast({
+        title: "Payment Authorized but Booking Confirmation Failed",
+        description: "Your payment was successful but we couldn't confirm your booking. Please contact support.",
+        variant: "destructive",
       });
-    }, 5000);
+    }
   };
 
   const handlePaymentAuthorizationFailure = (error: string) => {
