@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CreditCard, Shield, Clock } from 'lucide-react';
 import { useStripePayment } from '@/hooks/useStripePayment';
 import { useToast } from '@/hooks/use-toast';
+import { StripeCardElement } from '@/components/StripeCardElement';
 
 interface PaymentAuthorizationCardProps {
   bookingId: string;
@@ -23,13 +24,61 @@ export const PaymentAuthorizationCard = ({
   onCancel
 }: PaymentAuthorizationCardProps) => {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isCardReady, setIsCardReady] = useState(false);
+  const [cardError, setCardError] = useState('');
   const { createPaymentIntent, confirmCardPayment } = useStripePayment();
   const { toast } = useToast();
+  
+  const stripeRef = useRef<any>(null);
+  const elementsRef = useRef<any>(null);
+  const cardElementRef = useRef<any>(null);
+
+  const handleStripeReady = (stripe: any, elements: any, cardElement: any) => {
+    console.log('Stripe ready for payment authorization');
+    stripeRef.current = stripe;
+    elementsRef.current = elements;
+    cardElementRef.current = cardElement;
+    setIsCardReady(true);
+  };
+
+  const handleStripeError = (error: string) => {
+    console.log('✅ Stripe error cleared, card validation successful');
+    setCardError(error);
+  };
 
   const handleAuthorizePayment = async () => {
+    if (!isCardReady || !stripeRef.current || !cardElementRef.current) {
+      toast({
+        title: "Card Not Ready",
+        description: "Please wait for the payment form to load completely and enter your card details.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (cardError) {
+      toast({
+        title: "Card Invalid",
+        description: cardError,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsProcessing(true);
     
     try {
+      console.log('💳 Payment authorization started:', {
+        hasStripe: !!stripeRef.current,
+        hasElements: !!elementsRef.current,
+        hasCardElement: !!cardElementRef.current,
+        amount,
+        customerEmail,
+        bookingId
+      });
+      
+      console.log('Starting payment authorization process...');
+      
       // Create payment intent with manual capture
       const { clientSecret, paymentIntentId } = await createPaymentIntent({
         amount: amount * 100, // Convert to cents
@@ -43,14 +92,14 @@ export const PaymentAuthorizationCard = ({
         throw new Error('Failed to create payment intent');
       }
 
-      // Confirm the payment authorization with test card
-      const { paymentIntent, error } = await confirmCardPayment(clientSecret, {
-        type: 'card',
-        card: {
-          number: '4242424242424242',
-          exp_month: 12,
-          exp_year: 2025,
-          cvc: '123'
+      // Confirm the payment authorization with the real card element
+      const { paymentIntent, error } = await stripeRef.current.confirmCardPayment(clientSecret, {
+        payment_method: {
+          card: cardElementRef.current,
+          billing_details: {
+            name: customerName,
+            email: customerEmail,
+          },
         }
       });
 
@@ -114,27 +163,39 @@ export const PaymentAuthorizationCard = ({
           </div>
         </div>
 
-        <div className="space-y-3">
-          <Button
-            onClick={handleAuthorizePayment}
-            disabled={isProcessing}
-            className="w-full"
-            size="lg"
-          >
-            <CreditCard className="h-4 w-4 mr-2" />
-            {isProcessing ? 'Authorizing...' : `Authorize $${amount.toFixed(2)}`}
-          </Button>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground">
+              Card Details
+            </label>
+            <StripeCardElement
+              onReady={handleStripeReady}
+              onError={handleStripeError}
+            />
+          </div>
           
-          {onCancel && (
+          <div className="space-y-3">
             <Button
-              onClick={onCancel}
-              variant="outline"
+              onClick={handleAuthorizePayment}
+              disabled={isProcessing || !isCardReady || !!cardError}
               className="w-full"
-              disabled={isProcessing}
+              size="lg"
             >
-              Cancel
+              <CreditCard className="h-4 w-4 mr-2" />
+              {isProcessing ? 'Authorizing...' : `Authorize $${amount.toFixed(2)}`}
             </Button>
-          )}
+            
+            {onCancel && (
+              <Button
+                onClick={onCancel}
+                variant="outline"
+                className="w-full"
+                disabled={isProcessing}
+              >
+                Cancel
+              </Button>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>
