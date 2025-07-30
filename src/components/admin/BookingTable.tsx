@@ -87,6 +87,38 @@ export const BookingTable = React.memo(({ bookings, onBookingUpdate }: BookingTa
     return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
   };
 
+  const extractCustomerName = (booking: Booking): string => {
+    // First try to get the name from enriched customer object
+    if (booking.customer?.name && booking.customer.name !== 'Guest Customer') {
+      return booking.customer.name;
+    }
+
+    // If customer object doesn't have the name or shows "Guest Customer", 
+    // try to extract from location_notes for guest bookings
+    if (booking.location_notes) {
+      const lines = booking.location_notes.split('\n');
+      
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+        // Look for customer name patterns
+        if (trimmedLine.includes('Customer:')) {
+          const name = trimmedLine.replace('Customer:', '').trim();
+          if (name && name !== 'Guest Customer') {
+            return name;
+          }
+        }
+        if (trimmedLine.includes('Contact:')) {
+          const name = trimmedLine.replace('Contact:', '').trim();
+          if (name && name !== 'Guest Customer') {
+            return name;
+          }
+        }
+      }
+    }
+
+    return booking.customer?.name || 'N/A';
+  };
+
   const extractServiceLocation = (booking: Booking): string => {
     // Priority: customer address first, then extract address and ZIP from location_notes
     if (booking.customer_address) {
@@ -280,7 +312,7 @@ export const BookingTable = React.memo(({ bookings, onBookingUpdate }: BookingTa
               return (
                 <TableRow key={booking.id}>
                   <TableCell className="font-medium">{booking.id.slice(0, 8)}</TableCell>
-                  <TableCell>{booking.customer?.name || 'N/A'}</TableCell>
+                  <TableCell>{extractCustomerName(booking)}</TableCell>
                   <TableCell>{booking.formattedServices}</TableCell>
                   <TableCell>
                     <span className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">
