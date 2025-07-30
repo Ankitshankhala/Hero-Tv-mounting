@@ -52,8 +52,8 @@ export const mapStripeStatus = (stripeStatus: string, context: 'payment_intent' 
     case 'canceled':
     case 'cancelled':
       return {
-        internal_status: 'cancelled',
-        payment_status: 'cancelled',
+        internal_status: 'failed',
+        payment_status: 'failed',
         booking_status: 'cancelled',
         user_message: 'Payment was cancelled',
         action_required: false
