@@ -17,20 +17,26 @@ const mapToValidStatus = (status: string): 'pending' | 'completed' | 'failed' | 
   switch (status) {
     case 'paid':
     case 'captured':
+    case 'succeeded':
       return 'completed';
     case 'cancelled':
     case 'refunded':
+    case 'expired':
       return 'failed';
     case 'authorized':
       return 'authorized';
     case 'pending':
+    case 'requires_payment_method':
+    case 'requires_confirmation':
+    case 'requires_action':
+    case 'processing':
       return 'pending';
     case 'failed':
       return 'failed';
     case 'completed':
       return 'completed';
     default:
-      console.warn(`Invalid status "${status}" mapped to "pending"`);
+      console.error(`[TransactionManager] Invalid transaction status "${status}" mapped to "pending". Stack trace:`, new Error().stack);
       return 'pending';
   }
 };
