@@ -221,19 +221,29 @@ export const EnhancedInvoiceModificationModal = ({
   const updateServiceQuantity = async (serviceId: string, newQuantity: number) => {
     if (newQuantity < 0) return;
 
+    console.log('Updating service quantity:', serviceId, 'to:', newQuantity);
+
     try {
       const { error } = await supabase
         .from('booking_services')
         .update({ quantity: newQuantity })
         .eq('id', serviceId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating quantity:', error);
+        throw error;
+      }
 
       setServices(prev => prev.map(service => 
         service.id === serviceId 
           ? { ...service, quantity: newQuantity }
           : service
       ));
+
+      toast({
+        title: "Quantity Updated",
+        description: `Service quantity updated to ${newQuantity}`,
+      });
     } catch (error) {
       console.error('Error updating service quantity:', error);
       toast({
@@ -394,7 +404,33 @@ export const EnhancedInvoiceModificationModal = ({
         <DialogContent className="max-w-6xl bg-slate-800 border-slate-700">
           <div className="flex items-center justify-center p-8">
             <Loader2 className="h-8 w-8 animate-spin text-white" />
-            <span className="ml-2 text-white">Loading services...</span>
+            <span className="ml-2 text-white">Loading booking services...</span>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  if (services.length === 0 && !loading) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-6xl bg-slate-800 border-slate-700">
+          <DialogHeader>
+            <DialogTitle className="text-white">
+              Invoice Modification - Job #{job?.id?.slice(0, 8)}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center justify-center p-8 text-white">
+            <p className="text-lg mb-4">No services found for this booking</p>
+            <p className="text-sm text-slate-400 mb-4">
+              This might be due to a data migration issue. 
+            </p>
+            <Button 
+              onClick={migrateLegacyService}
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              Try to Migrate Legacy Data
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
