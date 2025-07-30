@@ -2,13 +2,11 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Plus, UserPlus, Calendar, ArrowLeft } from 'lucide-react';
-import { CreateBookingModal } from './CreateBookingModal';
+import { Calendar, ArrowLeft } from 'lucide-react';
 import { AssignWorkerModal } from './AssignWorkerModal';
 import { TodaysJobsModal } from './TodaysJobsModal';
 
 export const AdminHeader = () => {
-  const [showCreateBooking, setShowCreateBooking] = useState(false);
   const [showAssignWorker, setShowAssignWorker] = useState(false);
   const [showTodaysJobs, setShowTodaysJobs] = useState(false);
 
@@ -30,14 +28,6 @@ export const AdminHeader = () => {
           </div>
           <div className="flex space-x-3">
             <Button 
-              onClick={() => setShowCreateBooking(true)}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Create Booking
-            </Button>
-            
-            <Button 
               variant="outline"
               onClick={() => setShowTodaysJobs(true)}
             >
@@ -48,9 +38,6 @@ export const AdminHeader = () => {
         </div>
       </header>
 
-      {showCreateBooking && (
-        <CreateBookingModal onClose={() => setShowCreateBooking(false)} />
-      )}
       {showAssignWorker && (
         <AssignWorkerModal onClose={() => setShowAssignWorker(false)} />
       )}
