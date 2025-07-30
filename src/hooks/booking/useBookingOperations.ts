@@ -6,12 +6,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { ServiceItem, FormData } from './types';
 import { createEnhancedBooking, EnhancedBookingData } from '@/utils/enhancedBookingLogic';
-import { useTestingMode, getEffectiveMinimumAmount } from '@/contexts/TestingModeContext';
+
+const MINIMUM_BOOKING_AMOUNT = 75;
 
 export const useBookingOperations = () => {
-  const { isTestingMode } = useTestingMode();
-  const MINIMUM_BOOKING_AMOUNT = getEffectiveMinimumAmount(isTestingMode);
-  
   const [loading, setLoading] = useState(false);
   const [bookingId, setBookingId] = useState<string>('');
   const [showSuccess, setShowSuccess] = useState(false);
@@ -40,6 +38,8 @@ export const useBookingOperations = () => {
   const createInitialBooking = async (services: ServiceItem[], formData: FormData) => {
     try {
       setLoading(true);
+
+      console.log('🚀 Creating initial booking with payment_pending status');
 
       // Enhanced validation with detailed error messages
       if (!services || services.length === 0) {
@@ -92,8 +92,20 @@ export const useBookingOperations = () => {
         throw new Error('Primary service ID not found');
       }
 
+      console.log('✅ All validations passed, proceeding with booking creation');
+
       // Support both authenticated users and guests
       const customerId = user?.id || null; // NULL for guests, user ID for authenticated users
+
+      console.log('🔍 Customer identification process:', {
+        hasAuthenticatedUser: !!user,
+        userEmail: user?.email,
+        formEmail: formData.customerEmail,
+        formName: formData.customerName,
+        isGuest: !user
+      });
+
+      console.log('✅ Customer ID established:', customerId || 'guest');
 
       // Create booking with payment_pending status
       const bookingData = {
@@ -101,7 +113,7 @@ export const useBookingOperations = () => {
         service_id: primaryServiceId,
         scheduled_date: format(formData.selectedDate!, 'yyyy-MM-dd'),
         scheduled_start: formData.selectedTime,
-        location_notes: `${formData.houseNumber} ${formData.address}, ${formData.city}${formData.specialInstructions ? `\nSpecial Instructions: ${formData.specialInstructions}` : ''}`,
+        location_notes: `${formData.houseNumber} ${formData.address}, ${formData.city}\nContact: ${formData.customerName}\nPhone: ${formData.customerPhone}\nEmail: ${formData.customerEmail}\nZIP: ${formData.zipcode}\nSpecial Instructions: ${formData.specialInstructions}`,
         status: 'payment_pending' as const,
         payment_status: 'pending',
         requires_manual_payment: false,
@@ -115,49 +127,24 @@ export const useBookingOperations = () => {
         } : null
       };
 
-      let newBooking;
-      
-      if (!user) {
-        // For guest users, use the edge function to bypass RLS issues
-        
-        const { data: edgeResult, error: edgeError } = await supabase.functions.invoke('create-guest-booking', {
-          body: { 
-            bookingData: {
-              ...bookingData,
-              services // Include services for booking_services table
-            }
-          }
-        });
+      console.log('📋 Creating booking with payment_pending status');
 
-        if (edgeError) {
-          throw new Error(`Failed to create guest booking: ${edgeError.message}`);
-        }
+      const { data: newBooking, error: bookingError } = await supabase
+        .from('bookings')
+        .insert(bookingData)
+        .select('id')
+        .single();
 
-        if (!edgeResult?.success) {
-          throw new Error(`Failed to create guest booking: ${edgeResult?.error || 'Unknown error'}`);
-        }
-
-        newBooking = { id: edgeResult.booking_id };
-        
-      } else {
-        // For authenticated users, use direct database access
-        const { data: authBooking, error: bookingError } = await supabase
-          .from('bookings')
-          .insert(bookingData)
-          .select('id')
-          .single();
-
-        if (bookingError) {
-          throw new Error(`Failed to create booking: ${bookingError.message}`);
-        }
-
-        newBooking = authBooking;
+      if (bookingError) {
+        console.error('❌ Booking creation failed:', bookingError);
+        throw new Error(`Failed to create booking: ${bookingError.message}`);
       }
 
       if (!newBooking) {
         throw new Error('Failed to create booking - no booking data returned');
       }
 
+      console.log('✅ Initial booking created with ID:', newBooking.id);
       setBookingId(newBooking.id);
       
       toast({
@@ -167,6 +154,7 @@ export const useBookingOperations = () => {
 
       return newBooking.id;
     } catch (error) {
+      console.error('Error creating initial booking:', error);
       toast({
         title: "Error",
         description: "Failed to create booking. Please try again.",
@@ -180,6 +168,7 @@ export const useBookingOperations = () => {
 
   const confirmBookingAfterPayment = async (bookingId: string, paymentIntentId: string) => {
     try {
+      console.log('🎯 Confirming booking after successful payment:', { bookingId, paymentIntentId });
 
       const { data: updatedBooking, error: updateError } = await supabase
         .from('bookings')
@@ -197,19 +186,27 @@ export const useBookingOperations = () => {
         .single();
 
       if (updateError) {
+        console.error('❌ Failed to confirm booking:', updateError);
         throw new Error(`Failed to confirm booking: ${updateError.message}`);
       }
 
+      console.log('✅ Booking confirmed successfully:', updatedBooking.id);
+
       // Send customer confirmation email immediately after booking confirmation
       try {
+        console.log('📧 Sending customer confirmation email...');
         const { error: emailError } = await supabase.functions.invoke('send-customer-booking-confirmation-email', {
           body: { bookingId }
         });
         
         if (emailError) {
+          console.error('❌ Error sending customer confirmation email:', emailError);
           // Don't fail the booking process for email errors
+        } else {
+          console.log('✅ Customer confirmation email sent successfully');
         }
       } catch (emailError) {
+        console.error('❌ Failed to send customer confirmation email:', emailError);
         // Continue with booking process even if email fails
       }
 
@@ -219,6 +216,11 @@ export const useBookingOperations = () => {
       let assignmentCompleted = false;
       
       if (hasZipcode) {
+        console.log('🔄 Attempting worker auto-assignment for confirmed booking', {
+          isGuest: !updatedBooking.customer_id,
+          zipcode: updatedBooking.customer?.zip_code || guestInfo?.zipcode
+        });
+        
         try {
           const { data: assignmentData, error: assignmentError } = await supabase.rpc(
             'auto_assign_workers_with_coverage',
@@ -226,6 +228,7 @@ export const useBookingOperations = () => {
           );
 
           if (assignmentError) {
+            console.error('❌ Worker assignment failed:', assignmentError);
             // Add user-friendly error handling
             toast({
               title: "Booking Confirmed",
@@ -233,6 +236,7 @@ export const useBookingOperations = () => {
             });
             assignmentCompleted = true;
           } else {
+            console.log('✅ Worker assignment completed:', assignmentData);
             
             // Check assignment results and provide appropriate feedback
             if (assignmentData && assignmentData.length > 0) {
@@ -253,6 +257,7 @@ export const useBookingOperations = () => {
             }
           }
         } catch (assignmentError) {
+          console.error('❌ Worker assignment error:', assignmentError);
           // Don't fail the booking confirmation for assignment errors
           toast({
             title: "Booking Confirmed",
@@ -261,6 +266,7 @@ export const useBookingOperations = () => {
           assignmentCompleted = true;
         }
       } else {
+        console.warn('⚠️ No zipcode found for worker assignment');
         toast({
           title: "Booking Confirmed",
           description: "Your booking is confirmed. Please contact support to complete the service assignment.",
@@ -278,6 +284,7 @@ export const useBookingOperations = () => {
 
       return updatedBooking;
     } catch (error) {
+      console.error('Error confirming booking:', error);
       toast({
         title: "Error",
         description: "Payment succeeded but failed to confirm booking. Please contact support.",

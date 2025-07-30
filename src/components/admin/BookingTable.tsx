@@ -10,7 +10,6 @@ import { ManualChargeModal } from '@/components/worker/payment/ManualChargeModal
 import { AssignWorkerModal } from './AssignWorkerModal';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { getBookingStatusForDisplay } from '@/utils/statusUtils';
 
 interface Booking {
   id: string;
@@ -46,19 +45,35 @@ export const BookingTable = React.memo(({ bookings, onBookingUpdate }: BookingTa
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const getUnifiedStatusBadge = (bookingStatus: string, paymentStatus?: string) => {
-    const statusInfo = getBookingStatusForDisplay(bookingStatus, paymentStatus || '');
-    
-    const variantMap = {
-      green: 'default' as const,
-      yellow: 'secondary' as const,
-      red: 'destructive' as const,
-      blue: 'outline' as const,
-      gray: 'secondary' as const,
+  const getStatusBadge = (status: string) => {
+    const statusConfig = {
+      pending: { label: 'Pending', variant: 'secondary' as const },
+      payment_pending: { label: 'Payment Pending', variant: 'secondary' as const },
+      confirmed: { label: 'Confirmed', variant: 'default' as const },
+      'in_progress': { label: 'In Progress', variant: 'secondary' as const },
+      completed: { label: 'Completed', variant: 'outline' as const },
+      cancelled: { label: 'Cancelled', variant: 'destructive' as const },
     };
     
-    const variant = variantMap[statusInfo.status_color] || 'secondary';
-    return <Badge variant={variant}>{statusInfo.display_status}</Badge>;
+    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
+    return <Badge variant={config.variant}>{config.label}</Badge>;
+  };
+
+  const getPaymentStatusBadge = (paymentStatus?: string) => {
+    if (!paymentStatus) return null;
+    
+    const statusConfig = {
+      pending: { label: 'Payment Pending', variant: 'secondary' as const },
+      authorized: { label: 'Payment Authorized', variant: 'default' as const },
+      captured: { label: 'Payment Captured', variant: 'default' as const },
+      failed: { label: 'Payment Failed', variant: 'destructive' as const },
+      cancelled: { label: 'Payment Cancelled', variant: 'destructive' as const },
+    };
+    
+    const config = statusConfig[paymentStatus as keyof typeof statusConfig];
+    if (!config) return null;
+    
+    return <Badge variant={config.variant} className="ml-2">{config.label}</Badge>;
   };
 
   const formatServices = (booking: Booking) => {
@@ -85,80 +100,6 @@ export const BookingTable = React.memo(({ bookings, onBookingUpdate }: BookingTa
     const hours = Math.floor(totalMinutes / 60);
     const minutes = totalMinutes % 60;
     return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
-  };
-
-  const extractCustomerName = (booking: Booking): string => {
-    // First try to get the name from enriched customer object
-    if (booking.customer?.name && booking.customer.name !== 'Guest Customer') {
-      return booking.customer.name;
-    }
-
-    // If customer object doesn't have the name or shows "Guest Customer", 
-    // try to extract from location_notes for guest bookings
-    if (booking.location_notes) {
-      const lines = booking.location_notes.split('\n');
-      
-      for (const line of lines) {
-        const trimmedLine = line.trim();
-        // Look for customer name patterns
-        if (trimmedLine.includes('Customer:')) {
-          const name = trimmedLine.replace('Customer:', '').trim();
-          if (name && name !== 'Guest Customer') {
-            return name;
-          }
-        }
-        if (trimmedLine.includes('Contact:')) {
-          const name = trimmedLine.replace('Contact:', '').trim();
-          if (name && name !== 'Guest Customer') {
-            return name;
-          }
-        }
-      }
-    }
-
-    return booking.customer?.name || 'N/A';
-  };
-
-  const extractServiceLocation = (booking: Booking): string => {
-    // Priority: customer address first, then extract address and ZIP from location_notes
-    if (booking.customer_address) {
-      return booking.customer_address;
-    }
-    
-    if (booking.location_notes) {
-      const lines = booking.location_notes.split('\n');
-      let address = '';
-      let zipCode = '';
-      
-      // Extract address (first line that doesn't contain contact info keywords)
-      for (const line of lines) {
-        const trimmedLine = line.trim();
-        if (trimmedLine && 
-            !trimmedLine.includes('Customer:') && 
-            !trimmedLine.includes('Contact:') && 
-            !trimmedLine.includes('Phone:') && 
-            !trimmedLine.includes('Email:') &&
-            !trimmedLine.includes('Special Instructions:')) {
-          address = trimmedLine;
-          break;
-        }
-      }
-      
-      // Extract ZIP code from the entire location_notes
-      const zipMatch = booking.location_notes.match(/ZIP:\s*(\d{5}(?:-\d{4})?)|zipcode:\s*(\d{5}(?:-\d{4})?)|(\d{5}(?:-\d{4})?)/i);
-      if (zipMatch) {
-        zipCode = zipMatch[1] || zipMatch[2] || zipMatch[3];
-      }
-      
-      // Format output: "Address ZIP: code" or just address if no ZIP found
-      if (address && zipCode) {
-        return `${address} ZIP: ${zipCode}`;
-      } else if (address) {
-        return address;
-      }
-    }
-    
-    return booking.customer?.city || 'N/A';
   };
 
   const formatDateTime = (booking: Booking) => {
@@ -299,6 +240,7 @@ export const BookingTable = React.memo(({ bookings, onBookingUpdate }: BookingTa
               <TableHead>Location</TableHead>
               <TableHead>Worker</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Payment</TableHead>
               <TableHead>Price</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
@@ -312,7 +254,7 @@ export const BookingTable = React.memo(({ bookings, onBookingUpdate }: BookingTa
               return (
                 <TableRow key={booking.id}>
                   <TableCell className="font-medium">{booking.id.slice(0, 8)}</TableCell>
-                  <TableCell>{extractCustomerName(booking)}</TableCell>
+                  <TableCell>{booking.customer?.name || 'N/A'}</TableCell>
                   <TableCell>{booking.formattedServices}</TableCell>
                   <TableCell>
                     <span className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">
@@ -325,7 +267,7 @@ export const BookingTable = React.memo(({ bookings, onBookingUpdate }: BookingTa
                       <div className="text-sm text-gray-600">{time}</div>
                     </div>
                   </TableCell>
-                  <TableCell>{extractServiceLocation(booking)}</TableCell>
+                  <TableCell>{booking.customer?.city || booking.customer_address || booking.location_notes || 'N/A'}</TableCell>
                   <TableCell>
                     {needsWorkerAssignment ? (
                       <Badge variant="secondary" className="text-orange-600">
@@ -335,7 +277,8 @@ export const BookingTable = React.memo(({ bookings, onBookingUpdate }: BookingTa
                       booking.worker?.name || 'Unassigned'
                     )}
                   </TableCell>
-                  <TableCell>{getUnifiedStatusBadge(booking.status, booking.payment_status)}</TableCell>
+                  <TableCell>{getStatusBadge(booking.status)}</TableCell>
+                  <TableCell>{getPaymentStatusBadge(booking.payment_status)}</TableCell>
                   <TableCell className="font-medium">${booking.total_price || 0}</TableCell>
                    <TableCell>
                      <div className="flex space-x-2">

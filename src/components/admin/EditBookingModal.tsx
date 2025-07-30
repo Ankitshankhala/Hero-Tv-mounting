@@ -50,9 +50,9 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
         scheduled_start: booking.scheduled_start || '',
         service_id: booking.service_id || booking.service?.id || '',
         location_notes: booking.location_notes || '',
-        customer_name: booking.guest_customer_info?.name || booking.customer?.name || '',
-        customer_email: booking.guest_customer_info?.email || booking.customer?.email || '',
-        customer_phone: booking.guest_customer_info?.phone || booking.customer?.phone || ''
+        customer_name: booking.customer?.name || '',
+        customer_email: booking.customer?.email || '',
+        customer_phone: booking.customer?.phone || ''
       });
     }
   }, [booking, isOpen]);
@@ -64,15 +64,28 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
     try {
       console.log('Updating booking with data:', formData);
 
-      // Update guest customer information in booking
-      const updatedGuestInfo = {
-        ...(booking.guest_customer_info || {}),
-        name: formData.customer_name,
-        email: formData.customer_email,
-        phone: formData.customer_phone
-      };
+      // Update customer information if changed
+      if (booking.customer_id && (
+        formData.customer_name !== booking.customer?.name ||
+        formData.customer_email !== booking.customer?.email ||
+        formData.customer_phone !== booking.customer?.phone
+      )) {
+        const { error: customerError } = await supabase
+          .from('users')
+          .update({
+            name: formData.customer_name,
+            email: formData.customer_email,
+            phone: formData.customer_phone
+          })
+          .eq('id', booking.customer_id);
 
-      // Update booking information (including guest customer info)
+        if (customerError) {
+          console.error('Error updating customer:', customerError);
+          throw customerError;
+        }
+      }
+
+      // Update booking information
       const { error: bookingError } = await supabase
         .from('bookings')
         .update({
@@ -80,8 +93,7 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
           scheduled_date: formData.scheduled_date,
           scheduled_start: formData.scheduled_start,
           service_id: formData.service_id,
-          location_notes: formData.location_notes,
-          guest_customer_info: updatedGuestInfo
+          location_notes: formData.location_notes
         })
         .eq('id', booking.id);
 

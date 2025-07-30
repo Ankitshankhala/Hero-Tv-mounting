@@ -19,9 +19,8 @@ export const SMSLogsManager = () => {
     return smsLogs.filter(log => {
       const matchesSearch = searchTerm === '' || 
         log.message.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        log.recipient_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        log.recipient_number.includes(searchTerm) ||
-        log.message_type.toLowerCase().includes(searchTerm.toLowerCase());
+        log.worker_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        log.recipient_number.includes(searchTerm);
 
       const matchesFilter = filterType === 'all' || 
         (filterType === 'sent' && log.status === 'sent') ||
@@ -157,19 +156,20 @@ export const SMSLogsManager = () => {
                   <TableHead>Message</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Timestamp</TableHead>
+                  <TableHead>Service</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
+                    <TableCell colSpan={8} className="text-center py-8">
                       <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                       <p className="text-sm text-gray-500 mt-2">Loading SMS logs...</p>
                     </TableCell>
                   </TableRow>
                 ) : error ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
+                    <TableCell colSpan={8} className="text-center py-8">
                       <p className="text-sm text-red-600">Error: {error}</p>
                       <Button variant="outline" size="sm" onClick={refetch} className="mt-2">
                         Try Again
@@ -178,7 +178,7 @@ export const SMSLogsManager = () => {
                   </TableRow>
                 ) : filteredLogs.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
+                    <TableCell colSpan={8} className="text-center py-8">
                       <p className="text-sm text-gray-500">No SMS logs found</p>
                     </TableCell>
                   </TableRow>
@@ -188,11 +188,11 @@ export const SMSLogsManager = () => {
                       <TableCell className="font-medium">
                         {sms.id.slice(0, 8)}...
                       </TableCell>
-                      <TableCell>{sms.recipient_name || 'Unknown'}</TableCell>
+                      <TableCell>{sms.worker_name || 'Unknown'}</TableCell>
                       <TableCell className="font-mono text-sm">{sms.recipient_number}</TableCell>
                       <TableCell>
                         <span className="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded">
-                          {sms.message_type}
+                          {getMessageType(sms.message)}
                         </span>
                       </TableCell>
                       <TableCell className="max-w-xs">
@@ -203,6 +203,9 @@ export const SMSLogsManager = () => {
                       <TableCell>{getStatusBadge(sms.status)}</TableCell>
                       <TableCell className="text-sm font-mono">
                         {formatTimestamp(sms.sent_at || sms.created_at)}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {sms.booking_service || 'N/A'}
                       </TableCell>
                     </TableRow>
                   ))

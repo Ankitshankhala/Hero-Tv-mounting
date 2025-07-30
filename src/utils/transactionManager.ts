@@ -5,41 +5,12 @@ import { createClient } from '@supabase/supabase-js';
 export interface TransactionData {
   booking_id: string;
   amount: number;
-  status: 'pending' | 'completed' | 'failed' | 'authorized';
+  status: 'pending' | 'completed' | 'failed' | 'authorized' | 'captured' | 'refunded' | 'paid';
   payment_intent_id?: string;
   payment_method?: string;
   transaction_type?: 'charge' | 'authorization' | 'capture' | 'refund' | 'void' | 'cash';
   currency?: string;
 }
-
-// Helper function to map logical statuses to valid enum values
-const mapToValidStatus = (status: string): 'pending' | 'completed' | 'failed' | 'authorized' => {
-  switch (status) {
-    case 'paid':
-    case 'captured':
-    case 'succeeded':
-      return 'completed';
-    case 'cancelled':
-    case 'refunded':
-    case 'expired':
-      return 'failed';
-    case 'authorized':
-      return 'authorized';
-    case 'pending':
-    case 'requires_payment_method':
-    case 'requires_confirmation':
-    case 'requires_action':
-    case 'processing':
-      return 'pending';
-    case 'failed':
-      return 'failed';
-    case 'completed':
-      return 'completed';
-    default:
-      console.error(`[TransactionManager] Invalid transaction status "${status}" mapped to "pending". Stack trace:`, new Error().stack);
-      return 'pending';
-  }
-};
 
 export interface PaymentOperationResult {
   success: boolean;
@@ -77,13 +48,10 @@ export class TransactionManager {
     try {
       console.log('Creating transaction:', data);
 
-      // Validate status before creating transaction
-      const validStatus = mapToValidStatus(data.status);
-      
       const transactionData = {
         booking_id: data.booking_id,
         amount: Number(data.amount),
-        status: validStatus,
+        status: data.status,
         payment_intent_id: data.payment_intent_id,
         payment_method: data.payment_method || 'unknown',
         transaction_type: data.transaction_type || 'charge',
@@ -121,15 +89,9 @@ export class TransactionManager {
     try {
       console.log('Updating transaction:', transactionId, updates);
 
-      // Validate status if being updated
-      const validatedUpdates = { ...updates };
-      if (updates.status) {
-        validatedUpdates.status = mapToValidStatus(updates.status);
-      }
-
       const { data: transaction, error } = await this.supabaseClient
         .from('transactions')
-        .update(validatedUpdates)
+        .update(updates)
         .eq('id', transactionId)
         .select()
         .single();
@@ -157,15 +119,9 @@ export class TransactionManager {
     try {
       console.log('Updating transaction by payment intent:', paymentIntentId, updates);
 
-      // Validate status if being updated
-      const validatedUpdates = { ...updates };
-      if (updates.status) {
-        validatedUpdates.status = mapToValidStatus(updates.status);
-      }
-
       const { data: transaction, error } = await this.supabaseClient
         .from('transactions')
-        .update(validatedUpdates)
+        .update(updates)
         .eq('payment_intent_id', paymentIntentId)
         .select()
         .single();
@@ -300,8 +256,8 @@ export class TransactionManager {
   async recordCashPayment(data: Omit<TransactionData, 'payment_intent_id' | 'transaction_type' | 'status'>): Promise<PaymentOperationResult> {
     const cashData = {
       ...data,
-      status: 'completed' as const, // Use 'completed' for successful cash payments
-      transaction_type: 'charge' as const,
+      status: 'paid' as const, // Use 'paid' to match status mapping
+      transaction_type: 'charge' as const, // Use 'charge' instead of 'cash'
       payment_method: 'cash',
     };
     return await this.createTransaction(cashData);

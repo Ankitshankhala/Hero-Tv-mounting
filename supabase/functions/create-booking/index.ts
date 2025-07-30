@@ -99,7 +99,7 @@ serve(async (req) => {
     
     const bookingInsert = {
       ...booking_payload,
-      status: 'authorized', // Booking is authorized since payment is authorized
+      status: 'confirmed', // Booking is confirmed since payment is authorized
       payment_status: 'authorized',
       payment_intent_id: transaction.payment_intent_id,
       // Handle guest vs authenticated user
@@ -158,45 +158,6 @@ serve(async (req) => {
     }
 
     logStep("Transaction updated successfully");
-
-    // Step 4: Automatically capture the payment after booking creation
-    logStep("Auto-capturing payment", { payment_intent_id: transaction.payment_intent_id });
-    
-    try {
-      const { data: captureResult, error: captureError } = await supabaseServiceRole.functions.invoke('capture-payment-intent', {
-        body: {
-          booking_id: bookingId
-        }
-      });
-
-      if (captureError || !captureResult?.success) {
-        logStep("Payment capture failed", { error: captureError, result: captureResult });
-        
-        // Update booking to indicate capture failure but don't fail the entire process
-        await supabaseServiceRole
-          .from('bookings')
-          .update({ 
-            payment_status: 'capture_failed',
-            // Keep status as authorized since booking was created successfully
-          })
-          .eq('id', bookingId);
-        
-        logStep("Booking created but payment capture failed - manual capture required");
-      } else {
-        logStep("Payment captured successfully", { capture_result: captureResult });
-      }
-    } catch (captureError) {
-      logStep("Exception during payment capture", { error: captureError });
-      
-      // Update booking to indicate capture failure but don't fail the entire process
-      await supabaseServiceRole
-        .from('bookings')
-        .update({ 
-          payment_status: 'capture_failed',
-          // Keep status as authorized since booking was created successfully
-        })
-        .eq('id', bookingId);
-    }
 
     const response = {
       success: true,

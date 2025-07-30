@@ -5,10 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { usePerformanceMonitoring } from '@/hooks/usePerformanceMonitoring';
 import { useErrorMonitoring } from '@/hooks/useErrorMonitoring';
-import { Activity, Clock, AlertTriangle, TrendingUp, Trophy } from 'lucide-react';
-
-// Initialize system completion optimizations
-import '@/utils/systemCompletionOptimizations';
+import { Activity, Clock, AlertTriangle, TrendingUp } from 'lucide-react';
 
 export const PerformanceDashboard = () => {
   const { metrics, getStats, clearMetrics, toggleMonitoring, isMonitoring } = usePerformanceMonitoring();
@@ -35,30 +32,6 @@ export const PerformanceDashboard = () => {
           </Button>
         </div>
       </div>
-
-      {/* System Completion Status */}
-      <Card className="border-green-500 bg-green-50 dark:bg-green-950">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-green-700 dark:text-green-300">
-            <Trophy className="h-5 w-5" />
-            System Status: 100% Complete
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-green-600 dark:text-green-400">
-              ✅ Production logging optimized (228+ console.log statements cleaned)<br/>
-              ✅ Performance monitoring integrated in critical flows<br/>  
-              ✅ Security warnings resolved (0 remaining)<br/>
-              ✅ Enterprise-grade system ready for production
-            </div>
-            <div className="text-right">
-              <div className="text-3xl font-bold text-green-700 dark:text-green-300">100%</div>
-              <div className="text-sm font-medium text-green-600 dark:text-green-400">Complete</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>

@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Header } from '@/components/Header';
-import { useTestingMode, getEffectiveMinimumAmount } from '@/contexts/TestingModeContext';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { Footer } from '@/components/Footer';
 import { ServicesSection } from '@/components/ServicesSection';
@@ -14,10 +13,9 @@ import { EnhancedInlineBookingFlow } from '@/components/EnhancedInlineBookingFlo
 import { CartItem } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 
+const MINIMUM_BOOKING_AMOUNT = 75;
+
 const Index = () => {
-  const { isTestingMode } = useTestingMode();
-  const MINIMUM_BOOKING_AMOUNT = getEffectiveMinimumAmount(isTestingMode);
-  
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showBookingFlow, setShowBookingFlow] = useState(false);

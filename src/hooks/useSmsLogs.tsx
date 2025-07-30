@@ -5,7 +5,6 @@ import { useToast } from '@/hooks/use-toast';
 interface SmsLogData {
   id: string;
   recipient_number: string;
-  recipient_name: string | null;
   message: string;
   status: 'sent' | 'failed';
   created_at: string | null;
@@ -13,7 +12,8 @@ interface SmsLogData {
   error_message: string | null;
   twilio_sid: string | null;
   booking_id: string | null;
-  message_type: string;
+  worker_name: string | null;
+  booking_service: string | null;
 }
 
 interface SmsStats {
@@ -40,10 +40,24 @@ export const useSmsLogs = () => {
       setLoading(true);
       setError(null);
 
-      // Fetch SMS logs - now includes recipient_name field
+      // Fetch SMS logs with related booking and worker data
       const { data: logs, error: logsError } = await supabase
         .from('sms_logs')
-        .select('*')
+        .select(`
+          *,
+          bookings!booking_id (
+            id,
+            worker_id,
+            service_id,
+            users!worker_id (
+              name,
+              phone
+            ),
+            services (
+              name
+            )
+          )
+        `)
         .order('created_at', { ascending: false })
         .limit(100);
 
@@ -51,25 +65,10 @@ export const useSmsLogs = () => {
         throw logsError;
       }
 
-      // Helper function to determine message type
-      const getMessageType = (message: string, recipientNumber: string) => {
-        if (recipientNumber === 'system' || recipientNumber === 'manual' || recipientNumber === 'trigger') {
-          return 'System';
-        }
-        if (message.includes('New job assigned') || message.includes('Worker assignment')) {
-          return 'Worker Assignment';
-        }
-        if (message.includes('booking confirmed') || message.includes('confirmation')) {
-          return 'Customer Notification';
-        }
-        return 'General';
-      };
-
       // Transform data for display
       const transformedLogs: SmsLogData[] = (logs || []).map(log => ({
         id: log.id,
         recipient_number: log.recipient_number,
-        recipient_name: log.recipient_name || null,
         message: log.message,
         status: log.status,
         created_at: log.created_at,
@@ -77,7 +76,8 @@ export const useSmsLogs = () => {
         error_message: log.error_message,
         twilio_sid: log.twilio_sid,
         booking_id: log.booking_id,
-        message_type: getMessageType(log.message, log.recipient_number)
+        worker_name: log.bookings?.users?.name || 'Unknown Worker',
+        booking_service: log.bookings?.services?.name || 'Unknown Service'
       }));
 
       setSmsLogs(transformedLogs);

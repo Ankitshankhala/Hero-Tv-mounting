@@ -1,12 +1,10 @@
 
 import { useState, useEffect } from 'react';
 import { ServiceItem, FormData } from './types';
-import { useTestingMode, getEffectiveMinimumAmount } from '@/contexts/TestingModeContext';
+
+const MINIMUM_BOOKING_AMOUNT = 75;
 
 export const useBookingFormState = (selectedServices: ServiceItem[] = []) => {
-  const { isTestingMode } = useTestingMode();
-  const MINIMUM_BOOKING_AMOUNT = getEffectiveMinimumAmount(isTestingMode);
-  
   const [currentStep, setCurrentStep] = useState(1);
   const [services, setServices] = useState<ServiceItem[]>(selectedServices);
   const [formData, setFormData] = useState<FormData>({

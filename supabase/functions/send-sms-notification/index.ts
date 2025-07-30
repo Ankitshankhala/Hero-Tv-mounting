@@ -29,7 +29,7 @@ serve(async (req) => {
       );
     }
 
-    // Get booking details with worker info (guest-only architecture)
+    // Get booking details with worker info
     const { data: booking, error: bookingError } = await supabaseClient
       .from('bookings')
       .select(`
@@ -38,10 +38,13 @@ serve(async (req) => {
         scheduled_start,
         location_notes,
         worker_id,
-        guest_customer_info,
         users:worker_id (
           name, 
           phone
+        ),
+        customer_id,
+        customer:users!customer_id (
+          name
         )
       `)
       .eq('id', bookingId)
@@ -74,13 +77,10 @@ serve(async (req) => {
       minute: '2-digit',
     });
 
-    // Get customer name from guest info
-    const customerName = booking.guest_customer_info?.name || 'Unknown Customer';
-    
     // Compose message
     const messageBody = `
       New job assigned! ${formattedDate} at ${formattedTime}
-      Customer: ${customerName}
+      Customer: ${booking.customer?.name}
       Address: ${booking.location_notes || 'Address details in booking'}
       Reply Y to confirm or N if unavailable.
     `.replace(/\s+/g, ' ').trim();
@@ -100,7 +100,6 @@ serve(async (req) => {
         .insert({
           booking_id: bookingId,
           recipient_number: booking.users.phone,
-          recipient_name: booking.users.name,
           message: messageBody,
           twilio_sid: 'MOCK_SID',
           status: 'sent'
@@ -145,7 +144,6 @@ serve(async (req) => {
       await supabaseClient.from('sms_logs').insert({
         booking_id: bookingId,
         recipient_number: booking.users.phone,
-        recipient_name: booking.users.name,
         message: messageBody,
         status: 'failed',
         error_message: JSON.stringify(twilioData),
@@ -163,7 +161,6 @@ serve(async (req) => {
       .insert({
         booking_id: bookingId,
         recipient_number: booking.users.phone,
-        recipient_name: booking.users.name,
         message: messageBody,
         twilio_sid: twilioData.sid,
         status: 'sent',

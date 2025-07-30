@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Lock, User } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { optimizedLog, optimizedError } from '@/utils/performanceOptimizer';
 
 interface AdminLoginProps {
   onLogin?: () => void;
@@ -24,16 +23,16 @@ export const AdminLogin = ({ onLogin }: AdminLoginProps) => {
     setLoading(true);
     setError('');
 
-    optimizedLog('Admin login attempt:', email);
+    console.log('Admin login attempt:', email);
 
     try {
       const { error } = await signIn(email, password);
       
       if (error) {
-        optimizedError('Login error:', error);
+        console.error('Login error:', error);
         setError(error.message || 'Authentication failed');
       } else {
-        optimizedLog('Login successful');
+        console.log('Login successful');
         // Small delay to ensure auth state is updated
         setTimeout(() => {
           if (onLogin) {
@@ -44,7 +43,7 @@ export const AdminLogin = ({ onLogin }: AdminLoginProps) => {
         }, 100);
       }
     } catch (err) {
-      optimizedError('Unexpected login error:', err);
+      console.error('Unexpected login error:', err);
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);

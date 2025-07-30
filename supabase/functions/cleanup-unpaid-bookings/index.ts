@@ -135,8 +135,8 @@ serve(async (req) => {
           }
 
           // Determine appropriate status based on Stripe status
-          const finalStatus = stripeStatus === 'succeeded' ? 'completed' : 'pending';
-          const finalPaymentStatus = stripeStatus === 'succeeded' ? 'completed' : 'failed';
+          const finalStatus = stripeStatus === 'succeeded' ? 'completed' : 'cancelled';
+          const finalPaymentStatus = stripeStatus === 'succeeded' ? 'paid' : 'expired';
 
           // Update booking status
           const { error: updateError } = await supabaseServiceRole
@@ -154,7 +154,7 @@ serve(async (req) => {
 
           // Update transaction status if it exists
           if (booking.payment_intent_id) {
-            const transactionStatus = stripeStatus === 'succeeded' ? 'completed' : 'failed';
+            const transactionStatus = stripeStatus === 'succeeded' ? 'paid' : 'expired';
             await supabaseServiceRole
               .from('transactions')
               .update({ 

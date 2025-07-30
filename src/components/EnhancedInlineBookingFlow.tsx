@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { X, ArrowRight, Shield, AlertCircle } from 'lucide-react';
 import { CalendarIcon } from 'lucide-react';
-import { useTestingMode, getEffectiveMinimumAmount } from '@/contexts/TestingModeContext';
 import { PaymentAuthorizationForm } from '@/components/payment/PaymentAuthorizationForm';
 import { useBookingFlowState } from '@/hooks/booking/useBookingFlowState';
 import { BookingProgressSteps } from '@/components/booking/BookingProgressSteps';
@@ -13,7 +12,6 @@ import { ScheduleStep } from '@/components/booking/ScheduleStep';
 import { BookingSuccessModal } from '@/components/booking/BookingSuccessModal';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { optimizedLog } from '@/utils/performanceOptimizer';
 
 interface ServiceItem {
   id: string;
@@ -30,14 +28,14 @@ interface EnhancedInlineBookingFlowProps {
   selectedServices?: ServiceItem[];
 }
 
+const MINIMUM_BOOKING_AMOUNT = 75;
+
 export const EnhancedInlineBookingFlow = ({ 
   isOpen, 
   onClose, 
   onSubmit, 
   selectedServices = [] 
 }: EnhancedInlineBookingFlowProps) => {
-  const { isTestingMode } = useTestingMode();
-  const MINIMUM_BOOKING_AMOUNT = getEffectiveMinimumAmount(isTestingMode);
   const {
     currentStep,
     setCurrentStep,
@@ -107,7 +105,7 @@ export const EnhancedInlineBookingFlow = ({
 
     // Check if booking already exists
     if (bookingId && hasCreatedBooking) {
-      optimizedLog('📝 Booking already exists, proceeding to payment...');
+      console.log('📝 Booking already exists, proceeding to payment...');
       toast({
         title: "Proceeding to Payment",
         description: "Your booking is ready. Please complete the payment authorization.",
@@ -118,7 +116,7 @@ export const EnhancedInlineBookingFlow = ({
 
     try {
       // Create booking with payment_pending status
-      optimizedLog('🚀 Creating booking and proceeding to payment...');
+      console.log('🚀 Creating booking and proceeding to payment...');
       const createdBookingId = await handleBookingSubmit();
       
       if (createdBookingId) {
@@ -133,7 +131,7 @@ export const EnhancedInlineBookingFlow = ({
         
         // Move to payment step
         setCurrentStep(4);
-        optimizedLog('✅ Booking created successfully with ID:', createdBookingId);
+        console.log('✅ Booking created successfully with ID:', createdBookingId);
       }
     } catch (error) {
       console.error('❌ Failed to create booking:', error);
@@ -149,7 +147,7 @@ export const EnhancedInlineBookingFlow = ({
     try {
       if (bookingId && paymentIntentId) {
         // Confirm booking after successful payment
-        optimizedLog('✅ Payment authorized, confirming booking...');
+        console.log('✅ Payment authorized, confirming booking...');
         
         const { data: confirmResult, error: confirmError } = await supabase.functions.invoke(
           'confirm-payment',
@@ -165,7 +163,7 @@ export const EnhancedInlineBookingFlow = ({
           throw new Error(confirmError?.message || 'Failed to confirm booking after payment');
         }
 
-        optimizedLog('✅ Booking confirmed after payment:', confirmResult);
+        console.log('✅ Booking confirmed after payment:', confirmResult);
         
         toast({
           title: "Payment Authorized & Booking Confirmed! 🎉",

@@ -92,12 +92,12 @@ export const BookingFlow = ({ onClose, initialServices = [] }: BookingFlowProps)
 
   const handlePaymentAuthorized = async (paymentIntentId?: string) => {
     try {
-      console.log('✅ Payment authorized successfully, booking status will be updated to "authorized"');
-      console.log('Database trigger will handle worker assignment automatically');
-      
-      // Don't call confirmBookingAfterPayment here - let the database trigger handle worker assignment
-      // The SimplePaymentAuthorizationForm already updated the booking status to "authorized"
-      // which should trigger the auto-assignment function
+      if (bookingId && paymentIntentId) {
+        console.log('🔄 Confirming booking after payment authorization...');
+        // Confirm the existing booking after successful payment
+        await confirmBookingAfterPayment(bookingId, paymentIntentId);
+        console.log('✅ Booking confirmed after payment authorization');
+      }
       
       setPaymentCompleted(true);
       setShowSuccess(true);
@@ -108,7 +108,7 @@ export const BookingFlow = ({ onClose, initialServices = [] }: BookingFlowProps)
         setSuccessAnimation(true);
       }, 100);
     } catch (error) {
-      console.error('❌ Failed to handle payment authorization:', error);
+      console.error('❌ Failed to confirm booking after payment:', error);
       // Handle the error appropriately
     }
   };

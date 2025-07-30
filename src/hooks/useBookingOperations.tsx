@@ -4,7 +4,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useErrorHandler } from './useErrorHandler';
 import { useRetryableQuery } from './useRetryableQuery';
 import { useSmsNotifications } from './useSmsNotifications';
-import { optimizedLog, optimizedError, measurePerformance } from '@/utils/performanceOptimizer';
 
 type BookingStatus = 'pending' | 'payment_pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'authorized' | 'captured';
 
@@ -17,11 +16,10 @@ export const useBookingOperations = () => {
   const createBooking = async (bookingData: any) => {
     setLoading(true);
     try {
-      optimizedLog('Creating booking with data:', bookingData);
+      console.log('Creating booking with data:', bookingData);
       
-      return await measurePerformance('booking-creation', async () => {
-        return await executeWithRetry(async () => {
-          // Ensure we have the required fields
+      return await executeWithRetry(async () => {
+        // Ensure we have the required fields
         const bookingPayload = {
           customer_id: bookingData.customer_id,
           service_id: bookingData.service_id,
@@ -34,7 +32,7 @@ export const useBookingOperations = () => {
           worker_id: bookingData.worker_id || null
         };
 
-        optimizedLog('Booking payload:', bookingPayload);
+        console.log('Booking payload:', bookingPayload);
 
         const { data, error } = await supabase
           .from('bookings')
@@ -48,22 +46,21 @@ export const useBookingOperations = () => {
           .single();
 
         if (error) {
-          optimizedError('Booking creation error:', error);
+          console.error('Booking creation error:', error);
           throw error;
         }
 
-          optimizedLog('Booking created successfully:', data);
-          
-          // Send SMS if worker is assigned
-          if (data.worker_id) {
-            await sendWorkerAssignmentSms(data.id);
-          }
-          
-          return data;
-        }, 'create booking');
-      });
+        console.log('Booking created successfully:', data);
+        
+        // Send SMS if worker is assigned
+        if (data.worker_id) {
+          await sendWorkerAssignmentSms(data.id);
+        }
+        
+        return data;
+      }, 'create booking');
     } catch (error) {
-      optimizedError('Error in createBooking:', error);
+      console.error('Error in createBooking:', error);
       handleError(error, 'create booking', {
         toastTitle: 'Failed to create booking',
         fallbackMessage: 'Unable to create booking. Please try again.'

@@ -2,8 +2,8 @@
 // This ensures consistency across all edge functions
 
 export interface StatusMapping {
-  internal_status: 'pending' | 'authorized' | 'completed' | 'failed';
-  payment_status: 'pending' | 'authorized' | 'completed' | 'failed';
+  internal_status: 'pending' | 'authorized' | 'paid' | 'failed' | 'expired' | 'cancelled';
+  payment_status: 'pending' | 'authorized' | 'paid' | 'failed' | 'expired' | 'cancelled';
   booking_status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'failed';
   user_message: string;
   action_required: boolean;
@@ -42,8 +42,8 @@ export const mapStripeStatus = (stripeStatus: string, context: 'payment_intent' 
 
     case 'succeeded':
       return {
-        internal_status: 'completed',
-        payment_status: 'completed',
+        internal_status: 'paid',
+        payment_status: 'paid',
         booking_status: 'completed',
         user_message: 'Payment completed successfully',
         action_required: false
@@ -52,8 +52,8 @@ export const mapStripeStatus = (stripeStatus: string, context: 'payment_intent' 
     case 'canceled':
     case 'cancelled':
       return {
-        internal_status: 'failed',
-        payment_status: 'failed',
+        internal_status: 'cancelled',
+        payment_status: 'cancelled',
         booking_status: 'cancelled',
         user_message: 'Payment was cancelled',
         action_required: false
@@ -111,7 +111,7 @@ export const getStatusForFrontend = (
         action_required: false
       };
 
-    case 'completed':
+    case 'paid':
       return {
         display_status: 'Payment Complete',
         status_color: 'green',
@@ -124,6 +124,14 @@ export const getStatusForFrontend = (
         display_status: 'Booking Confirmed',
         status_color: 'green',
         user_message: 'Your booking is confirmed',
+        action_required: false
+      };
+
+    case 'completed':
+      return {
+        display_status: 'Service Complete',
+        status_color: 'blue',
+        user_message: 'Service has been completed',
         action_required: false
       };
 

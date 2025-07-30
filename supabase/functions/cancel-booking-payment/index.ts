@@ -51,12 +51,12 @@ serve(async (req) => {
       }
     }
 
-    // Update booking status to failed (booking_status enum doesn't have 'cancelled')
+    // Update booking status to cancelled/failed
     logStep("Updating booking status", { booking_id, reason });
     const { error: bookingError } = await supabaseServiceRole
       .from('bookings')
       .update({ 
-        status: 'pending', // Reset to pending as there's no 'cancelled' in booking_status enum
+        status: 'cancelled',
         payment_status: 'failed'
       })
       .eq('id', booking_id);
@@ -87,7 +87,7 @@ serve(async (req) => {
     const response = {
       success: true,
       booking_id: booking_id,
-      status: 'pending', // Updated to reflect actual booking status
+      status: 'cancelled',
       reason: reason
     };
 

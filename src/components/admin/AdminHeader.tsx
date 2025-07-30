@@ -1,40 +1,16 @@
+
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Calendar, ArrowLeft, TestTube, Clock } from 'lucide-react';
-import { useTestingMode } from '@/contexts/TestingModeContext';
-import { useToast } from '@/hooks/use-toast';
+import { Plus, UserPlus, Calendar, ArrowLeft } from 'lucide-react';
+import { CreateBookingModal } from './CreateBookingModal';
 import { AssignWorkerModal } from './AssignWorkerModal';
 import { TodaysJobsModal } from './TodaysJobsModal';
 
 export const AdminHeader = () => {
+  const [showCreateBooking, setShowCreateBooking] = useState(false);
   const [showAssignWorker, setShowAssignWorker] = useState(false);
   const [showTodaysJobs, setShowTodaysJobs] = useState(false);
-  const { isTestingMode, timeRemaining, activateTestingMode, deactivateTestingMode } = useTestingMode();
-  const { toast } = useToast();
-
-  const handleTestingModeToggle = () => {
-    if (isTestingMode) {
-      deactivateTestingMode();
-      toast({
-        title: "Testing Mode Disabled",
-        description: "$75 minimum booking requirement restored.",
-      });
-    } else {
-      activateTestingMode();
-      toast({
-        title: "Testing Mode Enabled",
-        description: "Minimum booking requirement bypassed for 10 minutes. You can now test with $1 bookings.",
-        duration: 5000,
-      });
-    }
-  };
-
-  const formatTimeRemaining = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
 
   return (
     <>
@@ -54,23 +30,13 @@ export const AdminHeader = () => {
           </div>
           <div className="flex space-x-3">
             <Button 
-              variant={isTestingMode ? "destructive" : "secondary"}
-              onClick={handleTestingModeToggle}
-              className="relative"
+              onClick={() => setShowCreateBooking(true)}
+              className="bg-blue-600 hover:bg-blue-700"
             >
-              <TestTube className="h-4 w-4 mr-2" />
-              {isTestingMode ? (
-                <div className="flex items-center space-x-2">
-                  <span>Testing Mode</span>
-                  <div className="flex items-center space-x-1 bg-white/20 px-2 py-1 rounded text-xs">
-                    <Clock className="h-3 w-3" />
-                    <span>{formatTimeRemaining(timeRemaining)}</span>
-                  </div>
-                </div>
-              ) : (
-                "Enable Testing Mode"
-              )}
+              <Plus className="h-4 w-4 mr-2" />
+              Create Booking
             </Button>
+            
             <Button 
               variant="outline"
               onClick={() => setShowTodaysJobs(true)}
@@ -82,6 +48,9 @@ export const AdminHeader = () => {
         </div>
       </header>
 
+      {showCreateBooking && (
+        <CreateBookingModal onClose={() => setShowCreateBooking(false)} />
+      )}
       {showAssignWorker && (
         <AssignWorkerModal onClose={() => setShowAssignWorker(false)} />
       )}

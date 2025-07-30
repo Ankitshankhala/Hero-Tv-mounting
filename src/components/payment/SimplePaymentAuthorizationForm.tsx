@@ -195,43 +195,25 @@ export const SimplePaymentAuthorizationForm = ({
       if (paymentIntent?.status === 'requires_capture' || paymentIntent?.status === 'succeeded') {
         console.log('✅ Payment authorized successfully!');
         
-        // Update both transaction and booking status to 'authorized' after successful payment
+        // Update transaction status to 'authorized' after successful payment
         try {
-          console.log('Updating transaction and booking status to authorized...');
+          const { TransactionManager } = await import('@/utils/transactionManager');
+          const transactionManager = new TransactionManager();
+          const updateResult = await transactionManager.updateTransactionByPaymentIntent(
+            intentData.payment_intent_id,
+            { status: 'authorized' }
+          );
           
-          // Update transaction status using direct query (ensure we use correct status)
-          const { error: transactionError } = await supabase
-            .from('transactions')
-            .update({ status: 'authorized' })
-            .eq('payment_intent_id', intentData.payment_intent_id);
-            
-          if (transactionError) {
-            console.error('Failed to update transaction status:', transactionError);
-            throw new Error(`Transaction update failed: ${transactionError.message}`);
+          if (!updateResult.success) {
+            console.error('Failed to update transaction status:', updateResult.error);
+            throw new Error(updateResult.error || 'Failed to update transaction status');
           }
+          
           console.log('Transaction status updated to authorized');
-          
-          // Update booking status to 'authorized' to trigger worker assignment
-          const { error: bookingError } = await supabase
-            .from('bookings')
-            .update({ 
-              status: 'authorized',
-              payment_status: 'authorized',
-              payment_intent_id: intentData.payment_intent_id
-            })
-            .eq('id', bookingId);
-            
-          if (bookingError) {
-            console.error('Failed to update booking status:', bookingError);
-            throw new Error(`Booking update failed: ${bookingError.message}`);
-          }
-          console.log('Booking status updated to authorized');
-          
-          console.log('✅ Payment authorization flow completed successfully');
           onAuthorizationSuccess(intentData.payment_intent_id);
         } catch (error) {
-          console.error('Error updating payment status:', error);
-          const errorMessage = `Payment authorized but failed to update status: ${error instanceof Error ? error.message : 'Unknown error'}`;
+          console.error('Error updating transaction status:', error);
+          const errorMessage = 'Payment authorized but failed to update transaction status';
           setFormError(errorMessage);
           onAuthorizationFailure(errorMessage);
         }
