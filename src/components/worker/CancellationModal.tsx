@@ -37,6 +37,7 @@ const CancellationModal = ({ isOpen, onClose, job, onCancellationSuccess }: Canc
         .from('bookings')
         .update({ 
           status: 'cancelled',
+          payment_status: 'failed', // Ensure payment_status is set to valid enum value
           worker_id: null
         })
         .eq('id', job.id);
