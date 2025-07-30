@@ -10,6 +10,7 @@ import { ManualChargeModal } from '@/components/worker/payment/ManualChargeModal
 import { AssignWorkerModal } from './AssignWorkerModal';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { getBookingStatusForDisplay } from '@/utils/statusUtils';
 
 interface Booking {
   id: string;
@@ -45,35 +46,19 @@ export const BookingTable = React.memo(({ bookings, onBookingUpdate }: BookingTa
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const getStatusBadge = (status: string) => {
-    const statusConfig = {
-      pending: { label: 'Pending', variant: 'secondary' as const },
-      payment_pending: { label: 'Payment Pending', variant: 'secondary' as const },
-      confirmed: { label: 'Confirmed', variant: 'default' as const },
-      'in_progress': { label: 'In Progress', variant: 'secondary' as const },
-      completed: { label: 'Completed', variant: 'outline' as const },
-      cancelled: { label: 'Cancelled', variant: 'destructive' as const },
+  const getUnifiedStatusBadge = (bookingStatus: string, paymentStatus?: string) => {
+    const statusInfo = getBookingStatusForDisplay(bookingStatus, paymentStatus || '');
+    
+    const variantMap = {
+      green: 'default' as const,
+      yellow: 'secondary' as const,
+      red: 'destructive' as const,
+      blue: 'outline' as const,
+      gray: 'secondary' as const,
     };
     
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
-    return <Badge variant={config.variant}>{config.label}</Badge>;
-  };
-
-  const getPaymentStatusBadge = (paymentStatus?: string) => {
-    if (!paymentStatus) return null;
-    
-    const statusConfig = {
-      pending: { label: 'Payment Pending', variant: 'secondary' as const },
-      authorized: { label: 'Payment Authorized', variant: 'default' as const },
-      captured: { label: 'Payment Captured', variant: 'default' as const },
-      failed: { label: 'Payment Failed', variant: 'destructive' as const },
-      cancelled: { label: 'Payment Cancelled', variant: 'destructive' as const },
-    };
-    
-    const config = statusConfig[paymentStatus as keyof typeof statusConfig];
-    if (!config) return null;
-    
-    return <Badge variant={config.variant} className="ml-2">{config.label}</Badge>;
+    const variant = variantMap[statusInfo.status_color] || 'secondary';
+    return <Badge variant={variant}>{statusInfo.display_status}</Badge>;
   };
 
   const formatServices = (booking: Booking) => {
@@ -240,7 +225,6 @@ export const BookingTable = React.memo(({ bookings, onBookingUpdate }: BookingTa
               <TableHead>Location</TableHead>
               <TableHead>Worker</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Payment</TableHead>
               <TableHead>Price</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
@@ -277,8 +261,7 @@ export const BookingTable = React.memo(({ bookings, onBookingUpdate }: BookingTa
                       booking.worker?.name || 'Unassigned'
                     )}
                   </TableCell>
-                  <TableCell>{getStatusBadge(booking.status)}</TableCell>
-                  <TableCell>{getPaymentStatusBadge(booking.payment_status)}</TableCell>
+                  <TableCell>{getUnifiedStatusBadge(booking.status, booking.payment_status)}</TableCell>
                   <TableCell className="font-medium">${booking.total_price || 0}</TableCell>
                    <TableCell>
                      <div className="flex space-x-2">
