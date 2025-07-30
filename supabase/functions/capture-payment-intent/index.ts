@@ -14,9 +14,16 @@ serve(async (req) => {
   }
 
   try {
-    const { bookingId } = await req.json();
+    const { booking_id, bookingId } = await req.json();
+    const finalBookingId = booking_id || bookingId; // Handle both parameter formats
+    
+    console.log('Capture request params:', { booking_id, bookingId, finalBookingId });
 
-    console.log('Capturing payment for booking:', bookingId);
+    console.log('Capturing payment for booking:', finalBookingId);
+
+    if (!finalBookingId) {
+      throw new Error('booking_id is required');
+    }
 
     // Initialize Supabase client with service role
     const supabaseServiceRole = createClient(
@@ -28,8 +35,8 @@ serve(async (req) => {
     // Get booking details
     const { data: booking, error: bookingError } = await supabaseServiceRole
       .from('bookings')
-      .select('payment_intent_id, payment_status')
-      .eq('id', bookingId)
+      .select('payment_intent_id, payment_status, status')
+      .eq('id', finalBookingId)
       .single();
 
     if (bookingError || !booking) {
@@ -64,7 +71,7 @@ serve(async (req) => {
           payment_status: statusMapping.payment_status,
           status: statusMapping.booking_status,
         })
-        .eq('id', bookingId);
+        .eq('id', finalBookingId);
 
       if (updateError) {
         console.error('Failed to update booking:', updateError);
@@ -87,7 +94,7 @@ serve(async (req) => {
       const { error: captureTransactionError } = await supabaseServiceRole
         .from('transactions')
         .insert({
-          booking_id: bookingId,
+          booking_id: finalBookingId,
           amount: paymentIntent.amount / 100, // Convert from cents
           status: statusMapping.internal_status,
           payment_intent_id: booking.payment_intent_id,
@@ -102,8 +109,9 @@ serve(async (req) => {
 
       return new Response(JSON.stringify({
         success: true,
-        payment_status: 'completed', // Use 'completed' instead of 'captured'
-        booking_id: bookingId,
+        payment_status: 'captured',
+        booking_status: statusMapping.booking_status,
+        booking_id: finalBookingId,
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
@@ -116,7 +124,7 @@ serve(async (req) => {
         .update({
           payment_status: 'capture_failed',
         })
-        .eq('id', bookingId);
+        .eq('id', finalBookingId);
 
       if (updateError) {
         console.error('Failed to update booking status:', updateError);

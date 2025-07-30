@@ -3,6 +3,7 @@ import React from 'react';
 import { Edit, Phone, MapPin, CreditCard, X, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { PaymentCaptureButton } from './PaymentCaptureButton';
 
 interface JobActionsProps {
   job: any;
@@ -33,6 +34,7 @@ const JobActions = ({
   const canCancelJob = job.status === 'confirmed' || job.status === 'pending';
   const canAddCharges = job.status === 'in_progress' || job.status === 'confirmed';
   const hasUnpaidAmount = job.pending_payment_amount > 0;
+  const canCapturePayment = job.payment_status === 'authorized' && job.status === 'confirmed';
 
   return (
     <div className="flex items-center justify-between pt-4 border-t border-slate-600">
@@ -96,6 +98,13 @@ const JobActions = ({
             <X className="h-4 w-4 mr-1" />
             Cancel Job
           </Button>
+        )}
+        {canCapturePayment && (
+          <PaymentCaptureButton
+            bookingId={job.id}
+            paymentStatus={job.payment_status}
+            onCaptureSuccess={() => onStatusUpdate(job.id, 'completed')}
+          />
         )}
       </div>
       
