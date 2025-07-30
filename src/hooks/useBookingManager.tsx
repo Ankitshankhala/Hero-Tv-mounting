@@ -35,9 +35,9 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
     if (booking.guest_customer_info) {
       customer = {
         id: null, // Guest customers don't have user IDs
-        name: booking.guest_customer_info.customerName || booking.guest_customer_info.name || 'Unknown',
-        email: booking.guest_customer_info.customerEmail || booking.guest_customer_info.email || 'Unknown',
-        phone: booking.guest_customer_info.customerPhone || booking.guest_customer_info.phone || 'Unknown',
+        name: booking.guest_customer_info.name || booking.guest_customer_info.customerName || 'Unknown',
+        email: booking.guest_customer_info.email || booking.guest_customer_info.customerEmail || 'Unknown',
+        phone: booking.guest_customer_info.phone || booking.guest_customer_info.customerPhone || 'Unknown',
         city: booking.guest_customer_info.city || 'Unknown'
       };
     } else if (booking.location_notes) {
@@ -48,6 +48,7 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
         
         lines.forEach((line: string) => {
           if (line.includes('Customer:')) customerInfo.name = line.replace('Customer:', '').trim();
+          if (line.includes('Contact:')) customerInfo.name = line.replace('Contact:', '').trim();
           if (line.includes('Email:')) customerInfo.email = line.replace('Email:', '').trim();
           if (line.includes('Phone:')) customerInfo.phone = line.replace('Phone:', '').trim();
           if (line.includes('City:')) customerInfo.city = line.replace('City:', '').trim();
