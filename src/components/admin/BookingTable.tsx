@@ -88,27 +88,41 @@ export const BookingTable = React.memo(({ bookings, onBookingUpdate }: BookingTa
   };
 
   const extractServiceLocation = (booking: Booking): string => {
-    // Priority: customer address first, then extract address from location_notes
+    // Priority: customer address first, then extract address and ZIP from location_notes
     if (booking.customer_address) {
       return booking.customer_address;
     }
     
     if (booking.location_notes) {
-      // Extract only the first line (service address) from location_notes
       const lines = booking.location_notes.split('\n');
-      const addressLine = lines[0]?.trim();
+      let address = '';
+      let zipCode = '';
       
-      // If the first line contains contact info keywords, it's likely old format
-      if (addressLine && !addressLine.includes('Customer:') && !addressLine.includes('Contact:') && 
-          !addressLine.includes('Phone:') && !addressLine.includes('Email:')) {
-        return addressLine;
+      // Extract address (first line that doesn't contain contact info keywords)
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+        if (trimmedLine && 
+            !trimmedLine.includes('Customer:') && 
+            !trimmedLine.includes('Contact:') && 
+            !trimmedLine.includes('Phone:') && 
+            !trimmedLine.includes('Email:') &&
+            !trimmedLine.includes('Special Instructions:')) {
+          address = trimmedLine;
+          break;
+        }
       }
       
-      // Fallback: look for address-like patterns in the text
-      for (const line of lines) {
-        if (line.includes(',') && !line.includes(':') && !line.includes('@')) {
-          return line.trim();
-        }
+      // Extract ZIP code from the entire location_notes
+      const zipMatch = booking.location_notes.match(/ZIP:\s*(\d{5}(?:-\d{4})?)|zipcode:\s*(\d{5}(?:-\d{4})?)|(\d{5}(?:-\d{4})?)/i);
+      if (zipMatch) {
+        zipCode = zipMatch[1] || zipMatch[2] || zipMatch[3];
+      }
+      
+      // Format output: "Address ZIP: code" or just address if no ZIP found
+      if (address && zipCode) {
+        return `${address} ZIP: ${zipCode}`;
+      } else if (address) {
+        return address;
       }
     }
     
