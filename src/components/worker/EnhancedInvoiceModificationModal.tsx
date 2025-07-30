@@ -63,6 +63,8 @@ export const EnhancedInvoiceModificationModal = ({
     if (!job?.service_id) return;
 
     try {
+      console.log('Migrating legacy service for job:', job.id, 'service:', job.service_id);
+      
       // Get service details
       const { data: serviceData, error: serviceError } = await supabase
         .from('services')
@@ -70,17 +72,24 @@ export const EnhancedInvoiceModificationModal = ({
         .eq('id', job.service_id)
         .single();
 
-      if (serviceError) throw serviceError;
+      if (serviceError) {
+        console.error('Error fetching service data:', serviceError);
+        throw serviceError;
+      }
+
+      console.log('Service data retrieved:', serviceData);
 
       // Create booking service entry
       const bookingService = {
         booking_id: job.id,
         service_id: job.service_id,
         service_name: serviceData.name,
-        base_price: serviceData.base_price,
+        base_price: serviceData.base_price || 0,
         quantity: 1,
         configuration: {}
       };
+
+      console.log('Creating booking service:', bookingService);
 
       const { data, error } = await supabase
         .from('booking_services')
@@ -88,18 +97,34 @@ export const EnhancedInvoiceModificationModal = ({
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error inserting booking service:', error);
+        throw error;
+      }
+
+      console.log('Booking service created:', data);
 
       setServices([data]);
-      setOriginalPrice(serviceData.base_price);
+      setOriginalPrice(serviceData.base_price || 0);
+      
+      toast({
+        title: "Service Migrated",
+        description: "Legacy service data has been migrated to the new format",
+      });
     } catch (error) {
       console.error('Error migrating legacy service:', error);
+      toast({
+        title: "Migration Error",
+        description: "Failed to migrate legacy service data",
+        variant: "destructive",
+      });
     }
-  }, [job?.service_id, job?.id]);
+  }, [job?.service_id, job?.id, toast]);
 
   const fetchBookingServices = useCallback(async () => {
     if (!job?.id) return;
 
+    console.log('Fetching booking services for job:', job.id);
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -108,7 +133,12 @@ export const EnhancedInvoiceModificationModal = ({
         .eq('booking_id', job.id)
         .order('created_at');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching booking services:', error);
+        throw error;
+      }
+
+      console.log('Fetched booking services:', data);
 
       if (data && data.length > 0) {
         setServices(data);
@@ -118,9 +148,11 @@ export const EnhancedInvoiceModificationModal = ({
             const servicePrice = calculateServicePrice(service);
             return sum + (servicePrice * service.quantity);
           }, 0);
+          console.log('Calculated original price:', original);
           setOriginalPrice(original);
         }
       } else {
+        console.log('No booking services found, migrating legacy service');
         // Migrate from legacy single service
         await migrateLegacyService();
       }
