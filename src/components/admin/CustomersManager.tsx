@@ -37,7 +37,7 @@ export const CustomersManager = () => {
       setLoading(true);
       console.log('Fetching guest customers...');
 
-      // Fetch all guest bookings
+      // Fetch all guest bookings - include both with guest_customer_info and legacy location_notes
       const { data: bookingsData, error: bookingsError } = await supabase
         .from('bookings')
         .select(`
@@ -45,9 +45,10 @@ export const CustomersManager = () => {
           created_at,
           scheduled_date,
           status,
-          guest_customer_info
+          guest_customer_info,
+          location_notes
         `)
-        .not('guest_customer_info', 'is', null)
+        .is('customer_id', null) // Only guest bookings
         .order('created_at', { ascending: false });
 
       if (bookingsError) {
@@ -67,18 +68,46 @@ export const CustomersManager = () => {
       const customerMap = new Map<string, any>();
       
       bookingsData.forEach((booking) => {
-        const guestInfo = booking.guest_customer_info as any;
-        if (!guestInfo || !guestInfo.email) return;
+        let guestInfo: any = null;
+        let email = '';
+        let name = '';
+        let phone = '';
+        let city = '';
+        let zipcode = '';
 
-        const email = guestInfo.email;
+        // Try to get info from guest_customer_info first
+        if (booking.guest_customer_info) {
+          guestInfo = booking.guest_customer_info;
+          email = guestInfo.email || guestInfo.customerEmail || '';
+          name = guestInfo.name || guestInfo.customerName || '';
+          phone = guestInfo.phone || guestInfo.customerPhone || '';
+          city = guestInfo.city || '';
+          zipcode = guestInfo.zipcode || '';
+        } else if (booking.location_notes) {
+          // Fallback: parse from location_notes for legacy data
+          try {
+            const lines = booking.location_notes.split('\n');
+            lines.forEach((line: string) => {
+              if (line.includes('Customer:')) name = line.replace('Customer:', '').trim();
+              if (line.includes('Email:')) email = line.replace('Email:', '').trim();
+              if (line.includes('Phone:')) phone = line.replace('Phone:', '').trim();
+              if (line.includes('City:')) city = line.replace('City:', '').trim();
+            });
+          } catch (error) {
+            console.log('Could not parse customer info from location_notes:', error);
+          }
+        }
+
+        // Skip if no email found
+        if (!email) return;
         
         if (!customerMap.has(email)) {
           customerMap.set(email, {
             email,
-            name: guestInfo.name || 'No name provided',
-            phone: guestInfo.phone,
-            city: guestInfo.city,
-            zipcode: guestInfo.zipcode,
+            name: name || 'No name provided',
+            phone: phone || '',
+            city: city || '',
+            zipcode: zipcode || '',
             bookings: [],
             totalSpent: 0
           });

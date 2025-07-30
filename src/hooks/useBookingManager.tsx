@@ -5,13 +5,14 @@ import { useToast } from '@/hooks/use-toast';
 
 interface BookingData {
   id: string;
-  customer_id: string;
+  customer_id?: string; // Made optional since we only handle guests
   worker_id?: string;
   service_id: string;
   scheduled_date: string;
   scheduled_start: string;
   status: string;
   location_notes?: string;
+  guest_customer_info?: any;
   created_at: string;
   customer?: any;
   worker?: any;
@@ -30,6 +31,7 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
   const enrichSingleBooking = async (booking: any): Promise<BookingData> => {
     // For guest-only architecture, customer data comes from guest_customer_info
     let customer = null;
+    
     if (booking.guest_customer_info) {
       customer = {
         id: null, // Guest customers don't have user IDs
@@ -37,6 +39,36 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
         email: booking.guest_customer_info.customerEmail || booking.guest_customer_info.email || 'Unknown',
         phone: booking.guest_customer_info.customerPhone || booking.guest_customer_info.phone || 'Unknown',
         city: booking.guest_customer_info.city || 'Unknown'
+      };
+    } else if (booking.location_notes) {
+      // Fallback: try to parse customer info from location_notes for legacy data
+      try {
+        const lines = booking.location_notes.split('\n');
+        const customerInfo: any = { id: null };
+        
+        lines.forEach((line: string) => {
+          if (line.includes('Customer:')) customerInfo.name = line.replace('Customer:', '').trim();
+          if (line.includes('Email:')) customerInfo.email = line.replace('Email:', '').trim();
+          if (line.includes('Phone:')) customerInfo.phone = line.replace('Phone:', '').trim();
+          if (line.includes('City:')) customerInfo.city = line.replace('City:', '').trim();
+        });
+        
+        if (customerInfo.name || customerInfo.email) {
+          customer = customerInfo;
+        }
+      } catch (error) {
+        console.log('Could not parse customer info from location_notes:', error);
+      }
+    }
+    
+    // If still no customer info, create a placeholder
+    if (!customer) {
+      customer = {
+        id: null,
+        name: 'Guest Customer',
+        email: 'No email provided',
+        phone: 'No phone provided',
+        city: 'No city provided'
       };
     }
 
