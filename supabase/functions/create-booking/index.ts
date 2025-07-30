@@ -99,7 +99,7 @@ serve(async (req) => {
     
     const bookingInsert = {
       ...booking_payload,
-      status: 'confirmed', // Booking is confirmed since payment is authorized
+      status: 'authorized', // Booking is authorized since payment is authorized
       payment_status: 'authorized',
       payment_intent_id: transaction.payment_intent_id,
       // Handle guest vs authenticated user
