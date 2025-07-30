@@ -75,8 +75,9 @@ serve(async (req) => {
     const { error: updateError } = await supabaseAdmin
       .from('transactions')
       .update({
-        status: 'cancelled',
-        // We can store additional cancellation details in a JSONB field if needed
+        status: 'failed', // Use 'failed' instead of 'cancelled' to match valid enum values
+        cancellation_reason: reason,
+        cancelled_at: new Date().toISOString()
       })
       .eq('payment_intent_id', paymentIntentId);
 

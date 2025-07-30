@@ -102,7 +102,7 @@ serve(async (req) => {
 
       return new Response(JSON.stringify({
         success: true,
-        payment_status: 'captured',
+        payment_status: 'completed', // Use 'completed' instead of 'captured'
         booking_id: bookingId,
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
