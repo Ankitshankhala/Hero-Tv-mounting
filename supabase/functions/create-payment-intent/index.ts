@@ -21,6 +21,9 @@ const isValidUUID = (str: string): boolean => {
 };
 
 serve(async (req) => {
+  const startTime = performance.now();
+  
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -31,7 +34,8 @@ serve(async (req) => {
       currency = 'usd', 
       idempotency_key,
       user_id, 
-      guest_customer_info 
+      guest_customer_info,
+      booking_id 
     } = await req.json();
     
     logStep("Function started", { 
@@ -121,6 +125,11 @@ serve(async (req) => {
       metadata.guest_name = guest_customer_info.name;
       metadata.is_guest = 'true';
     }
+    
+    // Add booking_id to metadata if provided
+    if (booking_id) {
+      metadata.booking_id = booking_id;
+    }
 
     // Create Stripe payment intent (payment-first approach)
     logStep("Creating Stripe payment intent", { 
@@ -146,12 +155,13 @@ serve(async (req) => {
     // Map Stripe status to internal status
     const statusMapping = mapStripeStatus(paymentIntent.status);
 
-    // Create transaction record (booking_id = null initially)
+    // Create transaction record (set booking_id if provided for booking-first flow)
     logStep("Creating transaction record", { 
       amount, 
       paymentIntentId: paymentIntent.id,
       mappedStatus: statusMapping.internal_status,
-      is_guest: !user_id
+      is_guest: !user_id,
+      booking_id: booking_id || null
     });
     
     const transactionInsert: any = {
@@ -162,7 +172,7 @@ serve(async (req) => {
       transaction_type: 'authorization',
       currency: currency.toUpperCase(),
       idempotency_key: idempotency_key,
-      booking_id: null, // No booking created yet - payment first!
+      booking_id: booking_id || null, // Link to booking if provided (booking-first flow)
     };
     
     if (guest_customer_info && !user_id) {
@@ -192,6 +202,7 @@ serve(async (req) => {
     const transactionId = transactionData.id;
     logStep("Transaction record created successfully", { transactionId });
 
+    const duration = performance.now() - startTime;
     const response = {
       client_secret: paymentIntent.client_secret,
       transaction_id: transactionId,
@@ -199,7 +210,10 @@ serve(async (req) => {
       status: transactionData.status,
     };
 
-    logStep("Payment intent creation completed successfully", response);
+    logStep("Payment intent creation completed successfully", { 
+      ...response, 
+      duration_ms: duration.toFixed(2) 
+    });
     
     return new Response(JSON.stringify(response), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -28,15 +28,16 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
   const { toast } = useToast();
 
   const enrichSingleBooking = async (booking: any): Promise<BookingData> => {
-    // Fetch customer data
+    // For guest-only architecture, customer data comes from guest_customer_info
     let customer = null;
-    if (booking.customer_id) {
-      const { data: customerData } = await supabase
-        .from('users')
-        .select('id, name, email, phone, city')
-        .eq('id', booking.customer_id)
-        .single();
-      customer = customerData;
+    if (booking.guest_customer_info) {
+      customer = {
+        id: null, // Guest customers don't have user IDs
+        name: booking.guest_customer_info.customerName || booking.guest_customer_info.name || 'Unknown',
+        email: booking.guest_customer_info.customerEmail || booking.guest_customer_info.email || 'Unknown',
+        phone: booking.guest_customer_info.customerPhone || booking.guest_customer_info.phone || 'Unknown',
+        city: booking.guest_customer_info.city || 'Unknown'
+      };
     }
 
     // Fetch worker data

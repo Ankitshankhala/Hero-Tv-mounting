@@ -124,7 +124,15 @@ const performEnhancedRollback = async (
 };
 
 export interface EnhancedBookingData {
-  customer_id: string;
+  customer_id: string | null;
+  guest_customer_info?: {
+    name: string;
+    email: string;
+    phone: string;
+    zipcode: string;
+    city: string;
+    address: string;
+  };
   service_id: string;
   scheduled_date: string;
   scheduled_start: string;
@@ -171,8 +179,8 @@ export const createEnhancedBooking = async (
   // Input validation with detailed error messages
   const validationErrors: string[] = [];
 
-  if (!bookingData.customer_id) {
-    validationErrors.push('customer_id is required');
+  if (!bookingData.customer_id && !bookingData.guest_customer_info) {
+    validationErrors.push('Either customer_id or guest_customer_info is required');
   }
   if (!bookingData.service_id) {
     validationErrors.push('service_id is required');
@@ -198,8 +206,9 @@ export const createEnhancedBooking = async (
 
   try {
     // Validate zipcode if provided
-    if (bookingData.customer_zipcode) {
-      const zipcodeValidation = await validateUSZipcode(bookingData.customer_zipcode);
+    const zipcodeToValidate = bookingData.customer_zipcode || bookingData.guest_customer_info?.zipcode;
+    if (zipcodeToValidate) {
+      const zipcodeValidation = await validateUSZipcode(zipcodeToValidate);
       if (!zipcodeValidation) {
         return {
           booking_id: '',
@@ -247,6 +256,7 @@ export const createEnhancedBooking = async (
       // Create temporary booking with payment_pending status
       const tempBookingInsertData = {
         customer_id: bookingData.customer_id,
+        guest_customer_info: bookingData.guest_customer_info,
         service_id: bookingData.service_id,
         scheduled_date: bookingData.scheduled_date,
         scheduled_start: bookingData.scheduled_start,
@@ -502,6 +512,7 @@ export const createEnhancedBooking = async (
       
       const bookingInsertData = {
         customer_id: bookingData.customer_id,
+        guest_customer_info: bookingData.guest_customer_info,
         service_id: bookingData.service_id,
         scheduled_date: bookingData.scheduled_date,
         scheduled_start: bookingData.scheduled_start,

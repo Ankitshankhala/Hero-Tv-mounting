@@ -22,9 +22,6 @@ import { CoverageRequestsManager } from '@/components/admin/CoverageRequestsMana
 import { InvoicesManager } from '@/components/admin/InvoicesManager';
 import { PerformanceDashboard } from '@/components/admin/PerformanceDashboard';
 import { DeploymentPanel } from '@/components/admin/DeploymentPanel';
-import { EmailTestButton } from '@/components/admin/EmailTestButton';
-import { InvoiceTestButton } from '@/components/admin/InvoiceTestButton';
-import { BookingStatusTestButton } from '@/components/admin/BookingStatusTestButton';
 
 const Admin = () => {
   const { user, profile, loading } = useAuth();
@@ -117,11 +114,6 @@ const Admin = () => {
       <div className="flex-1 flex flex-col">
         <AdminHeader />
         <main className="flex-1 p-6">
-          <div className="mb-4 flex gap-2">
-            <EmailTestButton />
-            <InvoiceTestButton />
-            <BookingStatusTestButton />
-          </div>
           {renderContent()}
         </main>
       </div>

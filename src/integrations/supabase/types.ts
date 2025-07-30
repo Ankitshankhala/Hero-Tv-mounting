@@ -710,6 +710,7 @@ export type Database = {
           error_message: string | null
           id: string
           message: string
+          recipient_name: string | null
           recipient_number: string
           sent_at: string | null
           status: Database["public"]["Enums"]["sms_status"]
@@ -721,6 +722,7 @@ export type Database = {
           error_message?: string | null
           id?: string
           message: string
+          recipient_name?: string | null
           recipient_number: string
           sent_at?: string | null
           status: Database["public"]["Enums"]["sms_status"]
@@ -732,6 +734,7 @@ export type Database = {
           error_message?: string | null
           id?: string
           message?: string
+          recipient_name?: string | null
           recipient_number?: string
           sent_at?: string | null
           status?: Database["public"]["Enums"]["sms_status"]
@@ -1183,10 +1186,6 @@ export type Database = {
       cleanup_orphaned_payment_records: {
         Args: Record<PropertyKey, never>
         Returns: number
-      }
-      debug_guest_booking_policy: {
-        Args: { p_customer_id: string; p_guest_customer_info: Json }
-        Returns: string
       }
       find_available_workers: {
         Args:

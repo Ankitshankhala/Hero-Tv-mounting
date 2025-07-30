@@ -1,7 +1,8 @@
 
 import React from 'react';
-import { ShoppingCart, X, Calendar, AlertCircle } from 'lucide-react';
+import { ShoppingCart, X, Calendar, AlertCircle, TestTube } from 'lucide-react';
 import { CartItem } from '@/types';
+import { useTestingMode, getEffectiveMinimumAmount } from '@/contexts/TestingModeContext';
 
 interface CartProps {
   items: CartItem[];
@@ -11,9 +12,9 @@ interface CartProps {
   highlightedItemId?: string | null;
 }
 
-const MINIMUM_BOOKING_AMOUNT = 75;
-
 export const Cart: React.FC<CartProps> = ({ items, total, onRemoveItem, onBook, highlightedItemId }) => {
+  const { isTestingMode } = useTestingMode();
+  const MINIMUM_BOOKING_AMOUNT = getEffectiveMinimumAmount(isTestingMode);
   const isMinimumMet = total >= MINIMUM_BOOKING_AMOUNT;
   const amountNeeded = MINIMUM_BOOKING_AMOUNT - total;
 
@@ -23,6 +24,12 @@ export const Cart: React.FC<CartProps> = ({ items, total, onRemoveItem, onBook, 
         <div className="flex items-center space-x-3 mb-4">
           <ShoppingCart className="h-5 w-5 text-blue-400" />
           <h3 className="text-lg font-semibold text-white">Cart ({items.length})</h3>
+          {isTestingMode && (
+            <div className="flex items-center space-x-1 bg-green-900/30 border border-green-500/50 px-2 py-1 rounded text-xs text-green-300">
+              <TestTube className="h-3 w-3" />
+              <span>Testing Mode</span>
+            </div>
+          )}
         </div>
         
         <div className="space-y-3 max-h-40 overflow-y-auto">

@@ -3,6 +3,7 @@ import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/hooks/useAuth';
+import { TestingModeProvider } from '@/contexts/TestingModeContext';
 import { Toaster } from '@/components/ui/toaster';
 import { useSecurityHeaders } from '@/hooks/useSecurityHeaders';
 import Index from '@/pages/Index';
@@ -43,8 +44,10 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Toaster />
-        <AppWithSecurity />
+        <TestingModeProvider>
+          <Toaster />
+          <AppWithSecurity />
+        </TestingModeProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
