@@ -47,11 +47,20 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
         const customerInfo: any = { id: null };
         
         lines.forEach((line: string) => {
-          if (line.includes('Customer:')) customerInfo.name = line.replace('Customer:', '').trim();
-          if (line.includes('Contact:')) customerInfo.name = line.replace('Contact:', '').trim();
+          if (line.includes('Customer:') || line.includes('Contact:')) {
+            customerInfo.name = line.replace(/^(Customer:|Contact:)/, '').trim();
+          }
           if (line.includes('Email:')) customerInfo.email = line.replace('Email:', '').trim();
           if (line.includes('Phone:')) customerInfo.phone = line.replace('Phone:', '').trim();
           if (line.includes('City:')) customerInfo.city = line.replace('City:', '').trim();
+          
+          // For new format bookings, try to extract city from the address line
+          if (!line.includes(':') && line.includes(',') && !customerInfo.city) {
+            const addressParts = line.split(',');
+            if (addressParts.length >= 2) {
+              customerInfo.city = addressParts[addressParts.length - 1].trim();
+            }
+          }
         });
         
         if (customerInfo.name || customerInfo.email) {

@@ -87,6 +87,34 @@ export const BookingTable = React.memo(({ bookings, onBookingUpdate }: BookingTa
     return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
   };
 
+  const extractServiceLocation = (booking: Booking): string => {
+    // Priority: customer address first, then extract address from location_notes
+    if (booking.customer_address) {
+      return booking.customer_address;
+    }
+    
+    if (booking.location_notes) {
+      // Extract only the first line (service address) from location_notes
+      const lines = booking.location_notes.split('\n');
+      const addressLine = lines[0]?.trim();
+      
+      // If the first line contains contact info keywords, it's likely old format
+      if (addressLine && !addressLine.includes('Customer:') && !addressLine.includes('Contact:') && 
+          !addressLine.includes('Phone:') && !addressLine.includes('Email:')) {
+        return addressLine;
+      }
+      
+      // Fallback: look for address-like patterns in the text
+      for (const line of lines) {
+        if (line.includes(',') && !line.includes(':') && !line.includes('@')) {
+          return line.trim();
+        }
+      }
+    }
+    
+    return booking.customer?.city || 'N/A';
+  };
+
   const formatDateTime = (booking: Booking) => {
     let dateTimeString = '';
     
@@ -251,7 +279,7 @@ export const BookingTable = React.memo(({ bookings, onBookingUpdate }: BookingTa
                       <div className="text-sm text-gray-600">{time}</div>
                     </div>
                   </TableCell>
-                  <TableCell>{booking.customer?.city || booking.customer_address || booking.location_notes || 'N/A'}</TableCell>
+                  <TableCell>{extractServiceLocation(booking)}</TableCell>
                   <TableCell>
                     {needsWorkerAssignment ? (
                       <Badge variant="secondary" className="text-orange-600">
