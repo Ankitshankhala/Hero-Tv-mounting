@@ -33,9 +33,9 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
     if (booking.guest_customer_info) {
       customer = {
         id: null, // Guest customers don't have user IDs
-        name: booking.guest_customer_info.name || 'Unknown',
-        email: booking.guest_customer_info.email || 'Unknown',
-        phone: booking.guest_customer_info.phone || 'Unknown',
+        name: booking.guest_customer_info.customerName || booking.guest_customer_info.name || 'Unknown',
+        email: booking.guest_customer_info.customerEmail || booking.guest_customer_info.email || 'Unknown',
+        phone: booking.guest_customer_info.customerPhone || booking.guest_customer_info.phone || 'Unknown',
         city: booking.guest_customer_info.city || 'Unknown'
       };
     }
