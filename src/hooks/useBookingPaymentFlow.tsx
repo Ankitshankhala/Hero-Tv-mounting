@@ -132,6 +132,25 @@ export const useBookingPaymentFlow = () => {
 
       console.log('✅ Card payment confirmed', { status: paymentIntent.status });
 
+      // Update transaction status if payment is authorized
+      if (paymentIntent.status === 'requires_capture') {
+        console.log('🔄 Updating transaction status to authorized');
+        
+        const { data: updateResult, error: updateError } = await supabase.functions.invoke('update-transaction-status', {
+          body: {
+            payment_intent_id: paymentIntent.id,
+            status: 'authorized'
+          }
+        });
+
+        if (updateError) {
+          console.error('❌ Failed to update transaction status:', updateError);
+          throw new Error('Failed to update transaction status after payment authorization');
+        }
+
+        console.log('✅ Transaction status updated to authorized');
+      }
+
       return {
         success: true,
         paymentIntent
