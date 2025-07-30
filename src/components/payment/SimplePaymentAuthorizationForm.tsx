@@ -197,16 +197,19 @@ export const SimplePaymentAuthorizationForm = ({
         
         // Update both transaction and booking status to 'authorized' after successful payment
         try {
-          // Update transaction status
-          const { data: transactionUpdate, error: transactionError } = await supabase
+          console.log('Updating transaction and booking status to authorized...');
+          
+          // Update transaction status using direct query (ensure we use correct status)
+          const { error: transactionError } = await supabase
             .from('transactions')
             .update({ status: 'authorized' })
             .eq('payment_intent_id', intentData.payment_intent_id);
             
           if (transactionError) {
             console.error('Failed to update transaction status:', transactionError);
-            throw new Error(transactionError.message || 'Failed to update transaction status');
+            throw new Error(`Transaction update failed: ${transactionError.message}`);
           }
+          console.log('Transaction status updated to authorized');
           
           // Update booking status to 'authorized' to trigger worker assignment
           const { error: bookingError } = await supabase
@@ -220,14 +223,15 @@ export const SimplePaymentAuthorizationForm = ({
             
           if (bookingError) {
             console.error('Failed to update booking status:', bookingError);
-            throw new Error(bookingError.message || 'Failed to update booking status');
+            throw new Error(`Booking update failed: ${bookingError.message}`);
           }
+          console.log('Booking status updated to authorized');
           
-          console.log('Transaction and booking status updated to authorized');
+          console.log('✅ Payment authorization flow completed successfully');
           onAuthorizationSuccess(intentData.payment_intent_id);
         } catch (error) {
           console.error('Error updating payment status:', error);
-          const errorMessage = 'Payment authorized but failed to update booking status';
+          const errorMessage = `Payment authorized but failed to update status: ${error instanceof Error ? error.message : 'Unknown error'}`;
           setFormError(errorMessage);
           onAuthorizationFailure(errorMessage);
         }
