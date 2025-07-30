@@ -6,10 +6,12 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { ServiceItem, FormData } from './types';
 import { createEnhancedBooking, EnhancedBookingData } from '@/utils/enhancedBookingLogic';
-
-const MINIMUM_BOOKING_AMOUNT = 75;
+import { useTestingMode, getEffectiveMinimumAmount } from '@/contexts/TestingModeContext';
 
 export const useBookingOperations = () => {
+  const { isTestingMode } = useTestingMode();
+  const MINIMUM_BOOKING_AMOUNT = getEffectiveMinimumAmount(isTestingMode);
+  
   const [loading, setLoading] = useState(false);
   const [bookingId, setBookingId] = useState<string>('');
   const [showSuccess, setShowSuccess] = useState(false);

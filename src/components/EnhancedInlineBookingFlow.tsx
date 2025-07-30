@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { X, ArrowRight, Shield, AlertCircle } from 'lucide-react';
 import { CalendarIcon } from 'lucide-react';
+import { useTestingMode, getEffectiveMinimumAmount } from '@/contexts/TestingModeContext';
 import { PaymentAuthorizationForm } from '@/components/payment/PaymentAuthorizationForm';
 import { useBookingFlowState } from '@/hooks/booking/useBookingFlowState';
 import { BookingProgressSteps } from '@/components/booking/BookingProgressSteps';
@@ -29,14 +30,14 @@ interface EnhancedInlineBookingFlowProps {
   selectedServices?: ServiceItem[];
 }
 
-const MINIMUM_BOOKING_AMOUNT = 75;
-
 export const EnhancedInlineBookingFlow = ({ 
   isOpen, 
   onClose, 
   onSubmit, 
   selectedServices = [] 
 }: EnhancedInlineBookingFlowProps) => {
+  const { isTestingMode } = useTestingMode();
+  const MINIMUM_BOOKING_AMOUNT = getEffectiveMinimumAmount(isTestingMode);
   const {
     currentStep,
     setCurrentStep,
