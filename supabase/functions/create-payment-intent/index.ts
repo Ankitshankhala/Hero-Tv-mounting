@@ -90,6 +90,15 @@ serve(async (req) => {
       throw new Error('STRIPE_SECRET_KEY environment variable not set');
     }
     
+    // CRITICAL: Validate that we have a SECRET key, not a publishable key
+    if (!stripeSecret.startsWith('sk_')) {
+      logStep("ERROR: Invalid Stripe key format - must be secret key starting with sk_", { 
+        keyPrefix: stripeSecret.substring(0, 3),
+        expectedPrefix: 'sk_'
+      });
+      throw new Error('STRIPE_SECRET_KEY must be a secret key starting with sk_, not a publishable key');
+    }
+    
     if (!supabaseUrl || !supabaseServiceKey) {
       logStep("ERROR: Supabase environment variables not set", { supabaseUrl: !!supabaseUrl, supabaseServiceKey: !!supabaseServiceKey });
       throw new Error('Supabase environment variables not set');
