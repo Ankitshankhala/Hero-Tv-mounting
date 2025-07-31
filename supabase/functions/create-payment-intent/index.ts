@@ -13,7 +13,7 @@ const logStep = (step: string, details?: any) => {
   console.log(`[CREATE-PAYMENT-INTENT] ${step}${detailsStr}`);
 };
 
-// Universal safe status function - ALWAYS use this before any database operation
+// Universal safe status function for direct capture workflow - only 3 statuses allowed
 const ensureSafeStatus = (status: string, context: string = 'unknown'): string => {
   logStep(`Validating status for ${context}`, { inputStatus: status, statusType: typeof status });
   
@@ -28,11 +28,9 @@ const ensureSafeStatus = (status: string, context: string = 'unknown'): string =
     case 'requires_action':
     case 'processing':
     case 'pending':
-      safeStatus = 'pending';
-      break;
     case 'requires_capture':
     case 'authorized':
-      safeStatus = 'authorized';
+      safeStatus = 'pending';
       break;
     case 'succeeded':
     case 'completed':
@@ -42,16 +40,13 @@ const ensureSafeStatus = (status: string, context: string = 'unknown'): string =
     case 'cancelled':
     case 'failed':
     case 'payment_failed':
-      safeStatus = 'failed';
-      break;
     default:
-      logStep(`Unknown status for ${context}, defaulting to failed`, { unknownStatus: normalizedStatus });
       safeStatus = 'failed';
       break;
   }
   
-  // Final validation - ensure status is valid for our enum
-  const validStatuses = ['pending', 'authorized', 'completed', 'failed'];
+  // Final validation - ensure status is valid for our 3-status enum
+  const validStatuses = ['pending', 'completed', 'failed'];
   if (!validStatuses.includes(safeStatus)) {
     logStep(`Invalid status detected for ${context}, forcing to failed`, { invalidStatus: safeStatus });
     safeStatus = 'failed';
@@ -243,7 +238,7 @@ serve(async (req) => {
       metadata.booking_id = booking_id;
     }
 
-    // Create Stripe payment intent (payment-first approach)
+    // Create Stripe payment intent with automatic capture (direct charging)
     logStep("Creating Stripe payment intent", { 
       amount: Math.round(amount * 100), 
       currency, 
@@ -256,7 +251,7 @@ serve(async (req) => {
       paymentIntent = await stripe.paymentIntents.create({
         amount: Math.round(amount * 100), // Convert to cents
         currency: currency.toLowerCase(),
-        capture_method: 'manual', // Require explicit capture for authorization flow
+        capture_method: 'automatic', // Direct capture - charge immediately when confirmed
         metadata,
       }, {
         // Stripe requires idempotencyKey to be passed as an option (second parameter)
@@ -301,7 +296,7 @@ serve(async (req) => {
       status: safeStatus, // Use safe validated status for database enum compatibility
       payment_intent_id: paymentIntent.id,
       payment_method: 'card',
-      transaction_type: 'authorization',
+      transaction_type: 'charge', // Direct charge, not authorization
       currency: currency.toUpperCase(),
       idempotency_key: idempotency_key,
       booking_id: booking_id || null, // Link to booking if provided (booking-first flow)
@@ -334,15 +329,18 @@ serve(async (req) => {
     const transactionId = transactionData.id;
     logStep("Transaction record created successfully", { transactionId });
 
-    // Update booking with payment_intent_id and status change to 'authorized'
+    // Update booking with payment_intent_id and appropriate status for direct capture
     if (booking_id) {
       logStep("Updating booking with payment intent", { booking_id, payment_intent_id: paymentIntent.id });
+      
+      // For direct capture, set booking status based on payment status
+      const bookingStatus = safeStatus === 'completed' ? 'confirmed' : 'payment_pending';
       
       const { error: bookingUpdateError } = await supabaseServiceRole
         .from('bookings')
         .update({
           payment_intent_id: paymentIntent.id,
-          status: 'authorized',
+          status: bookingStatus,
           payment_status: safeStatus // Use safe status here too
         })
         .eq('id', booking_id);
@@ -364,7 +362,7 @@ serve(async (req) => {
         throw new Error(`Failed to update booking: ${bookingUpdateError.message}`);
       }
       
-      logStep("Booking updated successfully", { booking_id, status: 'authorized' });
+      logStep("Booking updated successfully", { booking_id, status: bookingStatus });
     }
 
     const duration = performance.now() - startTime;

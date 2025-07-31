@@ -1279,7 +1279,7 @@ export type Database = {
         | "Thursday"
         | "Friday"
         | "Saturday"
-      payment_status: "pending" | "completed" | "failed" | "authorized"
+      payment_status: "pending" | "completed" | "failed"
       session_status: "created" | "paid" | "expired" | "cancelled"
       sms_status: "sent" | "failed"
       user_role: "customer" | "worker" | "admin"
@@ -1429,7 +1429,7 @@ export const Constants = {
         "Friday",
         "Saturday",
       ],
-      payment_status: ["pending", "completed", "failed", "authorized"],
+      payment_status: ["pending", "completed", "failed"],
       session_status: ["created", "paid", "expired", "cancelled"],
       sms_status: ["sent", "failed"],
       user_role: ["customer", "worker", "admin"],
