@@ -227,6 +227,39 @@ serve(async (req) => {
     const transactionId = transactionData.id;
     logStep("Transaction record created successfully", { transactionId });
 
+    // Update booking with payment_intent_id and status change to 'authorized'
+    if (booking_id) {
+      logStep("Updating booking with payment intent", { booking_id, payment_intent_id: paymentIntent.id });
+      
+      const { error: bookingUpdateError } = await supabaseServiceRole
+        .from('bookings')
+        .update({
+          payment_intent_id: paymentIntent.id,
+          status: 'authorized',
+          payment_status: statusMapping.payment_status
+        })
+        .eq('id', booking_id);
+
+      if (bookingUpdateError) {
+        logStep("Booking update failed", { error: bookingUpdateError, booking_id });
+        
+        // This is critical - rollback both transaction and payment intent
+        try {
+          await Promise.all([
+            supabaseServiceRole.from('transactions').delete().eq('id', transactionId),
+            stripe.paymentIntents.cancel(paymentIntent.id)
+          ]);
+          logStep("Rollback completed - transaction and payment intent cancelled");
+        } catch (rollbackError) {
+          logStep("Failed to rollback", { rollbackError });
+        }
+        
+        throw new Error(`Failed to update booking: ${bookingUpdateError.message}`);
+      }
+      
+      logStep("Booking updated successfully", { booking_id, status: 'authorized' });
+    }
+
     const duration = performance.now() - startTime;
     const response = {
       client_secret: paymentIntent.client_secret,
