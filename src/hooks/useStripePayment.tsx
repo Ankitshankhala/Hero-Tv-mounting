@@ -16,7 +16,7 @@ export const useStripePayment = () => {
   const { toast } = useToast();
 
   // Initialize Stripe
-  const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_live_51QZXYeD5eDOPKYNxVKWjPfmKYtE4yzYi9yKTK7Ur4vrlEOMrGJAR9LoKWqh8nAYHUUWLZZgxJGQq7qCTI9eOHIHx00XgkP7j0Z');
+  const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_live_51RYKUCCrUPkotWKCM10E0EeqJ5j24WbloBt4CemrXYkJxsGUdS6Xxl5hsyh7UaIHBeI9nVtgqjmXI3sTD7xyvNnV00s1GO6it4');
 
   const createPaymentLink = async (paymentData: StripePaymentData): Promise<{
     success: boolean;
