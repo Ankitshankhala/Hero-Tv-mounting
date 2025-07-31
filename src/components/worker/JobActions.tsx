@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Edit, Phone, MapPin, CreditCard, X, DollarSign } from 'lucide-react';
+import { Edit, Phone, MapPin, CreditCard, X, DollarSign, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PaymentCaptureButton } from './PaymentCaptureButton';
@@ -13,6 +13,7 @@ interface JobActionsProps {
   onChargeClick: () => void;
   onCollectPaymentClick?: () => void;
   onCaptureSuccess?: () => void;
+  onAddServicesClick?: () => void;
 }
 
 const JobActions = ({ 
@@ -22,7 +23,8 @@ const JobActions = ({
   onCancelClick, 
   onChargeClick,
   onCollectPaymentClick,
-  onCaptureSuccess 
+  onCaptureSuccess,
+  onAddServicesClick 
 }: JobActionsProps) => {
   const callCustomer = (phone: string) => {
     window.open(`tel:${phone}`, '_self');
@@ -37,6 +39,7 @@ const JobActions = ({
   const canAddCharges = job.status === 'in_progress' || job.status === 'confirmed';
   const hasUnpaidAmount = job.pending_payment_amount > 0;
   const canCapturePayment = job.payment_status === 'authorized' && job.status !== 'completed';
+  const canAddServices = job.status === 'confirmed' || job.status === 'in_progress';
 
   return (
     <div className="flex items-center justify-between pt-4 border-t border-slate-600">
@@ -86,6 +89,17 @@ const JobActions = ({
             paymentStatus={job.payment_status}
             onCaptureSuccess={onCaptureSuccess}
           />
+        )}
+        {canAddServices && (
+          <Button 
+            size="sm" 
+            variant="outline"
+            onClick={onAddServicesClick}
+            className="text-purple-400 border-purple-400 hover:bg-purple-400 hover:text-white"
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            Add Services
+          </Button>
         )}
         <Button 
           size="sm" 

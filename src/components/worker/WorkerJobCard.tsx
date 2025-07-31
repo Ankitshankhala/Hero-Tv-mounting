@@ -8,6 +8,7 @@ import JobActions from './JobActions';
 import { EnhancedInvoiceModificationModal } from './EnhancedInvoiceModificationModal';
 import OnSiteChargeModal from './OnSiteChargeModal';
 import PaymentCollectionModal from './PaymentCollectionModal';
+import { AddServicesModal } from './AddServicesModal';
 
 interface WorkerJobCardProps {
   job: {
@@ -37,6 +38,7 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
   const [showModifyModal, setShowModifyModal] = useState(false);
   const [showChargeModal, setShowChargeModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showAddServicesModal, setShowAddServicesModal] = useState(false);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -104,6 +106,17 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
   };
 
   const handleCaptureSuccess = () => {
+    if (onJobCancelled) {
+      onJobCancelled(); // Refresh the jobs list
+    }
+  };
+
+  const handleAddServicesClick = () => {
+    setShowAddServicesModal(true);
+  };
+
+  const handleServicesAdded = () => {
+    setShowAddServicesModal(false);
     if (onJobCancelled) {
       onJobCancelled(); // Refresh the jobs list
     }
@@ -178,6 +191,7 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
           onChargeClick={handleChargeClick}
           onCollectPaymentClick={handleCollectPaymentClick}
           onCaptureSuccess={handleCaptureSuccess}
+          onAddServicesClick={handleAddServicesClick}
         />
       </CardContent>
 
@@ -206,6 +220,15 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
           onClose={() => setShowPaymentModal(false)}
           job={job}
           onPaymentCollected={handlePaymentCollected}
+        />
+      )}
+
+      {showAddServicesModal && (
+        <AddServicesModal
+          isOpen={showAddServicesModal}
+          onClose={() => setShowAddServicesModal(false)}
+          job={job}
+          onServicesAdded={handleServicesAdded}
         />
       )}
     </Card>
