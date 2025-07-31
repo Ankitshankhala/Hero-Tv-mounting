@@ -1217,19 +1217,12 @@ export type Database = {
         Returns: number
       }
       find_available_workers: {
-        Args:
-          | {
-              job_date: string
-              job_time: string
-              job_duration: number
-              job_region: string
-            }
-          | {
-              p_zipcode: string
-              p_scheduled_date: string
-              p_scheduled_start: string
-              p_duration_minutes?: number
-            }
+        Args: {
+          p_zipcode: string
+          p_scheduled_date: string
+          p_scheduled_start: string
+          p_duration_minutes?: number
+        }
         Returns: {
           worker_id: string
           worker_name: string
