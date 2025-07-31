@@ -14,7 +14,7 @@ serve(async (req) => {
   }
 
   try {
-    const { bookingId } = await req.json();
+    const { booking_id: bookingId } = await req.json();
 
     console.log('Capturing payment for booking:', bookingId);
 
