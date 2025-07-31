@@ -29,25 +29,38 @@ serve(async (req) => {
   }
 
   try {
-    const { 
-      amount, 
-      currency = 'usd', 
+    const body = await req.json();
+    logStep("Received request body", body);
+    const {
+      amount,
+      currency,
       idempotency_key,
-      user_id, 
+      user_id,
       guest_customer_info,
-      booking_id 
-    } = await req.json();
-    
-    logStep("Function started", { 
-      amount, 
-      currency, 
+      booking_id
+    } = body;
+
+    logStep("Function started", {
+      amount,
+      currency,
       idempotency_key,
-      user_id, 
-      guest_customer_info: !!guest_customer_info 
+      user_id,
+      guest_customer_info: !!guest_customer_info,
+      booking_id
     });
 
     // Input validation
-    if (!amount || typeof amount !== 'number' || amount <= 0) {
+    if (amount == null) {
+      throw new Error('Missing amount');
+    }
+    if (currency == null) {
+      throw new Error('Missing currency');
+    }
+    if (!booking_id) {
+      throw new Error('Missing booking_id');
+    }
+
+    if (typeof amount !== 'number' || amount <= 0) {
       throw new Error('Invalid amount: must be a positive number');
     }
 
@@ -109,7 +122,9 @@ serve(async (req) => {
     }
 
     // Initialize Stripe
-    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
+    const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY') || '';
+    logStep('Stripe secret loaded', { loaded: !!stripeSecret });
+    const stripe = new Stripe(stripeSecret, {
       apiVersion: '2023-10-16',
     });
 
@@ -139,16 +154,25 @@ serve(async (req) => {
       guest_email: guest_customer_info?.email 
     });
     
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // Convert to cents
-      currency: currency.toLowerCase(),
-      capture_method: 'manual', // Require explicit capture for authorization flow
-      metadata,
-    }, {
-      // Stripe requires idempotencyKey to be passed as an option (second parameter)
-      // rather than as a parameter in the PaymentIntent object to prevent duplicate requests
-      idempotencyKey: idempotency_key,
-    });
+    let paymentIntent;
+    try {
+      paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(amount * 100), // Convert to cents
+        currency: currency.toLowerCase(),
+        capture_method: 'manual', // Require explicit capture for authorization flow
+        metadata,
+      }, {
+        // Stripe requires idempotencyKey to be passed as an option (second parameter)
+        // rather than as a parameter in the PaymentIntent object to prevent duplicate requests
+        idempotencyKey: idempotency_key,
+      });
+    } catch (stripeError) {
+      logStep('Stripe payment intent creation failed', { error: stripeError instanceof Error ? stripeError.message : stripeError });
+      return new Response(JSON.stringify({ error: 'Failed to create payment intent' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
+      });
+    }
 
     logStep("Payment intent created successfully", { paymentIntentId: paymentIntent.id });
 
@@ -226,11 +250,12 @@ serve(async (req) => {
     
     // Determine appropriate HTTP status code
     let statusCode = 500;
-    if (errorMessage.includes('Invalid amount') || 
+    if (errorMessage.includes('Invalid amount') ||
         errorMessage.includes('Invalid idempotency_key') ||
         errorMessage.includes('user_id') ||
         errorMessage.includes('guest_customer_info') ||
-        errorMessage.includes('Amount mismatch')) {
+        errorMessage.includes('Amount mismatch') ||
+        errorMessage.includes('Missing')) {
       statusCode = 400;
     }
 
