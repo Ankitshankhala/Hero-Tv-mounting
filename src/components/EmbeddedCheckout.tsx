@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useFormValidation } from '@/hooks/useFormValidation';
-import { useBookingLogic } from '@/hooks/useBookingLogic';
+import { useBookingOperations } from '@/hooks/booking/useBookingOperations';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
@@ -41,7 +41,7 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
   const [zipcodeValid, setZipcodeValid] = useState(false);
   const [cityState, setCityState] = useState('');
   const { toast } = useToast();
-  const { createBooking } = useBookingLogic();
+  const { createUnauthenticatedBooking } = useBookingOperations();
 
   const timeSlots = [
     '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00'
@@ -211,7 +211,7 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
         duration_minutes: calculateTotalDuration()
       };
 
-      const result = await createBooking(bookingData);
+      const result = await createUnauthenticatedBooking(bookingData);
       
       if (result.status === 'confirmed' || result.status === 'pending') {
         toast({

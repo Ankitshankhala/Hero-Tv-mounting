@@ -8,7 +8,7 @@ import { X, Settings } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { usePublicServicesData } from '@/hooks/usePublicServicesData';
-import { useBookingOperations } from '@/hooks/useBookingOperations';
+import { useBookingOperations } from '@/hooks/booking/useBookingOperations';
 import { createEnhancedBooking, EnhancedBookingData } from '@/utils/enhancedBookingLogic';
 import { TvMountingConfigModal } from './TvMountingConfigModal';
 
@@ -63,7 +63,7 @@ export const CreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingM
   const [tvMountingConfig, setTvMountingConfig] = useState<TvMountingConfig | null>(null);
   const { toast } = useToast();
   const { services, loading: servicesLoading } = usePublicServicesData();
-  const { createBooking } = useBookingOperations();
+  const { createAdminBooking } = useBookingOperations();
 
   // Find TV mounting service
   const tvMountingService = services.find(s => s.name === 'TV Mounting');
@@ -194,7 +194,7 @@ export const CreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingM
         };
 
         console.log('Creating booking with specific worker:', bookingData);
-        const booking = await createBooking(bookingData);
+        const booking = await createAdminBooking(bookingData);
         console.log('Booking created:', booking);
 
         toast({

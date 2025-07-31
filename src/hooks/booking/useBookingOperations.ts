@@ -7,6 +7,49 @@ import { useToast } from '@/hooks/use-toast';
 import { ServiceItem, FormData } from './types';
 import { createEnhancedBooking, EnhancedBookingData } from '@/utils/enhancedBookingLogic';
 import { useTestingMode, getEffectiveMinimumAmount } from '@/contexts/TestingModeContext';
+import { validateUSZipcode } from '@/utils/zipcodeValidation';
+import { optimizedLog, optimizedError, measurePerformance } from '@/utils/performanceOptimizer';
+
+// Enhanced interfaces for unified booking system
+export interface UnauthenticatedBookingData {
+  customer_name: string;
+  customer_email: string;
+  customer_phone: string;
+  customer_zipcode: string;
+  service_id: string;
+  scheduled_date: string;
+  scheduled_start: string;
+  location_notes?: string;
+  total_price: number;
+  duration_minutes: number;
+}
+
+export interface AdminBookingData {
+  customer_id?: string | null;
+  guest_customer_info?: {
+    name: string;
+    email: string;
+    phone: string;
+    zipcode: string;
+    city?: string;
+    address?: string;
+  };
+  service_id: string;
+  scheduled_date: string;
+  scheduled_start: string;
+  location_notes?: string;
+  status?: 'pending' | 'confirmed' | 'payment_pending' | 'authorized';
+  payment_status?: string;
+  requires_manual_payment?: boolean;
+  worker_id?: string | null;
+}
+
+export interface CreateBookingResult {
+  booking_id: string;
+  assigned_workers: any[];
+  status: 'confirmed' | 'pending' | 'error';
+  message: string;
+}
 
 export const useBookingOperations = () => {
   const { isTestingMode } = useTestingMode();
@@ -287,6 +330,160 @@ export const useBookingOperations = () => {
     }
   };
 
+  // Legacy booking creation for unauthenticated users (EmbeddedCheckout)
+  const createUnauthenticatedBooking = async (bookingData: UnauthenticatedBookingData): Promise<CreateBookingResult> => {
+    setLoading(true);
+    try {
+      optimizedLog('Creating unauthenticated booking with data:', bookingData);
+
+      // Validate zipcode first
+      const zipcodeValidation = await validateUSZipcode(bookingData.customer_zipcode);
+      if (!zipcodeValidation) {
+        return {
+          booking_id: '',
+          assigned_workers: [],
+          status: 'error',
+          message: 'Invalid zipcode. Please enter a valid US zipcode.'
+        };
+      }
+
+      // Create guest customer info
+      const guestCustomerInfo = {
+        name: bookingData.customer_name,
+        email: bookingData.customer_email,
+        phone: bookingData.customer_phone,
+        zipcode: bookingData.customer_zipcode,
+        city: zipcodeValidation.city
+      };
+
+      // Call create-guest-booking edge function
+      const { data: result, error } = await supabase.functions.invoke('create-guest-booking', {
+        body: {
+          bookingData: {
+            customer_id: null,
+            guest_customer_info: guestCustomerInfo,
+            service_id: bookingData.service_id,
+            scheduled_date: bookingData.scheduled_date,
+            scheduled_start: bookingData.scheduled_start,
+            location_notes: bookingData.location_notes || '',
+            status: 'payment_pending',
+            payment_status: 'pending',
+            requires_manual_payment: true
+          }
+        }
+      });
+
+      if (error) {
+        optimizedError('Guest booking creation error:', error);
+        return {
+          booking_id: '',
+          assigned_workers: [],
+          status: 'error',
+          message: 'Failed to create booking. Please try again.'
+        };
+      }
+
+      optimizedLog('Guest booking created successfully:', result);
+
+      // Try to auto-assign workers
+      try {
+        const { data: assignments, error: assignmentError } = await supabase
+          .rpc('auto_assign_workers_with_coverage', {
+            p_booking_id: result.booking_id
+          });
+
+        if (assignmentError) {
+          optimizedError('Worker assignment error:', assignmentError);
+          return {
+            booking_id: result.booking_id,
+            assigned_workers: [],
+            status: 'pending',
+            message: 'Booking created! No workers currently available in your area, but we will assign one soon and contact you.'
+          };
+        }
+
+        const assignedWorkers = assignments || [];
+        const workerAssigned = assignedWorkers.length > 0 && assignedWorkers[0].assigned_worker_id;
+
+        return {
+          booking_id: result.booking_id,
+          assigned_workers: assignedWorkers,
+          status: workerAssigned ? 'confirmed' : 'pending',
+          message: workerAssigned ? 
+            `Booking confirmed! We've assigned a worker to your job and will contact you soon.` :
+            'Booking created! No workers currently available in your area, but we will assign one soon and contact you.'
+        };
+      } catch (assignmentError) {
+        optimizedError('Assignment process failed:', assignmentError);
+        return {
+          booking_id: result.booking_id,
+          assigned_workers: [],
+          status: 'pending',
+          message: 'Booking created! Worker assignment will be done manually.'
+        };
+      }
+    } catch (error) {
+      optimizedError('Error in createUnauthenticatedBooking:', error);
+      return {
+        booking_id: '',
+        assigned_workers: [],
+        status: 'error',
+        message: 'Failed to create booking. Please try again.'
+      };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Admin booking creation with enhanced features
+  const createAdminBooking = async (bookingData: AdminBookingData): Promise<any> => {
+    setLoading(true);
+    try {
+      optimizedLog('Creating admin booking with data:', bookingData);
+
+      return await measurePerformance('admin-booking-creation', async () => {
+        const bookingPayload = {
+          customer_id: bookingData.customer_id,
+          guest_customer_info: bookingData.guest_customer_info,
+          service_id: bookingData.service_id,
+          scheduled_date: bookingData.scheduled_date,
+          scheduled_start: bookingData.scheduled_start,
+          location_notes: bookingData.location_notes || '',
+          status: bookingData.status || 'pending',
+          payment_status: bookingData.payment_status || 'pending',
+          requires_manual_payment: bookingData.requires_manual_payment !== false,
+          worker_id: bookingData.worker_id || null
+        };
+
+        optimizedLog('Admin booking payload:', bookingPayload);
+
+        const { data, error } = await supabase
+          .from('bookings')
+          .insert(bookingPayload)
+          .select(`
+            *,
+            customer:users!customer_id(*),
+            worker:users!worker_id(*),
+            service:services(*)
+          `)
+          .single();
+
+        if (error) {
+          optimizedError('Admin booking creation error:', error);
+          throw error;
+        }
+
+        optimizedLog('Admin booking created successfully:', data);
+        return data;
+      });
+    } catch (error) {
+      optimizedError('Error in createAdminBooking:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Legacy method for backward compatibility
   const handleBookingSubmit = async (services: ServiceItem[], formData: FormData, paymentData?: { payment_intent_id?: string; payment_status?: string; amount?: number }) => {
     // This now just calls the createInitialBooking method
@@ -309,6 +506,9 @@ export const useBookingOperations = () => {
     confirmBookingAfterPayment,
     validateMinimumCart,
     user,
-    MINIMUM_BOOKING_AMOUNT
+    MINIMUM_BOOKING_AMOUNT,
+    // New unified methods
+    createUnauthenticatedBooking,
+    createAdminBooking
   };
 };
