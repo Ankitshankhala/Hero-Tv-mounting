@@ -1,6 +1,5 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { createBookingWithWorkerAssignment, type BookingData } from '@/utils/bookingLogic';
 
 // Fetch all active services
 export const fetchServices = async () => {
@@ -59,28 +58,6 @@ export const exampleServiceSelection = [
   }
 ];
 
-// Create a new booking using the enhanced booking logic
-export const createBooking = async (bookingData: BookingData) => {
-  return await createBookingWithWorkerAssignment(bookingData);
-};
-
-// Send SMS notification to assigned worker
-export const sendSmsNotification = async (bookingId: string) => {
-  // Mock implementation since the edge function doesn't exist
-  console.log('Mock SMS notification sent for booking:', bookingId);
-  return { success: true };
-};
-
-// Process payment for a booking
-export const processPayment = async (
-  bookingId: string, 
-  customerId: string,
-  paymentMethodId: string
-) => {
-  // Mock implementation since the edge function doesn't exist
-  console.log('Mock payment processing for booking:', bookingId);
-  return { success: true };
-};
 
 // Update booking status - fixed to only use valid status values
 export const updateBookingStatus = async (

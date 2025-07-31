@@ -9,7 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { usePublicServicesData } from '@/hooks/usePublicServicesData';
 import { useBookingOperations } from '@/hooks/booking/useBookingOperations';
-import { createEnhancedBooking, EnhancedBookingData } from '@/utils/enhancedBookingLogic';
+
 import { TvMountingConfigModal } from './TvMountingConfigModal';
 
 interface CreateBookingModalProps {
@@ -202,37 +202,27 @@ export const CreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingM
           description: "Booking created and assigned to worker successfully",
         });
       } else {
-        // Use enhanced booking logic with auto-assignment
-        const enhancedBookingData: EnhancedBookingData = {
+        // Use unified booking operations with auto-assignment
+        const adminBookingData = {
           customer_id: null, // Always null for guest bookings
           guest_customer_info: guestCustomerInfo,
           service_id: formData.service,
           scheduled_date: formData.date,
           scheduled_start: formData.time,
           location_notes: locationNotes,
+          status: 'confirmed' as const,
+          payment_status: 'pending' as const,
+          requires_manual_payment: true,
           customer_zipcode: formData.region // Using region as zipcode for admin bookings
         };
 
-        console.log('Creating booking with auto-assignment:', enhancedBookingData);
-        const result = await createEnhancedBooking(enhancedBookingData);
-        
-        if (result.status === 'error') {
-          throw new Error(result.message);
-        }
-
-        console.log('Enhanced booking result:', result);
-
-        // Show appropriate message based on assignment status
-        let toastMessage = result.message;
-        if (result.worker_assigned) {
-          toastMessage = "Booking created and worker automatically assigned!";
-        } else if (result.notifications_sent && result.notifications_sent > 0) {
-          toastMessage = `Booking created! Coverage requests sent to ${result.notifications_sent} workers.`;
-        }
+        console.log('Creating booking with auto-assignment:', adminBookingData);
+        const booking = await createAdminBooking(adminBookingData);
+        console.log('Admin booking created:', booking);
 
         toast({
-          title: result.status === 'confirmed' ? "Booking Confirmed" : "Booking Created",
-          description: toastMessage,
+          title: "Booking Created",
+          description: "Booking created successfully",
         });
       }
 

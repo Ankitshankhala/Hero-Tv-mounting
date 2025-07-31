@@ -13,7 +13,7 @@ import WorkerCalendar from '@/components/worker/WorkerCalendar';
 import WorkerScheduleManager from '@/components/worker/WorkerScheduleManager';
 import WorkerLoginForm from '@/components/worker/WorkerLoginForm';
 import WorkerDashboardLoading from '@/components/worker/WorkerDashboardLoading';
-import CreateBookingModal from '@/components/worker/CreateBookingModal';
+import { WorkerCreateBookingModal } from '@/components/worker/WorkerCreateBookingModal';
 import TestBookingCreator from '@/components/worker/TestBookingCreator';
 import CoverageNotifications from '@/components/worker/CoverageNotifications';
 import type { Database } from '@/integrations/supabase/types';
@@ -327,7 +327,7 @@ const WorkerDashboard = () => {
       </div>
 
       {showCreateBooking && (
-        <CreateBookingModal
+        <WorkerCreateBookingModal
           onClose={() => setShowCreateBooking(false)}
           onBookingCreated={handleBookingCreated}
         />

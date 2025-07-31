@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { ServiceItem, FormData } from './types';
-import { createEnhancedBooking, EnhancedBookingData } from '@/utils/enhancedBookingLogic';
+
 import { useTestingMode, getEffectiveMinimumAmount } from '@/contexts/TestingModeContext';
 import { validateUSZipcode } from '@/utils/zipcodeValidation';
 import { optimizedLog, optimizedError, measurePerformance } from '@/utils/performanceOptimizer';

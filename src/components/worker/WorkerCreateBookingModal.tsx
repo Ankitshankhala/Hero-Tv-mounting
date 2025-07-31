@@ -49,7 +49,7 @@ interface ServiceSelection {
 
 type BookingStatus = Database['public']['Enums']['booking_status'];
 
-export const CreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingModalProps) => {
+export const WorkerCreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingModalProps) => {
   const [formData, setFormData] = useState({
     customerName: '',
     customerEmail: '',
@@ -451,4 +451,4 @@ export const CreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingM
   );
 };
 
-export default CreateBookingModal;
+export default WorkerCreateBookingModal;
