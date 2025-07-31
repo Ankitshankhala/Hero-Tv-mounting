@@ -9,7 +9,7 @@ import { useSecurityHeaders } from '@/hooks/useSecurityHeaders';
 import Index from '@/pages/Index';
 import BookingSuccess from '@/pages/BookingSuccess';
 import CustomerDashboard from '@/pages/CustomerDashboard';
-import WorkerDashboard from '@/pages/WorkerDashboard';
+import WorkerDashboard from '@/pages/worker-dashboard';
 import Admin from '@/pages/Admin';
 import NotFound from '@/pages/NotFound';
 import WorkerSignup from '@/pages/WorkerSignup';
