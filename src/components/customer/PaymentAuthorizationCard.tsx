@@ -117,10 +117,10 @@ export const PaymentAuthorizationCard = ({
       }
 
       if (paymentIntent?.status === 'requires_capture') {
-        toast({
-          title: "Payment Authorized",
-          description: `$${amount.toFixed(2)} has been authorized on your card. You will only be charged when the service is completed.`,
-        });
+      toast({
+        title: "Payment Authorized Successfully",
+        description: `Your booking is confirmed! $${amount.toFixed(2)} is authorized and will be charged when service is completed.`,
+      });
         onAuthorizationSuccess(paymentIntentId);
       } else {
         throw new Error(`Unexpected payment status: ${paymentIntent?.status}`);
@@ -146,28 +146,28 @@ export const PaymentAuthorizationCard = ({
         </div>
         <CardTitle className="text-xl">Secure Payment Authorization</CardTitle>
         <CardDescription>
-          We'll authorize ${amount.toFixed(2)} on your card. You'll only be charged when the service is completed.
+          We'll authorize ${amount.toFixed(2)} on your card to secure your booking. The actual charge will only occur when your service is completed by our technician.
         </CardDescription>
       </CardHeader>
       
       <CardContent className="space-y-4">
         <div className="bg-muted/50 p-4 rounded-lg space-y-3">
           <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">
-              Authorization holds funds but doesn't charge your card
+            <Clock className="h-4 w-4 text-blue-600" />
+            <span className="text-sm text-foreground">
+              <strong>Step 1:</strong> Authorization secures your booking without charging your card
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <Shield className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">
-              Payment is only captured when service is completed
+            <Shield className="h-4 w-4 text-green-600" />
+            <span className="text-sm text-foreground">
+              <strong>Step 2:</strong> Our technician completes your service
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">
-              Secure processing with Stripe
+            <CreditCard className="h-4 w-4 text-purple-600" />
+            <span className="text-sm text-foreground">
+              <strong>Step 3:</strong> Payment is charged only after service completion
             </span>
           </div>
         </div>

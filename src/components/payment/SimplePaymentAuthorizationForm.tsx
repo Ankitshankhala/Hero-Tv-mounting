@@ -235,10 +235,10 @@ export const SimplePaymentAuthorizationForm = ({
 
   return (
     <div className="space-y-6">
-      <Alert>
+        <Alert>
         <Info className="h-4 w-4" />
         <AlertDescription>
-          Your card will be authorized for ${amount.toFixed(2)} but not charged until after service completion.
+          Your booking will be confirmed with a ${amount.toFixed(2)} payment authorization. The charge will only occur when your service is completed.
         </AlertDescription>
       </Alert>
 
@@ -254,9 +254,18 @@ export const SimplePaymentAuthorizationForm = ({
 
       <Alert>
         <Shield className="h-4 w-4" />
-        <AlertDescription className="flex items-center space-x-2">
-          <Lock className="h-3 w-3" />
-          <span>Your payment information is encrypted and secure</span>
+        <AlertDescription>
+          <div className="space-y-2">
+            <div className="flex items-center space-x-2">
+              <Lock className="h-3 w-3" />
+              <span className="font-medium">Secure Payment Process</span>
+            </div>
+            <ul className="text-sm space-y-1 ml-5">
+              <li>• Authorization confirms your booking instantly</li>
+              <li>• No charge until service is completed</li>
+              <li>• Encrypted processing with Stripe</li>
+            </ul>
+          </div>
         </AlertDescription>
       </Alert>
 

@@ -57,9 +57,12 @@ export const BookingSuccessModal = ({
               <h2 className="text-3xl font-bold mb-2">Booking Confirmed!</h2>
               <div className="flex items-center justify-center space-x-2 text-green-100">
                 <Sparkles className="h-5 w-5" />
-                <span className="text-lg">Payment Successful</span>
+                <span className="text-lg">Payment Authorized</span>
                 <Sparkles className="h-5 w-5" />
               </div>
+              <p className="text-green-100/80 text-sm mt-2">
+                Your card has been authorized. Payment will be charged when service is completed.
+              </p>
             </div>
           </div>
         </div>
@@ -92,8 +95,8 @@ export const BookingSuccessModal = ({
                     <CreditCard className="h-5 w-5 text-green-600" />
                   </div>
                   <div>
-                    <p className="font-medium text-gray-900">Total Amount</p>
-                    <p className="text-sm text-gray-600">${getTotalPrice()}</p>
+                    <p className="font-medium text-gray-900">Amount Authorized</p>
+                    <p className="text-sm text-gray-600">Charged when service completed</p>
                   </div>
                 </div>
                 <div className="text-green-600 font-bold text-lg">${getTotalPrice()}</div>
@@ -109,7 +112,7 @@ export const BookingSuccessModal = ({
               <ul className="space-y-2 text-sm text-blue-800">
                 <li className="flex items-center space-x-2">
                   <CheckCircle className="h-4 w-4 text-blue-600" />
-                  <span>We'll contact you within 24 hours to confirm details</span>
+                  <span>Payment authorized - booking is confirmed</span>
                 </li>
                 <li className="flex items-center space-x-2">
                   <CheckCircle className="h-4 w-4 text-blue-600" />
@@ -118,6 +121,10 @@ export const BookingSuccessModal = ({
                 <li className="flex items-center space-x-2">
                   <CheckCircle className="h-4 w-4 text-blue-600" />
                   <span>You'll receive SMS updates about your appointment</span>
+                </li>
+                <li className="flex items-center space-x-2">
+                  <CheckCircle className="h-4 w-4 text-blue-600" />
+                  <span>Payment will be charged when service is completed</span>
                 </li>
               </ul>
             </div>

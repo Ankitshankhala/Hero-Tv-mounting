@@ -37,7 +37,7 @@ export const PaymentCaptureButton = ({
 
       toast({
         title: "Payment Captured Successfully",
-        description: "Job completed and payment collected",
+        description: "Job marked as completed and customer's payment has been charged",
       });
 
       if (onCaptureSuccess) {
@@ -78,7 +78,7 @@ export const PaymentCaptureButton = ({
       className="bg-green-600 hover:bg-green-700"
     >
       <CreditCard className="h-4 w-4 mr-2" />
-      {processing ? 'Capturing...' : 'Complete Job & Collect Payment'}
+      {processing ? 'Processing Payment...' : 'Mark Complete & Charge Customer'}
     </Button>
   );
 };
