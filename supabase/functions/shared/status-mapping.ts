@@ -60,7 +60,6 @@ export const mapStripeStatus = (stripeStatus: string, context: 'payment_intent' 
       };
 
     case 'payment_failed':
-    case 'requires_payment_method':
       return {
         internal_status: 'failed',
         payment_status: 'failed',

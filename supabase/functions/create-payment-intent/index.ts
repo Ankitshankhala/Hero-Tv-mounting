@@ -183,14 +183,15 @@ serve(async (req) => {
     logStep("Creating transaction record", { 
       amount, 
       paymentIntentId: paymentIntent.id,
-      mappedStatus: statusMapping.internal_status,
+      mappedPaymentStatus: statusMapping.payment_status,
+      mappedInternalStatus: statusMapping.internal_status,
       is_guest: !user_id,
       booking_id: booking_id || null
     });
     
     const transactionInsert: any = {
       amount: amount,
-      status: statusMapping.internal_status,
+      status: statusMapping.payment_status, // Use payment_status for database enum compatibility
       payment_intent_id: paymentIntent.id,
       payment_method: 'card',
       transaction_type: 'authorization',
