@@ -99,10 +99,10 @@ const BookingSuccess = () => {
         {/* Success Header */}
         <div className="text-center mb-8">
           <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
-          <h1 className="text-3xl font-bold text-white mb-2">Booking Confirmed!</h1>
-          <p className="text-slate-300 text-lg">
-            Thank you for choosing Hero TV Mounting. Your service has been successfully booked.
-          </p>
+            <h1 className="text-3xl font-bold text-white mb-2">Payment Authorized!</h1>
+            <p className="text-slate-300 text-lg">
+              Thank you for choosing Hero TV Mounting. Your payment is authorized and booking is confirmed.
+            </p>
         </div>
 
         {/* Booking Details */}
@@ -156,8 +156,8 @@ const BookingSuccess = () => {
               ))}
               <div className="border-t border-slate-600 mt-2 pt-2">
                 <div className="flex justify-between items-center font-bold">
-                  <span className="text-white">Total Paid:</span>
-                  <span className="text-green-400">${booking.total_price.toFixed(2)}</span>
+                  <span className="text-white">Total Authorized:</span>
+                  <span className="text-blue-400">${booking.total_price.toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -192,6 +192,10 @@ const BookingSuccess = () => {
               </li>
               <li className="flex items-start space-x-2">
                 <span className="text-blue-400">4.</span>
+                <span>Payment will be charged after service completion</span>
+              </li>
+              <li className="flex items-start space-x-2">
+                <span className="text-blue-400">5.</span>
                 <span>Enjoy your perfectly mounted TV!</span>
               </li>
             </ul>

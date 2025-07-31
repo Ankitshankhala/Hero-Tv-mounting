@@ -13,7 +13,7 @@ const logStep = (step: string, details?: any) => {
   console.log(`[CREATE-PAYMENT-INTENT] ${step}${detailsStr}`);
 };
 
-// Universal safe status function for direct capture workflow - only 3 statuses allowed
+// Universal safe status function for authorization workflow - supports authorized status
 const ensureSafeStatus = (status: string, context: string = 'unknown'): string => {
   logStep(`Validating status for ${context}`, { inputStatus: status, statusType: typeof status });
   
@@ -28,13 +28,18 @@ const ensureSafeStatus = (status: string, context: string = 'unknown'): string =
     case 'requires_action':
     case 'processing':
     case 'pending':
+      safeStatus = 'pending';
+      break;
     case 'requires_capture':
     case 'authorized':
-      safeStatus = 'pending';
+      safeStatus = 'authorized';
       break;
     case 'succeeded':
     case 'completed':
       safeStatus = 'completed';
+      break;
+    case 'captured':
+      safeStatus = 'captured';
       break;
     case 'canceled':
     case 'cancelled':
@@ -45,8 +50,8 @@ const ensureSafeStatus = (status: string, context: string = 'unknown'): string =
       break;
   }
   
-  // Final validation - ensure status is valid for our 3-status enum
-  const validStatuses = ['pending', 'completed', 'failed'];
+  // Final validation - ensure status is valid for our enum
+  const validStatuses = ['pending', 'completed', 'failed', 'authorized', 'captured', 'cancelled'];
   if (!validStatuses.includes(safeStatus)) {
     logStep(`Invalid status detected for ${context}, forcing to failed`, { invalidStatus: safeStatus });
     safeStatus = 'failed';
@@ -238,8 +243,8 @@ serve(async (req) => {
       metadata.booking_id = booking_id;
     }
 
-    // Create Stripe payment intent with automatic capture (direct charging)
-    logStep("Creating Stripe payment intent", { 
+    // Create Stripe payment intent with manual capture for authorization
+    logStep("Creating Stripe payment intent for authorization", { 
       amount: Math.round(amount * 100), 
       currency, 
       is_guest: !user_id,
@@ -251,7 +256,7 @@ serve(async (req) => {
       paymentIntent = await stripe.paymentIntents.create({
         amount: Math.round(amount * 100), // Convert to cents
         currency: currency.toLowerCase(),
-        capture_method: 'automatic', // Direct capture - charge immediately when confirmed
+        capture_method: 'manual', // Manual capture - authorize now, charge later
         metadata,
       }, {
         // Stripe requires idempotencyKey to be passed as an option (second parameter)
@@ -296,7 +301,7 @@ serve(async (req) => {
       status: safeStatus, // Use safe validated status for database enum compatibility
       payment_intent_id: paymentIntent.id,
       payment_method: 'card',
-      transaction_type: 'charge', // Direct charge, not authorization
+      transaction_type: 'authorization', // Authorization for later capture
       currency: currency.toUpperCase(),
       idempotency_key: idempotency_key,
       booking_id: booking_id || null, // Link to booking if provided (booking-first flow)
@@ -333,8 +338,8 @@ serve(async (req) => {
     if (booking_id) {
       logStep("Updating booking with payment intent", { booking_id, payment_intent_id: paymentIntent.id });
       
-      // For direct capture, set booking status based on payment status
-      const bookingStatus = safeStatus === 'completed' ? 'confirmed' : 'payment_pending';
+      // For authorization workflow, set booking status based on payment status
+      const bookingStatus = safeStatus === 'authorized' ? 'payment_authorized' : 'payment_pending';
       
       const { error: bookingUpdateError } = await supabaseServiceRole
         .from('bookings')

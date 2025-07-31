@@ -787,6 +787,8 @@ export type Database = {
           cancellation_reason: string | null
           cancelled_at: string | null
           cancelled_by: string | null
+          captured_at: string | null
+          captured_by: string | null
           created_at: string | null
           currency: string | null
           guest_customer_email: string | null
@@ -805,6 +807,8 @@ export type Database = {
           cancellation_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
+          captured_at?: string | null
+          captured_by?: string | null
           created_at?: string | null
           currency?: string | null
           guest_customer_email?: string | null
@@ -823,6 +827,8 @@ export type Database = {
           cancellation_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
+          captured_at?: string | null
+          captured_by?: string | null
           created_at?: string | null
           currency?: string | null
           guest_customer_email?: string | null
@@ -1271,6 +1277,7 @@ export type Database = {
         | "cancelled"
         | "authorized"
         | "captured"
+        | "payment_authorized"
       day_of_week:
         | "Sunday"
         | "Monday"
@@ -1279,7 +1286,13 @@ export type Database = {
         | "Thursday"
         | "Friday"
         | "Saturday"
-      payment_status: "pending" | "completed" | "failed"
+      payment_status:
+        | "pending"
+        | "completed"
+        | "failed"
+        | "authorized"
+        | "captured"
+        | "cancelled"
       session_status: "created" | "paid" | "expired" | "cancelled"
       sms_status: "sent" | "failed"
       user_role: "customer" | "worker" | "admin"
@@ -1419,6 +1432,7 @@ export const Constants = {
         "cancelled",
         "authorized",
         "captured",
+        "payment_authorized",
       ],
       day_of_week: [
         "Sunday",
@@ -1429,7 +1443,14 @@ export const Constants = {
         "Friday",
         "Saturday",
       ],
-      payment_status: ["pending", "completed", "failed"],
+      payment_status: [
+        "pending",
+        "completed",
+        "failed",
+        "authorized",
+        "captured",
+        "cancelled",
+      ],
       session_status: ["created", "paid", "expired", "cancelled"],
       sms_status: ["sent", "failed"],
       user_role: ["customer", "worker", "admin"],
