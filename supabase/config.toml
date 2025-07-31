@@ -84,3 +84,6 @@ verify_jwt = false
 
 [functions.send-worker-assignment-email]
 verify_jwt = false
+
+[functions.debug-resend]
+verify_jwt = false
