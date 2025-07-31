@@ -32,17 +32,9 @@ export const TvMountingModal = ({ open, onClose, onAddToCart, services }: TvMoun
   } = useTvMountingModal(services);
 
   const handleAddToCart = () => {
-    try {
-      console.log('🔧 TV Mounting: Building services list...');
-      const servicesList = buildServicesList();
-      console.log('🔧 TV Mounting: Services list built:', servicesList);
-      console.log('🔧 TV Mounting: Calling onAddToCart with services...');
-      onAddToCart(servicesList);
-      console.log('🔧 TV Mounting: Cart addition completed, closing modal...');
-      onClose();
-    } catch (error) {
-      console.error('❌ TV Mounting: Error adding to cart:', error);
-    }
+    const servicesList = buildServicesList();
+    onAddToCart(servicesList);
+    onClose();
   };
 
   return (
