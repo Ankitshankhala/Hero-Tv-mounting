@@ -289,9 +289,25 @@ serve(async (req) => {
       booking_id: booking_id || null
     });
     
+    // Final status validation - ensure no invalid enum values reach the database
+    let safeStatus = finalStatus;
+    if (safeStatus === 'cancelled') {
+      logStep("Converting cancelled to failed before database insert");
+      safeStatus = 'failed';
+    }
+    
+    // Double-check that status is valid for enum
+    const validEnumStatuses = ['pending', 'authorized', 'completed', 'failed'];
+    if (!validEnumStatuses.includes(safeStatus)) {
+      logStep("Invalid status detected, forcing to failed", { invalidStatus: safeStatus });
+      safeStatus = 'failed';
+    }
+    
+    logStep("Using safe status for database insert", { originalStatus: finalStatus, safeStatus });
+    
     const transactionInsert: any = {
       amount: amount,
-      status: finalStatus, // Use validated status for database enum compatibility
+      status: safeStatus, // Use safe validated status for database enum compatibility
       payment_intent_id: paymentIntent.id,
       payment_method: 'card',
       transaction_type: 'authorization',
@@ -336,7 +352,7 @@ serve(async (req) => {
         .update({
           payment_intent_id: paymentIntent.id,
           status: 'authorized',
-          payment_status: finalStatus
+          payment_status: safeStatus // Use safe status here too
         })
         .eq('id', booking_id);
 
