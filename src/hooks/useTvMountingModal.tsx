@@ -1,6 +1,7 @@
 
 import { useState, useMemo } from 'react';
 import { PublicService } from '@/hooks/usePublicServicesData';
+import { useServicesData } from '@/hooks/useServicesData';
 
 interface TvConfiguration {
   id: string;
@@ -10,17 +11,19 @@ interface TvConfiguration {
   soundbar: boolean;
 }
 
-export const useTvMountingModal = (services: PublicService[]) => {
+export const useTvMountingModal = (publicServices: PublicService[]) => {
+  // Use full services data (including non-visible add-ons) for finding all services
+  const { services: allServices } = useServicesData();
   const [numberOfTvs, setNumberOfTvs] = useState(1);
   const [tvConfigurations, setTvConfigurations] = useState<TvConfiguration[]>([
     { id: '1', over65: false, frameMount: false, wallType: 'standard', soundbar: false }
   ]);
 
-  // Find services from database
-  const tvMountingService = services.find(s => s.name === 'TV Mounting');
-  const over65Service = services.find(s => s.name === 'Over 65" TV Add-on');
-  const frameMountService = services.find(s => s.name === 'Frame Mount Add-on');
-  const stoneWallService = services.find(s => s.name === 'Stone/Brick/Tile Wall');
+  // Find services from database - use allServices to include non-visible add-ons
+  const tvMountingService = allServices.find(s => s.name === 'TV Mounting');
+  const over65Service = allServices.find(s => s.name === 'Over 65" TV Add-on');
+  const frameMountService = allServices.find(s => s.name === 'Frame Mount Add-on');
+  const stoneWallService = allServices.find(s => s.name === 'Stone/Brick/Tile Wall');
 
   const calculateTvMountingPrice = (numTvs: number) => {
     let totalPrice = 0;
@@ -157,7 +160,7 @@ export const useTvMountingModal = (services: PublicService[]) => {
     const soundbarCount = tvConfigurations.filter(config => config.soundbar).length;
     if (soundbarCount > 0) {
       // Find the specific Mount Soundbar service
-      const soundbarService = services.find(s => s.name === 'Mount Soundbar');
+      const soundbarService = allServices.find(s => s.name === 'Mount Soundbar');
       if (soundbarService?.id) {
         selectedServices.push({
           id: soundbarService.id,
