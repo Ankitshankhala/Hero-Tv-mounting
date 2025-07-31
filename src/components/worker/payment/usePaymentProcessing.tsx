@@ -17,7 +17,7 @@ export const usePaymentProcessing = ({
 }: UsePaymentProcessingProps) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
-  const { createCheckoutSession } = useStripePayment();
+  const { createPaymentLink } = useStripePayment();
 
   const processPayment = async (paymentMethod: 'cash' | 'online', amount: string, notes: string) => {
     setIsProcessing(true);
@@ -57,26 +57,26 @@ export const usePaymentProcessing = ({
           description: `Successfully collected $${amount} in cash`,
         });
       } else {
-        // For online payments, create a checkout session
-        const checkoutResult = await createCheckoutSession({
+        // For online payments, create a payment link
+        const linkResult = await createPaymentLink({
           bookingId: job.id,
           amount: paymentAmount,
           description: `Payment for ${job.service_name || 'service'}`,
           customerEmail: job.customer_email
         });
 
-        if (!checkoutResult.success) {
-          throw new Error(checkoutResult.error || 'Failed to create checkout session');
+        if (!linkResult.success) {
+          throw new Error(linkResult.error || 'Failed to create payment link');
         }
 
-        // Open checkout URL in new tab
-        if (checkoutResult.checkoutUrl) {
-          window.open(checkoutResult.checkoutUrl, '_blank');
+        // Open payment link in new tab
+        if (linkResult.paymentUrl) {
+          window.open(linkResult.paymentUrl, '_blank');
         }
 
         toast({
-          title: "Payment Checkout Created",
-          description: "Payment checkout has been opened for the customer",
+          title: "Online Payment Link Created",
+          description: "Payment link has been opened for the customer",
         });
       }
 

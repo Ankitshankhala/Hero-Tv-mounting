@@ -23,7 +23,7 @@ const BookingSuccess = () => {
       }
 
       try {
-        const { data, error } = await supabase.functions.invoke('verify-checkout-session', {
+        const { data, error } = await supabase.functions.invoke('verify-payment', {
           body: { session_id: sessionId }
         });
 

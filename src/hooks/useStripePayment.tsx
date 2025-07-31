@@ -18,20 +18,19 @@ export const useStripePayment = () => {
   // Initialize Stripe
   const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_live_51RYKUCCrUPkotWKCM10E0EeqJ5j24WbloBt4CemrXYkJxsGUdS6Xxl5hsyh7UaIHBeI9nVtgqjmXI3sTD7xyvNnV00s1GO6it4');
 
-  const createCheckoutSession = async (paymentData: StripePaymentData): Promise<{
+  const createPaymentLink = async (paymentData: StripePaymentData): Promise<{
     success: boolean;
-    checkoutUrl?: string;
-    sessionId?: string;
+    paymentUrl?: string;
     error?: string;
   }> => {
     setProcessing(true);
     
     try {
-      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+      const { data, error } = await supabase.functions.invoke('create-payment-link', {
         body: {
           booking_id: paymentData.bookingId,
           amount: paymentData.amount,
-          customer_name: paymentData.description.split(' - ')[0] || 'Customer',
+          description: paymentData.description,
           customer_email: paymentData.customerEmail
         }
       });
@@ -41,21 +40,25 @@ export const useStripePayment = () => {
       }
 
       if (!data?.success) {
-        throw new Error(data?.error || 'Failed to create checkout session');
+        throw new Error(data?.error || 'Failed to create payment link');
       }
+
+      toast({
+        title: "Payment Link Created",
+        description: "Customer payment link has been generated",
+      });
 
       return {
         success: true,
-        checkoutUrl: data.checkout_url,
-        sessionId: data.session_id
+        paymentUrl: data.payment_url
       };
 
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to create checkout session';
-      console.error('Checkout session creation failed:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create payment link';
+      console.error('Payment link creation failed:', error);
       
       toast({
-        title: "Checkout Failed",
+        title: "Payment Link Failed",
         description: errorMessage,
         variant: "destructive",
       });
@@ -105,26 +108,8 @@ export const useStripePayment = () => {
     }
   };
 
-  const verifyCheckoutSession = async (sessionId: string) => {
-    try {
-      const { data, error } = await supabase.functions.invoke('verify-checkout-session', {
-        body: { session_id: sessionId }
-      });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      return data;
-    } catch (error) {
-      console.error('Session verification failed:', error);
-      throw error;
-    }
-  };
-
   return {
-    createCheckoutSession,
-    verifyCheckoutSession,
+    createPaymentLink,
     confirmCardPayment,
     processing
   };

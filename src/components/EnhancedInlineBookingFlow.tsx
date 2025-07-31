@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { X, ArrowRight, Shield, AlertCircle } from 'lucide-react';
 import { CalendarIcon } from 'lucide-react';
 import { useTestingMode, getEffectiveMinimumAmount } from '@/contexts/TestingModeContext';
-import { DirectPaymentStep } from '@/components/booking/DirectPaymentStep';
+import { PaymentAuthorizationForm } from '@/components/payment/PaymentAuthorizationForm';
 import { useBookingFlowState } from '@/hooks/booking/useBookingFlowState';
 import { BookingProgressSteps } from '@/components/booking/BookingProgressSteps';
 import { ServiceConfigurationStep } from '@/components/booking/ServiceConfigurationStep';
@@ -296,29 +296,42 @@ export const EnhancedInlineBookingFlow = ({
                 />
               )}
 
-              {/* Step 4: Complete Payment */}
+              {/* Step 4: Payment Authorization */}
               {currentStep === 4 && (
-                <DirectPaymentStep
-                  bookingData={{
-                    id: bookingId!,
-                    totalPrice: getTotalPrice(),
-                    customerName: formData.customerName,
-                    customerEmail: formData.customerEmail || user?.email || ''
-                  }}
-                  onPaymentSuccess={() => {
-                    setShowSuccess(true);
-                    setTimeout(() => {
-                      onClose();
-                      onSubmit?.({
-                        bookingId,
-                        services,
-                        formData,
-                        totalAmount: getTotalPrice()
-                      });
-                    }, 5000);
-                  }}
-                  onBack={handlePrevStep}
-                />
+                <div className="space-y-6">
+                  <div className="text-center">
+                    <h3 className="text-2xl font-bold text-white mb-2">Payment Authorization</h3>
+                    <p className="text-slate-300">Authorize payment - you'll only be charged after service completion</p>
+                  </div>
+
+                  {!isMinimumCartMet && (
+                    <div className="p-4 bg-red-900/20 border border-red-500/30 rounded-lg">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <AlertCircle className="h-5 w-5 text-red-400" />
+                        <span className="font-medium text-red-300">Cannot Process Payment</span>
+                      </div>
+                      <p className="text-red-200">
+                        Your cart total is ${getTotalPrice()}. Please add ${amountNeeded} more to reach the minimum booking amount of ${MINIMUM_BOOKING_AMOUNT}.
+                      </p>
+                    </div>
+                  )}
+
+                  {isMinimumCartMet ? (
+                    <PaymentAuthorizationForm
+                      amount={getTotalPrice()}
+                      bookingId={bookingId!}
+                      customerEmail={formData.customerEmail || user?.email || ''}
+                      customerName={formData.customerName}
+                      onAuthorizationSuccess={handlePaymentAuthorizationSuccess}
+                      onAuthorizationFailure={handlePaymentAuthorizationFailure}
+                    />
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+                      <p className="text-slate-300">Preparing payment form...</p>
+                    </div>
+                  )}
+                </div>
               )}
 
               {/* Enhanced Navigation Buttons */}
