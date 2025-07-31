@@ -185,6 +185,11 @@ serve(async (req) => {
 
     // Map Stripe status to internal status
     const statusMapping = mapStripeStatus(paymentIntent.status);
+    logStep("Status mapping result", { 
+      stripeStatus: paymentIntent.status, 
+      mappedPaymentStatus: statusMapping.payment_status,
+      mappedInternalStatus: statusMapping.internal_status 
+    });
 
     // Create transaction record (set booking_id if provided for booking-first flow)
     logStep("Creating transaction record", { 
