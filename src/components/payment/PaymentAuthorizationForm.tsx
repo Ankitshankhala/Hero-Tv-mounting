@@ -5,6 +5,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Shield, Lock, CreditCard, Info, AlertTriangle } from 'lucide-react';
 // Removed useBookingPaymentFlow import that was causing Stripe context issues
 import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
 import { StripeCardElement } from '@/components/StripeCardElement';
 import { PaymentRecoveryAlert } from './PaymentRecoveryAlert';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,8 +15,8 @@ interface PaymentAuthorizationFormProps {
   bookingId?: string;
   customerEmail?: string;
   customerName?: string;
-  services?: any[];
-  formData?: any;
+  services?: unknown[];
+  formData?: Record<string, unknown>;
   onAuthorizationSuccess: (createdBookingId?: string) => void;
   onAuthorizationFailure: (error: string) => void;
   requireAuth?: boolean;
@@ -34,8 +35,11 @@ export const PaymentAuthorizationForm = ({
 }: PaymentAuthorizationFormProps) => {
   const [cardError, setCardError] = useState('');
   const [stripeReady, setStripeReady] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [stripe, setStripe] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [elements, setElements] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [cardElement, setCardElement] = useState<any>(null);
   const [formError, setFormError] = useState('');
   const [creatingBooking, setCreatingBooking] = useState(false);
@@ -43,14 +47,16 @@ export const PaymentAuthorizationForm = ({
     paymentIntentId: string;
     amount: number;
     customerEmail?: string;
-    guestBookingData?: any;
+    guestBookingData?: Record<string, unknown>;
     payment_intent_id?: string;
   } | null>(null);
   
   // Remove useBookingPaymentFlow hook that requires Stripe context
   const [loading, setLoading] = useState(false);
   const { user, loading: authLoading } = useAuth();
+  const { toast } = useToast();
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleStripeReady = (stripeInstance: any, elementsInstance: any, cardElementInstance: any) => {
     setStripe(stripeInstance);
     setElements(elementsInstance);
@@ -228,23 +234,26 @@ export const PaymentAuthorizationForm = ({
             
             // Update transaction status to 'authorized' after successful payment
             try {
-              const { TransactionManager } = await import('@/utils/transactionManager');
-              const transactionManager = new TransactionManager();
-              const updateResult = await transactionManager.updateTransactionByPaymentIntent(
-                intentData.payment_intent_id,
-                { status: 'authorized' }
+              const { data: updateData, error: updateError } = await supabase.functions.invoke(
+                'update-transaction-status',
+                {
+                  body: {
+                    payment_intent_id: intentData.payment_intent_id,
+                    status: 'authorized',
+                  },
+                }
               );
-              
-              if (!updateResult.success) {
-                console.error('Failed to update transaction status:', updateResult.error);
-                throw new Error(updateResult.error || 'Failed to update transaction status');
+
+              if (updateError || !updateData?.success) {
+                throw new Error(updateError?.message || updateData?.error || 'Failed to update transaction status');
               }
-              
+
               // Transaction status updated to authorized
             } catch (error) {
               console.error('Error updating transaction status:', error);
               const errorMessage = 'Payment authorized but failed to update transaction status';
               setFormError(errorMessage);
+              toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
               onAuthorizationFailure(errorMessage);
               return;
             }
@@ -257,7 +266,7 @@ export const PaymentAuthorizationForm = ({
                 'create-booking',
                 {
                   body: {
-                    transaction_id: intentData.transaction_id,
+                    payment_intent_id: intentData.payment_intent_id,
                     booking_payload: paymentRecoveryInfo.guestBookingData,
                   },
                 }
@@ -283,7 +292,7 @@ export const PaymentAuthorizationForm = ({
                 'create-booking',
                 {
                   body: {
-                    transaction_id: intentData.transaction_id,
+                    payment_intent_id: intentData.payment_intent_id,
                     booking_payload: bookingPayload,
                   },
                 }
@@ -308,6 +317,7 @@ export const PaymentAuthorizationForm = ({
           const errorMessage = bookingError instanceof Error ? bookingError.message : 'Booking creation failed';
           console.error('Booking creation error:', bookingError);
           setFormError(errorMessage);
+          toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
           onAuthorizationFailure(errorMessage);
         } finally {
           setCreatingBooking(false);
@@ -316,9 +326,10 @@ export const PaymentAuthorizationForm = ({
         // Payment authorization for existing booking
         console.log('🎯 Authorizing payment for existing booking:', bookingId);
         
-        try {
-          // Prepare user data for authentication
-          const paymentRequestBody: any = {
+          try {
+            // Prepare user data for authentication
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const paymentRequestBody: any = {
             amount,
             currency: 'usd',
             booking_id: bookingId,
@@ -391,21 +402,25 @@ export const PaymentAuthorizationForm = ({
             
             // Update transaction status to 'authorized'
             try {
-              const { TransactionManager } = await import('@/utils/transactionManager');
-              const transactionManager = new TransactionManager();
-              const updateResult = await transactionManager.updateTransactionByPaymentIntent(
-                intentData.payment_intent_id,
-                { status: 'authorized' }
+              const { data: updateData, error: updateError } = await supabase.functions.invoke(
+                'update-transaction-status',
+                {
+                  body: {
+                    payment_intent_id: intentData.payment_intent_id,
+                    status: 'authorized',
+                  },
+                }
               );
-              
-              if (!updateResult.success) {
-                throw new Error(updateResult.error || 'Failed to update transaction status');
+
+              if (updateError || !updateData?.success) {
+                throw new Error(updateError?.message || updateData?.error || 'Failed to update transaction status');
               }
-              
+
               console.log('Transaction status updated to authorized for existing booking');
               onAuthorizationSuccess(bookingId);
             } catch (error) {
               console.error('Error updating transaction status:', error);
+              toast({ title: 'Error', description: 'Payment authorized but failed to update transaction status', variant: 'destructive' });
               throw new Error('Payment authorized but failed to update transaction status');
             }
           } else {
@@ -415,6 +430,7 @@ export const PaymentAuthorizationForm = ({
           const errorMessage = error instanceof Error ? error.message : 'Payment authorization failed for existing booking';
           console.error('Existing booking payment error:', error);
           setFormError(errorMessage);
+          toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
           onAuthorizationFailure(errorMessage);
         }
       } else {
@@ -428,6 +444,7 @@ export const PaymentAuthorizationForm = ({
       const errorMessage = error instanceof Error ? error.message : 'Payment authorization failed';
       console.error('Payment authorization error:', error);
       setFormError(errorMessage);
+      toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
       onAuthorizationFailure(errorMessage);
     } finally {
       setLoading(false);

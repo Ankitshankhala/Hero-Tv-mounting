@@ -11,7 +11,7 @@ interface UpdateTransactionRequest {
   status: 'authorized' | 'paid' | 'failed';
 }
 
-const logStep = (step: string, details?: any) => {
+const logStep = (step: string, details?: Record<string, unknown>) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
   console.log(`[UPDATE-TRANSACTION-STATUS] ${step}${detailsStr}`);
 };
@@ -84,11 +84,26 @@ serve(async (req) => {
       );
     }
 
-    logStep("Transaction status updated successfully", { 
-      transaction_id: transaction.id, 
-      old_status: transaction.status, 
-      new_status: status 
+    logStep("Transaction status updated successfully", {
+      transaction_id: transaction.id,
+      old_status: transaction.status,
+      new_status: status
     });
+
+    // If payment has been authorized, update related booking status
+    if (status === 'authorized' && transaction.booking_id) {
+      logStep("Updating booking status to payment_authorized", { booking_id: transaction.booking_id });
+      const { error: bookingUpdateError } = await supabaseClient
+        .from('bookings')
+        .update({ status: 'payment_authorized' })
+        .eq('id', transaction.booking_id);
+
+      if (bookingUpdateError) {
+        logStep("Warning: failed to update booking status", { error: bookingUpdateError.message });
+      } else {
+        logStep("Booking status updated", { booking_id: transaction.booking_id });
+      }
+    }
 
     return new Response(
       JSON.stringify({ 

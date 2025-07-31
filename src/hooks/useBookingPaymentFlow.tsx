@@ -23,9 +23,9 @@ interface BookingPayload {
   scheduled_date: string;
   scheduled_start: string;
   customer_id?: string;
-  guest_customer_info?: any;
+  guest_customer_info?: Record<string, unknown>;
   location_notes?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface PaymentFlowResult {
@@ -102,7 +102,9 @@ export const useBookingPaymentFlow = () => {
    */
   const confirmCardPayment = async (
     clientSecret: string
-  ): Promise<{ success: boolean; paymentIntent?: any; error?: string }> => {
+  ): Promise<{ success: boolean;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    paymentIntent?: any; error?: string }> => {
     try {
       if (!stripe || !elements) {
         throw new Error('Stripe not loaded');
@@ -132,25 +134,6 @@ export const useBookingPaymentFlow = () => {
 
       console.log('✅ Card payment confirmed', { status: paymentIntent.status });
 
-      // Update transaction status if payment is authorized
-      if (paymentIntent.status === 'requires_capture') {
-        console.log('🔄 Updating transaction status to authorized');
-        
-        const { data: updateResult, error: updateError } = await supabase.functions.invoke('update-transaction-status', {
-          body: {
-            payment_intent_id: paymentIntent.id,
-            status: 'authorized'
-          }
-        });
-
-        if (updateError) {
-          console.error('❌ Failed to update transaction status:', updateError);
-          throw new Error('Failed to update transaction status after payment authorization');
-        }
-
-        console.log('✅ Transaction status updated to authorized');
-      }
-
       return {
         success: true,
         paymentIntent
@@ -171,7 +154,7 @@ export const useBookingPaymentFlow = () => {
    * Step 3: Create booking only after payment is authorized
    */
   const createBookingAfterPayment = async (
-    transactionId: string,
+    paymentIntentId: string,
     bookingPayload: BookingPayload
   ): Promise<{ success: boolean; booking_id?: string; error?: string }> => {
     try {
@@ -179,7 +162,7 @@ export const useBookingPaymentFlow = () => {
 
       const { data: result, error } = await supabase.functions.invoke('create-booking', {
         body: {
-          transaction_id: transactionId,
+          payment_intent_id: paymentIntentId,
           booking_payload: bookingPayload,
         }
       });
@@ -246,10 +229,32 @@ export const useBookingPaymentFlow = () => {
         throw new Error(`Payment not authorized. Status: ${paymentIntent.status}`);
       }
 
-      console.log('✅ Payment authorized, creating booking');
+      console.log('✅ Payment authorized');
+
+      // Update transaction status using edge function
+      try {
+        const { data: updateResult, error: updateError } = await supabase.functions.invoke('update-transaction-status', {
+          body: { payment_intent_id, status: 'authorized' }
+        });
+
+        if (updateError || !updateResult?.success) {
+          throw new Error(updateError?.message || updateResult?.error || 'Failed to update transaction status');
+        }
+      } catch (updateErr: unknown) {
+        const errorMessage = updateErr instanceof Error ? updateErr.message : 'Failed to update transaction status';
+        console.error('❌ update-transaction-status error:', updateErr);
+        toast({
+          title: 'Payment Authorized But Failed',
+          description: errorMessage,
+          variant: 'destructive'
+        });
+        return { success: false, error: errorMessage };
+      }
+
+      console.log('🔄 Creating booking record');
 
       // Step 4: Create booking after successful authorization
-      const bookingResult = await createBookingAfterPayment(transaction_id!, bookingPayload);
+      const bookingResult = await createBookingAfterPayment(payment_intent_id!, bookingPayload);
       if (!bookingResult.success) {
         throw new Error(bookingResult.error || 'Failed to create booking');
       }
@@ -289,6 +294,7 @@ export const useBookingPaymentFlow = () => {
 
   // Legacy methods for backward compatibility (will be deprecated)
   const createBookingWithPayment = async (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     bookingData: any,
     amount: number,
     currency: string = 'usd'
