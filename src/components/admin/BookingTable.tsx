@@ -60,7 +60,7 @@ export const BookingTable = React.memo(({
         variant: 'secondary' as const
       },
       payment_pending: {
-        label: 'Payment Pending',
+        label: 'Awaiting Payment',
         variant: 'secondary' as const
       },
       confirmed: {
