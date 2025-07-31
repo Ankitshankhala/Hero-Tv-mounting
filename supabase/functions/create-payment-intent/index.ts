@@ -29,8 +29,15 @@ serve(async (req) => {
   }
 
   try {
-    const body = await req.json();
-    logStep("Received request body", body);
+    logStep("Parsing request body");
+    let body;
+    try {
+      body = await req.json();
+      logStep("Request body parsed successfully", body);
+    } catch (parseError) {
+      logStep("JSON parsing failed", { error: parseError instanceof Error ? parseError.message : parseError });
+      throw new Error(`Invalid JSON in request body: ${parseError instanceof Error ? parseError.message : parseError}`);
+    }
     const {
       amount,
       currency,
