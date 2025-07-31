@@ -9,14 +9,15 @@ import { useToast } from '@/hooks/use-toast';
 import { StripeCardElement } from '@/components/StripeCardElement';
 import { PaymentRecoveryAlert } from './PaymentRecoveryAlert';
 import { supabase } from '@/integrations/supabase/client';
+import { FormData, ServiceItem } from '@/hooks/booking/types';
 
 interface PaymentAuthorizationFormProps {
   amount: number;
   bookingId?: string;
   customerEmail?: string;
   customerName?: string;
-  services?: unknown[];
-  formData?: Record<string, unknown>;
+  services?: ServiceItem[];
+  formData?: FormData;
   onAuthorizationSuccess: (createdBookingId?: string) => void;
   onAuthorizationFailure: (error: string) => void;
   requireAuth?: boolean;
@@ -164,12 +165,12 @@ export const PaymentAuthorizationForm = ({
           setPaymentRecoveryInfo({
             paymentIntentId: intentData.payment_intent_id,
             amount,
-            customerEmail: formData.customerEmail,
-            guestBookingData: !requireAuth ? {
+            customerEmail: String(formData.customerEmail),
+            guestBookingData: !requireAuth && services && services.length > 0 ? {
               service_id: services[0].id,
               scheduled_date: formData.selectedDate,
               scheduled_start: formData.selectedTime,
-              location_notes: formData.locationNotes || formData.address,
+              location_notes: formData.address,
               guest_customer_info: guestCustomerInfo,
             } : undefined,
             payment_intent_id: intentData.payment_intent_id,
@@ -278,14 +279,14 @@ export const PaymentAuthorizationForm = ({
 
               console.log('Guest booking created successfully:', bookingData.booking_id);
               onAuthorizationSuccess(bookingData.booking_id);
-            } else if (requireAuth) {
+            } else if (requireAuth && services && services.length > 0) {
               // For authenticated users, create booking
               const bookingPayload = {
                 customer_id: user?.id,
                 service_id: services[0].id,
                 scheduled_date: formData.selectedDate,
                 scheduled_start: formData.selectedTime,
-                location_notes: formData.locationNotes || formData.address,
+                location_notes: formData.address,
               };
 
               const { data: bookingData, error: bookingError } = await supabase.functions.invoke(
@@ -342,8 +343,8 @@ export const PaymentAuthorizationForm = ({
           } else {
             // For guest bookings, get guest info from formData or props
             paymentRequestBody.guest_customer_info = {
-              email: customerEmail || formData?.email,
-              name: customerName || formData?.name || formData?.fullName,
+              email: customerEmail || formData?.customerEmail,
+              name: customerName || formData?.customerName,
             };
           }
           
