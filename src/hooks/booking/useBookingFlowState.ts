@@ -24,18 +24,9 @@ export const useBookingFlowState = (selectedServices: ServiceItem[] = []) => {
     }
   }, [bookingOperations.showSuccess]);
 
-  const handleBookingSubmit = async () => {
-    const bookingId = await bookingOperations.createInitialBooking(formState.services, formState.formData);
-    if (bookingId) {
-      formState.setCurrentStep(4);
-    }
-    return bookingId;
-  };
-
   return {
     ...formState,
     ...workerAvailability,
-    ...bookingOperations,
-    handleBookingSubmit
+    ...bookingOperations
   };
 };
