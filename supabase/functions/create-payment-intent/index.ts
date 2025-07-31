@@ -1,7 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { mapStripeStatus } from "../shared/status-mapping.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,6 +11,27 @@ const corsHeaders = {
 const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
   console.log(`[CREATE-PAYMENT-INTENT] ${step}${detailsStr}`);
+};
+
+// Simple status mapping function
+const mapStripeStatus = (stripeStatus: string) => {
+  switch (stripeStatus) {
+    case 'requires_payment_method':
+    case 'requires_confirmation':
+    case 'requires_action':
+      return { payment_status: 'pending' };
+    case 'processing':
+      return { payment_status: 'pending' };
+    case 'requires_capture':
+      return { payment_status: 'authorized' };
+    case 'succeeded':
+      return { payment_status: 'completed' };
+    case 'canceled':
+    case 'cancelled':
+      return { payment_status: 'failed' };
+    default:
+      return { payment_status: 'failed' };
+  }
 };
 
 // Utility function to validate UUID
@@ -25,11 +45,12 @@ serve(async (req) => {
   
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    logStep("CORS preflight request handled");
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    logStep("Parsing request body");
+    logStep("Function started - parsing request body");
     let body;
     try {
       body = await req.json();
@@ -38,6 +59,7 @@ serve(async (req) => {
       logStep("JSON parsing failed", { error: parseError instanceof Error ? parseError.message : parseError });
       throw new Error(`Invalid JSON in request body: ${parseError instanceof Error ? parseError.message : parseError}`);
     }
+    
     const {
       amount,
       currency,
@@ -187,8 +209,7 @@ serve(async (req) => {
     const statusMapping = mapStripeStatus(paymentIntent.status);
     logStep("Status mapping result", { 
       stripeStatus: paymentIntent.status, 
-      mappedPaymentStatus: statusMapping.payment_status,
-      mappedInternalStatus: statusMapping.internal_status 
+      mappedPaymentStatus: statusMapping.payment_status
     });
 
     // Ensure status is valid for payment_status enum - defensive coding
@@ -208,7 +229,6 @@ serve(async (req) => {
     logStep("Creating transaction record", { 
       amount, 
       paymentIntentId: paymentIntent.id,
-      originalMappedStatus: statusMapping.payment_status,
       finalStatus: finalStatus,
       is_guest: !user_id,
       booking_id: booking_id || null
@@ -261,7 +281,7 @@ serve(async (req) => {
         .update({
           payment_intent_id: paymentIntent.id,
           status: 'authorized',
-          payment_status: statusMapping.payment_status
+          payment_status: finalStatus
         })
         .eq('id', booking_id);
 
