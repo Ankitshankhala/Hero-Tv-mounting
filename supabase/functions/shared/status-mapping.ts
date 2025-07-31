@@ -2,9 +2,9 @@
 // This ensures consistency across all edge functions
 
 export interface StatusMapping {
-  internal_status: 'pending' | 'authorized' | 'completed' | 'failed';
-  payment_status: 'pending' | 'authorized' | 'completed' | 'failed';
-  booking_status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'failed';
+  internal_status: 'pending' | 'authorized' | 'completed' | 'failed' | 'captured';
+  payment_status: 'pending' | 'authorized' | 'completed' | 'failed' | 'captured' | 'cancelled';
+  booking_status: 'pending' | 'payment_pending' | 'payment_authorized' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'failed';
   user_message: string;
   action_required: boolean;
 }
@@ -35,15 +35,15 @@ export const mapStripeStatus = (stripeStatus: string, context: 'payment_intent' 
       return {
         internal_status: 'authorized',
         payment_status: 'authorized',
-        booking_status: 'confirmed',
+        booking_status: 'payment_authorized',
         user_message: 'Payment authorized successfully - booking confirmed',
         action_required: false
       };
 
     case 'succeeded':
       return {
-        internal_status: 'completed',
-        payment_status: 'completed',
+        internal_status: 'captured',
+        payment_status: 'captured',
         booking_status: 'completed',
         user_message: 'Payment completed successfully',
         action_required: false
@@ -95,6 +95,7 @@ export const getStatusForFrontend = (
 
   switch (primaryStatus) {
     case 'pending':
+    case 'payment_pending':
       return {
         display_status: 'Payment Pending',
         status_color: 'yellow',
@@ -103,6 +104,7 @@ export const getStatusForFrontend = (
       };
 
     case 'authorized':
+    case 'payment_authorized':
       return {
         display_status: 'Booking Confirmed',
         status_color: 'green',
@@ -111,6 +113,7 @@ export const getStatusForFrontend = (
       };
 
     case 'completed':
+    case 'captured':
       return {
         display_status: 'Payment Complete',
         status_color: 'green',
