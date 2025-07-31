@@ -87,3 +87,6 @@ verify_jwt = false
 
 [functions.debug-resend]
 verify_jwt = false
+
+[functions.simple-email-test]
+verify_jwt = false
