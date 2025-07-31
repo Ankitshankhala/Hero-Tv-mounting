@@ -83,7 +83,7 @@ export const PaymentAuthorizationCard = ({
       // Create payment intent with manual capture using Supabase function directly
       const { data, error: intentError } = await supabase.functions.invoke('create-payment-intent', {
         body: {
-          amount: amount * 100, // Convert to cents
+          amount: amount, // Pass amount in dollars, edge function will convert to cents
           currency: 'usd',
           booking_id: bookingId,
           idempotency_key: crypto.randomUUID(),

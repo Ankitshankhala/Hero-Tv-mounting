@@ -106,7 +106,7 @@ export const SimplePaymentAuthorizationForm = ({
         'create-payment-intent',
         {
           body: {
-            amount,
+            amount, // Pass amount in dollars, edge function will convert to cents
             currency: 'usd',
             idempotency_key: idempotencyKey,
             user_id: user?.id,
