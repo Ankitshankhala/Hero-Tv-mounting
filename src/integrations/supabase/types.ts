@@ -1185,6 +1185,26 @@ export type Database = {
         Args: { scheduled_date: string; scheduled_start: string }
         Returns: string
       }
+      check_booking_inconsistencies: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          issue_type: string
+          booking_id: string
+          current_status: string
+          recommended_action: string
+          details: string
+        }[]
+      }
+      cleanup_booking_inconsistencies: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          cleanup_type: string
+          booking_id: string
+          old_status: string
+          new_status: string
+          description: string
+        }[]
+      }
       cleanup_expired_idempotency_records: {
         Args: Record<PropertyKey, never>
         Returns: number
