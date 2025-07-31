@@ -177,7 +177,7 @@ export const PaymentAuthorizationForm = ({
           }
 
           console.log('Transaction status updated to authorized for existing booking');
-          onAuthorizationSuccess(bookingId);
+          onAuthorizationSuccess(intentData.payment_intent_id);
         } catch (error) {
           console.error('Error updating transaction status:', error);
           toast({ title: 'Error', description: 'Payment authorized but failed to update transaction status', variant: 'destructive' });
