@@ -78,7 +78,7 @@ serve(async (req) => {
       const { error: updateError } = await supabase
         .from('bookings')
         .update({ 
-          status: 'payment_authorized',
+          status: 'confirmed',
           payment_status: 'authorized'
         })
         .eq('id', booking.id);
@@ -86,8 +86,8 @@ serve(async (req) => {
       if (updateError) {
         logStep('Failed to update booking status', { error: updateError });
       } else {
-        logStep('Booking status updated to payment_authorized');
-        booking.status = 'payment_authorized';
+        logStep('Booking status updated to confirmed');
+        booking.status = 'confirmed';
         booking.payment_status = 'authorized';
       }
 

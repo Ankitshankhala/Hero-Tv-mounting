@@ -35,7 +35,7 @@ export const mapStripeStatus = (stripeStatus: string, context: 'payment_intent' 
       return {
         internal_status: 'authorized',
         payment_status: 'authorized',
-        booking_status: 'payment_authorized',
+        booking_status: 'confirmed',
         user_message: 'Payment authorized successfully - booking confirmed',
         action_required: false
       };
