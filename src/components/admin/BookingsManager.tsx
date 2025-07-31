@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,72 +9,61 @@ import { BookingTable } from './BookingTable';
 import { CreateBookingModal } from './CreateBookingModal';
 import { useBookingManager } from '@/hooks/useBookingManager';
 import { AuthGuard } from '@/components/AuthGuard';
-
 export const BookingsManager = () => {
   const [filteredBookings, setFilteredBookings] = useState([]);
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterRegion, setFilterRegion] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const { user } = useAuth();
+  const {
+    user
+  } = useAuth();
 
   // Use our enhanced booking manager hook
-  const { bookings, loading, handleBookingUpdate, fetchBookings } = useBookingManager();
+  const {
+    bookings,
+    loading,
+    handleBookingUpdate,
+    fetchBookings
+  } = useBookingManager();
 
   // Set up real-time subscriptions for admin with enhanced callback
   const handleRealtimeUpdate = React.useCallback((updatedBooking: any) => {
     console.log('Real-time booking update received in BookingsManager:', updatedBooking);
-    
+
     // Use the enhanced update handler that enriches data
     handleBookingUpdate(updatedBooking);
   }, [handleBookingUpdate]);
-
-  const { isConnected } = useRealtimeBookings({
+  const {
+    isConnected
+  } = useRealtimeBookings({
     userId: user?.id,
     userRole: 'admin',
     onBookingUpdate: handleRealtimeUpdate
   });
-
   useEffect(() => {
     // Apply filters
     let filtered = bookings;
-
     if (filterStatus !== 'all') {
       filtered = filtered.filter(booking => booking.status === filterStatus);
     }
-
     if (filterRegion !== 'all') {
-      filtered = filtered.filter(booking => 
-        booking.customer?.region?.toLowerCase() === filterRegion.toLowerCase()
-      );
+      filtered = filtered.filter(booking => booking.customer?.region?.toLowerCase() === filterRegion.toLowerCase());
     }
-
     if (searchTerm) {
-      filtered = filtered.filter(booking =>
-        booking.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        booking.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        booking.services?.some(service => 
-          service.name?.toLowerCase().includes(searchTerm.toLowerCase())
-        ) ||
-        booking.worker?.name?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+      filtered = filtered.filter(booking => booking.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) || booking.id.toLowerCase().includes(searchTerm.toLowerCase()) || booking.services?.some(service => service.name?.toLowerCase().includes(searchTerm.toLowerCase())) || booking.worker?.name?.toLowerCase().includes(searchTerm.toLowerCase()));
     }
-
     setFilteredBookings(filtered);
   }, [bookings, filterStatus, filterRegion, searchTerm]);
-
   const handleBookingCreated = () => {
     console.log('Booking created, refreshing list');
     fetchBookings();
   };
-
   const handleBookingUpdated = () => {
     console.log('Booking updated from BookingTable, refreshing list');
     fetchBookings();
   };
-
-  return (
-    <AuthGuard allowedRoles={['admin']}>
+  return <AuthGuard allowedRoles={['admin']}>
       <div className="space-y-6">
         <Card>
           <CardHeader>
@@ -85,54 +73,25 @@ export const BookingsManager = () => {
                 <span>Bookings Management</span>
               </CardTitle>
               <div className="flex items-center space-x-4">
-                <Button
-                  onClick={() => setShowCreateModal(true)}
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Booking
-                </Button>
-                {isConnected && (
-                  <span className="text-sm text-green-600">● Live updates enabled</span>
-                )}
+                
+                {isConnected && <span className="text-sm text-green-600">● Live updates enabled</span>}
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            {loading ? (
-              <div className="flex items-center justify-center p-8">
+            {loading ? <div className="flex items-center justify-center p-8">
                 <div className="text-gray-600">Loading bookings...</div>
-              </div>
-            ) : (
-              <>
-                <BookingFilters
-                  searchTerm={searchTerm}
-                  filterStatus={filterStatus}
-                  filterRegion={filterRegion}
-                  onSearchChange={setSearchTerm}
-                  onStatusChange={setFilterStatus}
-                  onRegionChange={setFilterRegion}
-                />
+              </div> : <>
+                <BookingFilters searchTerm={searchTerm} filterStatus={filterStatus} filterRegion={filterRegion} onSearchChange={setSearchTerm} onStatusChange={setFilterStatus} onRegionChange={setFilterRegion} />
 
-                <BookingTable 
-                  bookings={filteredBookings} 
-                  onBookingUpdate={handleBookingUpdated}
-                />
-              </>
-            )}
+                <BookingTable bookings={filteredBookings} onBookingUpdate={handleBookingUpdated} />
+              </>}
           </CardContent>
         </Card>
 
         {/* Create Booking Modal */}
-        {showCreateModal && (
-          <CreateBookingModal
-            onClose={() => setShowCreateModal(false)}
-            onBookingCreated={handleBookingCreated}
-          />
-        )}
+        {showCreateModal && <CreateBookingModal onClose={() => setShowCreateModal(false)} onBookingCreated={handleBookingCreated} />}
       </div>
-    </AuthGuard>
-  );
+    </AuthGuard>;
 };
-
 export default BookingsManager;
