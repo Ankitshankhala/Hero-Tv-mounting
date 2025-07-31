@@ -87,23 +87,16 @@ serve(async (req) => {
     logStep("Transaction status updated successfully", {
       transaction_id: transaction.id,
       old_status: transaction.status,
-      new_status: status
+      new_status: status,
+      booking_id: transaction.booking_id
     });
 
-    // If payment has been authorized, update related booking status
-    if (status === 'authorized' && transaction.booking_id) {
-      logStep("Updating booking status to payment_authorized", { booking_id: transaction.booking_id });
-      const { error: bookingUpdateError } = await supabaseClient
-        .from('bookings')
-        .update({ status: 'payment_authorized' })
-        .eq('id', transaction.booking_id);
-
-      if (bookingUpdateError) {
-        logStep("Warning: failed to update booking status", { error: bookingUpdateError.message });
-      } else {
-        logStep("Booking status updated", { booking_id: transaction.booking_id });
-      }
-    }
+    // Note: Booking status updates are handled automatically by the update_booking_on_payment_auth trigger
+    logStep("Transaction update complete - booking status will be updated by database trigger", {
+      transaction_id: transaction.id,
+      booking_id: transaction.booking_id,
+      new_transaction_status: status
+    });
 
     return new Response(
       JSON.stringify({ 
