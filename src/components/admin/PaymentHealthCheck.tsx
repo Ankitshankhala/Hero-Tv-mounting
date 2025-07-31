@@ -85,7 +85,6 @@ export const PaymentHealthCheck = () => {
             'pending': ['pending'],
             'authorized': ['authorized'],
             'completed': ['completed'],
-            'captured': ['completed'],
             'failed': ['failed'],
           };
 

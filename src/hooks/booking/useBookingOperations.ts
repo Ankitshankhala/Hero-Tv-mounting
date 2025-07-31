@@ -38,7 +38,7 @@ export interface AdminBookingData {
   scheduled_date: string;
   scheduled_start: string;
   location_notes?: string;
-  status?: 'pending' | 'confirmed' | 'payment_pending' | 'authorized';
+  status?: 'pending' | 'confirmed' | 'payment_pending' | 'payment_authorized';
   payment_status?: string;
   requires_manual_payment?: boolean;
   worker_id?: string | null;

@@ -64,8 +64,7 @@ export const BookingTable = React.memo(({ bookings, onBookingUpdate }: BookingTa
     
     const statusConfig = {
       pending: { label: 'Payment Pending', variant: 'secondary' as const },
-      authorized: { label: 'Payment Authorized', variant: 'default' as const },
-      captured: { label: 'Payment Captured', variant: 'default' as const },
+      payment_authorized: { label: 'Payment Authorized', variant: 'default' as const },
       failed: { label: 'Payment Failed', variant: 'destructive' as const },
       cancelled: { label: 'Payment Cancelled', variant: 'destructive' as const },
     };

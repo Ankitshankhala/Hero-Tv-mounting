@@ -45,11 +45,11 @@ export const performBookingHealthCheck = async (
     }
 
     // Validate status consistency
-    if (booking.payment_intent_id && booking.status !== 'authorized' && booking.status !== 'payment_pending') {
+    if (booking.payment_intent_id && booking.status !== 'payment_authorized' && booking.status !== 'payment_pending') {
       issues.push(`Booking has payment intent but invalid status: ${booking.status}`);
     }
 
-    if (booking.status === 'authorized' && !booking.payment_intent_id) {
+    if (booking.status === 'payment_authorized' && !booking.payment_intent_id) {
       issues.push(`Booking is authorized but missing payment intent ID`);
     }
 
