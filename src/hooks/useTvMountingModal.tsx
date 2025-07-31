@@ -156,17 +156,17 @@ export const useTvMountingModal = (services: PublicService[]) => {
 
     const soundbarCount = tvConfigurations.filter(config => config.soundbar).length;
     if (soundbarCount > 0) {
-      // Find soundbar service or skip if not available
-      const soundbarService = services.find(s => s.name.includes('Sound') || s.name.includes('soundbar'));
+      // Find the specific Mount Soundbar service
+      const soundbarService = services.find(s => s.name === 'Mount Soundbar');
       if (soundbarService?.id) {
         selectedServices.push({
           id: soundbarService.id,
           name: `Soundbar Mount${soundbarCount > 1 ? ` (${soundbarCount} soundbars)` : ''}`,
-          price: (soundbarService.base_price || 40) * soundbarCount,
+          price: soundbarService.base_price * soundbarCount,
           quantity: 1
         });
       } else {
-        console.warn('⚠️ Soundbar service not found in database, skipping');
+        console.warn('⚠️ Mount Soundbar service not found in database, skipping');
       }
     }
 
