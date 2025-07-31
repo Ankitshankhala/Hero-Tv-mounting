@@ -8,15 +8,12 @@ import { useToast } from '@/hooks/use-toast';
 import { useBookingOperations } from '@/hooks/booking/useBookingOperations';
 
 interface PaymentStepProps {
-  bookingId?: string;
+  bookingId: string;
   totalPrice: number;
   customerEmail: string;
   customerName: string;
-  services?: any[];
-  formData?: any;
   onPaymentAuthorized: (paymentIntentId?: string) => void;
   onBack: () => void;
-  requireAuth?: boolean;
 }
 
 export const PaymentStep = ({
@@ -24,11 +21,8 @@ export const PaymentStep = ({
   totalPrice,
   customerEmail,
   customerName,
-  services,
-  formData,
   onPaymentAuthorized,
-  onBack,
-  requireAuth = false
+  onBack
 }: PaymentStepProps) => {
   const [authorizationError, setAuthorizationError] = useState('');
   const [isValidatingBooking, setIsValidatingBooking] = useState(true);
@@ -37,7 +31,7 @@ export const PaymentStep = ({
   // Validate required props
   useEffect(() => {
     const validateProps = async () => {
-      console.log('🔄 Validating payment step props:', { totalPrice, customerEmail, customerName, hasServices: services?.length });
+      console.log('🔄 Validating payment step props:', { totalPrice, customerEmail, customerName, bookingId });
       
       if (!totalPrice || totalPrice <= 0) {
         console.error('PaymentStep: Invalid total price:', totalPrice);
@@ -53,10 +47,10 @@ export const PaymentStep = ({
         return;
       }
 
-      // For new flow with bookingId, services validation is not needed
-      if (!bookingId && (!services || services.length === 0)) {
-        console.error('PaymentStep: No services selected and no booking ID');
-        setAuthorizationError('No services selected and no booking created. Please go back and select services.');
+      // Booking ID is now required
+      if (!bookingId) {
+        console.error('PaymentStep: Missing booking ID');
+        setAuthorizationError('Booking must be created before payment. Please go back and try again.');
         setIsValidatingBooking(false);
         return;
       }
@@ -67,7 +61,7 @@ export const PaymentStep = ({
     };
 
     validateProps();
-  }, [totalPrice, customerEmail, customerName, services]);
+  }, [totalPrice, customerEmail, customerName, bookingId]);
 
   const handleAuthorizationSuccess = async (paymentIntentIdOrBookingId?: string) => {
     console.log('✅ Payment authorization successful, payment intent or booking ID:', paymentIntentIdOrBookingId);
@@ -113,7 +107,7 @@ export const PaymentStep = ({
   }
 
   // Show error if we have validation issues
-  if (authorizationError && (!totalPrice || !customerEmail || !customerName || (!bookingId && !services?.length))) {
+  if (authorizationError && (!totalPrice || !customerEmail || !customerName || !bookingId)) {
     return (
       <div className="space-y-6">
         <Alert variant="destructive">
@@ -131,10 +125,7 @@ export const PaymentStep = ({
       <div className="text-center">
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Payment Authorization</h2>
         <p className="text-gray-600">
-          {requireAuth 
-            ? `Authorize your payment method. You will be charged $${totalPrice.toFixed(2)} after service completion.`
-            : `Authorize your payment method as a guest. You will be charged $${totalPrice.toFixed(2)} after service completion. No account required.`
-          }
+          Authorize your payment method. You will be charged $${totalPrice.toFixed(2)} after service completion.
         </p>
       </div>
 
@@ -144,28 +135,14 @@ export const PaymentStep = ({
         </Alert>
       )}
 
-      {bookingId ? (
-        <SimplePaymentAuthorizationForm
-          amount={totalPrice}
-          bookingId={bookingId}
-          customerEmail={customerEmail}
-          customerName={customerName}
-          onAuthorizationSuccess={handleAuthorizationSuccess}
-          onAuthorizationFailure={handleAuthorizationFailure}
-        />
-      ) : (
-        <PaymentAuthorizationForm
-          amount={totalPrice}
-          bookingId={bookingId}
-          customerEmail={customerEmail}
-          customerName={customerName}
-          services={services}
-          formData={formData}
-          onAuthorizationSuccess={handleAuthorizationSuccess}
-          onAuthorizationFailure={handleAuthorizationFailure}
-          requireAuth={requireAuth}
-        />
-      )}
+      <SimplePaymentAuthorizationForm
+        amount={totalPrice}
+        bookingId={bookingId!}
+        customerEmail={customerEmail}
+        customerName={customerName}
+        onAuthorizationSuccess={handleAuthorizationSuccess}
+        onAuthorizationFailure={handleAuthorizationFailure}
+      />
 
       <div className="flex space-x-4">
         <Button 

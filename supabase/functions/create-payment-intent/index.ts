@@ -57,7 +57,7 @@ serve(async (req) => {
       throw new Error('Missing currency');
     }
     if (!booking_id) {
-      throw new Error('Missing booking_id');
+      throw new Error('Missing booking_id - booking must be created before payment intent');
     }
 
     if (typeof amount !== 'number' || amount <= 0) {

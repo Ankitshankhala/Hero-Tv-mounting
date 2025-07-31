@@ -5,6 +5,7 @@ import { CreditCard, Shield, Clock } from 'lucide-react';
 import { useStripePayment } from '@/hooks/useStripePayment';
 import { useToast } from '@/hooks/use-toast';
 import { StripeCardElement } from '@/components/StripeCardElement';
+import { supabase } from '@/integrations/supabase/client';
 
 interface PaymentAuthorizationCardProps {
   bookingId: string;
@@ -26,7 +27,7 @@ export const PaymentAuthorizationCard = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [isCardReady, setIsCardReady] = useState(false);
   const [cardError, setCardError] = useState('');
-  const { createPaymentIntent, confirmCardPayment } = useStripePayment();
+  const { confirmCardPayment } = useStripePayment();
   const { toast } = useToast();
   
   const stripeRef = useRef<any>(null);
@@ -79,21 +80,29 @@ export const PaymentAuthorizationCard = ({
       
       console.log('Starting payment authorization process...');
       
-      // Create payment intent with manual capture
-      const { clientSecret, paymentIntentId } = await createPaymentIntent({
-        amount: amount * 100, // Convert to cents
-        customerEmail,
-        customerName,
-        bookingId,
-        captureMethod: 'manual'
+      // Create payment intent with manual capture using Supabase function directly
+      const { data, error: intentError } = await supabase.functions.invoke('create-payment-intent', {
+        body: {
+          amount: amount * 100, // Convert to cents
+          currency: 'usd',
+          booking_id: bookingId,
+          idempotency_key: crypto.randomUUID(),
+          user_id: null, // This is for customer dashboard use
+        }
       });
+
+      if (intentError || !data?.client_secret) {
+        throw new Error(intentError?.message || 'Failed to create payment intent');
+      }
+
+      const { client_secret: clientSecret, payment_intent_id: paymentIntentId } = data;
 
       if (!clientSecret) {
         throw new Error('Failed to create payment intent');
       }
 
       // Confirm the payment authorization with the real card element
-      const { paymentIntent, error } = await stripeRef.current.confirmCardPayment(clientSecret, {
+      const { paymentIntent, error: stripeError } = await stripeRef.current.confirmCardPayment(clientSecret, {
         payment_method: {
           card: cardElementRef.current,
           billing_details: {
@@ -103,8 +112,8 @@ export const PaymentAuthorizationCard = ({
         }
       });
 
-      if (error) {
-        throw new Error(error.message);
+      if (stripeError) {
+        throw new Error(stripeError.message);
       }
 
       if (paymentIntent?.status === 'requires_capture') {

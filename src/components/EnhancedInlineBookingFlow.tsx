@@ -319,11 +319,9 @@ export const EnhancedInlineBookingFlow = ({
                   {isMinimumCartMet ? (
                     <PaymentAuthorizationForm
                       amount={getTotalPrice()}
-                      bookingId={bookingId}
-                      customerEmail={formData.customerEmail || user?.email}
+                      bookingId={bookingId!}
+                      customerEmail={formData.customerEmail || user?.email || ''}
                       customerName={formData.customerName}
-                      services={services}
-                      formData={formData}
                       onAuthorizationSuccess={handlePaymentAuthorizationSuccess}
                       onAuthorizationFailure={handlePaymentAuthorizationFailure}
                     />

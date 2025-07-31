@@ -72,32 +72,6 @@ export const useStripePayment = () => {
     }
   };
 
-  const createPaymentIntent = async (paymentData: {
-    amount: number;
-    customerEmail: string;
-    customerName: string;
-    bookingId?: string;
-    captureMethod?: 'automatic' | 'manual';
-  }) => {
-    setProcessing(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('create-payment-intent', {
-        body: {
-          ...paymentData,
-          captureMethod: paymentData.captureMethod || 'manual'
-        }
-      });
-
-      if (error) throw error;
-      
-      return data;
-    } catch (error) {
-      console.error('Error creating payment intent:', error);
-      throw error;
-    } finally {
-      setProcessing(false);
-    }
-  };
 
   const confirmCardPayment = async (clientSecret: string, paymentMethodData?: any) => {
     const stripe = await stripePromise;
@@ -136,7 +110,6 @@ export const useStripePayment = () => {
 
   return {
     createPaymentLink,
-    createPaymentIntent,
     confirmCardPayment,
     processing
   };

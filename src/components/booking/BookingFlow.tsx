@@ -143,15 +143,12 @@ export const BookingFlow = ({ onClose, initialServices = [] }: BookingFlowProps)
             
             {currentStep === 4 && canProceedToPayment && (
               <PaymentStep 
-                bookingId={bookingId}
+                bookingId={bookingId!}
                 totalPrice={totalPrice}
                 customerEmail={formData.customerEmail}
                 customerName={formData.customerName}
-                services={services}
-                formData={formData}
                 onPaymentAuthorized={handlePaymentAuthorized}
                 onBack={() => setCurrentStep(3)}
-                requireAuth={false}
               />
             )}
 
