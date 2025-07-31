@@ -55,7 +55,7 @@ export const EnhancedInlineBookingFlow = ({
     successAnimation,
     setSuccessAnimation,
     timeSlots,
-    handleBookingSubmit,
+    createInitialBooking,
     getTotalPrice,
     updateServiceQuantity,
     removeService,
@@ -119,7 +119,7 @@ export const EnhancedInlineBookingFlow = ({
     try {
       // Create booking with payment_pending status
       optimizedLog('🚀 Creating booking and proceeding to payment...');
-      const createdBookingId = await handleBookingSubmit();
+      const createdBookingId = await createInitialBooking(services, formData);
       
       if (createdBookingId) {
         setBookingId(createdBookingId);

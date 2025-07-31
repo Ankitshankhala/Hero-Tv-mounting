@@ -25,7 +25,7 @@ export const useBookingFlowState = (selectedServices: ServiceItem[] = []) => {
   }, [bookingOperations.showSuccess]);
 
   const handleBookingSubmit = async () => {
-    const bookingId = await bookingOperations.handleBookingSubmit(formState.services, formState.formData);
+    const bookingId = await bookingOperations.createInitialBooking(formState.services, formState.formData);
     if (bookingId) {
       formState.setCurrentStep(4);
     }

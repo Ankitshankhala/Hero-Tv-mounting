@@ -33,31 +33,7 @@ export const monitoredOperation = async <T>(
   }
 };
 
-// Critical system operations with built-in monitoring
-export const monitoredBookingCreation = (bookingData: any) => 
-  monitoredOperation('booking-creation', () => createBookingWithMonitoring(bookingData));
-
-export const monitoredPaymentProcessing = (paymentData: any) => 
-  monitoredOperation('payment-processing', () => processPaymentWithMonitoring(paymentData));
-
-export const monitoredWorkerAssignment = (bookingId: string) => 
-  monitoredOperation('worker-assignment', () => assignWorkerWithMonitoring(bookingId));
-
-// Implementation stubs - these will wrap existing functions
-const createBookingWithMonitoring = async (bookingData: any) => {
-  // This will be implemented to wrap existing booking creation
-  throw new Error('Implementation pending');
-};
-
-const processPaymentWithMonitoring = async (paymentData: any) => {
-  // This will be implemented to wrap existing payment processing  
-  throw new Error('Implementation pending');
-};
-
-const assignWorkerWithMonitoring = async (bookingId: string) => {
-  // This will be implemented to wrap existing worker assignment
-  throw new Error('Implementation pending');
-};
+// Generic monitoring operations are provided by performanceOptimizer.ts
 
 // Global console replacement for production builds
 if (process.env.NODE_ENV === 'production') {

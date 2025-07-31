@@ -484,11 +484,7 @@ export const useBookingOperations = () => {
     }
   };
 
-  // Legacy method for backward compatibility
-  const handleBookingSubmit = async (services: ServiceItem[], formData: FormData, paymentData?: { payment_intent_id?: string; payment_status?: string; amount?: number }) => {
-    // This now just calls the createInitialBooking method
-    return await createInitialBooking(services, formData);
-  };
+  // No legacy wrapper methods needed - use createInitialBooking directly
 
   return {
     loading,
@@ -501,7 +497,6 @@ export const useBookingOperations = () => {
     setPaymentCompleted,
     successAnimation,
     setSuccessAnimation,
-    handleBookingSubmit,
     createInitialBooking,
     confirmBookingAfterPayment,
     validateMinimumCart,
