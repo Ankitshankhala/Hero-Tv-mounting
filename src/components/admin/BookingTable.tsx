@@ -256,7 +256,7 @@ export const BookingTable = React.memo(({
               <TableHead>Location</TableHead>
               <TableHead>Worker</TableHead>
               <TableHead>Status</TableHead>
-              
+              <TableHead>Payment Status</TableHead>
               <TableHead>Price</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
