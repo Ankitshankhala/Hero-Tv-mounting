@@ -16,7 +16,13 @@ serve(async (req) => {
   try {
     const { booking_id: bookingId } = await req.json();
 
+    console.log('=== CAPTURE PAYMENT DEBUG ===');
     console.log('Capturing payment for booking:', bookingId);
+
+    if (!bookingId) {
+      console.error('No booking ID provided');
+      throw new Error('Booking ID is required');
+    }
 
     // Initialize Supabase client with service role
     const supabaseServiceRole = createClient(
@@ -25,6 +31,7 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
+    console.log('Fetching booking details...');
     // Get booking details
     const { data: booking, error: bookingError } = await supabaseServiceRole
       .from('bookings')
@@ -32,31 +39,60 @@ serve(async (req) => {
       .eq('id', bookingId)
       .single();
 
-    if (bookingError || !booking) {
+    console.log('Booking query result:', { booking, bookingError });
+
+    if (bookingError) {
+      console.error('Booking error:', bookingError);
+      throw new Error(`Failed to fetch booking: ${bookingError.message}`);
+    }
+    
+    if (!booking) {
+      console.error('No booking found for ID:', bookingId);
       throw new Error('Booking not found');
     }
 
+    console.log('Booking details:', { 
+      payment_intent_id: booking.payment_intent_id, 
+      payment_status: booking.payment_status 
+    });
+
     if (!booking.payment_intent_id) {
+      console.error('No payment intent found for booking');
       throw new Error('No payment intent found for this booking');
     }
 
     // Initialize Stripe
-    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
+    console.log('Initializing Stripe...');
+    const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
+    if (!stripeKey) {
+      console.error('No Stripe secret key found');
+      throw new Error('Stripe secret key not configured');
+    }
+
+    const stripe = new Stripe(stripeKey, {
       apiVersion: '2023-10-16',
     });
 
+    console.log('Attempting to capture payment intent:', booking.payment_intent_id);
+    
     // Capture the payment intent
     const paymentIntent = await stripe.paymentIntents.capture(
       booking.payment_intent_id
     );
 
-    console.log('Payment capture result:', paymentIntent.status);
+    console.log('Payment capture result:', {
+      id: paymentIntent.id,
+      status: paymentIntent.status,
+      amount: paymentIntent.amount
+    });
 
     // Map Stripe status to internal status
     const statusMapping = mapStripeStatus(paymentIntent.status, 'charge');
     console.log('Status mapping:', statusMapping);
 
     if (paymentIntent.status === 'succeeded') {
+      console.log('Payment succeeded, updating booking status...');
+      
       // Update booking status using mapped statuses
       const { error: updateError } = await supabaseServiceRole
         .from('bookings')
@@ -71,6 +107,8 @@ serve(async (req) => {
         throw updateError;
       }
 
+      console.log('Booking updated successfully, updating transaction...');
+
       // Update transaction record with proper status and create a capture transaction
       const { error: transactionError } = await supabaseServiceRole
         .from('transactions')
@@ -82,6 +120,8 @@ serve(async (req) => {
       if (transactionError) {
         console.error('Failed to update transaction:', transactionError);
       }
+
+      console.log('Creating capture transaction record...');
 
       // Create a separate capture transaction record
       const { error: captureTransactionError } = await supabaseServiceRole
@@ -100,6 +140,8 @@ serve(async (req) => {
         console.error('Failed to create capture transaction:', captureTransactionError);
       }
 
+      console.log('Payment capture completed successfully');
+
       return new Response(JSON.stringify({
         success: true,
         payment_status: 'captured',
@@ -110,6 +152,8 @@ serve(async (req) => {
       });
 
     } else {
+      console.log('Payment capture failed with status:', paymentIntent.status);
+      
       // Capture failed
       const { error: updateError } = await supabaseServiceRole
         .from('bookings')
@@ -126,11 +170,19 @@ serve(async (req) => {
     }
 
   } catch (error) {
-    console.error('Error capturing payment:', error);
+    console.error('=== CAPTURE PAYMENT ERROR ===');
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      type: error.type,
+      code: error.code
+    });
     
     // Handle specific Stripe errors
     let errorMessage = 'Payment capture failed';
     if (error.type && error.type.includes('Stripe')) {
+      errorMessage = error.message;
+    } else if (error.message) {
       errorMessage = error.message;
     }
 
