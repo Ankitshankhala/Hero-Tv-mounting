@@ -1271,13 +1271,12 @@ export type Database = {
       booking_status:
         | "pending"
         | "payment_pending"
+        | "payment_authorized"
         | "confirmed"
         | "in_progress"
         | "completed"
         | "cancelled"
-        | "authorized"
-        | "captured"
-        | "payment_authorized"
+        | "failed"
       day_of_week:
         | "Sunday"
         | "Monday"
@@ -1426,13 +1425,12 @@ export const Constants = {
       booking_status: [
         "pending",
         "payment_pending",
+        "payment_authorized",
         "confirmed",
         "in_progress",
         "completed",
         "cancelled",
-        "authorized",
-        "captured",
-        "payment_authorized",
+        "failed",
       ],
       day_of_week: [
         "Sunday",
