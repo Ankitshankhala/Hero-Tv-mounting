@@ -191,19 +191,32 @@ serve(async (req) => {
       mappedInternalStatus: statusMapping.internal_status 
     });
 
+    // Ensure status is valid for payment_status enum - defensive coding
+    let finalStatus = statusMapping.payment_status;
+    if (!['pending', 'authorized', 'completed', 'failed'].includes(finalStatus)) {
+      logStep("Invalid status detected, converting to failed", { originalStatus: finalStatus });
+      finalStatus = 'failed';
+    }
+    
+    // Specifically handle cancelled status
+    if (finalStatus === 'cancelled') {
+      logStep("Converting cancelled to failed for enum compatibility");
+      finalStatus = 'failed';
+    }
+
     // Create transaction record (set booking_id if provided for booking-first flow)
     logStep("Creating transaction record", { 
       amount, 
       paymentIntentId: paymentIntent.id,
-      mappedPaymentStatus: statusMapping.payment_status,
-      mappedInternalStatus: statusMapping.internal_status,
+      originalMappedStatus: statusMapping.payment_status,
+      finalStatus: finalStatus,
       is_guest: !user_id,
       booking_id: booking_id || null
     });
     
     const transactionInsert: any = {
       amount: amount,
-      status: statusMapping.payment_status, // Use payment_status for database enum compatibility
+      status: finalStatus, // Use validated status for database enum compatibility
       payment_intent_id: paymentIntent.id,
       payment_method: 'card',
       transaction_type: 'authorization',
