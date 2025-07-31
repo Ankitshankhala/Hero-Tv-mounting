@@ -1,9 +1,9 @@
 
 // Stripe configuration with proper validation
 export const STRIPE_CONFIG = {
-  publishableKey: "pk_live_51RYKUCCrUPkotWKCM10E0EeqJ5j24WbloBt4CemrXYkJxsGUdS6Xxl5hsyh7UaIHBeI9nVtgqjmXI3sTD7xyvNnV00s1GO6it4",
-  isDevelopment: false,
-  isProduction: true
+  publishableKey: "pk_test_51RYKUCCrUPkotWKCCDqe3FdFeX0Ay28npIVh3AV978lOELL2UPADRzL2eUQcAlRtXFs2FCWwIm0ug7IHvIhKNUCh00ormaaPPo",
+  isDevelopment: true,
+  isProduction: false
 };
 
 // Log configuration for debugging
