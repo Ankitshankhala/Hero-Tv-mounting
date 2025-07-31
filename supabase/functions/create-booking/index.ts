@@ -7,16 +7,11 @@ const corsHeaders = {
 };
 
 // Enhanced logging function
-const logStep = (step: string, details?: any) => {
+const logStep = (step: string, details?: Record<string, unknown>) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
   console.log(`[CREATE-BOOKING] ${step}${detailsStr}`);
 };
 
-// Utility function to validate UUID
-const isValidUUID = (str: string): boolean => {
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(str);
-};
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -24,19 +19,26 @@ serve(async (req) => {
   }
 
   try {
-    const { 
-      transaction_id, 
-      booking_payload 
+    const {
+      user_id,
+      payment_intent_id,
+      booking_payload
     } = await req.json();
     
-    logStep("Function started", { 
-      transaction_id, 
-      booking_payload: !!booking_payload 
+    logStep("Function started", {
+      payment_intent_id,
+      booking_payload: !!booking_payload,
+      has_user: !!user_id
     });
 
+    // Reject authenticated bookings (guest only)
+    if (user_id) {
+      throw new Error('Authenticated bookings are not allowed');
+    }
+
     // Input validation
-    if (!transaction_id || !isValidUUID(transaction_id)) {
-      throw new Error('Invalid transaction_id: must be a valid UUID');
+    if (!payment_intent_id || typeof payment_intent_id !== 'string') {
+      throw new Error('payment_intent_id is required and must be a string');
     }
 
     if (!booking_payload || typeof booking_payload !== 'object') {
@@ -58,62 +60,36 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    // Step 1: Validate transaction exists and is in authorized state
-    logStep("Validating transaction", { transaction_id });
+    // Step 1: Find pending transaction for the payment intent
+    logStep("Looking up transaction", { payment_intent_id });
     const { data: transaction, error: transactionError } = await supabaseServiceRole
       .from('transactions')
-      .select('id, status, payment_intent_id, booking_id, amount, guest_customer_email')
-      .eq('id', transaction_id)
+      .select('id, status')
+      .eq('payment_intent_id', payment_intent_id)
+      .eq('status', 'pending')
       .single();
 
     if (transactionError || !transaction) {
       logStep("Transaction not found", { error: transactionError });
-      throw new Error('Transaction not found');
-    }
-
-    // Validate transaction is in authorized state and has no booking yet
-    if (transaction.status !== 'authorized') {
-      logStep("Transaction not authorized", { 
-        transaction_id, 
-        status: transaction.status 
+      return new Response(JSON.stringify({ error: 'Transaction not found' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 404
       });
-      throw new Error(`Transaction not authorized. Current status: ${transaction.status}`);
     }
 
-    if (transaction.booking_id !== null) {
-      logStep("Transaction already has booking", { 
-        transaction_id, 
-        existing_booking_id: transaction.booking_id 
-      });
-      throw new Error('Transaction already associated with a booking');
-    }
-
-    logStep("Transaction validation passed", { 
-      transaction_id, 
-      payment_intent_id: transaction.payment_intent_id,
-      amount: transaction.amount 
-    });
+    logStep("Transaction found", { transaction_id: transaction.id });
 
     // Step 2: Create the booking record
     logStep("Creating booking record", { booking_payload });
     
     const bookingInsert = {
       ...booking_payload,
-      status: 'authorized', // Booking is authorized since payment is authorized
-      payment_status: 'authorized',
-      payment_intent_id: transaction.payment_intent_id,
-      // Handle guest vs authenticated user
-      customer_id: booking_payload.customer_id || null,
-      guest_customer_info: booking_payload.guest_customer_info || null,
+      status: 'payment_pending',
+      payment_status: 'pending',
+      payment_intent_id,
+      customer_id: null,
     };
 
-    // For guest bookings, ensure we have the guest email from transaction
-    if (!bookingInsert.customer_id && transaction.guest_customer_email) {
-      if (!bookingInsert.guest_customer_info) {
-        bookingInsert.guest_customer_info = {};
-      }
-      bookingInsert.guest_customer_info.email = transaction.guest_customer_email;
-    }
 
     const { data: newBooking, error: bookingError } = await supabaseServiceRole
       .from('bookings')
@@ -134,11 +110,11 @@ serve(async (req) => {
     });
 
     // Step 3: Update transaction with booking_id
-    logStep("Updating transaction with booking_id", { transaction_id, booking_id: bookingId });
+    logStep("Updating transaction with booking_id", { transaction_id: transaction.id, booking_id: bookingId });
     const { error: updateError } = await supabaseServiceRole
       .from('transactions')
       .update({ booking_id: bookingId })
-      .eq('id', transaction_id);
+      .eq('id', transaction.id);
 
     if (updateError) {
       logStep("Failed to update transaction with booking_id", { error: updateError });
@@ -162,8 +138,8 @@ serve(async (req) => {
     const response = {
       success: true,
       booking_id: bookingId,
-      transaction_id: transaction_id,
-      payment_intent_id: transaction.payment_intent_id,
+      transaction_id: transaction.id,
+      payment_intent_id,
       status: newBooking.status,
       payment_status: newBooking.payment_status,
     };
@@ -181,12 +157,10 @@ serve(async (req) => {
     
     // Determine appropriate HTTP status code
     let statusCode = 500;
-    if (errorMessage.includes('Invalid transaction_id') || 
+    if (errorMessage.includes('payment_intent_id') ||
         errorMessage.includes('booking_payload') ||
-        errorMessage.includes('required') ||
-        errorMessage.includes('Transaction not found') ||
-        errorMessage.includes('Transaction not authorized') ||
-        errorMessage.includes('already associated')) {
+        errorMessage.includes('Authenticated bookings') ||
+        errorMessage.includes('required')) {
       statusCode = 400;
     }
 
