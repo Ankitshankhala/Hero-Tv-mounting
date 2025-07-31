@@ -13,53 +13,62 @@ const logStep = (step: string, details?: any) => {
   console.log(`[CREATE-PAYMENT-INTENT] ${step}${detailsStr}`);
 };
 
-// Enhanced status mapping function with defensive validation
-const mapStripeStatus = (stripeStatus: string): string => {
-  logStep("Mapping Stripe status", { inputStatus: stripeStatus, statusType: typeof stripeStatus });
+// Universal safe status function - ALWAYS use this before any database operation
+const ensureSafeStatus = (status: string, context: string = 'unknown'): string => {
+  logStep(`Validating status for ${context}`, { inputStatus: status, statusType: typeof status });
   
   // Normalize status to lowercase for case-insensitive matching
-  const normalizedStatus = String(stripeStatus).toLowerCase().trim();
+  const normalizedStatus = String(status).toLowerCase().trim();
   
-  let mappedStatus: string;
+  let safeStatus: string;
   
   switch (normalizedStatus) {
     case 'requires_payment_method':
     case 'requires_confirmation':
     case 'requires_action':
     case 'processing':
-      mappedStatus = 'pending';
+    case 'pending':
+      safeStatus = 'pending';
       break;
     case 'requires_capture':
-      mappedStatus = 'authorized';
+    case 'authorized':
+      safeStatus = 'authorized';
       break;
     case 'succeeded':
-      mappedStatus = 'completed';
+    case 'completed':
+      safeStatus = 'completed';
       break;
     case 'canceled':
     case 'cancelled':
     case 'failed':
-      mappedStatus = 'failed';
+    case 'payment_failed':
+      safeStatus = 'failed';
       break;
     default:
-      logStep("Unknown Stripe status, defaulting to failed", { unknownStatus: normalizedStatus });
-      mappedStatus = 'failed';
+      logStep(`Unknown status for ${context}, defaulting to failed`, { unknownStatus: normalizedStatus });
+      safeStatus = 'failed';
       break;
   }
   
-  // Final validation - ensure mapped status is valid for our enum
+  // Final validation - ensure status is valid for our enum
   const validStatuses = ['pending', 'authorized', 'completed', 'failed'];
-  if (!validStatuses.includes(mappedStatus)) {
-    logStep("Invalid mapped status detected, forcing to failed", { invalidStatus: mappedStatus });
-    mappedStatus = 'failed';
+  if (!validStatuses.includes(safeStatus)) {
+    logStep(`Invalid status detected for ${context}, forcing to failed`, { invalidStatus: safeStatus });
+    safeStatus = 'failed';
   }
   
-  logStep("Status mapping completed", { 
-    originalStatus: stripeStatus,
+  logStep(`Status validation completed for ${context}`, { 
+    originalStatus: status,
     normalizedStatus: normalizedStatus,
-    finalMappedStatus: mappedStatus 
+    finalSafeStatus: safeStatus 
   });
   
-  return mappedStatus;
+  return safeStatus;
+};
+
+// Enhanced status mapping function with defensive validation
+const mapStripeStatus = (stripeStatus: string): string => {
+  return ensureSafeStatus(stripeStatus, 'Stripe status mapping');
 };
 
 // Utility function to validate UUID
@@ -275,44 +284,17 @@ serve(async (req) => {
       });
     }
 
-    // Map Stripe status to internal status with enhanced validation
-    const finalStatus = mapStripeStatus(paymentIntent.status);
-    
-    // Additional defensive validation
-    const validStatuses = ['pending', 'authorized', 'completed', 'failed'];
-    if (!validStatuses.includes(finalStatus)) {
-      logStep("CRITICAL: Invalid status after mapping, forcing to failed", { 
-        finalStatus,
-        validStatuses,
-        originalStripeStatus: paymentIntent.status 
-      });
-      throw new Error(`Status validation failed: invalid status '${finalStatus}' for payment_status enum`);
-    }
+    // Use universal safe status validation for ALL database operations
+    const safeStatus = ensureSafeStatus(paymentIntent.status, 'transaction insert');
 
     // Create transaction record (set booking_id if provided for booking-first flow)
     logStep("Creating transaction record", { 
       amount, 
       paymentIntentId: paymentIntent.id,
-      finalStatus: finalStatus,
+      safeStatus: safeStatus,
       is_guest: !user_id,
       booking_id: booking_id || null
     });
-    
-    // Final status validation - ensure no invalid enum values reach the database
-    let safeStatus = finalStatus;
-    if (safeStatus === 'cancelled') {
-      logStep("Converting cancelled to failed before database insert");
-      safeStatus = 'failed';
-    }
-    
-    // Double-check that status is valid for enum
-    const validEnumStatuses = ['pending', 'authorized', 'completed', 'failed'];
-    if (!validEnumStatuses.includes(safeStatus)) {
-      logStep("Invalid status detected, forcing to failed", { invalidStatus: safeStatus });
-      safeStatus = 'failed';
-    }
-    
-    logStep("Using safe status for database insert", { originalStatus: finalStatus, safeStatus });
     
     const transactionInsert: any = {
       amount: amount,
