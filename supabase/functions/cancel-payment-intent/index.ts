@@ -71,12 +71,14 @@ serve(async (req) => {
       throw new Error(`Cannot cancel payment intent with status: ${paymentIntent.status}`);
     }
 
-    // Update transaction status in database
+    // Update transaction status in database - use 'failed' for payment_status enum compatibility
+    console.log(`Updating transaction status to failed for payment intent: ${paymentIntentId}`);
     const { error: updateError } = await supabaseAdmin
       .from('transactions')
       .update({
-        status: 'cancelled',
-        // We can store additional cancellation details in a JSONB field if needed
+        status: 'failed', // Use 'failed' instead of 'cancelled' for payment_status enum compatibility
+        cancelled_at: new Date().toISOString(),
+        cancellation_reason: reason
       })
       .eq('payment_intent_id', paymentIntentId);
 
