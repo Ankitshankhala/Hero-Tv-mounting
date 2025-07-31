@@ -293,7 +293,7 @@ export class TransactionManager {
           break;
         case 'authorized':
           bookingPaymentStatus = 'authorized';
-          bookingStatus = 'authorized';
+          bookingStatus = 'payment_authorized';
           break;
         case 'failed':
           bookingPaymentStatus = 'failed';
