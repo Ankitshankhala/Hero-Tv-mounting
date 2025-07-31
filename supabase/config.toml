@@ -75,3 +75,12 @@ verify_jwt = false
 
 [functions.test-email-sending]
 verify_jwt = false
+
+[functions.test-resend-config]
+verify_jwt = false
+
+[functions.send-customer-booking-confirmation-email]
+verify_jwt = false
+
+[functions.send-worker-assignment-email]
+verify_jwt = false

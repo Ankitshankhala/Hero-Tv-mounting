@@ -29,7 +29,7 @@ serve(async (req) => {
 
     // Try to send a test email
     const emailResult = await resend.emails.send({
-      from: 'Hero TV Mounting <onboarding@resend.dev>', // Using Resend's default test domain
+      from: 'Hero TV Mounting <noreply@herotvmounting.com>',
       to: ['kuhuwebconnect@gmail.com'], // Test email from booking data
       subject: 'Resend Configuration Test',
       html: `

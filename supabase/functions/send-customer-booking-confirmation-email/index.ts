@@ -234,7 +234,7 @@ serve(async (req) => {
     console.log('Sending customer confirmation email to:', customerEmail);
     
     const emailResult = await resend.emails.send({
-      from: 'Hero TV Mounting <bookings@herotvmounting.com>',
+      from: 'Hero TV Mounting <noreply@herotvmounting.com>',
       to: [customerEmail],
       subject: subject,
       html: emailHtml
