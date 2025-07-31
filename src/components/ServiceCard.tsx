@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
-import { Plus, Check } from 'lucide-react';
+import { Plus, Check, TestTube } from 'lucide-react';
+import { useTestingMode } from '@/contexts/TestingModeContext';
 
 interface ServiceCardProps {
   id: string;
@@ -13,6 +14,13 @@ interface ServiceCardProps {
 
 export const ServiceCard: React.FC<ServiceCardProps> = ({ id, name, price, image, description, onAddToCart }) => {
   const [isClicked, setIsClicked] = useState(false);
+  const { isTestingMode } = useTestingMode();
+  
+  // Identify testing services in testing mode
+  const isTestingService = isTestingMode && (price === 1 || name.toLowerCase().includes('test'));
+  const cardBorderClass = isTestingService 
+    ? 'border-green-500 bg-green-900/20' 
+    : 'border-slate-700 hover:border-blue-500';
 
   const handleClick = () => {
     setIsClicked(true);
@@ -22,7 +30,7 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ id, name, price, image
 
   return (
     <div 
-      className="bg-slate-900/80 backdrop-blur-sm rounded-xl overflow-hidden border border-slate-700 hover:border-blue-500 transition-all duration-300 cursor-pointer group hover:scale-105 hover:shadow-xl"
+      className={`bg-slate-900/80 backdrop-blur-sm rounded-xl overflow-hidden border ${cardBorderClass} transition-all duration-300 cursor-pointer group hover:scale-105 hover:shadow-xl`}
       onClick={handleClick}
     >
       <div className="relative h-48 overflow-hidden">
@@ -36,7 +44,15 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ id, name, price, image
       
       <div className="p-6">
         <div className="mb-4">
-          <h3 className="text-xl font-bold text-white mb-2">{name}</h3>
+          <div className="flex items-center gap-2 mb-2">
+            <h3 className="text-xl font-bold text-white">{name}</h3>
+            {isTestingService && (
+              <div className="flex items-center gap-1 px-2 py-1 bg-green-600 rounded text-xs text-white">
+                <TestTube className="h-3 w-3" />
+                <span>Testing Mode</span>
+              </div>
+            )}
+          </div>
           <p className="text-slate-300 text-sm">{description}</p>
         </div>
         
