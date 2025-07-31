@@ -13,25 +13,53 @@ const logStep = (step: string, details?: any) => {
   console.log(`[CREATE-PAYMENT-INTENT] ${step}${detailsStr}`);
 };
 
-// Simple status mapping function
-const mapStripeStatus = (stripeStatus: string) => {
-  switch (stripeStatus) {
+// Enhanced status mapping function with defensive validation
+const mapStripeStatus = (stripeStatus: string): string => {
+  logStep("Mapping Stripe status", { inputStatus: stripeStatus, statusType: typeof stripeStatus });
+  
+  // Normalize status to lowercase for case-insensitive matching
+  const normalizedStatus = String(stripeStatus).toLowerCase().trim();
+  
+  let mappedStatus: string;
+  
+  switch (normalizedStatus) {
     case 'requires_payment_method':
     case 'requires_confirmation':
     case 'requires_action':
-      return { payment_status: 'pending' };
     case 'processing':
-      return { payment_status: 'pending' };
+      mappedStatus = 'pending';
+      break;
     case 'requires_capture':
-      return { payment_status: 'authorized' };
+      mappedStatus = 'authorized';
+      break;
     case 'succeeded':
-      return { payment_status: 'completed' };
+      mappedStatus = 'completed';
+      break;
     case 'canceled':
     case 'cancelled':
-      return { payment_status: 'failed' };
+    case 'failed':
+      mappedStatus = 'failed';
+      break;
     default:
-      return { payment_status: 'failed' };
+      logStep("Unknown Stripe status, defaulting to failed", { unknownStatus: normalizedStatus });
+      mappedStatus = 'failed';
+      break;
   }
+  
+  // Final validation - ensure mapped status is valid for our enum
+  const validStatuses = ['pending', 'authorized', 'completed', 'failed'];
+  if (!validStatuses.includes(mappedStatus)) {
+    logStep("Invalid mapped status detected, forcing to failed", { invalidStatus: mappedStatus });
+    mappedStatus = 'failed';
+  }
+  
+  logStep("Status mapping completed", { 
+    originalStatus: stripeStatus,
+    normalizedStatus: normalizedStatus,
+    finalMappedStatus: mappedStatus 
+  });
+  
+  return mappedStatus;
 };
 
 // Utility function to validate UUID
@@ -238,24 +266,18 @@ serve(async (req) => {
       });
     }
 
-    // Map Stripe status to internal status
-    const statusMapping = mapStripeStatus(paymentIntent.status);
-    logStep("Status mapping result", { 
-      stripeStatus: paymentIntent.status, 
-      mappedPaymentStatus: statusMapping.payment_status
-    });
-
-    // Ensure status is valid for payment_status enum - defensive coding
-    let finalStatus = statusMapping.payment_status;
-    if (!['pending', 'authorized', 'completed', 'failed'].includes(finalStatus)) {
-      logStep("Invalid status detected, converting to failed", { originalStatus: finalStatus });
-      finalStatus = 'failed';
-    }
+    // Map Stripe status to internal status with enhanced validation
+    const finalStatus = mapStripeStatus(paymentIntent.status);
     
-    // Specifically handle cancelled status
-    if (finalStatus === 'cancelled') {
-      logStep("Converting cancelled to failed for enum compatibility");
-      finalStatus = 'failed';
+    // Additional defensive validation
+    const validStatuses = ['pending', 'authorized', 'completed', 'failed'];
+    if (!validStatuses.includes(finalStatus)) {
+      logStep("CRITICAL: Invalid status after mapping, forcing to failed", { 
+        finalStatus,
+        validStatuses,
+        originalStripeStatus: paymentIntent.status 
+      });
+      throw new Error(`Status validation failed: invalid status '${finalStatus}' for payment_status enum`);
     }
 
     // Create transaction record (set booking_id if provided for booking-first flow)
