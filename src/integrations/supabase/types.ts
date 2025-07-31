@@ -148,6 +148,7 @@ export type Database = {
           status: Database["public"]["Enums"]["booking_status"] | null
           stripe_customer_id: string | null
           stripe_payment_method_id: string | null
+          updated_at: string | null
           worker_id: string | null
         }
         Insert: {
@@ -170,6 +171,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["booking_status"] | null
           stripe_customer_id?: string | null
           stripe_payment_method_id?: string | null
+          updated_at?: string | null
           worker_id?: string | null
         }
         Update: {
@@ -192,6 +194,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["booking_status"] | null
           stripe_customer_id?: string | null
           stripe_payment_method_id?: string | null
+          updated_at?: string | null
           worker_id?: string | null
         }
         Relationships: [
