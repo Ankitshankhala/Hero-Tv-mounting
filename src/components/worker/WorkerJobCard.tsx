@@ -103,6 +103,12 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
     }
   };
 
+  const handleCaptureSuccess = () => {
+    if (onJobCancelled) {
+      onJobCancelled(); // Refresh the jobs list
+    }
+  };
+
   return (
     <Card className="bg-slate-700 border-slate-600">
       <CardHeader>
@@ -171,6 +177,7 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
           onCancelClick={handleCancelClick}
           onChargeClick={handleChargeClick}
           onCollectPaymentClick={handleCollectPaymentClick}
+          onCaptureSuccess={handleCaptureSuccess}
         />
       </CardContent>
 
