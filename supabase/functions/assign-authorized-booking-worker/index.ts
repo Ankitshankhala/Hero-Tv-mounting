@@ -31,7 +31,7 @@ serve(async (req) => {
       .select(
         `id, worker_id, status, scheduled_date, scheduled_start, customer_id, guest_customer_info, created_at, customer:users!bookings_customer_id_fkey(email, zip_code)`
       )
-      .eq('status', 'payment_authorized')
+      .eq('status', 'confirmed')
       .is('worker_id', null)
       .order('created_at', { ascending: false })
       .limit(1)
