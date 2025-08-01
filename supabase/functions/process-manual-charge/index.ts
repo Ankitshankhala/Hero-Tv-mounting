@@ -92,10 +92,6 @@ serve(async (req) => {
       confirm: true,
       description: description,
       payment_method_types: ['card'], // Restrict to card payments only
-      automatic_payment_methods: {
-        enabled: true,
-        allow_redirects: 'never' // Prevent redirect-based payment methods
-      },
       metadata: {
         booking_id: bookingId,
         charge_type: chargeType,
