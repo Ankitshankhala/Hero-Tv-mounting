@@ -83,7 +83,7 @@ serve(async (req) => {
       }
     }
 
-    // Create payment intent
+    // Create payment intent with card-only payment methods
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amount, // Amount should already be in cents
       currency: 'usd',
@@ -91,6 +91,11 @@ serve(async (req) => {
       payment_method: paymentMethodId,
       confirm: true,
       description: description,
+      payment_method_types: ['card'], // Restrict to card payments only
+      automatic_payment_methods: {
+        enabled: true,
+        allow_redirects: 'never' // Prevent redirect-based payment methods
+      },
       metadata: {
         booking_id: bookingId,
         charge_type: chargeType,
