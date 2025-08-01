@@ -9,6 +9,7 @@ import { AddServicesTab } from './invoice/AddServicesTab';
 import { TvMountingConfigurationModal } from './invoice/TvMountingConfigurationModal';
 import { ModificationSummary } from './invoice/ModificationSummary';
 import { RealTimePriceDisplay } from './invoice/RealTimePriceDisplay';
+import { InvoiceModificationPayment } from './invoice/InvoiceModificationPayment';
 import { Loader2 } from 'lucide-react';
 
 interface BookingService {
@@ -37,6 +38,7 @@ export const EnhancedInvoiceModificationModal = ({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showTvModal, setShowTvModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [totalPrice, setTotalPrice] = useState(0);
   const [originalPrice, setOriginalPrice] = useState(0);
   const { toast } = useToast();
@@ -384,8 +386,13 @@ export const EnhancedInvoiceModificationModal = ({
         description: `Invoice modified successfully. ${difference >= 0 ? 'Additional' : 'Refund'} amount: $${Math.abs(difference).toFixed(2)}`,
       });
 
-      onModificationCreated();
-      onClose();
+      // If there's a positive difference (additional charges), show payment modal
+      if (difference > 0) {
+        setShowPaymentModal(true);
+      } else {
+        onModificationCreated();
+        onClose();
+      }
     } catch (error) {
       console.error('Error creating modification:', error);
       toast({
@@ -396,6 +403,11 @@ export const EnhancedInvoiceModificationModal = ({
     } finally {
       setSaving(false);
     }
+  };
+
+  const handlePaymentComplete = () => {
+    onModificationCreated();
+    onClose();
   };
 
   if (loading) {
@@ -516,6 +528,14 @@ export const EnhancedInvoiceModificationModal = ({
         onClose={() => setShowTvModal(false)}
         onConfigurationComplete={handleTvMountingComplete}
         existingConfiguration={services.find(s => s.service_name === 'TV Mounting')?.configuration}
+      />
+
+      <InvoiceModificationPayment
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        job={job}
+        pendingAmount={priceDifference}
+        onPaymentComplete={handlePaymentComplete}
       />
     </>
   );
