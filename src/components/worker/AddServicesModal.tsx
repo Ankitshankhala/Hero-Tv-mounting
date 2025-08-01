@@ -116,45 +116,31 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
     setProcessing(true);
 
     try {
-      // Add services to the booking
-      const servicesToAdd = cart.map(item => ({
-        booking_id: job.id,
-        service_id: item.id,
-        service_name: item.name,
-        quantity: item.quantity,
-        base_price: item.price,
-        configuration: {}
-      }));
-
-      const { error: servicesError } = await supabase
-        .from('booking_services')
-        .insert(servicesToAdd);
-
-      if (servicesError) {
-        console.error('Error adding services:', servicesError);
-        throw new Error('Failed to add services to booking');
-      }
-
-      // Create a manual charge for the additional services
       const totalAmount = getTotalPrice();
       
-      const { error: chargeError } = await supabase.functions.invoke('process-manual-charge', {
+      // Use the updated add-booking-services function that handles payment intent updates
+      const { data, error } = await supabase.functions.invoke('add-booking-services', {
         body: {
           booking_id: job.id,
-          amount: totalAmount,
-          description: `Additional services: ${cart.map(item => `${item.name} (x${item.quantity})`).join(', ')}`,
-          charge_type: 'additional_services'
+          services: cart.map(item => ({
+            service_id: item.id,
+            quantity: item.quantity
+          }))
         }
       });
 
-      if (chargeError) {
-        console.error('Error processing charge:', chargeError);
-        throw new Error('Failed to charge customer for additional services');
+      if (error) {
+        console.error('Error adding services:', error);
+        throw new Error('Failed to add services and update payment authorization');
+      }
+
+      if (!data?.success) {
+        throw new Error(data?.error || 'Failed to add services and update payment authorization');
       }
 
       toast({
         title: "Services Added Successfully",
-        description: `Added ${cart.length} service(s) and charged customer $${totalAmount.toFixed(2)}`,
+        description: `Added ${cart.length} service(s) and updated payment authorization for $${totalAmount.toFixed(2)}`,
       });
 
       // Reset cart and close modal

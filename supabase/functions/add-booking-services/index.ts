@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.0";
+import Stripe from "https://esm.sh/stripe@14.21.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -37,10 +38,10 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    logStep('Fetching booking', { booking_id });
+    logStep('Fetching booking with payment details', { booking_id });
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
-      .select('id, status')
+      .select('id, status, payment_intent_id, payment_status')
       .eq('id', booking_id)
       .single();
 
@@ -51,6 +52,13 @@ serve(async (req) => {
     if (booking.status === 'completed') {
       return new Response(
         JSON.stringify({ error: 'Cannot modify a completed booking' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!booking.payment_intent_id) {
+      return new Response(
+        JSON.stringify({ error: 'Booking has no payment intent for authorization updates' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -136,8 +144,62 @@ serve(async (req) => {
       throw new Error(`Failed to update invoice totals: ${updateError.message}`);
     }
 
+    // Initialize Stripe and update payment intent amount
+    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
+      apiVersion: '2023-10-16',
+    });
+
+    const additionalAmount = invoiceItems.reduce((sum, item) => sum + Number(item.total_price), 0);
+    const additionalAmountCents = Math.round(additionalAmount * 100);
+
+    logStep('Updating Stripe payment intent', { 
+      payment_intent_id: booking.payment_intent_id, 
+      additional_amount_cents: additionalAmountCents 
+    });
+
+    try {
+      // Get current payment intent
+      const paymentIntent = await stripe.paymentIntents.retrieve(booking.payment_intent_id);
+      const newTotalCents = paymentIntent.amount + additionalAmountCents;
+
+      // Update payment intent amount
+      const updatedPaymentIntent = await stripe.paymentIntents.update(booking.payment_intent_id, {
+        amount: newTotalCents,
+      });
+
+      logStep('Payment intent updated successfully', { 
+        old_amount: paymentIntent.amount, 
+        new_amount: newTotalCents 
+      });
+
+      // Create transaction record for the additional authorization
+      const { error: transactionError } = await supabase
+        .from('transactions')
+        .insert({
+          booking_id,
+          payment_intent_id: booking.payment_intent_id,
+          amount: additionalAmount,
+          currency: 'USD',
+          status: 'authorized',
+          transaction_type: 'additional_authorization',
+        });
+
+      if (transactionError) {
+        logStep('Warning: Failed to create transaction record', { error: transactionError.message });
+      }
+
+    } catch (stripeError) {
+      logStep('Stripe error updating payment intent', { error: stripeError.message });
+      throw new Error(`Failed to update payment authorization: ${stripeError.message}`);
+    }
+
     return new Response(
-      JSON.stringify({ success: true, invoice_total: newTotal }),
+      JSON.stringify({ 
+        success: true, 
+        invoice_total: newTotal,
+        additional_amount: additionalAmount,
+        message: 'Services added and payment authorization updated successfully'
+      }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
