@@ -313,7 +313,7 @@ serve(async (req) => {
         const newPaymentIntent = await stripe.paymentIntents.create({
           amount: additionalAmountCents,
           currency: 'usd',
-          customer_email: customerEmail,
+          receipt_email: customerEmail,
           capture_method: 'manual', // Consistent with original booking flow
           description: `Additional services for booking ${booking_id}`,
           metadata: {
