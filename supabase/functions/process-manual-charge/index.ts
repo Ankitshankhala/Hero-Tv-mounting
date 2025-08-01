@@ -21,22 +21,81 @@ serve(async (req) => {
       apiVersion: '2023-10-16',
     })
 
+    // Initialize Supabase
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
+
     console.log('Processing manual charge:', { bookingId, customerId, amount, chargeType })
+
+    // Get booking info to find customer
+    const { data: booking, error: bookingError } = await supabase
+      .from('bookings')
+      .select('customer_id, guest_customer_info, stripe_customer_id')
+      .eq('id', bookingId)
+      .single()
+
+    if (bookingError) {
+      throw new Error(`Failed to fetch booking: ${bookingError.message}`)
+    }
+
+    let stripeCustomerId = booking.stripe_customer_id
+
+    // If we don't have a Stripe customer, create one
+    if (!stripeCustomerId) {
+      let customerEmail, customerName
+      
+      if (booking.customer_id) {
+        // Get customer from users table
+        const { data: user } = await supabase
+          .from('users')
+          .select('email, name')
+          .eq('id', booking.customer_id)
+          .single()
+        
+        customerEmail = user?.email
+        customerName = user?.name
+      } else if (booking.guest_customer_info) {
+        // Get customer from guest info
+        customerEmail = booking.guest_customer_info.email
+        customerName = booking.guest_customer_info.name
+      }
+
+      if (customerEmail) {
+        // Create Stripe customer
+        const customer = await stripe.customers.create({
+          email: customerEmail,
+          name: customerName,
+          metadata: {
+            booking_id: bookingId,
+            source: 'manual_charge'
+          }
+        })
+        
+        stripeCustomerId = customer.id
+
+        // Update booking with Stripe customer ID
+        await supabase
+          .from('bookings')
+          .update({ stripe_customer_id: stripeCustomerId })
+          .eq('id', bookingId)
+      }
+    }
 
     // Create payment intent
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // Convert to cents
+      amount: amount, // Amount should already be in cents
       currency: 'usd',
-      customer: customerId,
+      customer: stripeCustomerId,
       payment_method: paymentMethodId,
       confirm: true,
-      description: `${description} (Booking: ${bookingId})`,
+      description: description,
       metadata: {
         booking_id: bookingId,
         charge_type: chargeType,
         source: 'manual_worker_charge'
-      },
-      return_url: 'https://your-app.com' // Required for some payment methods
+      }
     })
 
     if (paymentIntent.status === 'succeeded') {

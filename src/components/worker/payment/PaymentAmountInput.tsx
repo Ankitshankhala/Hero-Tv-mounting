@@ -12,16 +12,16 @@ interface PaymentAmountInputProps {
 const PaymentAmountInput = ({ amount, onAmountChange }: PaymentAmountInputProps) => {
   return (
     <FormItem>
-      <FormLabel>Payment Amount</FormLabel>
+      <FormLabel className="text-slate-300">Payment Amount</FormLabel>
       <FormControl>
         <div className="relative">
-          <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
           <Input
             type="number"
             step="0.01"
             value={amount}
             onChange={(e) => onAmountChange(e.target.value)}
-            className="pl-10"
+            className="pl-10 bg-slate-700 border-slate-600 text-white placeholder-slate-400"
             placeholder="0.00"
             required
           />

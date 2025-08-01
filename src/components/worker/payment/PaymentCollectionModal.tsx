@@ -8,6 +8,7 @@ import PaymentJobSummary from './PaymentJobSummary';
 import PaymentMethodSelector from './PaymentMethodSelector';
 import PaymentAmountInput from './PaymentAmountInput';
 import PaymentNotesInput from './PaymentNotesInput';
+import { InlineStripePaymentForm } from './InlineStripePaymentForm';
 import { usePaymentProcessing } from './usePaymentProcessing';
 
 interface PaymentCollectionModalProps {
@@ -44,80 +45,130 @@ const PaymentCollectionModal = ({ isOpen, onClose, job, onPaymentCollected }: Pa
     await processPayment(data.paymentMethod, data.amount, data.notes);
   };
 
+  const handleCashPayment = async (data: PaymentFormData) => {
+    await processPayment('cash', data.amount, data.notes);
+  };
+
+  const handleOnlinePaymentSuccess = () => {
+    onPaymentCollected();
+    onClose();
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg w-full max-w-md">
-        <div className="flex justify-between items-center p-6 border-b">
-          <h2 className="text-xl font-bold text-gray-900">Collect Payment</h2>
-          <Button variant="ghost" size="sm" onClick={onClose}>
+      <div className="bg-slate-900 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center p-6 border-b border-slate-700">
+          <h2 className="text-xl font-bold text-white">Collect Payment</h2>
+          <Button variant="ghost" size="sm" onClick={onClose} className="text-slate-400 hover:text-white">
             <X className="h-4 w-4" />
           </Button>
         </div>
 
-        <FormProvider {...methods}>
-          <form onSubmit={methods.handleSubmit(handleSubmit)} className="p-6 space-y-4">
-            <PaymentJobSummary job={job} />
-            
-            <FormField
-              control={methods.control}
-              name="paymentMethod"
-              render={({ field }) => (
-                <PaymentMethodSelector 
-                  paymentMethod={field.value}
-                  onPaymentMethodChange={field.onChange}
-                />
-              )}
-            />
+        <div className="p-6">
+          <PaymentJobSummary job={job} />
+          
+          {/* Payment Method Tabs */}
+          <div className="mt-6">
+            <div className="flex space-x-1 bg-slate-800 p-1 rounded-lg">
+              <button
+                type="button"
+                onClick={() => methods.setValue('paymentMethod', 'cash')}
+                className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                  methods.watch('paymentMethod') === 'cash'
+                    ? 'bg-slate-600 text-white'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Cash Payment
+              </button>
+              <button
+                type="button"
+                onClick={() => methods.setValue('paymentMethod', 'online')}
+                className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                  methods.watch('paymentMethod') === 'online'
+                    ? 'bg-slate-600 text-white'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Online Payment
+              </button>
+            </div>
+          </div>
 
-            <FormField
-              control={methods.control}
-              name="amount"
-              render={({ field }) => (
-                <PaymentAmountInput 
-                  amount={field.value}
-                  onAmountChange={field.onChange}
-                />
-              )}
-            />
+          {/* Payment Content */}
+          <div className="mt-6">
+            {methods.watch('paymentMethod') === 'cash' ? (
+              <FormProvider {...methods}>
+                <form onSubmit={methods.handleSubmit(handleCashPayment)} className="space-y-4">
+                  <FormField
+                    control={methods.control}
+                    name="amount"
+                    render={({ field }) => (
+                      <PaymentAmountInput 
+                        amount={field.value}
+                        onAmountChange={field.onChange}
+                      />
+                    )}
+                  />
 
-            <FormField
-              control={methods.control}
-              name="notes"
-              render={({ field }) => (
-                <PaymentNotesInput 
-                  notes={field.value}
-                  onNotesChange={field.onChange}
-                />
-              )}
-            />
+                  <FormField
+                    control={methods.control}
+                    name="notes"
+                    render={({ field }) => (
+                      <PaymentNotesInput 
+                        notes={field.value}
+                        onNotesChange={field.onChange}
+                      />
+                    )}
+                  />
 
-            {methods.watch('paymentMethod') === 'online' && (
-              <div className="bg-blue-50 p-3 rounded-lg">
-                <p className="text-sm text-blue-800">
-                  Online payment will be processed using the customer's saved payment method.
-                </p>
+                  <div className="bg-amber-900/20 border border-amber-700 p-3 rounded-lg">
+                    <p className="text-amber-200 text-sm">
+                      Cash payment will be recorded immediately. Make sure you have collected the payment from the customer.
+                    </p>
+                  </div>
+
+                  <div className="flex space-x-3 pt-4">
+                    <Button
+                      type="submit"
+                      disabled={isProcessing}
+                      className="flex-1 bg-green-600 hover:bg-green-700"
+                    >
+                      {isProcessing ? 'Processing...' : `Record $${methods.watch('amount') || '0.00'} Cash Payment`}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={onClose}
+                      disabled={isProcessing}
+                      className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              </FormProvider>
+            ) : (
+              <div>
+                <InlineStripePaymentForm
+                  job={job}
+                  amount={methods.watch('amount')}
+                  onPaymentSuccess={handleOnlinePaymentSuccess}
+                />
+                <div className="flex justify-end mt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={onClose}
+                    className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                  >
+                    Cancel
+                  </Button>
+                </div>
               </div>
             )}
-
-            <div className="flex space-x-3 pt-4">
-              <Button
-                type="submit"
-                disabled={isProcessing}
-                className="flex-1 bg-green-600 hover:bg-green-700"
-              >
-                {isProcessing ? 'Processing...' : `Collect $${methods.watch('amount') || '0.00'}`}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onClose}
-                disabled={isProcessing}
-              >
-                Cancel
-              </Button>
-            </div>
-          </form>
-        </FormProvider>
+          </div>
+        </div>
       </div>
     </div>
   );
