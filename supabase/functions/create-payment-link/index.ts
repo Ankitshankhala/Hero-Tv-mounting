@@ -25,9 +25,11 @@ serve(async (req) => {
       apiVersion: '2023-10-16',
     });
 
-    const { bookingId, amount, description, customerEmail } = await req.json();
+    const { booking_id, amount, description, customer_email } = await req.json();
+    
+    console.log('Payment link request params:', { booking_id, amount, description, customer_email });
 
-    if (!bookingId || !amount) {
+    if (!booking_id || !amount) {
       return new Response(
         JSON.stringify({ error: 'Booking ID and amount are required' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
@@ -38,7 +40,7 @@ serve(async (req) => {
     const { data: booking, error: bookingError } = await supabaseClient
       .from('bookings')
       .select('*, customer:users!customer_id(name, email)')
-      .eq('id', bookingId)
+      .eq('id', booking_id)
       .single();
 
     if (bookingError || !booking) {
@@ -55,7 +57,7 @@ serve(async (req) => {
           price_data: {
             currency: 'usd',
             product_data: {
-              name: description || `Service Payment - Booking #${bookingId.slice(0, 8)}`,
+              name: description || `Service Payment - Booking #${booking_id.slice(0, 8)}`,
             },
             unit_amount: amount, // Already in cents
           },
@@ -63,25 +65,28 @@ serve(async (req) => {
         },
       ],
       metadata: {
-        booking_id: bookingId,
-        customer_email: customerEmail || booking.customer?.email || '',
+        booking_id: booking_id,
+        customer_email: customer_email || booking.customer?.email || '',
       },
       after_completion: {
         type: 'redirect',
         redirect: {
-          url: `${req.headers.get('origin') || 'https://hero-tv-mounting.com'}/payment-success?booking_id=${bookingId}`,
+          url: `${req.headers.get('origin') || 'https://hero-tv-mounting.com'}/payment-success?booking_id=${booking_id}`,
         },
       },
     });
 
     // Record the payment session
-    await supabaseClient.from('payment_sessions').insert({
-      booking_id: bookingId,
-      stripe_session_id: paymentLink.id,
-      amount: Math.round(amount / 100), // Convert back to dollars for storage
-      currency: 'usd',
-      status: 'pending',
+    const { error: sessionError } = await supabaseClient.from('payment_sessions').insert({
+      session_id: paymentLink.id,
+      user_id: booking.customer_id || booking_id, // Use customer_id or booking_id as fallback
+      transaction_id: booking_id, // Use booking_id as transaction reference
+      status: 'created',
     });
+    
+    if (sessionError) {
+      console.error('Failed to record payment session:', sessionError);
+    }
 
     return new Response(
       JSON.stringify({ 

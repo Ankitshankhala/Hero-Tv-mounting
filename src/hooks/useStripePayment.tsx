@@ -50,7 +50,7 @@ export const useStripePayment = () => {
 
       return {
         success: true,
-        paymentUrl: data.payment_url
+        paymentUrl: data.url
       };
 
     } catch (error) {
