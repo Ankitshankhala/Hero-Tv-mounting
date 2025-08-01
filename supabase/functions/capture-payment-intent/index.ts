@@ -105,20 +105,21 @@ serve(async (req) => {
       amount: paymentIntent.amount
     });
 
-    // Map Stripe status to internal status
-    const statusMapping = mapStripeStatus(paymentIntent.status, 'charge');
+    // Map Stripe status to internal status  
+    const statusMapping = mapStripeStatus(paymentIntent.status, 'payment_intent');
     console.log('Status mapping:', statusMapping);
 
     if (paymentIntent.status === 'succeeded') {
       console.log('Payment succeeded, updating booking status...');
       console.log('Current booking status:', booking.status, 'payment_status:', booking.payment_status);
       
-      // Update booking to completed status and captured payment status
+      // Update booking to completed status with captured payment status
+      // Use 'captured' payment_status to match the status mapping
       console.log('Updating booking to completed status...');
       const { error: updateError } = await supabaseServiceRole
         .from('bookings')
         .update({
-          payment_status: 'completed',
+          payment_status: 'captured',  // Use 'captured' instead of 'completed'
           status: 'completed',
         })
         .eq('id', bookingId);
