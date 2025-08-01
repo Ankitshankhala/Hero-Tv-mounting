@@ -379,7 +379,7 @@ export type Database = {
           booking_id: string
           business_license: string | null
           created_at: string | null
-          customer_id: string
+          customer_id: string | null
           due_date: string
           email_sent: boolean | null
           email_sent_at: string | null
@@ -399,7 +399,7 @@ export type Database = {
           booking_id: string
           business_license?: string | null
           created_at?: string | null
-          customer_id: string
+          customer_id?: string | null
           due_date?: string
           email_sent?: boolean | null
           email_sent_at?: string | null
@@ -419,7 +419,7 @@ export type Database = {
           booking_id?: string
           business_license?: string | null
           created_at?: string | null
-          customer_id?: string
+          customer_id?: string | null
           due_date?: string
           email_sent?: boolean | null
           email_sent_at?: string | null
