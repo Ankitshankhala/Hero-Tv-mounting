@@ -35,6 +35,38 @@ const JobActions = ({
   const hasUnpaidAmount = job.pending_payment_amount > 0;
   const canCapturePayment = job.payment_status === 'authorized' && job.status !== 'completed';
   const canAddServices = job.status === 'confirmed' || job.status === 'in_progress';
+
+  const getValidNextStatuses = (currentStatus: string) => {
+    switch (currentStatus) {
+      case 'pending':
+        return ['confirmed', 'cancelled'];
+      case 'confirmed':
+        return ['in_progress', 'cancelled'];
+      case 'in_progress':
+        return ['completed', 'cancelled'];
+      case 'payment_pending':
+        return ['confirmed', 'cancelled'];
+      case 'payment_authorized':
+        return ['confirmed', 'cancelled'];
+      default:
+        return [];
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'pending': return 'Pending';
+      case 'confirmed': return 'Confirmed';
+      case 'in_progress': return 'In Progress';
+      case 'completed': return 'Completed';
+      case 'cancelled': return 'Cancelled';
+      case 'payment_pending': return 'Payment Pending';
+      case 'payment_authorized': return 'Payment Authorized';
+      default: return status;
+    }
+  };
+
+  const validNextStatuses = getValidNextStatuses(job.status);
   return <div className="flex items-center justify-between pt-4 border-t border-slate-600">
       <div className="flex space-x-2">
         <Button size="sm" variant="outline" onClick={() => callCustomer(job.customer?.phone)} disabled={!job.customer?.phone}>
@@ -66,17 +98,26 @@ const JobActions = ({
       </div>
       
       <div className="flex items-center space-x-2">
-        
-        <Select onValueChange={value => onStatusUpdate(job.id, value)}>
-          <SelectTrigger className="w-40 bg-slate-600 border-slate-500">
-            <SelectValue placeholder="Update status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="confirmed">Confirmed</SelectItem>
-            <SelectItem value="in_progress">In Progress</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-          </SelectContent>
-        </Select>
+        {validNextStatuses.length > 0 && (
+          <Select onValueChange={value => onStatusUpdate(job.id, value)}>
+            <SelectTrigger className="w-48 bg-slate-600 border-slate-500">
+              <SelectValue placeholder={`Current: ${getStatusLabel(job.status)}`} />
+            </SelectTrigger>
+            <SelectContent className="bg-slate-700 border-slate-600">
+              {validNextStatuses.map((status) => (
+                <SelectItem 
+                  key={status} 
+                  value={status}
+                  className={`text-slate-200 hover:bg-slate-600 ${
+                    status === 'cancelled' ? 'text-red-400 hover:text-red-300' : ''
+                  }`}
+                >
+                  {getStatusLabel(status)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
     </div>;
 };
