@@ -237,50 +237,141 @@ serve(async (req) => {
     });
 
     try {
-      // Get current payment intent
+      // Get current payment intent to check its status
       const paymentIntent = await stripe.paymentIntents.retrieve(booking.payment_intent_id);
-      const newTotalCents = paymentIntent.amount + additionalAmountCents;
-
-      // Update payment intent amount
-      const updatedPaymentIntent = await stripe.paymentIntents.update(booking.payment_intent_id, {
-        amount: newTotalCents,
+      
+      logStep('Current PaymentIntent status', { 
+        status: paymentIntent.status, 
+        amount: paymentIntent.amount 
       });
 
-      logStep('Payment intent updated successfully', { 
-        old_amount: paymentIntent.amount, 
-        new_amount: newTotalCents 
-      });
+      // Check if we can modify the existing PaymentIntent
+      const canModifyAmount = ['requires_payment_method', 'requires_confirmation', 'requires_action'].includes(paymentIntent.status);
 
-      // Create transaction record for the additional authorization
-      const { error: transactionError } = await supabase
-        .from('transactions')
-        .insert({
-          booking_id,
-          payment_intent_id: booking.payment_intent_id,
-          amount: additionalAmount,
-          currency: 'USD',
-          status: 'authorized',
-          transaction_type: 'additional_authorization',
+      if (canModifyAmount) {
+        // Update existing payment intent amount
+        const newTotalCents = paymentIntent.amount + additionalAmountCents;
+        const updatedPaymentIntent = await stripe.paymentIntents.update(booking.payment_intent_id, {
+          amount: newTotalCents,
         });
 
-      if (transactionError) {
-        logStep('Warning: Failed to create transaction record', { error: transactionError.message });
+        logStep('Payment intent updated successfully', { 
+          old_amount: paymentIntent.amount, 
+          new_amount: newTotalCents 
+        });
+
+        // Create transaction record for the additional authorization
+        const { error: transactionError } = await supabase
+          .from('transactions')
+          .insert({
+            booking_id,
+            payment_intent_id: booking.payment_intent_id,
+            amount: additionalAmount,
+            currency: 'USD',
+            status: 'authorized',
+            transaction_type: 'additional_authorization',
+          });
+
+        if (transactionError) {
+          logStep('Warning: Failed to create transaction record', { error: transactionError.message });
+        }
+
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            invoice_total: newTotal,
+            additional_amount: additionalAmount,
+            payment_updated: true,
+            message: 'Services added and payment authorization updated successfully'
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+
+      } else {
+        // PaymentIntent cannot be modified, create a new one for additional services
+        logStep('Creating new PaymentIntent for additional services', { 
+          reason: 'Original PaymentIntent cannot be modified',
+          original_status: paymentIntent.status 
+        });
+
+        // Get customer info for new PaymentIntent
+        const { data: fullBooking } = await supabase
+          .from('bookings')
+          .select(`
+            *,
+            customer:users!bookings_customer_id_fkey(email),
+            guest_customer_info
+          `)
+          .eq('id', booking_id)
+          .single();
+
+        const customerEmail = fullBooking?.customer?.email || fullBooking?.guest_customer_info?.email;
+
+        // Create new PaymentIntent for additional services
+        const newPaymentIntent = await stripe.paymentIntents.create({
+          amount: additionalAmountCents,
+          currency: 'usd',
+          customer_email: customerEmail,
+          capture_method: 'manual', // Consistent with original booking flow
+          description: `Additional services for booking ${booking_id}`,
+          metadata: {
+            booking_id: booking_id,
+            type: 'additional_services'
+          }
+        });
+
+        logStep('New PaymentIntent created', { 
+          payment_intent_id: newPaymentIntent.id,
+          amount: additionalAmountCents 
+        });
+
+        // Create transaction record for the new PaymentIntent
+        const { error: transactionError } = await supabase
+          .from('transactions')
+          .insert({
+            booking_id,
+            payment_intent_id: newPaymentIntent.id,
+            amount: additionalAmount,
+            currency: 'USD',
+            status: 'pending',
+            transaction_type: 'additional_authorization',
+          });
+
+        if (transactionError) {
+          logStep('Warning: Failed to create transaction record', { error: transactionError.message });
+        }
+
+        // Update booking to mark it has pending additional payment
+        const { error: bookingUpdateError } = await supabase
+          .from('bookings')
+          .update({ 
+            has_modifications: true,
+            pending_payment_amount: additionalAmount 
+          })
+          .eq('id', booking_id);
+
+        if (bookingUpdateError) {
+          logStep('Warning: Failed to update booking modifications flag', { error: bookingUpdateError.message });
+        }
+
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            invoice_total: newTotal,
+            additional_amount: additionalAmount,
+            requires_additional_payment: true,
+            payment_intent_client_secret: newPaymentIntent.client_secret,
+            payment_intent_id: newPaymentIntent.id,
+            message: 'Services added. Additional payment authorization required.'
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
 
     } catch (stripeError) {
-      logStep('Stripe error updating payment intent', { error: stripeError.message });
-      throw new Error(`Failed to update payment authorization: ${stripeError.message}`);
+      logStep('Stripe error', { error: stripeError.message });
+      throw new Error(`Failed to process payment authorization: ${stripeError.message}`);
     }
-
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        invoice_total: newTotal,
-        additional_amount: additionalAmount,
-        message: 'Services added and payment authorization updated successfully'
-      }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     logStep('ERROR', { error: message });
