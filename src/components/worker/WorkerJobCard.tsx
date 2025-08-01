@@ -7,7 +7,7 @@ import { MapPin, Clock, User, Phone, Mail, DollarSign } from 'lucide-react';
 import JobActions from './JobActions';
 import { EnhancedInvoiceModificationModal } from './EnhancedInvoiceModificationModal';
 import OnSiteChargeModal from './OnSiteChargeModal';
-import PaymentCollectionModal from './PaymentCollectionModal';
+import PaymentCollectionModal from './payment/PaymentCollectionModal';
 import { AddServicesModal } from './AddServicesModal';
 
 interface WorkerJobCardProps {
