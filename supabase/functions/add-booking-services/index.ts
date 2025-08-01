@@ -100,16 +100,95 @@ serve(async (req) => {
       throw new Error(`Failed to insert booking services: ${insertError.message}`);
     }
 
-    // Update invoice items and totals
+    // Get or create invoice for the booking
     logStep('Fetching invoice for booking');
-    const { data: invoice, error: invoiceError } = await supabase
+    let { data: invoice, error: invoiceError } = await supabase
       .from('invoices')
       .select('id, amount, tax_amount, total_amount')
       .eq('booking_id', booking_id)
-      .single();
+      .maybeSingle();
 
-    if (invoiceError || !invoice) {
-      throw new Error(`Invoice not found: ${invoiceError?.message}`);
+    if (invoiceError) {
+      throw new Error(`Error fetching invoice: ${invoiceError.message}`);
+    }
+
+    // If no invoice exists, create one
+    if (!invoice) {
+      logStep('No invoice found, creating new invoice');
+      
+      // Fetch full booking details for invoice creation
+      const { data: fullBooking, error: fullBookingError } = await supabase
+        .from('bookings')
+        .select(`
+          *,
+          customer:users!bookings_customer_id_fkey(id, name, email, phone, city, zip_code),
+          service:services(id, name, description, base_price)
+        `)
+        .eq('id', booking_id)
+        .single();
+
+      if (fullBookingError || !fullBooking) {
+        throw new Error(`Failed to fetch booking details: ${fullBookingError?.message}`);
+      }
+
+      // Generate invoice number
+      const { data: invoiceNumber, error: invoiceNumberError } = await supabase
+        .rpc('generate_invoice_number');
+
+      if (invoiceNumberError) {
+        throw new Error(`Failed to generate invoice number: ${invoiceNumberError.message}`);
+      }
+
+      // Get customer's state from city (simplified mapping)
+      const customerState = getStateFromCity(fullBooking.customer?.city || fullBooking.guest_customer_info?.city || '');
+      
+      // Calculate invoice amounts with state sales tax
+      const serviceAmount = fullBooking.service?.base_price || 0;
+      const { data: taxRateData } = await supabase
+        .rpc('get_tax_rate_by_state', { state_abbreviation: customerState });
+      const taxRate = taxRateData || 0.0625; // Default to 6.25% if state not found
+      const taxAmount = serviceAmount * taxRate;
+      const totalAmount = serviceAmount + taxAmount;
+
+      // Create invoice
+      const { data: newInvoice, error: newInvoiceError } = await supabase
+        .from('invoices')
+        .insert({
+          booking_id: booking_id,
+          invoice_number: invoiceNumber,
+          customer_id: fullBooking.customer_id,
+          amount: serviceAmount,
+          tax_amount: taxAmount,
+          total_amount: totalAmount,
+          state_code: customerState,
+          tax_rate: taxRate,
+          status: 'draft'
+        })
+        .select('id, amount, tax_amount, total_amount')
+        .single();
+
+      if (newInvoiceError) {
+        throw new Error(`Failed to create invoice: ${newInvoiceError.message}`);
+      }
+
+      // Create initial invoice item for the original service
+      const { error: originalItemError } = await supabase
+        .from('invoice_items')
+        .insert({
+          invoice_id: newInvoice.id,
+          service_name: fullBooking.service?.name || 'TV Mounting Service',
+          description: fullBooking.service?.description || 'Professional TV mounting service',
+          quantity: 1,
+          unit_price: serviceAmount,
+          total_price: serviceAmount
+        });
+
+      if (originalItemError) {
+        logStep('Warning: Failed to create original invoice item', { error: originalItemError.message });
+      }
+
+      invoice = newInvoice;
+      logStep('Invoice created successfully', { invoice_id: invoice.id });
     }
 
     const invoiceItems = bookingServices.map((svc) => ({
@@ -211,4 +290,33 @@ serve(async (req) => {
     });
   }
 });
+
+// Helper function to map city to state (simplified)
+function getStateFromCity(city: string): string {
+  const cityStateMap: { [key: string]: string } = {
+    'austin': 'TX',
+    'dallas': 'TX',
+    'houston': 'TX',
+    'san antonio': 'TX',
+    'fort worth': 'TX',
+    'new york': 'NY',
+    'los angeles': 'CA',
+    'chicago': 'IL',
+    'miami': 'FL',
+    'phoenix': 'AZ',
+    'philadelphia': 'PA',
+    'san diego': 'CA',
+    'san francisco': 'CA',
+    'seattle': 'WA',
+    'denver': 'CO',
+    'atlanta': 'GA',
+    'boston': 'MA',
+    'las vegas': 'NV',
+    'detroit': 'MI',
+    'portland': 'OR'
+  };
+  
+  const normalizedCity = city?.toLowerCase().trim() || '';
+  return cityStateMap[normalizedCity] || 'TX'; // Default to Texas
+}
 
