@@ -112,30 +112,22 @@ serve(async (req) => {
     if (paymentIntent.status === 'succeeded') {
       console.log('Payment succeeded, updating booking status...');
       console.log('Current booking status:', booking.status, 'payment_status:', booking.payment_status);
-      console.log('Target booking status:', statusMapping.booking_status, 'payment_status:', statusMapping.payment_status);
       
-      // Only update if the status actually needs to change
-      const needsUpdate = booking.payment_status !== statusMapping.payment_status || 
-                         booking.status !== statusMapping.booking_status;
-      
-      if (needsUpdate) {
-        console.log('Updating booking status...');
-        const { error: updateError } = await supabaseServiceRole
-          .from('bookings')
-          .update({
-            payment_status: statusMapping.payment_status,
-            status: statusMapping.booking_status,
-          })
-          .eq('id', bookingId);
+      // Update booking to completed status and captured payment status
+      console.log('Updating booking to completed status...');
+      const { error: updateError } = await supabaseServiceRole
+        .from('bookings')
+        .update({
+          payment_status: 'completed',
+          status: 'completed',
+        })
+        .eq('id', bookingId);
 
-        if (updateError) {
-          console.error('Failed to update booking:', updateError);
-          throw updateError;
-        }
-        console.log('Booking status updated successfully');
-      } else {
-        console.log('Booking status already up to date - skipping update');
+      if (updateError) {
+        console.error('Failed to update booking:', updateError);
+        throw updateError;
       }
+      console.log('Booking status updated to completed successfully');
 
       console.log('Booking updated successfully, updating transaction...');
 
@@ -174,8 +166,10 @@ serve(async (req) => {
 
       return new Response(JSON.stringify({
         success: true,
-        payment_status: 'captured',
+        payment_status: 'completed',
+        booking_status: 'completed',
         booking_id: bookingId,
+        message: 'Payment captured and job marked as completed'
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,

@@ -56,12 +56,12 @@ export const PaymentCaptureButton = ({
     }
   };
 
-  // Don't show button if payment is already captured
-  if (paymentStatus === 'captured') {
+  // Don't show button if payment is already captured/completed
+  if (paymentStatus === 'captured' || paymentStatus === 'completed') {
     return (
       <div className="flex items-center space-x-2 text-green-600">
         <CheckCircle className="h-4 w-4" />
-        <span>Payment Captured</span>
+        <span>Job Completed</span>
       </div>
     );
   }
