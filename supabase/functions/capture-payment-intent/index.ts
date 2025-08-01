@@ -35,9 +35,9 @@ serve(async (req) => {
     // Get booking details
     const { data: booking, error: bookingError } = await supabaseServiceRole
       .from('bookings')
-      .select('payment_intent_id, payment_status')
+      .select('payment_intent_id, payment_status, status')
       .eq('id', bookingId)
-      .single();
+      .maybeSingle();
 
     console.log('Booking query result:', { booking, bookingError });
 
@@ -73,12 +73,31 @@ serve(async (req) => {
       apiVersion: '2023-10-16',
     });
 
-    console.log('Attempting to capture payment intent:', booking.payment_intent_id);
+    console.log('Checking PaymentIntent status before capture:', booking.payment_intent_id);
     
-    // Capture the payment intent
-    const paymentIntent = await stripe.paymentIntents.capture(
-      booking.payment_intent_id
-    );
+    // First, retrieve the current PaymentIntent to check its status
+    const currentPaymentIntent = await stripe.paymentIntents.retrieve(booking.payment_intent_id);
+    
+    console.log('Current PaymentIntent status:', {
+      id: currentPaymentIntent.id,
+      status: currentPaymentIntent.status,
+      amount: currentPaymentIntent.amount
+    });
+
+    let paymentIntent;
+    
+    // Check if already captured/succeeded
+    if (currentPaymentIntent.status === 'succeeded') {
+      console.log('PaymentIntent already succeeded - no capture needed');
+      paymentIntent = currentPaymentIntent;
+    } else if (currentPaymentIntent.status === 'requires_capture') {
+      console.log('Attempting to capture payment intent:', booking.payment_intent_id);
+      // Capture the payment intent
+      paymentIntent = await stripe.paymentIntents.capture(booking.payment_intent_id);
+    } else {
+      console.log('PaymentIntent cannot be captured with status:', currentPaymentIntent.status);
+      throw new Error(`Payment cannot be captured. Current status: ${currentPaymentIntent.status}`);
+    }
 
     console.log('Payment capture result:', {
       id: paymentIntent.id,
@@ -92,19 +111,30 @@ serve(async (req) => {
 
     if (paymentIntent.status === 'succeeded') {
       console.log('Payment succeeded, updating booking status...');
+      console.log('Current booking status:', booking.status, 'payment_status:', booking.payment_status);
+      console.log('Target booking status:', statusMapping.booking_status, 'payment_status:', statusMapping.payment_status);
       
-      // Update booking status using mapped statuses
-      const { error: updateError } = await supabaseServiceRole
-        .from('bookings')
-        .update({
-          payment_status: statusMapping.payment_status,
-          status: statusMapping.booking_status,
-        })
-        .eq('id', bookingId);
+      // Only update if the status actually needs to change
+      const needsUpdate = booking.payment_status !== statusMapping.payment_status || 
+                         booking.status !== statusMapping.booking_status;
+      
+      if (needsUpdate) {
+        console.log('Updating booking status...');
+        const { error: updateError } = await supabaseServiceRole
+          .from('bookings')
+          .update({
+            payment_status: statusMapping.payment_status,
+            status: statusMapping.booking_status,
+          })
+          .eq('id', bookingId);
 
-      if (updateError) {
-        console.error('Failed to update booking:', updateError);
-        throw updateError;
+        if (updateError) {
+          console.error('Failed to update booking:', updateError);
+          throw updateError;
+        }
+        console.log('Booking status updated successfully');
+      } else {
+        console.log('Booking status already up to date - skipping update');
       }
 
       console.log('Booking updated successfully, updating transaction...');
