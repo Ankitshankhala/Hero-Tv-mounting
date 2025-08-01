@@ -23,6 +23,7 @@ export const useServicesData = () => {
   const fetchServices = async () => {
     try {
       setLoading(true);
+      // Fetch ALL active services, including non-visible add-ons needed for TV mounting configurations
       const { data, error } = await supabase
         .from('services')
         .select('id, name, description, base_price, duration_minutes, is_active, created_at, image_url, sort_order, is_visible')
