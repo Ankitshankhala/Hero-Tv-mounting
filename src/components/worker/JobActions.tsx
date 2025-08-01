@@ -87,6 +87,7 @@ const JobActions = ({
           <PaymentCaptureButton
             bookingId={job.id}
             paymentStatus={job.payment_status}
+            bookingStatus={job.status}
             onCaptureSuccess={onCaptureSuccess}
           />
         )}

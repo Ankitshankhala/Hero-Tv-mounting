@@ -113,63 +113,84 @@ serve(async (req) => {
       console.log('Payment succeeded, updating booking status...');
       console.log('Current booking status:', booking.status, 'payment_status:', booking.payment_status);
       
+      // First, update existing transaction to captured status
+      console.log('Updating existing transaction to captured status...');
+      const { error: transactionUpdateError } = await supabaseServiceRole
+        .from('transactions')
+        .update({
+          status: 'completed',
+          captured_at: new Date().toISOString(),
+          transaction_type: 'capture'
+        })
+        .eq('payment_intent_id', booking.payment_intent_id)
+        .eq('status', 'authorized');
+
+      if (transactionUpdateError) {
+        console.error('Failed to update existing transaction:', transactionUpdateError);
+        // Don't throw here, we can still proceed with booking update
+      }
+      
       // Update booking to completed status with captured payment status
-      // Use 'captured' payment_status to match the status mapping
       console.log('Updating booking to completed status...');
       const { error: updateError } = await supabaseServiceRole
         .from('bookings')
         .update({
-          payment_status: 'captured',  // Use 'captured' instead of 'completed'
+          payment_status: 'captured',
           status: 'completed',
         })
         .eq('id', bookingId);
 
       if (updateError) {
         console.error('Failed to update booking:', updateError);
-        throw updateError;
+        
+        // Enhanced error handling with specific error details
+        const errorDetails = {
+          code: updateError.code,
+          message: updateError.message,
+          details: updateError.details,
+          hint: updateError.hint
+        };
+        console.error('Detailed booking update error:', errorDetails);
+        
+        // Try to provide helpful error message
+        if (updateError.message?.includes('violates')) {
+          throw new Error(`Database validation error: ${updateError.message}. Please check booking and payment status consistency.`);
+        }
+        
+        throw new Error(`Failed to update booking status: ${updateError.message}`);
       }
       console.log('Booking status updated to completed successfully');
 
-      console.log('Booking updated successfully, updating transaction...');
-
-      // Update transaction record with proper status and create a capture transaction
-      const { error: transactionError } = await supabaseServiceRole
-        .from('transactions')
-        .update({
-          status: statusMapping.internal_status,
-        })
-        .eq('payment_intent_id', booking.payment_intent_id);
-
-      if (transactionError) {
-        console.error('Failed to update transaction:', transactionError);
-      }
-
-      console.log('Creating capture transaction record...');
-
-      // Create a separate capture transaction record
-      const { error: captureTransactionError } = await supabaseServiceRole
-        .from('transactions')
+      // Create audit log for the capture
+      const { error: auditError } = await supabaseServiceRole
+        .from('booking_audit_log')
         .insert({
           booking_id: bookingId,
-          amount: paymentIntent.amount / 100, // Convert from cents
-          status: statusMapping.internal_status,
+          operation: 'payment_captured',
+          status: 'success',
           payment_intent_id: booking.payment_intent_id,
-          payment_method: 'card',
-          transaction_type: 'capture',
-          currency: paymentIntent.currency.toUpperCase(),
+          details: {
+            amount: paymentIntent.amount / 100,
+            currency: paymentIntent.currency,
+            stripe_status: paymentIntent.status,
+            captured_at: new Date().toISOString()
+          }
         });
 
-      if (captureTransactionError) {
-        console.error('Failed to create capture transaction:', captureTransactionError);
+      if (auditError) {
+        console.error('Failed to create audit log:', auditError);
+        // Don't fail the whole operation for audit log issues
       }
 
       console.log('Payment capture completed successfully');
 
       return new Response(JSON.stringify({
         success: true,
-        payment_status: 'completed',
+        payment_status: 'captured',
         booking_status: 'completed',
         booking_id: bookingId,
+        amount_captured: paymentIntent.amount / 100,
+        currency: paymentIntent.currency,
         message: 'Payment captured and job marked as completed'
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -179,7 +200,22 @@ serve(async (req) => {
     } else {
       console.log('Payment capture failed with status:', paymentIntent.status);
       
-      // Capture failed
+      // Create audit log for the failed capture
+      await supabaseServiceRole
+        .from('booking_audit_log')
+        .insert({
+          booking_id: bookingId,
+          operation: 'payment_capture_failed',
+          status: 'error',
+          payment_intent_id: booking.payment_intent_id,
+          error_message: `Payment capture failed: ${paymentIntent.status}`,
+          details: {
+            stripe_status: paymentIntent.status,
+            attempted_at: new Date().toISOString()
+          }
+        });
+      
+      // Update booking to indicate capture failure
       const { error: updateError } = await supabaseServiceRole
         .from('bookings')
         .update({
@@ -191,7 +227,17 @@ serve(async (req) => {
         console.error('Failed to update booking status:', updateError);
       }
 
-      throw new Error(`Payment capture failed: ${paymentIntent.status}`);
+      // Update transaction to failed status
+      await supabaseServiceRole
+        .from('transactions')
+        .update({
+          status: 'failed',
+          cancellation_reason: `Capture failed: ${paymentIntent.status}`
+        })
+        .eq('payment_intent_id', booking.payment_intent_id)
+        .eq('status', 'authorized');
+
+      throw new Error(`Payment capture failed with status: ${paymentIntent.status}. Please contact support if this persists.`);
     }
 
   } catch (error) {
@@ -200,13 +246,52 @@ serve(async (req) => {
       message: error.message,
       stack: error.stack,
       type: error.type,
-      code: error.code
+      code: error.code,
+      bookingId
     });
     
-    // Handle specific Stripe errors
+    // Create audit log for the error
+    try {
+      const supabaseServiceRole = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+        { auth: { persistSession: false } }
+      );
+      
+      await supabaseServiceRole
+        .from('booking_audit_log')
+        .insert({
+          booking_id: bookingId,
+          operation: 'payment_capture_error',
+          status: 'error',
+          error_message: error.message,
+          details: {
+            error_type: error.type,
+            error_code: error.code,
+            stack_trace: error.stack,
+            timestamp: new Date().toISOString()
+          }
+        });
+    } catch (auditError) {
+      console.error('Failed to create error audit log:', auditError);
+    }
+    
+    // Handle specific error types with user-friendly messages
     let errorMessage = 'Payment capture failed';
-    if (error.type && error.type.includes('Stripe')) {
-      errorMessage = error.message;
+    let statusCode = 500;
+    
+    if (error.type && error.type.includes('StripeInvalidRequestError')) {
+      errorMessage = 'Invalid payment request. The payment may have already been processed.';
+      statusCode = 400;
+    } else if (error.type && error.type.includes('StripeCardError')) {
+      errorMessage = 'Payment was declined by the card issuer.';
+      statusCode = 402;
+    } else if (error.message?.includes('violates')) {
+      errorMessage = 'Database validation error. Please contact support.';
+      statusCode = 409;
+    } else if (error.message?.includes('not found')) {
+      errorMessage = 'Booking or payment not found.';
+      statusCode = 404;
     } else if (error.message) {
       errorMessage = error.message;
     }
@@ -214,9 +299,12 @@ serve(async (req) => {
     return new Response(JSON.stringify({
       success: false,
       error: errorMessage,
+      error_code: error.code,
+      booking_id: bookingId,
+      timestamp: new Date().toISOString()
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
+      status: statusCode,
     });
   }
 });

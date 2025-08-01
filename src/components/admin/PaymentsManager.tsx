@@ -9,7 +9,7 @@ import { CreditCard, DollarSign, RefreshCw, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import PaymentDetailsModal from './PaymentDetailsModal';
-
+import { PaymentRecoveryTools } from './PaymentRecoveryTools';
 import { PaymentSyncButton } from './PaymentSyncButton';
 import { PaymentHealthCheck } from './PaymentHealthCheck';
 
@@ -207,7 +207,11 @@ export const PaymentsManager = () => {
 
   return (
     <div className="space-y-6">
-      
+      {/* Payment Recovery Tools */}
+      <PaymentRecoveryTools />
+
+      {/* Payment Health Check */}
+      <PaymentHealthCheck />
 
       {/* Payment Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
