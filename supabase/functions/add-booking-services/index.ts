@@ -125,7 +125,7 @@ serve(async (req) => {
           service:services(id, name, description, base_price)
         `)
         .eq('id', booking_id)
-        .single();
+        .maybeSingle();
 
       if (fullBookingError || !fullBooking) {
         throw new Error(`Failed to fetch booking details: ${fullBookingError?.message}`);
@@ -139,8 +139,10 @@ serve(async (req) => {
         throw new Error(`Failed to generate invoice number: ${invoiceNumberError.message}`);
       }
 
-      // Get customer's state from city (simplified mapping)
-      const customerState = getStateFromCity(fullBooking.customer?.city || fullBooking.guest_customer_info?.city || '');
+      // Get customer data - handle both authenticated users and guests
+      const customerData = fullBooking.customer || fullBooking.guest_customer_info;
+      const customerCity = customerData?.city || '';
+      const customerState = getStateFromCity(customerCity);
       
       // Calculate invoice amounts with state sales tax
       const serviceAmount = fullBooking.service?.base_price || 0;
@@ -303,7 +305,7 @@ serve(async (req) => {
             guest_customer_info
           `)
           .eq('id', booking_id)
-          .single();
+          .maybeSingle();
 
         const customerEmail = fullBooking?.customer?.email || fullBooking?.guest_customer_info?.email;
 
