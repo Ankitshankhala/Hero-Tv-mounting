@@ -102,6 +102,7 @@ const WorkerDashboard = () => {
           service:services!service_id(name, description, base_price, duration_minutes)
         `)
         .eq('worker_id', user.id)
+        .order('updated_at', { ascending: false })
         .order('scheduled_date', { ascending: true });
 
       if (error) {
