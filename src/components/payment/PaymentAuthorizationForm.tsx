@@ -99,11 +99,12 @@ export const PaymentAuthorizationForm = ({
       setLoading(true);
       
       // Create payment intent for existing booking
+      console.log(`🔧 PaymentAuthorizationForm: Sending amount in dollars: $${amount}`);
       const { data: intentData, error: intentError } = await supabase.functions.invoke(
         'create-payment-intent',
         {
           body: {
-            amount: amount * 100, // Convert to cents
+            amount: amount, // Send in dollars, edge function will convert to cents
             currency: 'usd',
             booking_id: bookingId,
             idempotency_key: crypto.randomUUID(),

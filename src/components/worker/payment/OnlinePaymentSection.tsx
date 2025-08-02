@@ -20,11 +20,12 @@ const OnlinePaymentSection = ({ job, amount, onPaymentSuccess }: OnlinePaymentSe
   const handleGeneratePaymentLink = async () => {
     try {
       const customerEmail = job.customer?.email || job.guest_customer_info?.email;
-      const amountInCents = Math.round(parseFloat(amount) * 100);
+      const amountInDollars = parseFloat(amount);
       
+      console.log(`🔧 OnlinePaymentSection: Sending amount in dollars: $${amountInDollars}`);
       const result = await createPaymentLink({
         bookingId: job.id,
-        amount: amountInCents,
+        amount: amountInDollars, // Send in dollars, edge function will convert to cents
         description: `Payment for Booking #${job.id.slice(0, 8)}`,
         customerEmail
       });
