@@ -20,8 +20,6 @@ import { BlogManager } from '@/components/admin/BlogManager';
 import { AdminCalendarView } from '@/components/admin/AdminCalendarView';
 import { CoverageRequestsManager } from '@/components/admin/CoverageRequestsManager';
 import { InvoicesManager } from '@/components/admin/InvoicesManager';
-import { PerformanceDashboard } from '@/components/admin/PerformanceDashboard';
-import { DeploymentPanel } from '@/components/admin/DeploymentPanel';
 
 const Admin = () => {
   const { user, profile, loading } = useAuth();
@@ -99,10 +97,6 @@ const Admin = () => {
         return <BlogManager />;
       case 'coverage':
         return <CoverageRequestsManager />;
-      case 'performance':
-        return <PerformanceDashboard />;
-      case 'deployment':
-        return <DeploymentPanel />;
       default:
         return <DashboardStats />;
     }
