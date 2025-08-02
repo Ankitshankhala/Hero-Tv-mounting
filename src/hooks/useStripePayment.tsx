@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { loadStripe } from '@stripe/stripe-js';
 import { optimizedLog, optimizedError, measurePerformance } from '@/utils/performanceOptimizer';
+import { STRIPE_CONFIG } from '@/lib/stripe-config';
 
 interface StripePaymentData {
   bookingId: string;
@@ -16,7 +17,7 @@ export const useStripePayment = () => {
   const { toast } = useToast();
 
   // Initialize Stripe
-  const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_51RYKUCCrUPkotWKCCDqe3FdFeX0Ay28npIVh3AV978lOELL2UPADRzL2eUQcAlRtXFs2FCWwIm0ug7IHvIhKNUCh00ormaaPPo');
+  const stripePromise = loadStripe(STRIPE_CONFIG.publishableKey);
 
   const createPaymentLink = async (paymentData: StripePaymentData): Promise<{
     success: boolean;
