@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ResendTestPanel } from '@/components/admin/ResendTestPanel';
+import { EmailTestManager } from '@/components/admin/EmailTestManager';
 import { 
   Rocket, 
   GitBranch, 
@@ -12,7 +14,8 @@ import {
   ExternalLink,
   Settings,
   Shield,
-  Database
+  Database,
+  Mail
 } from 'lucide-react';
 
 export const DeploymentPanel = () => {
@@ -129,6 +132,11 @@ export const DeploymentPanel = () => {
           </div>
         </CardContent>
       </Card>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <ResendTestPanel />
+        <EmailTestManager />
+      </div>
 
       <Card>
         <CardHeader>
