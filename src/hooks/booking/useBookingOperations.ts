@@ -9,6 +9,7 @@ import { ServiceItem, FormData } from './types';
 import { useTestingMode, getEffectiveMinimumAmount } from '@/contexts/TestingModeContext';
 import { validateUSZipcode } from '@/utils/zipcodeValidation';
 import { optimizedLog, optimizedError, measurePerformance } from '@/utils/performanceOptimizer';
+import { useEmailNotifications } from '@/hooks/useEmailNotifications';
 
 // Enhanced interfaces for unified booking system
 export interface UnauthenticatedBookingData {
@@ -63,6 +64,7 @@ export const useBookingOperations = () => {
 
   const { user } = useAuth();
   const { toast } = useToast();
+  const { sendCustomerConfirmationEmail } = useEmailNotifications();
 
   const validateMinimumCart = (services: ServiceItem[]): boolean => {
     const total = services.reduce((sum, service) => sum + (service.price * service.quantity), 0);
@@ -243,17 +245,12 @@ export const useBookingOperations = () => {
         throw new Error(`Failed to confirm booking: ${updateError.message}`);
       }
 
-      // Send customer confirmation email immediately after booking confirmation
+      // Send customer confirmation email using the new email system
       try {
-        const { error: emailError } = await supabase.functions.invoke('send-customer-booking-confirmation-email', {
-          body: { bookingId }
-        });
-        
-        if (emailError) {
-          // Don't fail the booking process for email errors
-        }
+        await sendCustomerConfirmationEmail(bookingId);
       } catch (emailError) {
         // Continue with booking process even if email fails
+        console.error('Customer confirmation email failed:', emailError);
       }
 
       // Auto-assign worker after confirmation - handle both authenticated users and guests
