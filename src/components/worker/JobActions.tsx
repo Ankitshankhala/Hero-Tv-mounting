@@ -63,9 +63,8 @@ const JobActions = ({
     }
   };
 
-  const validNextStatuses = getValidNextStatuses(job.status);
-  return <div className="flex items-center justify-between pt-4 border-t border-slate-600">
-      <div className="flex space-x-2">
+  return <div className="flex items-center pt-4 border-t border-slate-600">
+      <div className="flex flex-wrap gap-2">
         <Button size="sm" variant="outline" onClick={() => callCustomer(job.customer?.phone)} disabled={!job.customer?.phone}>
           <Phone className="h-4 w-4 mr-1" />
           Call Customer
@@ -87,27 +86,6 @@ const JobActions = ({
             <Plus className="h-4 w-4 mr-1" />
             Add Services
           </Button>}
-      </div>
-      
-      <div className="flex items-center space-x-2">
-        {validNextStatuses.length > 0 && (
-          <Select onValueChange={value => onStatusUpdate(job.id, value)}>
-            <SelectTrigger className="w-48 bg-slate-600 border-slate-500">
-              <SelectValue placeholder={`Current: ${getStatusLabel(job.status)}`} />
-            </SelectTrigger>
-            <SelectContent className="bg-slate-700 border-slate-600">
-              {validNextStatuses.map((status) => (
-                <SelectItem 
-                  key={status} 
-                  value={status}
-                  className="text-slate-200 hover:bg-slate-600"
-                >
-                  {getStatusLabel(status)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
       </div>
     </div>;
 };
