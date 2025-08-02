@@ -60,7 +60,10 @@ export const InlineStripePaymentForm = ({
           throw new Error(error.message);
         }
 
-        if (paymentIntent.status === 'succeeded') {
+        console.log('PaymentIntent status:', paymentIntent.status);
+        
+        // Check for successful payment statuses
+        if (['succeeded', 'processing', 'requires_capture'].includes(paymentIntent.status)) {
           // Update transaction status via edge function
           const { data, error: updateError } = await supabase.functions.invoke('process-service-addition-payment', {
             body: {
@@ -70,6 +73,7 @@ export const InlineStripePaymentForm = ({
           });
 
           if (updateError) {
+            console.error('Edge function error:', updateError);
             throw new Error(updateError.message);
           }
 
@@ -80,7 +84,8 @@ export const InlineStripePaymentForm = ({
 
           onPaymentSuccess();
         } else {
-          throw new Error('Payment was not completed successfully');
+          console.error('Unexpected PaymentIntent status:', paymentIntent.status);
+          throw new Error(`Payment status: ${paymentIntent.status}. Please contact support if you were charged.`);
         }
 
       } else {
