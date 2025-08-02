@@ -7,7 +7,7 @@ import { MapPin, Clock, User, Phone, Mail, DollarSign } from 'lucide-react';
 import JobActions from './JobActions';
 import { EnhancedInvoiceModificationModal } from './EnhancedInvoiceModificationModal';
 import OnSiteChargeModal from './OnSiteChargeModal';
-import PaymentCollectionModal from './payment/PaymentCollectionModal';
+
 import { AddServicesModal } from './AddServicesModal';
 
 interface WorkerJobCardProps {
@@ -37,7 +37,6 @@ interface WorkerJobCardProps {
 export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJobCardProps) => {
   const [showModifyModal, setShowModifyModal] = useState(false);
   const [showChargeModal, setShowChargeModal] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showAddServicesModal, setShowAddServicesModal] = useState(false);
 
   const getStatusColor = (status: string) => {
@@ -73,16 +72,6 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
     setShowChargeModal(true);
   };
 
-  const handleCollectPaymentClick = () => {
-    setShowPaymentModal(true);
-  };
-
-  const handlePaymentCollected = () => {
-    setShowPaymentModal(false);
-    if (onJobCancelled) {
-      onJobCancelled(); // Refresh the jobs list
-    }
-  };
 
   const handleModificationCreated = () => {
     setShowModifyModal(false);
@@ -181,7 +170,6 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
           onStatusUpdate={onStatusUpdate || (() => {})}
           onModifyClick={handleModifyClick}
           onChargeClick={handleChargeClick}
-          onCollectPaymentClick={handleCollectPaymentClick}
           onCaptureSuccess={handleCaptureSuccess}
           onAddServicesClick={handleAddServicesClick}
         />
@@ -206,14 +194,6 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
         />
       )}
 
-      {showPaymentModal && (
-        <PaymentCollectionModal
-          isOpen={showPaymentModal}
-          onClose={() => setShowPaymentModal(false)}
-          job={job}
-          onPaymentCollected={handlePaymentCollected}
-        />
-      )}
 
       {showAddServicesModal && (
         <AddServicesModal

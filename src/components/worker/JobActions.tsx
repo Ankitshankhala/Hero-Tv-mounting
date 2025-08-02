@@ -8,7 +8,6 @@ interface JobActionsProps {
   onStatusUpdate: (jobId: string, newStatus: string) => void;
   onModifyClick: () => void;
   onChargeClick: () => void;
-  onCollectPaymentClick?: () => void;
   onCaptureSuccess?: () => void;
   onAddServicesClick?: () => void;
 }
@@ -17,7 +16,6 @@ const JobActions = ({
   onStatusUpdate,
   onModifyClick,
   onChargeClick,
-  onCollectPaymentClick,
   onCaptureSuccess,
   onAddServicesClick
 }: JobActionsProps) => {
@@ -29,7 +27,6 @@ const JobActions = ({
     window.open(`https://maps.google.com/?q=${encodedAddress}`, '_blank');
   };
   const canAddCharges = (job.status === 'in_progress' || job.status === 'confirmed') && job.payment_status !== 'authorized';
-  const hasUnpaidAmount = job.pending_payment_amount > 0;
   const canCapturePayment = job.payment_status === 'authorized' && job.status !== 'completed';
   const canAddServices = job.status === 'confirmed' || job.status === 'in_progress';
 
@@ -73,10 +70,6 @@ const JobActions = ({
           <MapPin className="h-4 w-4 mr-1" />
           Get Directions
         </Button>
-        {hasUnpaidAmount && <Button size="sm" variant="outline" onClick={onCollectPaymentClick} className="text-orange-400 border-orange-400 hover:bg-orange-400 hover:text-white">
-            <DollarSign className="h-4 w-4 mr-1" />
-            Collect Payment (${job.pending_payment_amount})
-          </Button>}
         {canAddCharges && <Button size="sm" variant="outline" onClick={onChargeClick} className="text-green-400 border-green-400 hover:bg-green-400 hover:text-white">
             <CreditCard className="h-4 w-4 mr-1" />
             Add Charge
