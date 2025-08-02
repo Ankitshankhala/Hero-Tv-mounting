@@ -30,20 +30,27 @@ const handler = async (req: Request): Promise<Response> => {
     const { bookingId, workerId }: WorkerEmailRequest = await req.json();
     console.log('Processing worker assignment email for booking:', bookingId, 'worker:', workerId);
 
-    // Get booking details with related data
+    // Get booking details
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
-      .select(`
-        *,
-        services (name, description),
-        booking_services (service_name, base_price, quantity, configuration),
-        users!bookings_customer_id_fkey (name, email, phone)
-      `)
+      .select('*')
       .eq('id', bookingId)
       .single();
 
     if (bookingError || !booking) {
+      console.error('Booking fetch error:', bookingError);
       throw new Error(`Failed to fetch booking: ${bookingError?.message}`);
+    }
+
+    // Get booking services separately
+    const { data: bookingServices, error: servicesError } = await supabase
+      .from('booking_services')
+      .select('service_name, base_price, quantity, configuration')
+      .eq('booking_id', bookingId);
+
+    if (servicesError) {
+      console.error('Booking services fetch error:', servicesError);
+      throw new Error(`Failed to fetch booking services: ${servicesError?.message}`);
     }
 
     // Get worker details
@@ -54,6 +61,7 @@ const handler = async (req: Request): Promise<Response> => {
       .single();
 
     if (workerError || !worker) {
+      console.error('Worker fetch error:', workerError);
       throw new Error(`Failed to fetch worker: ${workerError?.message}`);
     }
 
@@ -61,25 +69,48 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error('No worker email found');
     }
 
+    // Get customer info if authenticated user
+    let customerUser = null;
+    if (booking.customer_id) {
+      const { data: user, error: userError } = await supabase
+        .from('users')
+        .select('name, email, phone')
+        .eq('id', booking.customer_id)
+        .single();
+      
+      if (userError) {
+        console.error('Customer user fetch error:', userError);
+      } else {
+        customerUser = user;
+      }
+    }
+
+    console.log('Sending worker assignment email to:', worker.email, 'for booking:', bookingId);
+
     // Determine customer contact info
     let customerName: string;
     let customerPhone: string;
     let customerEmail: string;
     
-    if (booking.customer_id) {
+    if (booking.customer_id && customerUser) {
       // Authenticated customer
-      customerName = booking.users?.name || 'Customer';
-      customerPhone = booking.users?.phone || 'Not provided';
-      customerEmail = booking.users?.email || 'Not provided';
-    } else {
+      customerName = customerUser.name || 'Customer';
+      customerPhone = customerUser.phone || 'Not provided';
+      customerEmail = customerUser.email || 'Not provided';
+    } else if (booking.guest_customer_info) {
       // Guest customer
-      customerName = booking.guest_customer_info?.name || 'Customer';
-      customerPhone = booking.guest_customer_info?.phone || 'Not provided';
-      customerEmail = booking.guest_customer_info?.email || 'Not provided';
+      customerName = booking.guest_customer_info.name || 'Customer';
+      customerPhone = booking.guest_customer_info.phone || 'Not provided';
+      customerEmail = booking.guest_customer_info.email || 'Not provided';
+    } else {
+      customerName = 'Customer';
+      customerPhone = 'Not provided';
+      customerEmail = 'Not provided';
     }
 
     // Format service details
-    const serviceDetails = booking.booking_services.map((service: any) => {
+    const serviceDetails = bookingServices?.length ? 
+      bookingServices.map((service: any) => {
       const config = service.configuration;
       let configDetails = '';
       
@@ -91,8 +122,8 @@ const handler = async (req: Request): Promise<Response> => {
         if (config.cableManagement) configDetails += `Cable Management: Yes<br>`;
       }
       
-      return `<strong>${service.service_name}</strong> (Qty: ${service.quantity}) - $${service.base_price}<br>${configDetails}`;
-    }).join('<br>');
+        return `<strong>${service.service_name}</strong> (Qty: ${service.quantity}) - $${service.base_price}<br>${configDetails}`;
+      }).join('<br>') : 'Service details unavailable';
 
     // Format scheduled date and time
     const scheduledDateTime = new Date(`${booking.scheduled_date}T${booking.scheduled_start}`);

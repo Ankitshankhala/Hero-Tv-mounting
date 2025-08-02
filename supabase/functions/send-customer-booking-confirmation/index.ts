@@ -29,49 +29,93 @@ const handler = async (req: Request): Promise<Response> => {
     const { bookingId }: CustomerEmailRequest = await req.json();
     console.log('Processing customer email for booking:', bookingId);
 
-    // Get booking details with related data
+    // Get booking details
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
-      .select(`
-        *,
-        services (name, description),
-        booking_services (service_name, base_price, quantity, configuration),
-        users!bookings_worker_id_fkey (name, email, phone),
-        users!bookings_customer_id_fkey (name, email, phone)
-      `)
+      .select('*')
       .eq('id', bookingId)
       .single();
 
     if (bookingError || !booking) {
+      console.error('Booking fetch error:', bookingError);
       throw new Error(`Failed to fetch booking: ${bookingError?.message}`);
+    }
+
+    // Get booking services separately
+    const { data: bookingServices, error: servicesError } = await supabase
+      .from('booking_services')
+      .select('service_name, base_price, quantity, configuration')
+      .eq('booking_id', bookingId);
+
+    if (servicesError) {
+      console.error('Booking services fetch error:', servicesError);
+      throw new Error(`Failed to fetch booking services: ${servicesError?.message}`);
+    }
+
+    // Get customer info if authenticated user
+    let customerUser = null;
+    if (booking.customer_id) {
+      const { data: user, error: userError } = await supabase
+        .from('users')
+        .select('name, email, phone')
+        .eq('id', booking.customer_id)
+        .single();
+      
+      if (userError) {
+        console.error('Customer user fetch error:', userError);
+      } else {
+        customerUser = user;
+      }
+    }
+
+    // Get worker info if assigned
+    let workerUser = null;
+    if (booking.worker_id) {
+      const { data: worker, error: workerError } = await supabase
+        .from('users')
+        .select('name, email, phone')
+        .eq('id', booking.worker_id)
+        .single();
+      
+      if (workerError) {
+        console.error('Worker fetch error:', workerError);
+      } else {
+        workerUser = worker;
+      }
     }
 
     // Determine customer email and name
     let customerEmail: string;
     let customerName: string;
     
-    if (booking.customer_id) {
+    if (booking.customer_id && customerUser) {
       // Authenticated customer
-      customerEmail = booking.users.email;
-      customerName = booking.users.name || 'Customer';
-    } else {
+      customerEmail = customerUser.email;
+      customerName = customerUser.name || 'Customer';
+    } else if (booking.guest_customer_info) {
       // Guest customer
-      customerEmail = booking.guest_customer_info?.email;
-      customerName = booking.guest_customer_info?.name || 'Customer';
+      customerEmail = booking.guest_customer_info.email;
+      customerName = booking.guest_customer_info.name || 'Customer';
+    } else {
+      throw new Error('No customer email found');
     }
 
     if (!customerEmail) {
       throw new Error('No customer email found');
     }
 
-    // Format service details
-    const serviceDetails = booking.booking_services.map((service: any) => {
-      return `${service.service_name} (Qty: ${service.quantity}) - $${service.base_price}`;
-    }).join('<br>');
+    console.log('Sending email to customer:', customerEmail, 'for booking:', bookingId);
 
-    const totalAmount = booking.booking_services.reduce((sum: number, service: any) => 
-      sum + (service.base_price * service.quantity), 0
-    );
+    // Format service details
+    const serviceDetails = bookingServices?.length ? 
+      bookingServices.map((service: any) => {
+        return `${service.service_name} (Qty: ${service.quantity}) - $${service.base_price}`;
+      }).join('<br>') : 'Service details unavailable';
+
+    const totalAmount = bookingServices?.length ? 
+      bookingServices.reduce((sum: number, service: any) => 
+        sum + (service.base_price * service.quantity), 0
+      ) : 0;
 
     // Format scheduled date and time
     const scheduledDateTime = new Date(`${booking.scheduled_date}T${booking.scheduled_start}`);
@@ -88,9 +132,9 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     // Worker information (if assigned)
-    const workerInfo = booking.users?.name ? 
-      `<p><strong>Assigned Worker:</strong> ${booking.users.name}<br>
-       <strong>Worker Phone:</strong> ${booking.users.phone || 'Not provided'}</p>` : 
+    const workerInfo = workerUser?.name ? 
+      `<p><strong>Assigned Worker:</strong> ${workerUser.name}<br>
+       <strong>Worker Phone:</strong> ${workerUser.phone || 'Not provided'}</p>` : 
       '<p><strong>Worker:</strong> Will be assigned soon</p>';
 
     const htmlContent = `

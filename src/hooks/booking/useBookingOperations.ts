@@ -245,9 +245,16 @@ export const useBookingOperations = () => {
 
       // Send customer confirmation email
       try {
-        const { error: emailError } = await supabase.functions.invoke('send-customer-booking-confirmation', {
+        console.log('Triggering customer confirmation email for booking:', bookingId);
+        const { data: emailData, error: emailError } = await supabase.functions.invoke('send-customer-booking-confirmation', {
           body: { bookingId }
         });
+        
+        if (emailError) {
+          console.error('Customer email error:', emailError);
+        } else {
+          console.log('Customer email response:', emailData);
+        }
         
         if (emailError) {
           console.warn('Failed to send customer confirmation email:', emailError);

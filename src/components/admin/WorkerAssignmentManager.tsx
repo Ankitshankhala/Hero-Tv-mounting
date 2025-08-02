@@ -40,7 +40,8 @@ export const WorkerAssignmentManager = ({
 
       // Send worker assignment email
       try {
-        const { error: emailError } = await supabase.functions.invoke('send-worker-assignment-notification', {
+        console.log('Triggering worker assignment email for booking:', bookingId, 'worker:', workerId);
+        const { data: emailData, error: emailError } = await supabase.functions.invoke('send-worker-assignment-notification', {
           body: { 
             bookingId,
             workerId 
@@ -48,12 +49,22 @@ export const WorkerAssignmentManager = ({
         });
         
         if (emailError) {
-          console.warn('Failed to send worker assignment email:', emailError);
+          console.error('Worker assignment email error:', emailError);
+          toast({
+            title: "Email Warning",
+            description: "Worker assigned but notification email may not have been sent.",
+            variant: "default"
+          });
         } else {
-          console.log('Worker assignment email sent successfully');
+          console.log('Worker assignment email response:', emailData);
         }
-      } catch (emailError) {
-        console.warn('Error sending worker assignment email:', emailError);
+      } catch (emailException) {
+        console.error('Exception sending worker assignment email:', emailException);
+        toast({
+          title: "Email Warning", 
+          description: "Worker assigned but notification email failed.",
+          variant: "default"
+        });
       }
 
       toast({
