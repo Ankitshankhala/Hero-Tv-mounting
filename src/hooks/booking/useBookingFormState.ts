@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { ServiceItem, FormData } from './types';
-import { useTestingMode, getEffectiveMinimumAmount } from '@/contexts/TestingModeContext';
+import { useTestingMode, getEffectiveMinimumAmount, getEffectiveServicePrice } from '@/contexts/TestingModeContext';
 
 export const useBookingFormState = (selectedServices: ServiceItem[] = []) => {
   const { isTestingMode } = useTestingMode();
@@ -40,7 +40,11 @@ export const useBookingFormState = (selectedServices: ServiceItem[] = []) => {
   };
 
   const getTotalPrice = () => {
-    return services.reduce((total, service) => total + (service.price * service.quantity), 0);
+    return services.reduce((total, service) => {
+      const effectivePrice = getEffectiveServicePrice(service.price, isTestingMode);
+      console.log(`Testing mode: ${isTestingMode}, Service: ${service.name}, Original: $${service.price}, Effective: $${effectivePrice}`);
+      return total + (effectivePrice * service.quantity);
+    }, 0);
   };
 
   const isMinimumCartMet = () => {

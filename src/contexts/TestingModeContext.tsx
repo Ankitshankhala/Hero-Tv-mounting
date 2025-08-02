@@ -91,3 +91,7 @@ export const useTestingMode = () => {
 export const getEffectiveMinimumAmount = (isTestingMode: boolean) => {
   return isTestingMode ? 1 : 75;
 };
+
+export const getEffectiveServicePrice = (originalPrice: number, isTestingMode: boolean) => {
+  return isTestingMode ? 1 : originalPrice;
+};

@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Plus, Check, TestTube } from 'lucide-react';
-import { useTestingMode } from '@/contexts/TestingModeContext';
+import { useTestingMode, getEffectiveServicePrice } from '@/contexts/TestingModeContext';
 
 interface ServiceCardProps {
   id: string;
@@ -16,10 +16,9 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ id, name, price, image
   const [isClicked, setIsClicked] = useState(false);
   const { isTestingMode } = useTestingMode();
   
-  // Identify testing services in testing mode
-  const isTestingService = isTestingMode && (price === 1 || name.toLowerCase().includes('test'));
-  const cardBorderClass = isTestingService 
-    ? 'border-green-500 bg-green-900/20' 
+  const effectivePrice = getEffectiveServicePrice(price, isTestingMode);
+  const cardBorderClass = isTestingMode 
+    ? 'border-orange-500 bg-orange-900/20' 
     : 'border-slate-700 hover:border-blue-500';
 
   const handleClick = () => {
@@ -46,10 +45,10 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ id, name, price, image
         <div className="mb-4">
           <div className="flex items-center gap-2 mb-2">
             <h3 className="text-xl font-bold text-white">{name}</h3>
-            {isTestingService && (
-              <div className="flex items-center gap-1 px-2 py-1 bg-green-600 rounded text-xs text-white">
+            {isTestingMode && (
+              <div className="flex items-center gap-1 px-2 py-1 bg-orange-600 rounded text-xs text-white">
                 <TestTube className="h-3 w-3" />
-                <span>Testing Mode</span>
+                <span>$1 Testing</span>
               </div>
             )}
           </div>
@@ -58,7 +57,7 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ id, name, price, image
         
         <div className="flex items-center justify-between">
           <div className="text-2xl font-bold text-white transition-all duration-300">
-            {name === 'TV Mounting' ? 'Starting at $90' : `$${price}`}
+            {name === 'TV Mounting' ? (isTestingMode ? '$1' : 'Starting at $90') : `$${effectivePrice}`}
           </div>
           <button className={`p-3 rounded-full transition-all duration-300 group-hover:scale-110 ${
             isClicked 

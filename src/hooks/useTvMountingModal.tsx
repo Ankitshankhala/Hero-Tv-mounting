@@ -2,6 +2,7 @@
 import { useState, useMemo } from 'react';
 import { PublicService } from '@/hooks/usePublicServicesData';
 import { useServicesData } from '@/hooks/useServicesData';
+import { useTestingMode, getEffectiveServicePrice } from '@/contexts/TestingModeContext';
 
 interface TvConfiguration {
   id: string;
@@ -12,6 +13,7 @@ interface TvConfiguration {
 }
 
 export const useTvMountingModal = (publicServices: PublicService[]) => {
+  const { isTestingMode } = useTestingMode();
   // Use full services data (including non-visible add-ons) for finding all services
   const { services: allServices } = useServicesData();
   const [numberOfTvs, setNumberOfTvs] = useState(1);
@@ -75,6 +77,11 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
   };
 
   const totalPrice = useMemo(() => {
+    if (isTestingMode) {
+      console.log('TV Mounting - Testing mode active, returning $1 total');
+      return 1;
+    }
+
     let price = calculateTvMountingPrice(numberOfTvs);
 
     tvConfigurations.forEach((config) => {
@@ -96,7 +103,7 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
     });
 
     return price;
-  }, [numberOfTvs, tvConfigurations, over65Service?.base_price, frameMountService?.base_price, stoneWallService?.base_price]);
+  }, [numberOfTvs, tvConfigurations, over65Service?.base_price, frameMountService?.base_price, stoneWallService?.base_price, isTestingMode]);
 
   const buildServicesList = () => {
     const selectedServices = [];
@@ -107,12 +114,21 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
       throw new Error('TV Mounting service is not available. Please contact support.');
     }
     
+    const basePrice = isTestingMode ? 1 : calculateTvMountingPrice(numberOfTvs);
+    console.log(`TV Mounting buildServicesList - Testing mode: ${isTestingMode}, Base price: $${basePrice}`);
+    
     selectedServices.push({
       id: tvMountingService.id,
       name: `TV Mounting${numberOfTvs > 1 ? ` (${numberOfTvs} TVs)` : ''}`,
-      price: calculateTvMountingPrice(numberOfTvs),
+      price: basePrice,
       quantity: 1
     });
+
+    // Skip add-ons in testing mode since everything is $1 total
+    if (isTestingMode) {
+      console.log('TV Mounting - Testing mode: Skipping add-on services');
+      return selectedServices;
+    }
 
     const over65Count = tvConfigurations.filter(config => config.over65).length;
     if (over65Count > 0) {
