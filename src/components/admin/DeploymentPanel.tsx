@@ -4,9 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ResendTestPanel } from '@/components/admin/ResendTestPanel';
-import { EmailTestManager } from '@/components/admin/EmailTestManager';
-import { EmailTestButton } from '@/components/admin/EmailTestButton';
 import { 
   Rocket, 
   GitBranch, 
@@ -15,8 +12,7 @@ import {
   ExternalLink,
   Settings,
   Shield,
-  Database,
-  Mail
+  Database
 } from 'lucide-react';
 
 export const DeploymentPanel = () => {
@@ -97,10 +93,6 @@ export const DeploymentPanel = () => {
                 <Badge variant="default">Active</Badge>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm">Resend Email Service</span>
-                <Badge variant="default">Ready</Badge>
-              </div>
-              <div className="flex justify-between items-center">
                 <span className="text-sm">Google Maps API</span>
                 <Badge variant="default">Configured</Badge>
               </div>
@@ -134,11 +126,7 @@ export const DeploymentPanel = () => {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <ResendTestPanel />
-        <EmailTestManager />
-        <EmailTestButton />
-      </div>
+      {/* Email functionality removed */}
 
       <Card>
         <CardHeader>

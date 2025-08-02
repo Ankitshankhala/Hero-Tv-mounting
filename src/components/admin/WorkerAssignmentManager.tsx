@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { useEmailNotifications } from '@/hooks/useEmailNotifications';
+// Email functionality removed
 import { supabase } from '@/integrations/supabase/client';
 
 interface WorkerAssignmentManagerProps {
@@ -17,7 +17,7 @@ export const WorkerAssignmentManager = ({
 }: WorkerAssignmentManagerProps) => {
   const [assigning, setAssigning] = useState(false);
   const { toast } = useToast();
-  const { sendWorkerAssignmentEmail } = useEmailNotifications();
+  // Email functionality removed
 
   const assignWorkerWithEmail = async () => {
     setAssigning(true);
@@ -36,21 +36,12 @@ export const WorkerAssignmentManager = ({
         throw new Error(`Failed to assign worker: ${assignmentError.message}`);
       }
 
-      // Send worker assignment email using the new email system
-      const emailSent = await sendWorkerAssignmentEmail(bookingId);
+      // Email functionality removed - worker assigned without email notification
 
-      if (emailSent) {
-        toast({
-          title: "Worker Assigned Successfully",
-          description: "Worker has been assigned and notified via email",
-        });
-      } else {
-        toast({
-          title: "Worker Assigned",
-          description: "Worker assigned but email notification failed",
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Worker Assigned Successfully",
+        description: "Worker has been assigned to the booking",
+      });
 
       onAssignmentComplete?.();
 
@@ -72,7 +63,7 @@ export const WorkerAssignmentManager = ({
       disabled={assigning}
       className="w-full"
     >
-      {assigning ? 'Assigning...' : 'Assign Worker & Send Email'}
+      {assigning ? 'Assigning...' : 'Assign Worker'}
     </Button>
   );
 };

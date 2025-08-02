@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { X, User, MapPin, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useEmailNotifications } from '@/hooks/useEmailNotifications';
+// Email functionality removed
 
 interface AssignWorkerModalProps {
   onClose: () => void;
@@ -43,7 +43,7 @@ export const AssignWorkerModal = ({ onClose, onAssignmentComplete, isOpen, selec
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState(false);
   const { toast } = useToast();
-  const { sendWorkerAssignmentEmail } = useEmailNotifications();
+  // Email functionality removed
 
   useEffect(() => {
     if (isOpen) {
@@ -140,8 +140,7 @@ export const AssignWorkerModal = ({ onClose, onAssignmentComplete, isOpen, selec
         // Don't throw here as the main assignment was successful
       }
 
-      // Send email notification to assigned worker
-      await sendWorkerAssignmentEmail(selectedBooking);
+      // Email functionality removed - worker assigned without email notification
 
       toast({
         title: "Success",

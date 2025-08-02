@@ -2,14 +2,14 @@
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { useEmailNotifications } from '@/hooks/useEmailNotifications';
+// Email functionality removed
 
 export const useInvoiceOperations = () => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  const { sendFinalInvoiceEmail } = useEmailNotifications();
+  // Email functionality removed
 
-  const generateInvoice = async (bookingId: string, sendEmail = true) => {
+  const generateInvoice = async (bookingId: string, sendEmail = false) => {
     setLoading(true);
     try {
       // Generate invoice without automatic email sending
@@ -22,27 +22,11 @@ export const useInvoiceOperations = () => {
 
       if (error) throw error;
 
-      // Send email using the new email system if requested
-      if (sendEmail) {
-        try {
-          await sendFinalInvoiceEmail(bookingId);
-          toast({
-            title: "Success",
-            description: "Invoice generated and sent successfully",
-          });
-        } catch (emailError) {
-          toast({
-            title: "Invoice Generated",
-            description: "Invoice created but email failed to send",
-            variant: "destructive",
-          });
-        }
-      } else {
-        toast({
-          title: "Success",
-          description: "Invoice generated successfully",
-        });
-      }
+      // Email functionality removed - invoice generated without email
+      toast({
+        title: "Success",
+        description: "Invoice generated successfully",
+      });
 
       return data;
     } catch (error) {

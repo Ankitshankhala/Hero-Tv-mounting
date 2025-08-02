@@ -9,7 +9,6 @@ import { ServiceItem, FormData } from './types';
 import { useTestingMode, getEffectiveMinimumAmount } from '@/contexts/TestingModeContext';
 import { validateUSZipcode } from '@/utils/zipcodeValidation';
 import { optimizedLog, optimizedError, measurePerformance } from '@/utils/performanceOptimizer';
-import { useEmailNotifications } from '@/hooks/useEmailNotifications';
 
 // Enhanced interfaces for unified booking system
 export interface UnauthenticatedBookingData {
@@ -64,7 +63,6 @@ export const useBookingOperations = () => {
 
   const { user } = useAuth();
   const { toast } = useToast();
-  const { sendCustomerConfirmationEmail, sendWorkerAssignmentEmail } = useEmailNotifications();
 
   const validateMinimumCart = (services: ServiceItem[]): boolean => {
     const total = services.reduce((sum, service) => sum + (service.price * service.quantity), 0);
@@ -245,32 +243,7 @@ export const useBookingOperations = () => {
         throw new Error(`Failed to confirm booking: ${updateError.message}`);
       }
 
-      // Send customer confirmation email using the new email system
-      try {
-        const emailSent = await sendCustomerConfirmationEmail(bookingId);
-        if (!emailSent) {
-          // Log email failure to database for admin visibility
-          await supabase.from('email_logs').insert({
-            booking_id: bookingId,
-            recipient_email: updatedBooking.customer?.email || (updatedBooking.guest_customer_info as any)?.email || 'unknown',
-            subject: 'Customer booking confirmation email',
-            message: 'Failed to send customer confirmation email',
-            status: 'failed',
-            error_message: 'Email sending function returned false'
-          });
-        }
-      } catch (emailError) {
-        // Log detailed error to database for admin visibility
-        await supabase.from('email_logs').insert({
-          booking_id: bookingId,
-          recipient_email: updatedBooking.customer?.email || (updatedBooking.guest_customer_info as any)?.email || 'unknown',
-          subject: 'Customer booking confirmation email',
-          message: 'Exception occurred while sending customer confirmation email',
-          status: 'failed',
-          error_message: emailError instanceof Error ? emailError.message : String(emailError)
-        });
-        console.error('Customer confirmation email failed:', emailError);
-      }
+      // Email functionality removed - booking confirmed without email notifications
 
       // Auto-assign worker after confirmation - handle both authenticated users and guests
       const guestInfo = updatedBooking.guest_customer_info as any;
@@ -297,12 +270,7 @@ export const useBookingOperations = () => {
             if (assignmentData && assignmentData.length > 0) {
               const result = assignmentData[0];
               if (result.assignment_status === 'direct_assigned') {
-                // Send worker assignment email for direct assignments
-                try {
-                  await sendWorkerAssignmentEmail(bookingId);
-                } catch (emailError) {
-                  console.error('Worker assignment email failed:', emailError);
-                }
+                // Email functionality removed - worker assigned without email notification
                 
                 toast({
                   title: "Great News!",
@@ -430,11 +398,7 @@ export const useBookingOperations = () => {
 
         // Send worker assignment email if worker was directly assigned
         if (workerAssigned && assignedWorkers[0].assignment_status === 'direct_assigned') {
-          try {
-            await sendWorkerAssignmentEmail(result.booking_id);
-          } catch (emailError) {
-            console.error('Worker assignment email failed for guest booking:', emailError);
-          }
+          // Email functionality removed - worker assigned without email notification
         }
 
         return {
