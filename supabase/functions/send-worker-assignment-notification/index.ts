@@ -12,11 +12,63 @@ interface WorkerEmailRequest {
   workerId: string;
 }
 
+// UUID validation regex
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const validateUuid = (uuid: string, fieldName: string): void => {
+  if (!uuid || typeof uuid !== 'string') {
+    throw new Error(`${fieldName} is required and must be a string`);
+  }
+  if (!UUID_REGEX.test(uuid)) {
+    throw new Error(`${fieldName} must be a valid UUID format. Received: "${uuid}" (length: ${uuid.length})`);
+  }
+};
+
 const handler = async (req: Request): Promise<Response> => {
   console.log('Worker assignment notification email triggered');
 
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Parse request body once and store for reuse
+  let requestData: WorkerEmailRequest;
+  
+  try {
+    const bodyText = await req.text();
+    console.log('Raw request body:', bodyText);
+    
+    if (!bodyText.trim()) {
+      throw new Error('Request body is empty');
+    }
+    
+    requestData = JSON.parse(bodyText);
+    console.log('Parsed request data:', requestData);
+    
+    // Validate input data
+    if (!requestData.bookingId || !requestData.workerId) {
+      throw new Error('Missing required fields: bookingId and workerId are required');
+    }
+    
+    // Validate UUID formats
+    validateUuid(requestData.bookingId, 'bookingId');
+    validateUuid(requestData.workerId, 'workerId');
+    
+    console.log('Processing worker assignment email for booking:', requestData.bookingId, 'worker:', requestData.workerId);
+    
+  } catch (parseError: any) {
+    console.error('Request parsing error:', parseError);
+    return new Response(
+      JSON.stringify({ 
+        error: 'Invalid request format', 
+        details: parseError.message,
+        received: typeof parseError === 'object' ? 'Invalid JSON' : 'Unknown'
+      }),
+      {
+        status: 400,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      }
+    );
   }
 
   try {
@@ -27,37 +79,39 @@ const handler = async (req: Request): Promise<Response> => {
 
     const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
 
-    const { bookingId, workerId }: WorkerEmailRequest = await req.json();
-    console.log('Processing worker assignment email for booking:', bookingId, 'worker:', workerId);
-
     // Get booking details
+    console.log('Fetching booking with ID:', requestData.bookingId);
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
       .select('*')
-      .eq('id', bookingId)
+      .eq('id', requestData.bookingId)
       .single();
 
     if (bookingError || !booking) {
       console.error('Booking fetch error:', bookingError);
       throw new Error(`Failed to fetch booking: ${bookingError?.message}`);
     }
+    console.log('Booking fetched successfully:', booking.id);
 
     // Get booking services separately
+    console.log('Fetching booking services for booking:', requestData.bookingId);
     const { data: bookingServices, error: servicesError } = await supabase
       .from('booking_services')
       .select('service_name, base_price, quantity, configuration')
-      .eq('booking_id', bookingId);
+      .eq('booking_id', requestData.bookingId);
 
     if (servicesError) {
       console.error('Booking services fetch error:', servicesError);
       throw new Error(`Failed to fetch booking services: ${servicesError?.message}`);
     }
+    console.log('Booking services fetched:', bookingServices?.length || 0, 'services');
 
     // Get worker details
+    console.log('Fetching worker with ID:', requestData.workerId);
     const { data: worker, error: workerError } = await supabase
       .from('users')
       .select('name, email, phone')
-      .eq('id', workerId)
+      .eq('id', requestData.workerId)
       .single();
 
     if (workerError || !worker) {
@@ -85,7 +139,8 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    console.log('Sending worker assignment email to:', worker.email, 'for booking:', bookingId);
+    console.log('Worker fetched successfully:', worker.name, worker.email);
+    console.log('Sending worker assignment email to:', worker.email, 'for booking:', requestData.bookingId);
 
     // Determine customer contact info
     let customerName: string;
@@ -151,7 +206,7 @@ const handler = async (req: Request): Promise<Response> => {
       <p>You have been assigned to a new job. Please review the details below:</p>
       
       <h3>Job Details:</h3>
-      <p><strong>Booking ID:</strong> ${bookingId}</p>
+      <p><strong>Booking ID:</strong> ${requestData.bookingId}</p>
       <p><strong>Scheduled Date:</strong> ${formattedDate}</p>
       <p><strong>Scheduled Time:</strong> ${formattedTime}</p>
       <p><strong>Location:</strong> ${location}</p>
@@ -195,7 +250,7 @@ const handler = async (req: Request): Promise<Response> => {
     await supabase
       .from('email_logs')
       .insert({
-        booking_id: bookingId,
+        booking_id: requestData.bookingId,
         recipient_email: worker.email,
         subject: `New Job Assignment - ${formattedDate} at ${formattedTime}`,
         message: htmlContent,
@@ -216,31 +271,44 @@ const handler = async (req: Request): Promise<Response> => {
 
   } catch (error: any) {
     console.error("Error sending worker assignment email:", error);
+    console.error("Error stack:", error.stack);
 
-    // Log failed email attempt
+    // Log failed email attempt using stored request data (avoid re-parsing consumed body)
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
     try {
-      const { bookingId, workerId } = await req.json();
-      const { data: worker } = await supabase
-        .from('users')
-        .select('email')
-        .eq('id', workerId)
-        .single();
+      // Use requestData if available, otherwise provide fallback values
+      const bookingId = requestData?.bookingId || 'unknown';
+      const workerId = requestData?.workerId || 'unknown';
+      
+      console.log('Logging failed email attempt for booking:', bookingId, 'worker:', workerId);
+      
+      let workerEmail = 'unknown';
+      if (workerId !== 'unknown' && UUID_REGEX.test(workerId)) {
+        const { data: worker } = await supabase
+          .from('users')
+          .select('email')
+          .eq('id', workerId)
+          .single();
+        workerEmail = worker?.email || 'unknown';
+      }
 
       await supabase
         .from('email_logs')
         .insert({
-          booking_id: bookingId,
-          recipient_email: worker?.email || 'unknown',
+          booking_id: bookingId !== 'unknown' ? bookingId : null,
+          recipient_email: workerEmail,
           subject: 'New Job Assignment',
           message: 'Failed to send',
           status: 'failed',
-          error_message: error.message
+          error_message: error.message,
+          sent_at: new Date().toISOString()
         });
+      
+      console.log('Error logged successfully');
     } catch (logError) {
       console.error('Failed to log email error:', logError);
     }
