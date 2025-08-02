@@ -52,12 +52,13 @@ serve(async (req) => {
       throw new Error(`Failed to update transaction: ${transactionError.message}`);
     }
 
-    // Update booking to clear pending payment amount and modifications flag
+    // Update booking to clear pending payment amount, modifications flag, and mark as completed
     const { error: bookingError } = await supabase
       .from('bookings')
       .update({ 
         pending_payment_amount: null,
-        has_modifications: false 
+        has_modifications: false,
+        status: 'completed'
       })
       .eq('id', booking_id);
 

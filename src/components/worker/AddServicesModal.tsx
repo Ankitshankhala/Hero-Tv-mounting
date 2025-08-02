@@ -150,7 +150,7 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
         // Show inline payment form
         setPaymentData({
           clientSecret: data.payment_intent_client_secret,
-          amount: data.additional_amount,
+          amount: data.requires_new_authorization ? data.total_amount : data.additional_amount,
           paymentIntentId: data.payment_intent_id
         });
         setShowPaymentForm(true);
