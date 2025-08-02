@@ -29,20 +29,14 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Fetch booking details with complete information including booking services
+    // Fetch booking details with complete information
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
       .select(`
         *,
         worker:users!bookings_worker_id_fkey(name, email, phone),
         customer:users!bookings_customer_id_fkey(name, email, phone, city, zip_code),
-        service:services(name, description),
-        booking_services (
-          service_name,
-          quantity,
-          base_price,
-          configuration
-        )
+        service:services(name, description)
       `)
       .eq('id', bookingId)
       .single();

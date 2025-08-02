@@ -40,12 +40,6 @@ serve(async (req) => {
         ),
         customer:users!customer_id (
           id, name, email
-        ),
-        booking_services (
-          service_name,
-          quantity,
-          base_price,
-          configuration
         )
       `)
       .eq('id', bookingId)
@@ -101,8 +95,8 @@ serve(async (req) => {
       hour12: true
     });
 
-    // Get service names
-    const serviceNames = booking.booking_services?.map(bs => bs.service_name).join(', ') || booking.services?.name || 'Service';
+    // Get service names - use the main service name since booking_services relationship is problematic
+    const serviceNames = booking.services?.name || 'Professional Service';
 
     // Prepare worker information
     const workerInfo = booking.worker ? {
