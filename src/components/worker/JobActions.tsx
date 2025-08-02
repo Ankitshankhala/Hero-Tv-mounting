@@ -1,5 +1,5 @@
 import React from 'react';
-import { Edit, Phone, MapPin, CreditCard, X, DollarSign, Plus } from 'lucide-react';
+import { Edit, Phone, MapPin, CreditCard, DollarSign, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PaymentCaptureButton } from './PaymentCaptureButton';
@@ -7,7 +7,6 @@ interface JobActionsProps {
   job: any;
   onStatusUpdate: (jobId: string, newStatus: string) => void;
   onModifyClick: () => void;
-  onCancelClick: () => void;
   onChargeClick: () => void;
   onCollectPaymentClick?: () => void;
   onCaptureSuccess?: () => void;
@@ -17,7 +16,6 @@ const JobActions = ({
   job,
   onStatusUpdate,
   onModifyClick,
-  onCancelClick,
   onChargeClick,
   onCollectPaymentClick,
   onCaptureSuccess,
@@ -30,7 +28,6 @@ const JobActions = ({
     const encodedAddress = encodeURIComponent(address);
     window.open(`https://maps.google.com/?q=${encodedAddress}`, '_blank');
   };
-  const canCancelJob = job.status === 'confirmed' || job.status === 'pending';
   const canAddCharges = (job.status === 'in_progress' || job.status === 'confirmed') && job.payment_status !== 'authorized';
   const hasUnpaidAmount = job.pending_payment_amount > 0;
   const canCapturePayment = job.payment_status === 'authorized' && job.status !== 'completed';
@@ -39,15 +36,15 @@ const JobActions = ({
   const getValidNextStatuses = (currentStatus: string) => {
     switch (currentStatus) {
       case 'pending':
-        return ['confirmed', 'cancelled'];
+        return ['confirmed'];
       case 'confirmed':
-        return ['in_progress', 'cancelled'];
+        return ['in_progress'];
       case 'in_progress':
-        return ['completed', 'cancelled'];
+        return ['completed'];
       case 'payment_pending':
-        return ['confirmed', 'cancelled'];
+        return ['confirmed'];
       case 'payment_authorized':
-        return ['confirmed', 'cancelled'];
+        return ['confirmed'];
       default:
         return [];
     }
@@ -90,11 +87,6 @@ const JobActions = ({
             <Plus className="h-4 w-4 mr-1" />
             Add Services
           </Button>}
-        
-        {canCancelJob && <Button size="sm" variant="outline" onClick={onCancelClick} className="text-red-400 border-red-400 hover:bg-red-400 hover:text-white">
-            <X className="h-4 w-4 mr-1" />
-            Cancel Job
-          </Button>}
       </div>
       
       <div className="flex items-center space-x-2">
@@ -108,9 +100,7 @@ const JobActions = ({
                 <SelectItem 
                   key={status} 
                   value={status}
-                  className={`text-slate-200 hover:bg-slate-600 ${
-                    status === 'cancelled' ? 'text-red-400 hover:text-red-300' : ''
-                  }`}
+                  className="text-slate-200 hover:bg-slate-600"
                 >
                   {getStatusLabel(status)}
                 </SelectItem>

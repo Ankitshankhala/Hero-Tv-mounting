@@ -68,13 +68,6 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
     setShowModifyModal(true);
   };
 
-  const handleCancelClick = () => {
-    // TODO: Implement cancel booking modal
-    console.log('Cancel booking:', job.id);
-    if (onJobCancelled) {
-      onJobCancelled();
-    }
-  };
 
   const handleChargeClick = () => {
     setShowChargeModal(true);
@@ -187,7 +180,6 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
           job={job}
           onStatusUpdate={onStatusUpdate || (() => {})}
           onModifyClick={handleModifyClick}
-          onCancelClick={handleCancelClick}
           onChargeClick={handleChargeClick}
           onCollectPaymentClick={handleCollectPaymentClick}
           onCaptureSuccess={handleCaptureSuccess}
