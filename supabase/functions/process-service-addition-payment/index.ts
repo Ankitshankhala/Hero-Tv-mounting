@@ -37,7 +37,7 @@ serve(async (req) => {
       booking_id 
     });
 
-    // Update transaction status to completed
+    // Update transaction status to completed (works for both automatic and manual capture)
     const { error: transactionError } = await supabase
       .from('transactions')
       .update({ 

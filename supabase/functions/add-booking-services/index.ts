@@ -291,7 +291,7 @@ serve(async (req) => {
             amount: totalAmountCents,
             currency: 'usd',
             receipt_email: customerEmail,
-            capture_method: 'manual',
+            capture_method: 'automatic',
             description: `Complete service for booking ${booking_id} (original + additional services)`,
             metadata: {
               booking_id: booking_id,
