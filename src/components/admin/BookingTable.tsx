@@ -83,29 +83,55 @@ export const BookingTable = React.memo(({
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
-  const getPaymentStatusBadge = (paymentStatus?: string) => {
+  const getPaymentStatusBadge = (paymentStatus?: string, booking?: Booking) => {
     if (!paymentStatus) return null;
+    
     const statusConfig = {
       pending: {
         label: 'Payment Pending',
-        variant: 'secondary' as const
+        variant: 'secondary' as const,
+        className: 'bg-yellow-100 text-yellow-800'
       },
-      payment_authorized: {
+      authorized: {
         label: 'Payment Authorized',
-        variant: 'default' as const
+        variant: 'default' as const,
+        className: 'bg-blue-100 text-blue-800'
+      },
+      captured: {
+        label: 'Payment Captured',
+        variant: 'default' as const,
+        className: 'bg-green-100 text-green-800'
+      },
+      completed: {
+        label: 'Payment Completed',
+        variant: 'default' as const,
+        className: 'bg-green-100 text-green-800'
       },
       failed: {
         label: 'Payment Failed',
-        variant: 'destructive' as const
+        variant: 'destructive' as const,
+        className: 'bg-red-100 text-red-800'
       },
       cancelled: {
         label: 'Payment Cancelled',
-        variant: 'destructive' as const
+        variant: 'destructive' as const,
+        className: 'bg-red-100 text-red-800'
       }
     };
+    
     const config = statusConfig[paymentStatus as keyof typeof statusConfig];
     if (!config) return null;
-    return <Badge variant={config.variant} className="ml-2">{config.label}</Badge>;
+    
+    return (
+      <div className="flex flex-col space-y-1">
+        <Badge variant={config.variant} className={`ml-2 ${config.className}`}>
+          {config.label}
+        </Badge>
+        {(paymentStatus === 'captured' || paymentStatus === 'completed') && booking?.status === 'completed' && (
+          <span className="text-xs text-green-600 ml-2">✓ Service Complete & Paid</span>
+        )}
+      </div>
+    );
   };
   const formatServices = (booking: Booking) => {
     if (booking.service?.name) {
@@ -291,7 +317,7 @@ export const BookingTable = React.memo(({
                       </Badge> : booking.worker?.name || 'Unassigned'}
                   </TableCell>
                   <TableCell>{getStatusBadge(booking.status)}</TableCell>
-                  <TableCell>{getPaymentStatusBadge(booking.payment_status)}</TableCell>
+                  <TableCell>{getPaymentStatusBadge(booking.payment_status, booking)}</TableCell>
                   <TableCell className="font-medium">${booking.total_price || 0}</TableCell>
                    <TableCell>
                      <div className="flex space-x-2">

@@ -12,6 +12,7 @@ import PaymentDetailsModal from './PaymentDetailsModal';
 import { PaymentRecoveryTools } from './PaymentRecoveryTools';
 import { PaymentSyncButton } from './PaymentSyncButton';
 import { PaymentHealthCheck } from './PaymentHealthCheck';
+import { PaymentCaptureHistory } from './PaymentCaptureHistory';
 
 
 interface Transaction {
@@ -153,16 +154,17 @@ export const PaymentsManager = () => {
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
-      completed: { label: 'Completed', variant: 'default' as const },
-      success: { label: 'Success', variant: 'default' as const },
-      authorized: { label: 'Authorized', variant: 'secondary' as const },
-      pending: { label: 'Pending', variant: 'secondary' as const },
-      failed: { label: 'Failed', variant: 'destructive' as const },
-      refunded: { label: 'Refunded', variant: 'outline' as const },
+      completed: { label: 'Completed', variant: 'default' as const, className: 'bg-green-100 text-green-800' },
+      success: { label: 'Success', variant: 'default' as const, className: 'bg-green-100 text-green-800' },
+      captured: { label: 'Captured', variant: 'default' as const, className: 'bg-green-100 text-green-800' },
+      authorized: { label: 'Authorized', variant: 'secondary' as const, className: 'bg-blue-100 text-blue-800' },
+      pending: { label: 'Pending', variant: 'secondary' as const, className: 'bg-yellow-100 text-yellow-800' },
+      failed: { label: 'Failed', variant: 'destructive' as const, className: 'bg-red-100 text-red-800' },
+      refunded: { label: 'Refunded', variant: 'outline' as const, className: 'bg-gray-100 text-gray-800' },
     };
     
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
-    return <Badge variant={config.variant}>{config.label}</Badge>;
+    return <Badge variant={config.variant} className={config.className}>{config.label}</Badge>;
   };
 
   const handleViewDetails = (payment: any) => {
@@ -212,6 +214,9 @@ export const PaymentsManager = () => {
 
       {/* Payment Health Check */}
       <PaymentHealthCheck />
+
+      {/* Payment Capture History */}
+      <PaymentCaptureHistory />
 
       {/* Payment Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -297,6 +302,7 @@ export const PaymentsManager = () => {
               <SelectContent>
                 <SelectItem value="all">All Transactions</SelectItem>
                 <SelectItem value="authorized">Authorized</SelectItem>
+                <SelectItem value="captured">Captured Payments</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
                 <SelectItem value="success">Success</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
