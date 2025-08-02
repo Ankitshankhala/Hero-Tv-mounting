@@ -363,7 +363,7 @@ serve(async (req) => {
             amount: additionalAmountCents,
             currency: 'usd',
             receipt_email: customerEmail,
-            capture_method: 'manual',
+            capture_method: 'automatic',
             description: `Additional services for booking ${booking_id} (fallback)`,
             metadata: {
               booking_id: booking_id,
@@ -417,10 +417,11 @@ serve(async (req) => {
       const canModifyAmount = ['requires_payment_method', 'requires_confirmation', 'requires_action'].includes(paymentIntent.status);
 
       if (canModifyAmount) {
-        // Update existing payment intent amount
+        // Update existing payment intent amount and ensure automatic capture
         const newTotalCents = paymentIntent.amount + additionalAmountCents;
         const updatedPaymentIntent = await stripe.paymentIntents.update(booking.payment_intent_id, {
           amount: newTotalCents,
+          capture_method: 'automatic',
         });
 
         logStep('Payment intent updated successfully', { 
