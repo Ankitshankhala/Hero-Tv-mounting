@@ -73,8 +73,8 @@ export const EmailTestSuite = () => {
     try {
       console.log('Testing worker assignment email...');
       
-      const { data, error } = await supabase.functions.invoke('send-worker-assignment-email', {
-        body: { bookingId: TEST_BOOKING_ID }
+      const { data, error } = await supabase.functions.invoke('send-worker-assignment-notification', {
+        body: { bookingId: TEST_BOOKING_ID, workerId: '12345678-1234-1234-1234-123456789012' }
       });
 
       if (error) {
@@ -106,7 +106,7 @@ export const EmailTestSuite = () => {
     try {
       console.log('Testing customer confirmation email...');
       
-      const { data, error } = await supabase.functions.invoke('send-customer-booking-confirmation-email', {
+      const { data, error } = await supabase.functions.invoke('send-customer-booking-confirmation', {
         body: { bookingId: TEST_BOOKING_ID }
       });
 
