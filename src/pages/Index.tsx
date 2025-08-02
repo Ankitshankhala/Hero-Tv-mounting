@@ -11,6 +11,7 @@ import { ReviewsSection } from '@/components/ReviewsSection';
 import { BlogSection } from '@/components/BlogSection';
 import { Cart } from '@/components/Cart';
 import { EnhancedInlineBookingFlow } from '@/components/EnhancedInlineBookingFlow';
+import { TestingModeIndicator } from '@/components/TestingModeIndicator';
 import { CartItem } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 
@@ -89,6 +90,11 @@ const Index = () => {
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
       <Header />
+      
+      {/* Testing Mode Indicator */}
+      <div className="container mx-auto px-6 pt-4">
+        <TestingModeIndicator />
+      </div>
 
       <ServicesSection onAddToCart={addToCart} />
       <ReviewsSection />

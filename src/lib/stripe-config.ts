@@ -6,6 +6,11 @@ export const STRIPE_CONFIG = {
   isProduction: false
 };
 
+// 🚨 TO SWITCH TO LIVE STRIPE KEYS FOR TESTING:
+// 1. Update .env file: VITE_STRIPE_PUBLISHABLE_KEY=pk_live_...
+// 2. Update Supabase secrets: STRIPE_SECRET_KEY=sk_live_...
+// 3. Activate testing mode in admin dashboard for $1 minimum testing
+
 // Log configuration for debugging
 console.log('🔧 Stripe Configuration:', {
   hasPublishableKey: !!STRIPE_CONFIG.publishableKey,
