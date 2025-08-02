@@ -31,7 +31,7 @@ const JobActions = ({
     window.open(`https://maps.google.com/?q=${encodedAddress}`, '_blank');
   };
   const canCancelJob = job.status === 'confirmed' || job.status === 'pending';
-  const canAddCharges = job.status === 'in_progress' || job.status === 'confirmed';
+  const canAddCharges = (job.status === 'in_progress' || job.status === 'confirmed') && job.payment_status !== 'authorized';
   const hasUnpaidAmount = job.pending_payment_amount > 0;
   const canCapturePayment = job.payment_status === 'authorized' && job.status !== 'completed';
   const canAddServices = job.status === 'confirmed' || job.status === 'in_progress';
