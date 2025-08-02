@@ -247,7 +247,173 @@ serve(async (req) => {
         amount: paymentIntent.amount 
       });
 
-      // Check if we can modify the existing PaymentIntent
+      // Option A: For requires_capture status, cancel original and create new PaymentIntent for total amount
+      if (paymentIntent.status === 'requires_capture') {
+        logStep('Implementing Option A: Cancel and recreate PaymentIntent for total amount', { 
+          original_amount: paymentIntent.amount,
+          additional_amount: additionalAmountCents 
+        });
+
+        // Get original amount from the existing PaymentIntent
+        const originalAmountCents = paymentIntent.amount;
+        const totalAmountCents = originalAmountCents + additionalAmountCents;
+
+        // Get customer info for new PaymentIntent
+        const { data: fullBooking } = await supabase
+          .from('bookings')
+          .select(`
+            *,
+            customer:users!bookings_customer_id_fkey(email),
+            guest_customer_info
+          `)
+          .eq('id', booking_id)
+          .maybeSingle();
+
+        const customerEmail = fullBooking?.customer?.email || fullBooking?.guest_customer_info?.email;
+
+        try {
+          // Step 1: Cancel the original PaymentIntent
+          logStep('Cancelling original PaymentIntent', { payment_intent_id: booking.payment_intent_id });
+          await stripe.paymentIntents.cancel(booking.payment_intent_id);
+
+          // Step 2: Mark original transaction as cancelled
+          const { error: cancelTransactionError } = await supabase
+            .from('transactions')
+            .update({ status: 'cancelled' })
+            .eq('payment_intent_id', booking.payment_intent_id);
+
+          if (cancelTransactionError) {
+            logStep('Warning: Failed to mark original transaction as cancelled', { error: cancelTransactionError.message });
+          }
+
+          // Step 3: Create new PaymentIntent for the total amount (original + additional)
+          const newPaymentIntent = await stripe.paymentIntents.create({
+            amount: totalAmountCents,
+            currency: 'usd',
+            receipt_email: customerEmail,
+            capture_method: 'manual',
+            description: `Complete service for booking ${booking_id} (original + additional services)`,
+            metadata: {
+              booking_id: booking_id,
+              type: 'consolidated_payment',
+              original_amount: originalAmountCents.toString(),
+              additional_amount: additionalAmountCents.toString()
+            }
+          });
+
+          logStep('New consolidated PaymentIntent created', { 
+            payment_intent_id: newPaymentIntent.id,
+            total_amount: totalAmountCents,
+            original_amount: originalAmountCents,
+            additional_amount: additionalAmountCents
+          });
+
+          // Step 4: Create new transaction record for the consolidated payment
+          const { error: transactionError } = await supabase
+            .from('transactions')
+            .insert({
+              booking_id,
+              payment_intent_id: newPaymentIntent.id,
+              amount: totalAmountCents / 100, // Convert back to dollars
+              currency: 'USD',
+              status: 'pending',
+              transaction_type: 'consolidated_authorization',
+            });
+
+          if (transactionError) {
+            logStep('Warning: Failed to create consolidated transaction record', { error: transactionError.message });
+          }
+
+          // Step 5: Update booking with new PaymentIntent ID
+          const { error: bookingUpdateError } = await supabase
+            .from('bookings')
+            .update({ 
+              payment_intent_id: newPaymentIntent.id,
+              has_modifications: true,
+              pending_payment_amount: null // Clear this since we have a new consolidated payment
+            })
+            .eq('id', booking_id);
+
+          if (bookingUpdateError) {
+            logStep('Warning: Failed to update booking with new PaymentIntent', { error: bookingUpdateError.message });
+          }
+
+          return new Response(
+            JSON.stringify({ 
+              success: true, 
+              invoice_total: newTotal,
+              total_amount: totalAmountCents / 100,
+              original_amount: originalAmountCents / 100,
+              additional_amount: additionalAmount,
+              requires_new_authorization: true,
+              payment_intent_client_secret: newPaymentIntent.client_secret,
+              payment_intent_id: newPaymentIntent.id,
+              message: 'Services added. New payment authorization created for total amount (original + additional services).'
+            }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+
+        } catch (consolidationError) {
+          logStep('Error during PaymentIntent consolidation, falling back to separate payment', { 
+            error: consolidationError.message 
+          });
+          
+          // If consolidation fails, fall back to creating separate payment for additional services
+          const newPaymentIntent = await stripe.paymentIntents.create({
+            amount: additionalAmountCents,
+            currency: 'usd',
+            receipt_email: customerEmail,
+            capture_method: 'manual',
+            description: `Additional services for booking ${booking_id} (fallback)`,
+            metadata: {
+              booking_id: booking_id,
+              type: 'additional_services_fallback'
+            }
+          });
+
+          const { error: transactionError } = await supabase
+            .from('transactions')
+            .insert({
+              booking_id,
+              payment_intent_id: newPaymentIntent.id,
+              amount: additionalAmount,
+              currency: 'USD',
+              status: 'pending',
+              transaction_type: 'additional_authorization',
+            });
+
+          if (transactionError) {
+            logStep('Warning: Failed to create fallback transaction record', { error: transactionError.message });
+          }
+
+          const { error: bookingUpdateError } = await supabase
+            .from('bookings')
+            .update({ 
+              has_modifications: true,
+              pending_payment_amount: additionalAmount 
+            })
+            .eq('id', booking_id);
+
+          if (bookingUpdateError) {
+            logStep('Warning: Failed to update booking modifications flag', { error: bookingUpdateError.message });
+          }
+
+          return new Response(
+            JSON.stringify({ 
+              success: true, 
+              invoice_total: newTotal,
+              additional_amount: additionalAmount,
+              requires_additional_payment: true,
+              payment_intent_client_secret: newPaymentIntent.client_secret,
+              payment_intent_id: newPaymentIntent.id,
+              message: 'Services added. Additional payment authorization required (fallback mode).'
+            }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+
+      // For other statuses, use the existing logic
       const canModifyAmount = ['requires_payment_method', 'requires_confirmation', 'requires_action'].includes(paymentIntent.status);
 
       if (canModifyAmount) {
