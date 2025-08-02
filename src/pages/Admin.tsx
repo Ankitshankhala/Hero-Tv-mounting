@@ -20,6 +20,7 @@ import { BlogManager } from '@/components/admin/BlogManager';
 import { AdminCalendarView } from '@/components/admin/AdminCalendarView';
 import { CoverageRequestsManager } from '@/components/admin/CoverageRequestsManager';
 import { InvoicesManager } from '@/components/admin/InvoicesManager';
+import { EmailLogsManager } from '@/components/admin/EmailLogsManager';
 
 const Admin = () => {
   const { user, profile, loading } = useAuth();
@@ -93,6 +94,8 @@ const Admin = () => {
         return <InvoicesManager />;
       case 'sms':
         return <SMSLogsManager />;
+      case 'email':
+        return <EmailLogsManager />;
       case 'blog':
         return <BlogManager />;
       case 'coverage':

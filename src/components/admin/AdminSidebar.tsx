@@ -10,7 +10,8 @@ import {
   CreditCard, 
   FileText,
   MessageSquare, 
-  MapPin
+  MapPin,
+  Mail
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
@@ -30,6 +31,7 @@ export const AdminSidebar = ({ activeTab, onTabChange }: AdminSidebarProps) => {
     { id: 'payments', label: 'Payments', icon: CreditCard },
     { id: 'invoices', label: 'Invoices', icon: FileText },
     { id: 'sms', label: 'SMS Logs', icon: MessageSquare },
+    { id: 'email', label: 'Email Logs', icon: Mail },
     { id: 'blog', label: 'Blog', icon: FileText },
     { id: 'coverage', label: 'Coverage Requests', icon: MapPin },
   ];
