@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ResendTestPanel } from '@/components/admin/ResendTestPanel';
 import { EmailTestManager } from '@/components/admin/EmailTestManager';
+import { EmailTestButton } from '@/components/admin/EmailTestButton';
 import { 
   Rocket, 
   GitBranch, 
@@ -133,9 +134,10 @@ export const DeploymentPanel = () => {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <ResendTestPanel />
         <EmailTestManager />
+        <EmailTestButton />
       </div>
 
       <Card>

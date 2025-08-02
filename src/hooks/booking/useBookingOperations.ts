@@ -247,9 +247,28 @@ export const useBookingOperations = () => {
 
       // Send customer confirmation email using the new email system
       try {
-        await sendCustomerConfirmationEmail(bookingId);
+        const emailSent = await sendCustomerConfirmationEmail(bookingId);
+        if (!emailSent) {
+          // Log email failure to database for admin visibility
+          await supabase.from('email_logs').insert({
+            booking_id: bookingId,
+            recipient_email: updatedBooking.customer?.email || (updatedBooking.guest_customer_info as any)?.email || 'unknown',
+            subject: 'Customer booking confirmation email',
+            message: 'Failed to send customer confirmation email',
+            status: 'failed',
+            error_message: 'Email sending function returned false'
+          });
+        }
       } catch (emailError) {
-        // Continue with booking process even if email fails
+        // Log detailed error to database for admin visibility
+        await supabase.from('email_logs').insert({
+          booking_id: bookingId,
+          recipient_email: updatedBooking.customer?.email || (updatedBooking.guest_customer_info as any)?.email || 'unknown',
+          subject: 'Customer booking confirmation email',
+          message: 'Exception occurred while sending customer confirmation email',
+          status: 'failed',
+          error_message: emailError instanceof Error ? emailError.message : String(emailError)
+        });
         console.error('Customer confirmation email failed:', emailError);
       }
 
