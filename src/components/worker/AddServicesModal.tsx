@@ -145,8 +145,8 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
         throw new Error(data?.error || 'Failed to add services and update payment authorization');
       }
 
-      // Check if additional payment is required
-      if (data.requires_additional_payment && data.payment_intent_client_secret) {
+      // Check if additional payment or new authorization is required
+      if ((data.requires_additional_payment || data.requires_new_authorization) && data.payment_intent_client_secret) {
         // Show inline payment form
         setPaymentData({
           clientSecret: data.payment_intent_client_secret,
