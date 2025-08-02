@@ -449,6 +449,9 @@ serve(async (req) => {
             success: true, 
             invoice_total: newTotal,
             additional_amount: additionalAmount,
+            requires_additional_payment: true,
+            payment_intent_client_secret: updatedPaymentIntent.client_secret,
+            payment_intent_id: updatedPaymentIntent.id,
             payment_updated: true,
             message: 'Services added and payment authorization updated successfully'
           }),
