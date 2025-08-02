@@ -8,9 +8,11 @@ import { useTestingMode } from '@/contexts/TestingModeContext';
 import { useToast } from '@/hooks/use-toast';
 import { AssignWorkerModal } from './AssignWorkerModal';
 import { TodaysJobsModal } from './TodaysJobsModal';
+import { supabase } from '@/integrations/supabase/client';
 export const AdminHeader = () => {
   const [showAssignWorker, setShowAssignWorker] = useState(false);
   const [showTodaysJobs, setShowTodaysJobs] = useState(false);
+  const [stripeStatus, setStripeStatus] = useState<'checking' | 'live' | 'test' | 'error'>('checking');
   const {
     isTestingMode,
     timeRemaining,
@@ -20,6 +22,21 @@ export const AdminHeader = () => {
   const {
     toast
   } = useToast();
+
+  // Check Stripe configuration on mount
+  React.useEffect(() => {
+    const checkStripeConfig = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('test-stripe-config');
+        if (error) throw error;
+        setStripeStatus(data.keyType === 'live' ? 'live' : 'test');
+      } catch (error) {
+        console.error('Stripe config check failed:', error);
+        setStripeStatus('error');
+      }
+    };
+    checkStripeConfig();
+  }, []);
   const handleTestingModeActivate = () => {
     activateTestingMode();
     toast({
@@ -59,6 +76,17 @@ export const AdminHeader = () => {
             </div>
           </div>
           <div className="flex items-center space-x-3">
+            {/* Stripe Status Indicator */}
+            <Badge 
+              variant={stripeStatus === 'live' ? 'default' : stripeStatus === 'test' ? 'secondary' : 'destructive'}
+              className={stripeStatus === 'live' ? 'bg-green-600' : ''}
+            >
+              {stripeStatus === 'checking' && '🔄 Checking...'}
+              {stripeStatus === 'live' && '✅ Live Keys'}
+              {stripeStatus === 'test' && '⚠️ Test Keys'}
+              {stripeStatus === 'error' && '❌ Config Error'}
+            </Badge>
+            
             {/* Testing Mode Status & Controls */}
             {isTestingMode ? (
               <div className="flex items-center space-x-2">
