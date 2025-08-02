@@ -35,6 +35,7 @@ interface WorkerJobCardProps {
 }
 
 export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJobCardProps) => {
+  console.log('WorkerJobCard rendering with job:', job.id);
   const [showModifyModal, setShowModifyModal] = useState(false);
   const [showChargeModal, setShowChargeModal] = useState(false);
   const [showAddServicesModal, setShowAddServicesModal] = useState(false);
