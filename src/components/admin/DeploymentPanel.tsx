@@ -14,6 +14,7 @@ import {
   Shield,
   Database
 } from 'lucide-react';
+import { EmailTestPanel } from './EmailTestPanel';
 
 export const DeploymentPanel = () => {
   const [deploymentStatus, setDeploymentStatus] = useState<'idle' | 'building' | 'deploying' | 'success' | 'error'>('idle');
@@ -126,7 +127,7 @@ export const DeploymentPanel = () => {
         </CardContent>
       </Card>
 
-      {/* Email functionality removed */}
+      <EmailTestPanel />
 
       <Card>
         <CardHeader>

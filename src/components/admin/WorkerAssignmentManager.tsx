@@ -38,9 +38,27 @@ export const WorkerAssignmentManager = ({
 
       // Email functionality removed - worker assigned without email notification
 
+      // Send worker assignment email
+      try {
+        const { error: emailError } = await supabase.functions.invoke('send-worker-assignment-notification', {
+          body: { 
+            bookingId,
+            workerId 
+          }
+        });
+        
+        if (emailError) {
+          console.warn('Failed to send worker assignment email:', emailError);
+        } else {
+          console.log('Worker assignment email sent successfully');
+        }
+      } catch (emailError) {
+        console.warn('Error sending worker assignment email:', emailError);
+      }
+
       toast({
         title: "Worker Assigned Successfully",
-        description: "Worker has been assigned to the booking",
+        description: "Worker has been assigned to the booking and notified via email",
       });
 
       onAssignmentComplete?.();

@@ -243,7 +243,20 @@ export const useBookingOperations = () => {
         throw new Error(`Failed to confirm booking: ${updateError.message}`);
       }
 
-      // Email functionality removed - booking confirmed without email notifications
+      // Send customer confirmation email
+      try {
+        const { error: emailError } = await supabase.functions.invoke('send-customer-booking-confirmation', {
+          body: { bookingId }
+        });
+        
+        if (emailError) {
+          console.warn('Failed to send customer confirmation email:', emailError);
+        } else {
+          console.log('Customer confirmation email sent successfully');
+        }
+      } catch (emailError) {
+        console.warn('Error sending customer confirmation email:', emailError);
+      }
 
       // Auto-assign worker after confirmation - handle both authenticated users and guests
       const guestInfo = updatedBooking.guest_customer_info as any;
@@ -270,7 +283,23 @@ export const useBookingOperations = () => {
             if (assignmentData && assignmentData.length > 0) {
               const result = assignmentData[0];
               if (result.assignment_status === 'direct_assigned') {
-                // Email functionality removed - worker assigned without email notification
+                // Send worker assignment email
+                try {
+                  const { error: workerEmailError } = await supabase.functions.invoke('send-worker-assignment-notification', {
+                    body: { 
+                      bookingId,
+                      workerId: result.assigned_worker_id 
+                    }
+                  });
+                  
+                  if (workerEmailError) {
+                    console.warn('Failed to send worker assignment email:', workerEmailError);
+                  } else {
+                    console.log('Worker assignment email sent successfully');
+                  }
+                } catch (emailError) {
+                  console.warn('Error sending worker assignment email:', emailError);
+                }
                 
                 toast({
                   title: "Great News!",
