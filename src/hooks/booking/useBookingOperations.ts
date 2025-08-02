@@ -64,7 +64,7 @@ export const useBookingOperations = () => {
 
   const { user } = useAuth();
   const { toast } = useToast();
-  const { sendCustomerConfirmationEmail } = useEmailNotifications();
+  const { sendCustomerConfirmationEmail, sendWorkerAssignmentEmail } = useEmailNotifications();
 
   const validateMinimumCart = (services: ServiceItem[]): boolean => {
     const total = services.reduce((sum, service) => sum + (service.price * service.quantity), 0);
@@ -278,6 +278,13 @@ export const useBookingOperations = () => {
             if (assignmentData && assignmentData.length > 0) {
               const result = assignmentData[0];
               if (result.assignment_status === 'direct_assigned') {
+                // Send worker assignment email for direct assignments
+                try {
+                  await sendWorkerAssignmentEmail(bookingId);
+                } catch (emailError) {
+                  console.error('Worker assignment email failed:', emailError);
+                }
+                
                 toast({
                   title: "Great News!",
                   description: "Your booking is confirmed and a worker has been assigned to your job!",
@@ -401,6 +408,15 @@ export const useBookingOperations = () => {
 
         const assignedWorkers = assignments || [];
         const workerAssigned = assignedWorkers.length > 0 && assignedWorkers[0].assigned_worker_id;
+
+        // Send worker assignment email if worker was directly assigned
+        if (workerAssigned && assignedWorkers[0].assignment_status === 'direct_assigned') {
+          try {
+            await sendWorkerAssignmentEmail(result.booking_id);
+          } catch (emailError) {
+            console.error('Worker assignment email failed for guest booking:', emailError);
+          }
+        }
 
         return {
           booking_id: result.booking_id,
