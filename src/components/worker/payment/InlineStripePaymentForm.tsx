@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 interface InlineStripePaymentFormProps {
   job: any;
   amount: string;
+  clientSecret?: string; // For confirming existing PaymentIntents
   onPaymentSuccess: () => void;
   onPaymentFailure?: (error: string) => void;
 }
@@ -17,6 +18,7 @@ interface InlineStripePaymentFormProps {
 export const InlineStripePaymentForm = ({ 
   job, 
   amount, 
+  clientSecret,
   onPaymentSuccess,
   onPaymentFailure 
 }: InlineStripePaymentFormProps) => {
@@ -46,50 +48,85 @@ export const InlineStripePaymentForm = ({
     setProcessing(true);
 
     try {
-      // Create payment method with Stripe
-      const { error, paymentMethod } = await stripe.createPaymentMethod({
-        type: 'card',
-        card: cardElement,
-      });
+      if (clientSecret) {
+        // Confirm existing PaymentIntent using client secret
+        const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+          payment_method: {
+            card: cardElement,
+          }
+        });
 
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      // Get customer information
-      const customerEmail = job.customer?.email || job.guest_customer_info?.email;
-      const customerName = job.customer?.name || job.guest_customer_info?.name;
-      
-      // CRITICAL FIX: Send amount in dollars, not cents
-      // The edge function will handle the cent conversion
-      const amountInDollars = parseFloat(amount);
-
-      // Process the payment through edge function
-      const { data, error: functionError } = await supabase.functions.invoke('process-manual-charge', {
-        body: {
-          bookingId: job.id,
-          customerId: job.customer?.id || null,
-          paymentMethodId: paymentMethod.id,
-          amount: amountInDollars, // Send in dollars, NOT cents
-          chargeType: 'additional_services',
-          description: `Additional services for Booking #${job.id.slice(0, 8)} - $${amount}`
+        if (error) {
+          throw new Error(error.message);
         }
-      });
 
-      if (functionError) {
-        throw new Error(functionError.message);
+        if (paymentIntent.status === 'succeeded') {
+          // Update transaction status via edge function
+          const { data, error: updateError } = await supabase.functions.invoke('process-service-addition-payment', {
+            body: {
+              payment_intent_id: paymentIntent.id,
+              booking_id: job.id
+            }
+          });
+
+          if (updateError) {
+            throw new Error(updateError.message);
+          }
+
+          toast({
+            title: "Payment Successful",
+            description: `Successfully charged $${amount} for additional services`,
+          });
+
+          onPaymentSuccess();
+        } else {
+          throw new Error('Payment was not completed successfully');
+        }
+
+      } else {
+        // Create new payment method and process through edge function (original flow)
+        const { error, paymentMethod } = await stripe.createPaymentMethod({
+          type: 'card',
+          card: cardElement,
+        });
+
+        if (error) {
+          throw new Error(error.message);
+        }
+
+        // Get customer information
+        const customerEmail = job.customer?.email || job.guest_customer_info?.email;
+        const customerName = job.customer?.name || job.guest_customer_info?.name;
+        
+        const amountInDollars = parseFloat(amount);
+
+        // Process the payment through edge function
+        const { data, error: functionError } = await supabase.functions.invoke('process-manual-charge', {
+          body: {
+            bookingId: job.id,
+            customerId: job.customer?.id || null,
+            paymentMethodId: paymentMethod.id,
+            amount: amountInDollars,
+            chargeType: 'additional_services',
+            description: `Additional services for Booking #${job.id.slice(0, 8)} - $${amount}`
+          }
+        });
+
+        if (functionError) {
+          throw new Error(functionError.message);
+        }
+
+        if (!data?.success) {
+          throw new Error(data?.error || 'Payment processing failed');
+        }
+
+        toast({
+          title: "Payment Successful",
+          description: `Successfully charged $${amount} for additional services`,
+        });
+
+        onPaymentSuccess();
       }
-
-      if (!data?.success) {
-        throw new Error(data?.error || 'Payment processing failed');
-      }
-
-      toast({
-        title: "Payment Successful",
-        description: `Successfully charged $${amount} for additional services`,
-      });
-
-      onPaymentSuccess();
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Payment processing failed';

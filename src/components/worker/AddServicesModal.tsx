@@ -4,11 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ServiceCard } from '@/components/ServiceCard';
 import { TvMountingModal } from '@/components/TvMountingModal';
+import { InlineStripePaymentForm } from './payment/InlineStripePaymentForm';
 import { CartItem } from '@/types';
 import { usePublicServicesData } from '@/hooks/usePublicServicesData';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { ShoppingCart, CreditCard, Plus, X } from 'lucide-react';
+import { ShoppingCart, CreditCard, Plus, X, ArrowLeft } from 'lucide-react';
 
 interface AddServicesModalProps {
   isOpen: boolean;
@@ -37,6 +38,12 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showTvModal, setShowTvModal] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [paymentData, setPaymentData] = useState<{
+    clientSecret: string;
+    amount: number;
+    paymentIntentId: string;
+  } | null>(null);
   const { services, loading } = usePublicServicesData();
   const { toast } = useToast();
 
@@ -138,6 +145,20 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
         throw new Error(data?.error || 'Failed to add services and update payment authorization');
       }
 
+      // Check if additional payment is required
+      if (data.requires_additional_payment && data.payment_intent_client_secret) {
+        // Show inline payment form
+        setPaymentData({
+          clientSecret: data.payment_intent_client_secret,
+          amount: data.additional_amount,
+          paymentIntentId: data.payment_intent_id
+        });
+        setShowPaymentForm(true);
+        setProcessing(false);
+        return;
+      }
+
+      // Payment was updated successfully, no additional payment needed
       toast({
         title: "Services Added Successfully",
         description: `Added ${cart.length} service(s) and updated payment authorization for $${totalAmount.toFixed(2)}`,
@@ -163,6 +184,36 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
     }
   };
 
+  const handlePaymentSuccess = () => {
+    toast({
+      title: "Payment Successful",
+      description: `Successfully charged $${paymentData?.amount.toFixed(2)} for additional services`,
+    });
+
+    // Reset everything and close modal
+    setCart([]);
+    setShowPaymentForm(false);
+    setPaymentData(null);
+    onClose();
+    
+    if (onServicesAdded) {
+      onServicesAdded();
+    }
+  };
+
+  const handlePaymentFailure = (error: string) => {
+    toast({
+      title: "Payment Failed",
+      description: error,
+      variant: "destructive",
+    });
+  };
+
+  const handleBackToServices = () => {
+    setShowPaymentForm(false);
+    setPaymentData(null);
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -170,25 +221,63 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-slate-800 border-slate-700">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-white">
-              Add Services to Job #{job.id.slice(0, 8)}
+            <DialogTitle className="text-xl font-bold text-white flex items-center space-x-2">
+              {showPaymentForm && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleBackToServices}
+                  className="text-white hover:text-slate-300"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              )}
+              <span>
+                {showPaymentForm ? 'Payment Required' : `Add Services to Job #${job.id.slice(0, 8)}`}
+              </span>
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-6">
-            {/* Current Job Info */}
-            <Card className="bg-slate-700 border-slate-600">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-white text-sm">Current Job</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-sm text-slate-300 space-y-1">
-                  <div>Customer: {job.customer?.name}</div>
-                  <div>Date: {job.scheduled_date} at {job.scheduled_start}</div>
-                  <div>Original Service: {job.service?.name}</div>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Show Payment Form or Services Selection */}
+            {showPaymentForm && paymentData ? (
+              <div className="space-y-4">
+                <Card className="bg-slate-700 border-slate-600">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-white text-sm">Additional Payment Required</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-sm text-slate-300 space-y-1">
+                      <div>Services added to booking successfully</div>
+                      <div>Additional payment of <span className="text-emerald-400 font-bold">${paymentData.amount.toFixed(2)}</span> required</div>
+                      <div>Customer payment will be processed immediately</div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <InlineStripePaymentForm
+                  job={job}
+                  amount={paymentData.amount.toFixed(2)}
+                  clientSecret={paymentData.clientSecret}
+                  onPaymentSuccess={handlePaymentSuccess}
+                  onPaymentFailure={handlePaymentFailure}
+                />
+              </div>
+            ) : (
+              <>
+                {/* Current Job Info */}
+                <Card className="bg-slate-700 border-slate-600">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-white text-sm">Current Job</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-sm text-slate-300 space-y-1">
+                      <div>Customer: {job.customer?.name}</div>
+                      <div>Date: {job.scheduled_date} at {job.scheduled_start}</div>
+                      <div>Original Service: {job.service?.name}</div>
+                    </div>
+                  </CardContent>
+                </Card>
 
             {/* Services Grid */}
             {loading ? (
@@ -278,14 +367,16 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
               </Card>
             )}
 
-            {/* Empty State */}
-            {cart.length === 0 && (
-              <div className="text-center py-8">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-700/50 rounded-full mb-4">
-                  <Plus className="h-8 w-8 text-slate-400" />
-                </div>
-                <p className="text-slate-400 text-lg">Select services to add to this job</p>
-              </div>
+                {/* Empty State */}
+                {cart.length === 0 && (
+                  <div className="text-center py-8">
+                    <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-700/50 rounded-full mb-4">
+                      <Plus className="h-8 w-8 text-slate-400" />
+                    </div>
+                    <p className="text-slate-400 text-lg">Select services to add to this job</p>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </DialogContent>
