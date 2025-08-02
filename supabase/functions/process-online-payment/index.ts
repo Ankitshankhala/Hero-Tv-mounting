@@ -57,9 +57,19 @@ serve(async (req) => {
       logStep('Created new customer', { customerId });
     }
 
+    // CRITICAL FIX: Convert amount to cents properly
+    const amountInCents = Math.round(amount * 100);
+    
+    // Add amount validation to prevent unreasonably high charges
+    if (amountInCents > 1000000) { // $10,000 limit
+      throw new Error(`Amount too high: $${amount}. Maximum allowed is $10,000.`);
+    }
+    
+    logStep('Converting amount', { originalAmount: amount, amountInCents });
+
     // Create payment intent
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // Convert to cents
+      amount: amountInCents, // Properly converted to cents
       currency: 'usd',
       customer: customerId,
       payment_method: paymentMethodId,
@@ -68,6 +78,7 @@ serve(async (req) => {
       return_url: `${req.headers.get('origin')}/booking-success`,
       metadata: {
         booking_id: bookingId,
+        original_amount_dollars: amount.toString() // Track original amount for debugging
       },
     });
 

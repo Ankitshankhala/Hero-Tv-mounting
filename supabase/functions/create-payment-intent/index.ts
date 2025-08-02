@@ -244,8 +244,17 @@ serve(async (req) => {
     }
 
     // Create Stripe payment intent with manual capture for authorization
+    // CRITICAL FIX: Amount should already be in dollars, convert to cents here
+    const amountInCents = Math.round(amount * 100);
+    
+    // Add amount validation to prevent unreasonably high charges
+    if (amountInCents > 1000000) { // $10,000 limit
+      throw new Error(`Amount too high: $${amount}. Maximum allowed is $10,000.`);
+    }
+    
     logStep("Creating Stripe payment intent for authorization", { 
-      amount: Math.round(amount * 100), 
+      originalAmount: amount,
+      amountInCents: amountInCents, 
       currency, 
       is_guest: !user_id,
       guest_email: guest_customer_info?.email 
@@ -254,10 +263,13 @@ serve(async (req) => {
     let paymentIntent;
     try {
       paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(amount * 100), // Convert to cents
+        amount: amountInCents, // Correctly converted to cents
         currency: currency.toLowerCase(),
         capture_method: 'manual', // Manual capture - authorize now, charge later
-        metadata,
+        metadata: {
+          ...metadata,
+          original_amount_dollars: amount.toString() // Track original amount for debugging
+        },
       }, {
         // Stripe requires idempotencyKey to be passed as an option (second parameter)
         // rather than as a parameter in the PaymentIntent object to prevent duplicate requests

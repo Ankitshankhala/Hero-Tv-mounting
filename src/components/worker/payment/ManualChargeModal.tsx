@@ -128,13 +128,14 @@ export const ManualChargeModal = ({ isOpen, onClose, booking, onChargeComplete }
         }
       }
 
-      // Process the manual charge
+      // CRITICAL FIX: Send amount in dollars, not cents
+      // The edge function will handle the cent conversion
       const { data, error } = await supabase.functions.invoke('process-manual-charge', {
         body: {
           bookingId: booking.id,
           customerId: booking.stripe_customer_id,
           paymentMethodId: booking.stripe_payment_method_id,
-          amount: totalAmount,
+          amount: totalAmount, // Send in dollars, NOT cents  
           chargeType,
           description: description || `Manual charge for booking ${booking.id}`
         }

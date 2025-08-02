@@ -156,8 +156,22 @@ serve(async (req) => {
     // Create payment intent with immediate confirmation
     let paymentIntent;
     try {
+      // CRITICAL FIX: Convert amount to cents here (frontend sends dollars)
+      const amountInCents = Math.round(amount * 100);
+      
+      // Add amount validation to prevent unreasonably high charges
+      if (amountInCents > 1000000) { // $10,000 limit
+        throw new Error(`Amount too high: $${amount}. Maximum allowed is $10,000.`);
+      }
+      
+      logStep('Creating payment intent', { 
+        originalAmount: amount, 
+        amountInCents: amountInCents,
+        chargeType: chargeType 
+      });
+      
       paymentIntent = await stripe.paymentIntents.create({
-        amount: amount, // Amount should already be in cents
+        amount: amountInCents, // Now correctly converted to cents
         currency: 'usd',
         customer: stripeCustomerId,
         payment_method: paymentMethodId,
@@ -167,7 +181,8 @@ serve(async (req) => {
         metadata: {
           booking_id: bookingId,
           charge_type: chargeType,
-          source: 'manual_worker_charge'
+          source: 'manual_worker_charge',
+          original_amount_dollars: amount.toString() // Track original amount for debugging
         }
       });
 
@@ -188,7 +203,8 @@ serve(async (req) => {
         JSON.stringify({
           success: true,
           payment_intent_id: paymentIntent.id,
-          amount_charged: amount
+          amount_charged: amount, // Return original dollar amount
+          amount_charged_cents: Math.round(amount * 100) // Also return cents for verification
         }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },

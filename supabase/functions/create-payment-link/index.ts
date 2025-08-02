@@ -50,6 +50,13 @@ serve(async (req) => {
       );
     }
 
+    // CRITICAL FIX: Convert amount to cents if it's in dollars
+    const amountInCents = typeof amount === 'number' && amount < 1000 
+      ? Math.round(amount * 100) // Convert dollars to cents
+      : amount; // Assume already in cents if > 1000
+    
+    console.log('Amount conversion:', { originalAmount: amount, amountInCents });
+
     // Create payment link
     const paymentLink = await stripe.paymentLinks.create({
       line_items: [
@@ -59,7 +66,7 @@ serve(async (req) => {
             product_data: {
               name: description || `Service Payment - Booking #${booking_id.slice(0, 8)}`,
             },
-            unit_amount: amount, // Already in cents
+            unit_amount: amountInCents, // Properly converted to cents
           },
           quantity: 1,
         },

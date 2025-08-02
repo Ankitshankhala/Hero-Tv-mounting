@@ -59,7 +59,10 @@ export const InlineStripePaymentForm = ({
       // Get customer information
       const customerEmail = job.customer?.email || job.guest_customer_info?.email;
       const customerName = job.customer?.name || job.guest_customer_info?.name;
-      const amountInCents = Math.round(parseFloat(amount) * 100);
+      
+      // CRITICAL FIX: Send amount in dollars, not cents
+      // The edge function will handle the cent conversion
+      const amountInDollars = parseFloat(amount);
 
       // Process the payment through edge function
       const { data, error: functionError } = await supabase.functions.invoke('process-manual-charge', {
@@ -67,7 +70,7 @@ export const InlineStripePaymentForm = ({
           bookingId: job.id,
           customerId: job.customer?.id || null,
           paymentMethodId: paymentMethod.id,
-          amount: amountInCents,
+          amount: amountInDollars, // Send in dollars, NOT cents
           chargeType: 'additional_services',
           description: `Additional services for Booking #${job.id.slice(0, 8)} - $${amount}`
         }
