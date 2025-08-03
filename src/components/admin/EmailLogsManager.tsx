@@ -3,9 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Search, RefreshCw, Mail, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { EmailTestSuite } from './EmailTestSuite';
 import { format } from 'date-fns';
 
 interface EmailLog {
@@ -97,125 +99,138 @@ export const EmailLogsManager = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Email Logs</h2>
+        <h2 className="text-2xl font-bold">Email Management</h2>
         <Button onClick={fetchEmailLogs} disabled={loading}>
           <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
           Refresh
         </Button>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex gap-4 items-end">
-            <div className="flex-1">
-              <label className="text-sm font-medium mb-2 block">Search</label>
-              <div className="relative">
-                <Search className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
-                <Input
-                  placeholder="Search by email, subject, or booking ID..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-            <div className="w-48">
-              <label className="text-sm font-medium mb-2 block">Status</label>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full p-2 border rounded-md"
-              >
-                <option value="all">All Status</option>
-                <option value="sent">Sent</option>
-                <option value="failed">Failed</option>
-                <option value="pending">Pending</option>
-              </select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Email Logs List */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Mail className="h-5 w-5" />
-            Email Logs ({emailLogs.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            </div>
-          ) : emailLogs.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              No email logs found
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {emailLogs.map((log) => (
-                <div key={log.id} className="border rounded-lg p-4 space-y-3">
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-2">
-                      {getStatusIcon(log.status)}
-                      <span className="font-medium">{log.recipient_email}</span>
-                      {getStatusBadge(log.status)}
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      {format(new Date(log.created_at), 'MMM dd, yyyy HH:mm')}
-                    </div>
+      <Tabs defaultValue="logs" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="logs">Email Logs</TabsTrigger>
+          <TabsTrigger value="testing">Email Testing</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="logs" className="space-y-6">
+          {/* Filters */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex gap-4 items-end">
+                <div className="flex-1">
+                  <label className="text-sm font-medium mb-2 block">Search</label>
+                  <div className="relative">
+                    <Search className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
+                    <Input
+                      placeholder="Search by email, subject, or booking ID..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
                   </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">Subject:</span>
-                      <p className="text-sm">{truncateText(log.subject)}</p>
-                    </div>
-                    {log.booking_id && (
-                      <div>
-                        <span className="text-sm font-medium text-gray-600">Booking ID:</span>
-                        <p className="text-sm font-mono">{log.booking_id}</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {log.error_message && (
-                    <div>
-                      <span className="text-sm font-medium text-red-600">Error:</span>
-                      <p className="text-sm text-red-600 bg-red-50 p-2 rounded">
-                        {log.error_message}
-                      </p>
-                    </div>
-                  )}
-
-                  {log.sent_at && (
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">Sent at:</span>
-                      <p className="text-sm">
-                        {format(new Date(log.sent_at), 'MMM dd, yyyy HH:mm:ss')}
-                      </p>
-                    </div>
-                  )}
-
-                  <details className="text-sm">
-                    <summary className="cursor-pointer text-blue-600 hover:text-blue-800">
-                      View Message Content
-                    </summary>
-                    <div className="mt-2 p-3 bg-gray-50 rounded border max-h-40 overflow-y-auto">
-                      <pre className="whitespace-pre-wrap text-xs">
-                        {log.message}
-                      </pre>
-                    </div>
-                  </details>
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                <div className="w-48">
+                  <label className="text-sm font-medium mb-2 block">Status</label>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="w-full p-2 border rounded-md"
+                  >
+                    <option value="all">All Status</option>
+                    <option value="sent">Sent</option>
+                    <option value="failed">Failed</option>
+                    <option value="pending">Pending</option>
+                  </select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Email Logs List */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="h-5 w-5" />
+                Email Logs ({emailLogs.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+              ) : emailLogs.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  No email logs found
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {emailLogs.map((log) => (
+                    <div key={log.id} className="border rounded-lg p-4 space-y-3">
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-2">
+                          {getStatusIcon(log.status)}
+                          <span className="font-medium">{log.recipient_email}</span>
+                          {getStatusBadge(log.status)}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {format(new Date(log.created_at), 'MMM dd, yyyy HH:mm')}
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <span className="text-sm font-medium text-gray-600">Subject:</span>
+                          <p className="text-sm">{truncateText(log.subject)}</p>
+                        </div>
+                        {log.booking_id && (
+                          <div>
+                            <span className="text-sm font-medium text-gray-600">Booking ID:</span>
+                            <p className="text-sm font-mono">{log.booking_id}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {log.error_message && (
+                        <div>
+                          <span className="text-sm font-medium text-red-600">Error:</span>
+                          <p className="text-sm text-red-600 bg-red-50 p-2 rounded">
+                            {log.error_message}
+                          </p>
+                        </div>
+                      )}
+
+                      {log.sent_at && (
+                        <div>
+                          <span className="text-sm font-medium text-gray-600">Sent at:</span>
+                          <p className="text-sm">
+                            {format(new Date(log.sent_at), 'MMM dd, yyyy HH:mm:ss')}
+                          </p>
+                        </div>
+                      )}
+
+                      <details className="text-sm">
+                        <summary className="cursor-pointer text-blue-600 hover:text-blue-800">
+                          View Message Content
+                        </summary>
+                        <div className="mt-2 p-3 bg-gray-50 rounded border max-h-40 overflow-y-auto">
+                          <pre className="whitespace-pre-wrap text-xs">
+                            {log.message}
+                          </pre>
+                        </div>
+                      </details>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="testing">
+          <EmailTestSuite />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
