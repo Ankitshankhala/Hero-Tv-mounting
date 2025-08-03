@@ -289,8 +289,9 @@ export const useBookingOperations = () => {
             // Check assignment results and provide appropriate feedback
             if (assignmentData && assignmentData.length > 0) {
               const result = assignmentData[0];
-              if (result.assignment_status === 'direct_assigned') {
-                // Send worker assignment email
+              
+              // Send worker assignment email for all successful assignments
+              if ((result.assignment_status === 'direct_assigned' || result.assignment_status === 'coverage_notifications_sent') && result.assigned_worker_id) {
                 try {
                   const { error: workerEmailError } = await supabase.functions.invoke('send-worker-assignment-notification', {
                     body: { 
@@ -307,7 +308,9 @@ export const useBookingOperations = () => {
                 } catch (emailError) {
                   console.warn('Error sending worker assignment email:', emailError);
                 }
-                
+              }
+              
+              if (result.assignment_status === 'direct_assigned') {
                 toast({
                   title: "Great News!",
                   description: "Your booking is confirmed and a worker has been assigned to your job!",
