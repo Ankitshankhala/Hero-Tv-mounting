@@ -127,7 +127,7 @@ const handler = async (req: Request): Promise<Response> => {
       });
 
       const { error: emailError } = await resend.emails.send({
-        from: "Hero TV Mounting <noreply@herotv.com>",
+        from: "Hero TV Mounting <noreply@herotvmounting.com>",
         to: [booking.customer.email],
         subject: `Invoice ${invoice.invoice_number} - Hero TV Mounting Service`,
         html: emailHtml,
@@ -278,9 +278,9 @@ function generateInvoiceEmail(data: any): string {
       
       <p>If you have any questions about this invoice or our services, please don't hesitate to contact us:</p>
       <ul>
-        <li>Email: support@herotv.com</li>
-        <li>Phone: +1-555-HERO-TV</li>
-        <li>Website: www.herotv.com</li>
+        <li>Email: Captain@herotvmounting.com</li>
+        <li>Phone: +1 737-272-9971</li>
+        <li>Website: www.herotvmounting.com</li>
       </ul>
       
       <p>We appreciate your business and look forward to serving you again!</p>
