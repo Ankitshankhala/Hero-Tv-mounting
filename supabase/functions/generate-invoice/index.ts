@@ -63,9 +63,6 @@ const handler = async (req: Request): Promise<Response> => {
         throw new Error(`Failed to generate invoice number: ${invoiceNumberError.message}`);
       }
 
-      // Get customer's state from city (simplified - in production you'd use proper address)
-      const customerState = getStateFromCity(booking.customer?.city || booking.guest_customer_info?.city);
-      
       // Calculate invoice amounts from all booking services
       let serviceAmount = 0;
       const serviceDetails = [];
@@ -95,11 +92,10 @@ const handler = async (req: Request): Promise<Response> => {
         });
       }
       
-      const { data: taxRateData } = await supabase
-        .rpc('get_tax_rate_by_state', { state_abbreviation: customerState });
-      const taxRate = taxRateData || 0.0625; // Default to 6.25% if state not found
-      const taxAmount = serviceAmount * taxRate;
-      const totalAmount = serviceAmount + taxAmount;
+      // No tax calculation - total equals service amount
+      const taxRate = 0;
+      const taxAmount = 0;
+      const totalAmount = serviceAmount;
 
       // Create invoice
       const { data: newInvoice, error: invoiceError } = await supabase
@@ -109,10 +105,10 @@ const handler = async (req: Request): Promise<Response> => {
           invoice_number: invoiceNumber,
           customer_id: booking.customer_id,
           amount: serviceAmount,
-          tax_amount: taxAmount,
-          total_amount: totalAmount,
-          state_code: customerState,
-          tax_rate: taxRate,
+          tax_amount: 0,
+          total_amount: serviceAmount,
+          state_code: null,
+          tax_rate: 0,
           status: 'sent'
         })
         .select()
@@ -315,9 +311,7 @@ function generateInvoiceEmail(data: any): string {
           </table>
           
           <div style="text-align: right; margin-top: 15px;">
-            <p><strong>Subtotal:</strong> $${invoice.amount}</p>
-            <p><strong>Sales Tax (${(invoice.tax_rate * 100).toFixed(2)}%):</strong> $${invoice.tax_amount}</p>
-            <p class="amount"><strong>Total Amount:</strong> $${invoice.total_amount}</p>
+            <p class="amount"><strong>Total Amount:</strong> $${invoice.amount.toFixed(2)}</p>
           </div>
           
           ${worker ? `<p><strong>Technician:</strong> ${worker.name}</p>` : ''}
