@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { Resend } from "npm:resend@2.0.0";
@@ -8,9 +7,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-interface InvoiceRequest {
+interface UpdateInvoiceRequest {
   booking_id: string;
   send_email?: boolean;
+  force_regenerate?: boolean;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -24,9 +24,11 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const { booking_id, send_email = true }: InvoiceRequest = await req.json();
+    const { booking_id, send_email = true, force_regenerate = false }: UpdateInvoiceRequest = await req.json();
 
-    // Fetch booking details with customer, service information, and booking services
+    console.log('Updating invoice for booking:', booking_id);
+
+    // Fetch current booking with all service details
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
       .select(`
@@ -44,17 +46,86 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error(`Booking not found: ${bookingError?.message}`);
     }
 
-    // Check if invoice already exists
-    const { data: existingInvoice } = await supabase
+    // Get customer's state for tax calculation
+    const customerState = getStateFromCity(booking.customer?.city || booking.guest_customer_info?.city);
+    
+    // Calculate updated amounts from all booking services
+    let serviceAmount = 0;
+    const serviceDetails = [];
+    
+    if (booking.booking_services && booking.booking_services.length > 0) {
+      for (const service of booking.booking_services) {
+        const serviceTotal = service.base_price * service.quantity;
+        serviceAmount += serviceTotal;
+        serviceDetails.push({
+          name: service.service_name,
+          base_price: service.base_price,
+          quantity: service.quantity,
+          total: serviceTotal,
+          configuration: service.configuration
+        });
+      }
+    } else {
+      // Fallback to main service
+      serviceAmount = booking.service?.base_price || 0;
+      serviceDetails.push({
+        name: booking.service?.name || 'TV Mounting Service',
+        base_price: serviceAmount,
+        quantity: 1,
+        total: serviceAmount,
+        configuration: {}
+      });
+    }
+    
+    const { data: taxRateData } = await supabase
+      .rpc('get_tax_rate_by_state', { state_abbreviation: customerState });
+    const taxRate = taxRateData || 0.0625;
+    const taxAmount = serviceAmount * taxRate;
+    const totalAmount = serviceAmount + taxAmount;
+
+    console.log('Calculated amounts:', { serviceAmount, taxAmount, totalAmount });
+
+    // Check if invoice exists
+    const { data: existingInvoice, error: existingInvoiceError } = await supabase
       .from('invoices')
-      .select('id, invoice_number, email_sent')
+      .select('*')
       .eq('booking_id', booking_id)
       .single();
 
     let invoice;
-    if (existingInvoice) {
-      invoice = existingInvoice;
+    if (existingInvoice && !force_regenerate) {
+      console.log('Updating existing invoice:', existingInvoice.id);
+      
+      // Update existing invoice with new amounts
+      const { data: updatedInvoice, error: updateError } = await supabase
+        .from('invoices')
+        .update({
+          amount: serviceAmount,
+          tax_amount: taxAmount,
+          total_amount: totalAmount,
+          state_code: customerState,
+          tax_rate: taxRate,
+          status: 'updated',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingInvoice.id)
+        .select()
+        .single();
+
+      if (updateError) {
+        throw new Error(`Failed to update invoice: ${updateError.message}`);
+      }
+
+      // Delete existing invoice items
+      await supabase
+        .from('invoice_items')
+        .delete()
+        .eq('invoice_id', existingInvoice.id);
+
+      invoice = updatedInvoice;
     } else {
+      console.log('Creating new invoice or force regenerating');
+      
       // Generate new invoice number
       const { data: invoiceNumber, error: invoiceNumberError } = await supabase
         .rpc('generate_invoice_number');
@@ -63,45 +134,7 @@ const handler = async (req: Request): Promise<Response> => {
         throw new Error(`Failed to generate invoice number: ${invoiceNumberError.message}`);
       }
 
-      // Get customer's state from city (simplified - in production you'd use proper address)
-      const customerState = getStateFromCity(booking.customer?.city || booking.guest_customer_info?.city);
-      
-      // Calculate invoice amounts from all booking services
-      let serviceAmount = 0;
-      const serviceDetails = [];
-      
-      if (booking.booking_services && booking.booking_services.length > 0) {
-        // Use detailed booking services
-        for (const service of booking.booking_services) {
-          const serviceTotal = service.base_price * service.quantity;
-          serviceAmount += serviceTotal;
-          serviceDetails.push({
-            name: service.service_name,
-            base_price: service.base_price,
-            quantity: service.quantity,
-            total: serviceTotal,
-            configuration: service.configuration
-          });
-        }
-      } else {
-        // Fallback to main service
-        serviceAmount = booking.service?.base_price || 0;
-        serviceDetails.push({
-          name: booking.service?.name || 'TV Mounting Service',
-          base_price: serviceAmount,
-          quantity: 1,
-          total: serviceAmount,
-          configuration: {}
-        });
-      }
-      
-      const { data: taxRateData } = await supabase
-        .rpc('get_tax_rate_by_state', { state_abbreviation: customerState });
-      const taxRate = taxRateData || 0.0625; // Default to 6.25% if state not found
-      const taxAmount = serviceAmount * taxRate;
-      const totalAmount = serviceAmount + taxAmount;
-
-      // Create invoice
+      // Create new invoice
       const { data: newInvoice, error: invoiceError } = await supabase
         .from('invoices')
         .insert({
@@ -113,7 +146,7 @@ const handler = async (req: Request): Promise<Response> => {
           total_amount: totalAmount,
           state_code: customerState,
           tax_rate: taxRate,
-          status: 'sent'
+          status: 'updated'
         })
         .select()
         .single();
@@ -122,29 +155,32 @@ const handler = async (req: Request): Promise<Response> => {
         throw new Error(`Failed to create invoice: ${invoiceError.message}`);
       }
 
-      // Create invoice items for all services
-      const invoiceItems = serviceDetails.map(service => ({
-        invoice_id: newInvoice.id,
-        service_name: service.name,
-        description: service.configuration?.description || `Professional ${service.name.toLowerCase()}`,
-        quantity: service.quantity,
-        unit_price: service.base_price,
-        total_price: service.total
-      }));
-      
-      const { error: itemsError } = await supabase
-        .from('invoice_items')
-        .insert(invoiceItems);
-
-      if (itemsError) {
-        console.error('Failed to create invoice items:', itemsError);
-      }
-
       invoice = newInvoice;
     }
 
-    // Send email if requested and not already sent
-    if (send_email && !existingInvoice?.email_sent) {
+    // Create updated invoice items
+    const invoiceItems = serviceDetails.map(service => ({
+      invoice_id: invoice.id,
+      service_name: service.name,
+      description: service.configuration?.description || `Professional ${service.name.toLowerCase()}`,
+      quantity: service.quantity,
+      unit_price: service.base_price,
+      total_price: service.total
+    }));
+    
+    const { error: itemsError } = await supabase
+      .from('invoice_items')
+      .insert(invoiceItems);
+
+    if (itemsError) {
+      console.error('Failed to create invoice items:', itemsError);
+      throw new Error(`Failed to create invoice items: ${itemsError.message}`);
+    }
+
+    console.log('Invoice items created successfully');
+
+    // Send updated invoice email
+    if (send_email) {
       const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
       // Get detailed invoice with items for email
@@ -157,14 +193,15 @@ const handler = async (req: Request): Promise<Response> => {
         .eq('id', invoice.id)
         .single();
 
-      const emailHtml = generateInvoiceEmail({
+      const emailHtml = generateUpdatedInvoiceEmail({
         customer: booking.customer || booking.guest_customer_info,
         booking: booking,
         service: booking.service,
         worker: booking.worker,
         invoice: invoiceWithItems || invoice,
         transaction: booking.transactions?.[0],
-        serviceDetails: serviceDetails
+        serviceDetails: serviceDetails,
+        isUpdate: !!existingInvoice
       });
 
       const customerEmail = booking.customer?.email || booking.guest_customer_info?.email;
@@ -172,13 +209,14 @@ const handler = async (req: Request): Promise<Response> => {
       const { error: emailError } = await resend.emails.send({
         from: "Hero TV Mounting <noreply@herotvmounting.com>",
         to: [customerEmail],
-        subject: `Invoice ${invoice.invoice_number} - Hero TV Mounting Service`,
+        subject: `${existingInvoice ? 'Updated' : ''} Invoice ${invoice.invoice_number} - Hero TV Mounting Service`,
         html: emailHtml,
       });
 
       if (emailError) {
         console.error('Failed to send email:', emailError);
       } else {
+        console.log('Invoice email sent successfully');
         // Update invoice as email sent
         await supabase
           .from('invoices')
@@ -193,14 +231,16 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(JSON.stringify({ 
       success: true, 
       invoice: invoice,
-      email_sent: send_email && !existingInvoice?.email_sent
+      email_sent: send_email,
+      was_updated: !!existingInvoice,
+      service_count: serviceDetails.length
     }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
 
   } catch (error: any) {
-    console.error("Error in generate-invoice function:", error);
+    console.error("Error in update-invoice function:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
       {
@@ -212,7 +252,6 @@ const handler = async (req: Request): Promise<Response> => {
 };
 
 function getStateFromCity(city: string): string {
-  // Simplified state mapping - in production, use proper address API
   const cityStateMap: { [key: string]: string } = {
     'austin': 'TX',
     'dallas': 'TX',
@@ -237,11 +276,11 @@ function getStateFromCity(city: string): string {
   };
   
   const normalizedCity = city?.toLowerCase().trim() || '';
-  return cityStateMap[normalizedCity] || 'TX'; // Default to Texas
+  return cityStateMap[normalizedCity] || 'TX';
 }
 
-function generateInvoiceEmail(data: any): string {
-  const { customer, booking, service, worker, invoice, transaction, serviceDetails } = data;
+function generateUpdatedInvoiceEmail(data: any): string {
+  const { customer, booking, service, worker, invoice, transaction, serviceDetails, isUpdate } = data;
   
   return `
     <!DOCTYPE html>
@@ -249,10 +288,11 @@ function generateInvoiceEmail(data: any): string {
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Invoice ${invoice.invoice_number}</title>
+      <title>${isUpdate ? 'Updated ' : ''}Invoice ${invoice.invoice_number}</title>
       <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
         .header { background: #1f2937; color: white; padding: 20px; text-align: center; margin-bottom: 30px; }
+        .update-notice { background: #fef3c7; border: 1px solid #f59e0b; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
         .invoice-details { background: #f8f9fa; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
         .service-details { border: 1px solid #dee2e6; border-radius: 5px; margin-bottom: 20px; }
         .service-header { background: #e9ecef; padding: 10px; font-weight: bold; }
@@ -262,6 +302,7 @@ function generateInvoiceEmail(data: any): string {
         table { width: 100%; border-collapse: collapse; margin: 15px 0; }
         th, td { padding: 8px; text-align: left; border-bottom: 1px solid #dee2e6; }
         th { background: #f8f9fa; font-weight: bold; }
+        .highlight { background: #d1ecf1; }
       </style>
     </head>
     <body>
@@ -270,9 +311,16 @@ function generateInvoiceEmail(data: any): string {
         <p>Professional TV Mounting & Installation Services</p>
       </div>
       
+      ${isUpdate ? `
+        <div class="update-notice">
+          <h3>🔄 Invoice Updated</h3>
+          <p>This invoice has been updated with additional services that were added during your appointment.</p>
+        </div>
+      ` : ''}
+      
       <h2>Thank you for choosing Hero TV Mounting!</h2>
       <p>Dear ${customer.name},</p>
-      <p>Thank you for using our professional TV mounting services. Please find your invoice details below:</p>
+      <p>${isUpdate ? 'Your invoice has been updated with additional services.' : 'Thank you for using our professional TV mounting services.'} Please find your ${isUpdate ? 'updated ' : ''}invoice details below:</p>
       
       <div class="invoice-details">
         <h3>Invoice Details</h3>
@@ -286,7 +334,7 @@ function generateInvoiceEmail(data: any): string {
       </div>
       
       <div class="service-details">
-        <div class="service-header">Service Details</div>
+        <div class="service-header">Service Details ${isUpdate ? '(Updated)' : ''}</div>
         <div class="service-content">
           <table>
             <thead>
@@ -298,26 +346,21 @@ function generateInvoiceEmail(data: any): string {
               </tr>
             </thead>
             <tbody>
-              ${(invoice.invoice_items || serviceDetails || [{
-                name: service?.name || 'TV Mounting Service',
-                description: service?.description || 'Professional TV mounting and installation',
-                quantity: 1,
-                total: invoice.amount
-              }]).map((item: any) => `
-                <tr>
-                  <td>${item.service_name || item.name}</td>
-                  <td>${item.description || `Professional ${(item.service_name || item.name).toLowerCase()}`}</td>
+              ${serviceDetails.map((item: any, index: number) => `
+                <tr ${index > 0 && isUpdate ? 'class="highlight"' : ''}>
+                  <td>${item.name} ${index > 0 && isUpdate ? '(Added)' : ''}</td>
+                  <td>${item.configuration?.description || `Professional ${item.name.toLowerCase()}`}</td>
                   <td>${item.quantity}</td>
-                  <td>$${(item.total_price || item.total || item.unit_price || invoice.amount).toFixed(2)}</td>
+                  <td>$${item.total.toFixed(2)}</td>
                 </tr>
               `).join('')}
             </tbody>
           </table>
           
           <div style="text-align: right; margin-top: 15px;">
-            <p><strong>Subtotal:</strong> $${invoice.amount}</p>
-            <p><strong>Sales Tax (${(invoice.tax_rate * 100).toFixed(2)}%):</strong> $${invoice.tax_amount}</p>
-            <p class="amount"><strong>Total Amount:</strong> $${invoice.total_amount}</p>
+            <p><strong>Subtotal:</strong> $${invoice.amount.toFixed(2)}</p>
+            <p><strong>Sales Tax (${(invoice.tax_rate * 100).toFixed(2)}%):</strong> $${invoice.tax_amount.toFixed(2)}</p>
+            <p class="amount"><strong>Total Amount:</strong> $${invoice.total_amount.toFixed(2)}</p>
           </div>
           
           ${worker ? `<p><strong>Technician:</strong> ${worker.name}</p>` : ''}
@@ -325,6 +368,10 @@ function generateInvoiceEmail(data: any): string {
           ${transaction ? `<p><strong>Payment Status:</strong> ${transaction.status === 'completed' ? 'Paid' : 'Pending'}</p>` : ''}
         </div>
       </div>
+      
+      ${isUpdate ? `
+        <p><strong>Note:</strong> Additional services were added during your appointment to ensure the best possible installation. Payment for these additional services has been processed using your existing payment method.</p>
+      ` : ''}
       
       <p>If you have any questions about this invoice or our services, please don't hesitate to contact us:</p>
       <ul>

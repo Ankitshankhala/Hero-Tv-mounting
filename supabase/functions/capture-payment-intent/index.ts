@@ -32,10 +32,10 @@ serve(async (req) => {
     );
 
     console.log('Fetching booking details...');
-    // Get booking details
+    // Get booking details including pending payment amount
     const { data: booking, error: bookingError } = await supabaseServiceRole
       .from('bookings')
-      .select('payment_intent_id, payment_status, status')
+      .select('payment_intent_id, payment_status, status, pending_payment_amount, has_modifications')
       .eq('id', bookingId)
       .maybeSingle();
 
@@ -53,7 +53,9 @@ serve(async (req) => {
 
     console.log('Booking details:', { 
       payment_intent_id: booking.payment_intent_id, 
-      payment_status: booking.payment_status 
+      payment_status: booking.payment_status,
+      pending_payment_amount: booking.pending_payment_amount,
+      has_modifications: booking.has_modifications
     });
 
     if (!booking.payment_intent_id) {
@@ -113,6 +115,13 @@ serve(async (req) => {
       console.log('Payment succeeded, updating booking status...');
       console.log('Current booking status:', booking.status, 'payment_status:', booking.payment_status);
       
+      // Calculate total amount captured (original + pending if any)
+      const originalAmount = paymentIntent.amount / 100;
+      const pendingAmount = booking.pending_payment_amount || 0;
+      const totalCapturedAmount = originalAmount + pendingAmount;
+      
+      console.log('Capture amounts:', { originalAmount, pendingAmount, totalCapturedAmount });
+      
       // First, update existing transaction to captured status
       console.log('Updating existing transaction to captured status...');
       const { error: transactionUpdateError } = await supabaseServiceRole
@@ -120,7 +129,8 @@ serve(async (req) => {
         .update({
           status: 'completed',
           captured_at: new Date().toISOString(),
-          transaction_type: 'capture'
+          transaction_type: 'capture',
+          amount: totalCapturedAmount // Update to include pending amount
         })
         .eq('payment_intent_id', booking.payment_intent_id)
         .eq('status', 'authorized');
@@ -130,13 +140,34 @@ serve(async (req) => {
         // Don't throw here, we can still proceed with booking update
       }
       
-      // Update booking to completed status with captured payment status
+      // If there was a pending payment amount, create additional transaction record
+      if (pendingAmount > 0) {
+        console.log('Creating additional transaction for pending amount:', pendingAmount);
+        const { error: pendingTransactionError } = await supabaseServiceRole
+          .from('transactions')
+          .insert({
+            booking_id: bookingId,
+            amount: pendingAmount,
+            status: 'completed',
+            transaction_type: 'additional_service_charge',
+            payment_method: 'existing_payment_method',
+            captured_at: new Date().toISOString()
+          });
+
+        if (pendingTransactionError) {
+          console.error('Failed to create pending transaction:', pendingTransactionError);
+        }
+      }
+      
+      // Update booking to completed status and clear pending amounts
       console.log('Updating booking to completed status...');
       const { error: updateError } = await supabaseServiceRole
         .from('bookings')
         .update({
           payment_status: 'captured',
           status: 'completed',
+          pending_payment_amount: null, // Clear pending amount
+          has_modifications: false // Clear modifications flag
         })
         .eq('id', bookingId);
 
@@ -189,7 +220,9 @@ serve(async (req) => {
         payment_status: 'captured',
         booking_status: 'completed',
         booking_id: bookingId,
-        amount_captured: paymentIntent.amount / 100,
+        amount_captured: totalCapturedAmount,
+        original_amount: originalAmount,
+        pending_amount: pendingAmount,
         currency: paymentIntent.currency,
         message: 'Payment captured and job marked as completed'
       }), {

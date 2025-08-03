@@ -54,6 +54,27 @@ export const InvoiceModificationPayment = ({
         description: `Successfully charged $${pendingAmount.toFixed(2)} for additional services`,
       });
 
+      // Trigger invoice update after successful payment
+      try {
+        console.log('Triggering invoice update for booking:', job.id);
+        const { error: invoiceError } = await supabase.functions.invoke('update-invoice', {
+          body: {
+            booking_id: job.id,
+            send_email: true
+          }
+        });
+
+        if (invoiceError) {
+          console.error('Invoice update error:', invoiceError);
+          // Don't fail the payment success, just log the invoice error
+        } else {
+          console.log('Invoice updated and sent successfully');
+        }
+      } catch (invoiceUpdateError) {
+        console.error('Failed to update invoice:', invoiceUpdateError);
+        // Don't fail the payment success
+      }
+
       onPaymentComplete();
       onClose();
     } catch (error) {
