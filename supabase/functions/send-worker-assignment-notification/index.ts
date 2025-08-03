@@ -230,8 +230,8 @@ const handler = async (req: Request): Promise<Response> => {
       </ul>
       
       <p>For support or questions, contact the office:</p>
-      <p>Email: dispatch@herotvmounting.com<br>
-      Phone: (555) 123-4567</p>
+      <p>Email: Captain@herotvmounting.com<br>
+      Phone: +1 737-272-9971</p>
       
       <p>Good luck with your assignment!</p>
       <p>Hero TV Mounting Team</p>

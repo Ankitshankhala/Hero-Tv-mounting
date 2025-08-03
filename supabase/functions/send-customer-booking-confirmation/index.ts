@@ -211,8 +211,8 @@ const handler = async (req: Request): Promise<Response> => {
       ${booking.location_notes ? `<p><strong>Location Notes:</strong> ${booking.location_notes}</p>` : ''}
       
       <p>If you have any questions, please contact us at:</p>
-      <p>Email: support@herotvmounting.com<br>
-      Phone: (555) 123-4567</p>
+      <p>Email: Captain@herotvmounting.com<br>
+      Phone: +1 737-272-9971</p>
       
       <p>Thank you for your business!</p>
       <p>Hero TV Mounting Team</p>
