@@ -3,9 +3,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Mail, AlertCircle, CheckCircle } from 'lucide-react';
+import { Loader2, Mail, AlertCircle, CheckCircle, Plus } from 'lucide-react';
 
 interface EmailLog {
   id: string;
@@ -24,17 +26,92 @@ export const EmailTestSuite = () => {
   const [testResults, setTestResults] = useState<{
     workerEmail?: { success: boolean; message: string };
     customerEmail?: { success: boolean; message: string };
+    bookingCreation?: { success: boolean; message: string };
   }>({});
+  const [creatingBooking, setCreatingBooking] = useState(false);
+  const [testBookingId, setTestBookingId] = useState<string | null>(null);
+  const [workerEmail, setWorkerEmail] = useState('ankitshankhala2112@gmail.com');
   const { toast } = useToast();
 
-  const TEST_BOOKING_ID = '1364c530-90bc-4673-a249-bcd24a9edfd7';
+  // Ankit's real worker ID
+  const ANKIT_WORKER_ID = '1d6b0847-7e4c-454a-be20-9a843e9b6df3';
+
+  const createTestBooking = async () => {
+    setCreatingBooking(true);
+    try {
+      // First get a service to use
+      const { data: services, error: serviceError } = await supabase
+        .from('services')
+        .select('id')
+        .eq('is_active', true)
+        .limit(1);
+
+      if (serviceError || !services?.length) {
+        throw new Error('No active services found');
+      }
+
+      // Create a test booking
+      const { data: booking, error: bookingError } = await supabase
+        .from('bookings')
+        .insert({
+          service_id: services[0].id,
+          scheduled_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Tomorrow
+          scheduled_start: '10:00:00',
+          status: 'confirmed',
+          payment_status: 'authorized',
+          payment_intent_id: 'test_pi_' + Date.now(),
+          guest_customer_info: {
+            name: 'Test Customer',
+            email: 'test@example.com',
+            phone: '555-123-4567',
+            zipcode: '75001',
+            address: '123 Test St',
+            city: 'Dallas'
+          }
+        })
+        .select()
+        .single();
+
+      if (bookingError) throw bookingError;
+
+      setTestBookingId(booking.id);
+      setTestResults(prev => ({
+        ...prev,
+        bookingCreation: { success: true, message: `Test booking created: ${booking.id}` }
+      }));
+
+      toast({
+        title: "Test Booking Created",
+        description: `Booking ID: ${booking.id}`,
+      });
+
+      return booking.id;
+    } catch (error: any) {
+      console.error('Failed to create test booking:', error);
+      setTestResults(prev => ({
+        ...prev,
+        bookingCreation: { success: false, message: error.message }
+      }));
+      toast({
+        title: "Failed to Create Test Booking",
+        description: error.message,
+        variant: "destructive",
+      });
+      return null;
+    } finally {
+      setCreatingBooking(false);
+    }
+  };
 
   const fetchEmailLogs = async () => {
     try {
+      const bookingId = testBookingId;
+      if (!bookingId) return;
+
       const { data, error } = await supabase
         .from('email_logs')
         .select('*')
-        .eq('booking_id', TEST_BOOKING_ID)
+        .eq('booking_id', bookingId)
         .order('created_at', { ascending: false })
         .limit(10);
 
@@ -46,35 +123,49 @@ export const EmailTestSuite = () => {
   };
 
   useEffect(() => {
-    fetchEmailLogs();
-    
-    // Set up real-time subscription for email logs
-    const subscription = supabase
-      .channel('email_logs_changes')
-      .on('postgres_changes', 
-        { 
-          event: '*', 
-          schema: 'public', 
-          table: 'email_logs',
-          filter: `booking_id=eq.${TEST_BOOKING_ID}`
-        }, 
-        () => {
-          fetchEmailLogs();
-        }
-      )
-      .subscribe();
+    if (testBookingId) {
+      fetchEmailLogs();
+      
+      // Set up real-time subscription for email logs
+      const subscription = supabase
+        .channel('email_logs_changes')
+        .on('postgres_changes', 
+          { 
+            event: '*', 
+            schema: 'public', 
+            table: 'email_logs',
+            filter: `booking_id=eq.${testBookingId}`
+          }, 
+          () => {
+            fetchEmailLogs();
+          }
+        )
+        .subscribe();
 
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
+      return () => {
+        subscription.unsubscribe();
+      };
+    }
+  }, [testBookingId]);
 
-  const testWorkerEmail = async () => {
+  const testWorkerEmail = async (bookingId?: string) => {
     try {
-      console.log('Testing worker assignment email...');
+      const useBookingId = bookingId || testBookingId;
+      if (!useBookingId) {
+        throw new Error('No booking ID available. Please create a test booking first.');
+      }
+
+      console.log('Testing worker assignment email...', { 
+        bookingId: useBookingId, 
+        workerId: ANKIT_WORKER_ID,
+        workerEmail 
+      });
       
       const { data, error } = await supabase.functions.invoke('send-worker-assignment-notification', {
-        body: { bookingId: TEST_BOOKING_ID, workerId: '12345678-1234-1234-1234-123456789012' }
+        body: { 
+          bookingId: useBookingId, 
+          workerId: ANKIT_WORKER_ID 
+        }
       });
 
       if (error) {
@@ -89,7 +180,7 @@ export const EmailTestSuite = () => {
       console.log('Worker email response:', data);
       setTestResults(prev => ({
         ...prev,
-        workerEmail: { success: true, message: 'Worker email sent successfully' }
+        workerEmail: { success: true, message: `Worker email sent to ${workerEmail}` }
       }));
       return true;
     } catch (error: any) {
@@ -102,12 +193,17 @@ export const EmailTestSuite = () => {
     }
   };
 
-  const testCustomerEmail = async () => {
+  const testCustomerEmail = async (bookingId?: string) => {
     try {
-      console.log('Testing customer confirmation email...');
+      const useBookingId = bookingId || testBookingId;
+      if (!useBookingId) {
+        throw new Error('No booking ID available. Please create a test booking first.');
+      }
+
+      console.log('Testing customer confirmation email...', { bookingId: useBookingId });
       
       const { data, error } = await supabase.functions.invoke('send-customer-booking-confirmation', {
-        body: { bookingId: TEST_BOOKING_ID }
+        body: { bookingId: useBookingId }
       });
 
       if (error) {
@@ -140,19 +236,30 @@ export const EmailTestSuite = () => {
     setTestResults({});
     
     try {
+      // First create a test booking if we don't have one
+      let bookingId = testBookingId;
+      if (!bookingId) {
+        toast({
+          title: "Creating Test Booking",
+          description: "Creating a test booking for email testing...",
+        });
+        bookingId = await createTestBooking();
+        if (!bookingId) return;
+      }
+
       toast({
         title: "Email Test Started",
         description: "Testing both worker and customer email functionality...",
       });
 
       // Test worker email
-      const workerSuccess = await testWorkerEmail();
+      const workerSuccess = await testWorkerEmail(bookingId);
       
       // Wait a moment before testing customer email
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Test customer email
-      const customerSuccess = await testCustomerEmail();
+      const customerSuccess = await testCustomerEmail(bookingId);
 
       // Wait for logs to update
       setTimeout(() => {
@@ -178,6 +285,26 @@ export const EmailTestSuite = () => {
         description: error.message,
         variant: "destructive",
       });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const sendWorkerEmailToAnkit = async () => {
+    setTesting(true);
+    try {
+      // Create test booking if needed
+      let bookingId = testBookingId;
+      if (!bookingId) {
+        bookingId = await createTestBooking();
+        if (!bookingId) return;
+      }
+
+      await testWorkerEmail(bookingId);
+      
+      setTimeout(() => {
+        fetchEmailLogs();
+      }, 2000);
     } finally {
       setTesting(false);
     }
@@ -213,14 +340,59 @@ export const EmailTestSuite = () => {
           
           <TabsContent value="test" className="space-y-4">
             <div className="space-y-4">
-              <div className="text-sm text-muted-foreground">
-                Testing with booking ID: <code className="bg-muted px-1 rounded">{TEST_BOOKING_ID}</code>
+              {/* Test Booking Status */}
+              <div className="p-4 bg-muted rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-medium">Test Booking</h4>
+                  <Button 
+                    onClick={createTestBooking} 
+                    disabled={creatingBooking}
+                    variant="outline"
+                    size="sm"
+                  >
+                    {creatingBooking ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
+                    Create New
+                  </Button>
+                </div>
+                {testBookingId ? (
+                  <div className="text-sm text-muted-foreground">
+                    Current booking ID: <code className="bg-background px-1 rounded">{testBookingId}</code>
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground">No test booking created yet</div>
+                )}
               </div>
+
+              {/* Worker Email Configuration */}
+              <div className="space-y-2">
+                <Label htmlFor="worker-email">Worker Email Address</Label>
+                <Input 
+                  id="worker-email"
+                  type="email"
+                  value={workerEmail}
+                  onChange={(e) => setWorkerEmail(e.target.value)}
+                  placeholder="Enter worker email address"
+                />
+                <div className="text-xs text-muted-foreground">
+                  This email will receive the worker assignment notification
+                </div>
+              </div>
+
+              {/* Quick Test for Ankit */}
+              <Button 
+                onClick={sendWorkerEmailToAnkit} 
+                disabled={testing || creatingBooking}
+                className="w-full"
+                variant="default"
+              >
+                {testing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Mail className="w-4 h-4 mr-2" />}
+                Send Worker Email to {workerEmail}
+              </Button>
               
               <div className="flex gap-4">
                 <Button 
-                  onClick={testWorkerEmail} 
-                  disabled={testing}
+                  onClick={() => testWorkerEmail()} 
+                  disabled={testing || !testBookingId}
                   variant="outline"
                   className="flex-1"
                 >
@@ -229,8 +401,8 @@ export const EmailTestSuite = () => {
                 </Button>
                 
                 <Button 
-                  onClick={testCustomerEmail} 
-                  disabled={testing}
+                  onClick={() => testCustomerEmail()} 
+                  disabled={testing || !testBookingId}
                   variant="outline"
                   className="flex-1"
                 >
@@ -241,7 +413,8 @@ export const EmailTestSuite = () => {
               
               <Button 
                 onClick={runFullEmailTest} 
-                disabled={testing}
+                disabled={testing || creatingBooking}
+                variant="outline"
                 className="w-full"
               >
                 {testing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Mail className="w-4 h-4 mr-2" />}
@@ -252,6 +425,16 @@ export const EmailTestSuite = () => {
               {Object.keys(testResults).length > 0 && (
                 <div className="space-y-2 p-4 bg-muted rounded-lg">
                   <h4 className="font-medium">Test Results:</h4>
+                  {testResults.bookingCreation && (
+                    <div className="flex items-center gap-2">
+                      {testResults.bookingCreation.success ? (
+                        <CheckCircle className="w-4 h-4 text-green-500" />
+                      ) : (
+                        <AlertCircle className="w-4 h-4 text-red-500" />
+                      )}
+                      <span className="text-sm">Booking Creation: {testResults.bookingCreation.message}</span>
+                    </div>
+                  )}
                   {testResults.workerEmail && (
                     <div className="flex items-center gap-2">
                       {testResults.workerEmail.success ? (
@@ -288,7 +471,7 @@ export const EmailTestSuite = () => {
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {emailLogs.length === 0 ? (
                 <div className="text-center text-muted-foreground py-8">
-                  No email logs found for test booking
+                  {testBookingId ? 'No email logs found for test booking' : 'Create a test booking to see email logs'}
                 </div>
               ) : (
                 emailLogs.map((log) => (
