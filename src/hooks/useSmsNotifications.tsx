@@ -67,7 +67,7 @@ export const useSmsNotifications = () => {
     try {
       console.log('Resending email notification for booking:', bookingId);
       
-      const { data, error } = await supabase.functions.invoke('send-worker-assignment-email', {
+      const { data, error } = await supabase.functions.invoke('send-worker-assignment-notification', {
         body: { bookingId }
       });
 

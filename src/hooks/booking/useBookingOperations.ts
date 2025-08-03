@@ -290,9 +290,10 @@ export const useBookingOperations = () => {
             if (assignmentData && assignmentData.length > 0) {
               const result = assignmentData[0];
               
-              // Send worker assignment email for all successful assignments
+              // Send worker assignment email and SMS for all successful assignments
               if ((result.assignment_status === 'direct_assigned' || result.assignment_status === 'coverage_notifications_sent') && result.assigned_worker_id) {
                 try {
+                  // Send email notification
                   const { error: workerEmailError } = await supabase.functions.invoke('send-worker-assignment-notification', {
                     body: { 
                       bookingId,
@@ -305,8 +306,19 @@ export const useBookingOperations = () => {
                   } else {
                     console.log('Worker assignment email sent successfully');
                   }
-                } catch (emailError) {
-                  console.warn('Error sending worker assignment email:', emailError);
+
+                  // Send SMS notification
+                  const { error: workerSmsError } = await supabase.functions.invoke('send-sms-notification', {
+                    body: { bookingId }
+                  });
+                  
+                  if (workerSmsError) {
+                    console.warn('Failed to send worker assignment SMS:', workerSmsError);
+                  } else {
+                    console.log('Worker assignment SMS sent successfully');
+                  }
+                } catch (notificationError) {
+                  console.warn('Error sending worker assignment notifications:', notificationError);
                 }
               }
               

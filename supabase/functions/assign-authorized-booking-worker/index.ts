@@ -123,8 +123,9 @@ serve(async (req) => {
       throw new Error(`Failed to update booking: ${updateError.message}`);
     }
 
-    // Send worker assignment email
+    // Send worker assignment email and SMS
     try {
+      // Send email notification
       const { error: emailError } = await supabase.functions.invoke(
         'send-worker-assignment-notification',
         {
@@ -133,9 +134,24 @@ serve(async (req) => {
       );
       if (emailError) {
         logStep('Worker assignment email failed', { error: emailError.message });
+      } else {
+        logStep('Worker assignment email sent successfully');
       }
-    } catch (emailErr) {
-      logStep('Error invoking worker email function', { error: emailErr });
+
+      // Send SMS notification
+      const { error: smsError } = await supabase.functions.invoke(
+        'send-sms-notification',
+        {
+          body: { bookingId: booking.id },
+        }
+      );
+      if (smsError) {
+        logStep('Worker assignment SMS failed', { error: smsError.message });
+      } else {
+        logStep('Worker assignment SMS sent successfully');
+      }
+    } catch (notificationErr) {
+      logStep('Error invoking worker notification functions', { error: notificationErr });
     }
 
     // Send customer confirmation email
