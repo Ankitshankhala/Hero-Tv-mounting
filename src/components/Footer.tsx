@@ -33,13 +33,38 @@ export const Footer = () => {
               href="https://www.charusolutions.com/" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="hover:opacity-80 transition-opacity duration-200"
+              className="transition-all duration-200"
             >
-              <span style={{ color: '#4285F4' }}>Cha</span>
-              <span style={{ color: '#EA4335' }}>ru </span>
-              <span style={{ color: '#FBBC05' }}>Sol</span>
-              <span style={{ color: '#34A853' }}>uti</span>
-              <span style={{ color: '#4285F4' }}>ons</span>
+              <span 
+                style={{ color: '#4285F4' }}
+                className="hover:brightness-125 transition-all duration-200"
+              >
+                Cha
+              </span>
+              <span 
+                style={{ color: '#EA4335' }}
+                className="hover:brightness-125 transition-all duration-200"
+              >
+                ru 
+              </span>
+              <span 
+                style={{ color: '#FBBC05' }}
+                className="hover:brightness-125 transition-all duration-200"
+              >
+                Sol
+              </span>
+              <span 
+                style={{ color: '#34A853' }}
+                className="hover:brightness-125 transition-all duration-200"
+              >
+                uti
+              </span>
+              <span 
+                style={{ color: '#4285F4' }}
+                className="hover:brightness-125 transition-all duration-200"
+              >
+                ons
+              </span>
             </a>
           </p>
         </div>
