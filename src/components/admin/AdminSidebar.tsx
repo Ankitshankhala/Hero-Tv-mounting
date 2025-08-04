@@ -43,9 +43,9 @@ export const AdminSidebar = ({ activeTab, onTabChange }: AdminSidebarProps) => {
           <img 
             src="/lovable-uploads/885a4cd2-a143-4e2e-b07c-e10030eb73c1.png" 
             alt="Hero TV Mounting Logo" 
-            className="h-8 w-8 object-contain"
+            className="h-8 w-8 object-contain opacity-80 saturate-75"
           />
-          <h1 className="text-2xl font-bold">Admin Panel</h1>
+          <h1 className="text-2xl font-bold text-foreground">Admin Panel</h1>
         </div>
       </div>
       <div className="py-4">
