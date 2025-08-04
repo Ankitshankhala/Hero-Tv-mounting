@@ -121,7 +121,7 @@ const Index = () => {
                 href="/worker-login"
                 className="inline-flex items-center px-8 py-4 bg-transparent text-white font-semibold rounded-lg border-2 border-white hover:bg-white hover:text-blue-900 transition-colors duration-200"
               >
-                Worker Login
+                Technician Login
               </a>
             </div>
           </div>

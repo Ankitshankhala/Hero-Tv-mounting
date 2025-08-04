@@ -352,7 +352,7 @@ export const InlineBookingFlow = ({ isOpen, onClose, onSubmit, selectedServices 
                 {workerCount > 0 && (
                   <div className="ml-auto flex items-center space-x-2 text-sm bg-purple-100 text-purple-700 px-3 py-1 rounded-full">
                     <Users className="h-4 w-4" />
-                    <span>{workerCount} workers available</span>
+                    <span>{workerCount} technicians available</span>
                   </div>
                 )}
               </CardTitle>
@@ -421,7 +421,7 @@ export const InlineBookingFlow = ({ isOpen, onClose, onSubmit, selectedServices 
                             <div className="w-3 h-3 bg-red-500 rounded-full ml-4"></div>
                             <span>Booked</span>
                           </div>
-                          <p className="text-xs text-gray-500">Times shown are based on worker availability in your area (ZIP: {formData.zipcode})</p>
+                          <p className="text-xs text-gray-500">Times shown are based on technician availability in your area (ZIP: {formData.zipcode})</p>
                         </div>
                         
                         <div className="grid grid-cols-3 gap-2 text-black max-h-64 overflow-y-auto">

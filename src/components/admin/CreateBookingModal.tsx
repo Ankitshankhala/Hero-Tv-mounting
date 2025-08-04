@@ -411,10 +411,10 @@ export const CreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingM
                 </Select>
               </div>
               <div>
-                <Label htmlFor="worker">Assign Worker</Label>
+                <Label htmlFor="worker">Assign Technician</Label>
                 <Select value={formData.worker} onValueChange={(value) => setFormData({...formData, worker: value})}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select worker assignment" />
+                    <SelectValue placeholder="Select technician assignment" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="auto">Auto-assign</SelectItem>

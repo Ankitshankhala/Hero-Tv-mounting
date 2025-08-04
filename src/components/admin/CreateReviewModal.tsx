@@ -139,12 +139,12 @@ export const CreateReviewModal = ({ isOpen, onClose, onCreate }: CreateReviewMod
               />
             </div>
             <div>
-              <Label htmlFor="worker">Worker Name *</Label>
+              <Label htmlFor="worker">Technician Name *</Label>
               <Input
                 id="worker"
                 value={formData.worker}
                 onChange={(e) => setFormData(prev => ({ ...prev, worker: e.target.value }))}
-                placeholder="Enter worker name"
+                placeholder="Enter technician name"
                 required
               />
             </div>

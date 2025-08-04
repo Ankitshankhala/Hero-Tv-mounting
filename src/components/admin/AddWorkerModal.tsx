@@ -107,14 +107,14 @@ export const AddWorkerModal = ({ onClose, onSuccess }: AddWorkerModalProps) => {
 
       toast({
         title: "Success",
-        description: "Worker has been added successfully",
+        description: "Technician has been added successfully",
       });
 
       onSuccess();
     } catch (error: any) {
       console.error('Error adding worker:', error);
       
-      let errorMessage = "Failed to add worker";
+      let errorMessage = "Failed to add technician";
       if (error?.message?.includes('duplicate key')) {
         errorMessage = "A user with this email already exists";
       } else if (error?.message) {
@@ -143,7 +143,7 @@ export const AddWorkerModal = ({ onClose, onSuccess }: AddWorkerModalProps) => {
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg p-6 w-full max-w-md">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold">Add New Worker</h2>
+            <h2 className="text-xl font-bold">Add New Technician</h2>
             <Button variant="ghost" size="sm" onClick={onClose}>
               <X className="h-4 w-4" />
             </Button>
@@ -203,7 +203,7 @@ export const AddWorkerModal = ({ onClose, onSuccess }: AddWorkerModalProps) => {
                 className="flex-1 bg-blue-600 hover:bg-blue-700"
                 disabled={loading}
               >
-                {loading ? 'Adding...' : 'Add Worker'}
+                {loading ? 'Adding...' : 'Add Technician'}
               </Button>
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancel
@@ -217,12 +217,12 @@ export const AddWorkerModal = ({ onClose, onSuccess }: AddWorkerModalProps) => {
       <Dialog open={showPasswordModal} onOpenChange={setShowPasswordModal}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Worker Account Created</DialogTitle>
+            <DialogTitle>Technician Account Created</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <p className="text-sm text-green-800 mb-3">
-                Worker account has been successfully created for:
+                Technician account has been successfully created for:
               </p>
               <div className="space-y-2">
                 <div>
@@ -255,7 +255,7 @@ export const AddWorkerModal = ({ onClose, onSuccess }: AddWorkerModalProps) => {
             </div>
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
               <p className="text-sm text-yellow-800">
-                <strong>Important:</strong> Share these credentials with the worker securely. 
+                <strong>Important:</strong> Share these credentials with the technician securely. 
                 They should change their password on first login.
               </p>
             </div>

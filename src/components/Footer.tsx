@@ -20,7 +20,7 @@ export const Footer = () => {
               href="/worker-login" 
               className="text-slate-400 hover:text-slate-300 transition-colors duration-200"
             >
-              Worker Portal
+              Technician Portal
             </a>
             <a 
               href="tel:+17372729971" 

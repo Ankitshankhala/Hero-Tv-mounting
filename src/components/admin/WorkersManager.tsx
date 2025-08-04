@@ -41,7 +41,7 @@ export const WorkersManager = () => {
       console.error('Error fetching workers:', error);
       toast({
         title: "Error",
-        description: "Failed to load workers",
+        description: "Failed to load technicians",
         variant: "destructive",
       });
     } finally {
@@ -67,7 +67,7 @@ export const WorkersManager = () => {
     <div className="space-y-6">
       <Tabs defaultValue="workers" className="w-full">
         <TabsList>
-          <TabsTrigger value="workers">Current Workers</TabsTrigger>
+          <TabsTrigger value="workers">Current Technicians</TabsTrigger>
           <TabsTrigger value="applications">Applications</TabsTrigger>
         </TabsList>
         
@@ -76,7 +76,7 @@ export const WorkersManager = () => {
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <Wrench className="h-5 w-5" />
-                <span>Workers Management</span>
+                <span>Technicians Management</span>
               </CardTitle>
             </CardHeader>
             <CardContent>

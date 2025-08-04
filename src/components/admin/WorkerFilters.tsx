@@ -18,7 +18,7 @@ export const WorkerFilters = ({
   return (
     <div className="flex flex-col md:flex-row gap-4 mb-6">
       <Input
-        placeholder="Search workers..."
+        placeholder="Search technicians..."
         value={searchTerm}
         onChange={(e) => onSearchChange(e.target.value)}
         className="flex-1"
@@ -28,7 +28,7 @@ export const WorkerFilters = ({
         className="bg-green-600 hover:bg-green-700"
       >
         <UserPlus className="h-4 w-4 mr-2" />
-        Add New Worker
+        Add New Technician
       </Button>
     </div>
   );
