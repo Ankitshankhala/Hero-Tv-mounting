@@ -96,9 +96,28 @@ const Index = () => {
         <TestingModeIndicator />
       </div>
 
-      <ServicesSection onAddToCart={addToCart} />
-      <ReviewsSection />
-      <BlogSection />
+        <ServicesSection onAddToCart={addToCart} />
+        <ReviewsSection />
+        <BlogSection />
+        
+        {/* Worker Recruitment Section */}
+        <section className="py-16 bg-gradient-to-r from-blue-900 to-purple-900">
+          <div className="container mx-auto px-4 text-center">
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+              Join Our Professional Team
+            </h2>
+            <p className="text-blue-100 text-lg mb-8 max-w-2xl mx-auto">
+              Are you an experienced technician looking for flexible work opportunities? 
+              Join our team of professional TV mounting specialists and earn competitive pay.
+            </p>
+            <a 
+              href="/worker-signup"
+              className="inline-flex items-center px-8 py-4 bg-white text-blue-900 font-semibold rounded-lg hover:bg-blue-50 transition-colors duration-200 shadow-lg"
+            >
+              Apply Now
+            </a>
+          </div>
+        </section>
 
       <Footer />
 
