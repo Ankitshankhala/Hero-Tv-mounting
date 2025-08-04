@@ -39,7 +39,14 @@ export const AdminSidebar = ({ activeTab, onTabChange }: AdminSidebarProps) => {
   return (
     <div className="w-64 border-r flex-shrink-0">
       <div className="p-4">
-        <h1 className="text-2xl font-bold">Admin Panel</h1>
+        <div className="flex items-center space-x-3">
+          <img 
+            src="/lovable-uploads/885a4cd2-a143-4e2e-b07c-e10030eb73c1.png" 
+            alt="Hero TV Mounting Logo" 
+            className="h-8 w-8 object-contain"
+          />
+          <h1 className="text-2xl font-bold">Admin Panel</h1>
+        </div>
       </div>
       <div className="py-4">
         {menuItems.map((item) => (
