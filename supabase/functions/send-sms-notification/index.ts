@@ -62,28 +62,49 @@ serve(async (req) => {
       );
     }
 
+    // Get booking services
+    const { data: bookingServices } = await supabaseClient
+      .from('booking_services')
+      .select('service_name, quantity')
+      .eq('booking_id', bookingId);
+
     // Format scheduled date and time
     const scheduledDate = new Date(`${booking.scheduled_date}T${booking.scheduled_start}`);
     const formattedDate = scheduledDate.toLocaleDateString('en-US', {
-      weekday: 'long',
       month: 'long',
       day: 'numeric',
+      year: 'numeric',
     });
     const formattedTime = scheduledDate.toLocaleTimeString('en-US', {
       hour: 'numeric',
       minute: '2-digit',
+      hour12: true
     });
 
-    // Get customer name from guest info
-    const customerName = booking.guest_customer_info?.name || 'Unknown Customer';
+    // Get customer info
+    const customerInfo = booking.guest_customer_info || {};
+    const customerName = customerInfo.name || 'Customer';
+    const customerAddress = customerInfo.address || 'Address in booking';
+    const customerPhone = customerInfo.phone || 'Phone in booking';
+
+    // Format services
+    const services = bookingServices?.map(s => `${s.service_name} x${s.quantity}`).join(', ') || 'Service details in booking';
     
-    // Compose message
-    const messageBody = `
-      New job assigned! ${formattedDate} at ${formattedTime}
-      Customer: ${customerName}
-      Address: ${booking.location_notes || 'Address details in booking'}
-      Reply Y to confirm or N if unavailable.
-    `.replace(/\s+/g, ' ').trim();
+    // Compose structured message
+    const messageBody = `🔧 NEW JOB ASSIGNMENT
+
+Worker: ${booking.users?.name || 'Worker'}
+
+Service: ${services}
+Date: ${formattedDate}, ${formattedTime}
+
+Customer: ${customerName}
+Address: ${customerAddress}
+Phone: ${customerPhone}
+
+${booking.location_notes ? `Notes: ${booking.location_notes}` : ''}
+
+Reply Y to confirm or N if unavailable.`.trim();
 
     // Get Twilio credentials
     const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID');

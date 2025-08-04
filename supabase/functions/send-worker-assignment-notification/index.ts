@@ -166,19 +166,19 @@ const handler = async (req: Request): Promise<Response> => {
     // Format service details
     const serviceDetails = bookingServices?.length ? 
       bookingServices.map((service: any) => {
-      const config = service.configuration;
-      let configDetails = '';
-      
-      if (config && typeof config === 'object') {
-        // Handle TV mounting specific configuration
-        if (config.wallType) configDetails += `Wall Type: ${config.wallType}<br>`;
-        if (config.tvSize) configDetails += `TV Size: ${config.tvSize}<br>`;
-        if (config.mountType) configDetails += `Mount Type: ${config.mountType}<br>`;
-        if (config.cableManagement) configDetails += `Cable Management: Yes<br>`;
-      }
-      
-        return `<strong>${service.service_name}</strong> (Qty: ${service.quantity}) - $${service.base_price}<br>${configDetails}`;
-      }).join('<br>') : 'Service details unavailable';
+        const config = service.configuration;
+        let configDetails = '';
+        
+        if (config && typeof config === 'object') {
+          // Handle TV mounting specific configuration
+          if (config.wallType) configDetails += `<br>&nbsp;&nbsp;• Wall Type: ${config.wallType}`;
+          if (config.tvSize) configDetails += `<br>&nbsp;&nbsp;• TV Size: ${config.tvSize}"`;
+          if (config.mountType) configDetails += `<br>&nbsp;&nbsp;• Mount Type: ${config.mountType}`;
+          if (config.cableManagement) configDetails += `<br>&nbsp;&nbsp;• Cable Management: Yes`;
+        }
+        
+        return `<strong>${service.service_name} x${service.quantity}</strong>${configDetails}`;
+      }).join('<br><br>') : 'Service details unavailable';
 
     // Format scheduled date and time
     const scheduledDateTime = new Date(`${booking.scheduled_date}T${booking.scheduled_start}`);
@@ -194,47 +194,70 @@ const handler = async (req: Request): Promise<Response> => {
       hour12: true
     });
 
-    // Get location details from guest info or user profile
-    const location = booking.guest_customer_info?.zipcode ? 
-      `${booking.guest_customer_info.city}, ${booking.guest_customer_info.state} ${booking.guest_customer_info.zipcode}` :
-      'Location details in customer contact';
+    // Get address details
+    const customerAddress = booking.guest_customer_info?.address || 'Address in booking details';
+    const customerUnit = booking.guest_customer_info?.unit || '';
+    const customerCity = booking.guest_customer_info?.city || '';
+    const customerState = booking.guest_customer_info?.state || '';
+    const customerZipcode = booking.guest_customer_info?.zipcode || '';
 
     const htmlContent = `
-      <h1>New Job Assignment - Hero TV Mounting</h1>
-      <p>Hello ${worker.name},</p>
-      
-      <p>You have been assigned to a new job. Please review the details below:</p>
-      
-      <h3>Job Details:</h3>
-      <p><strong>Booking ID:</strong> ${requestData.bookingId}</p>
-      <p><strong>Scheduled Date:</strong> ${formattedDate}</p>
-      <p><strong>Scheduled Time:</strong> ${formattedTime}</p>
-      <p><strong>Location:</strong> ${location}</p>
-      
-      <h3>Customer Information:</h3>
-      <p><strong>Name:</strong> ${customerName}</p>
-      <p><strong>Phone:</strong> ${customerPhone}</p>
-      <p><strong>Email:</strong> ${customerEmail}</p>
-      
-      <h3>Services Required:</h3>
-      <div>${serviceDetails}</div>
-      
-      ${booking.location_notes ? `<h3>Special Instructions:</h3><p>${booking.location_notes}</p>` : ''}
-      
-      <h3>Important Reminders:</h3>
-      <ul>
-        <li>Arrive 15 minutes early for setup</li>
-        <li>Bring all necessary tools and equipment</li>
-        <li>Contact customer if running late</li>
-        <li>Complete job documentation after service</li>
-      </ul>
-      
-      <p>For support or questions, contact the office:</p>
-      <p>Email: Captain@herotvmounting.com<br>
-      Phone: +1 737-272-9971</p>
-      
-      <p>Good luck with your assignment!</p>
-      <p>Hero TV Mounting Team</p>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
+        <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+          
+          <h1 style="color: #2563eb; margin: 0 0 10px 0; font-size: 24px; font-weight: bold;">NEW JOB ASSIGNMENT</h1>
+          <p style="color: #666; margin: 0 0 30px 0; font-size: 14px;">Hero TV Mounting</p>
+          
+          <div style="margin-bottom: 25px;">
+            <h3 style="color: #1f2937; margin: 0 0 10px 0; font-size: 16px; font-weight: bold;">Worker:</h3>
+            <p style="margin: 0; font-size: 14px; color: #374151;">${worker.name}</p>
+          </div>
+          
+          <div style="margin-bottom: 25px;">
+            <h3 style="color: #1f2937; margin: 0 0 10px 0; font-size: 16px; font-weight: bold;">Service:</h3>
+            <div style="margin: 0; font-size: 14px; color: #374151;">${serviceDetails}</div>
+          </div>
+          
+          <div style="margin-bottom: 25px;">
+            <h3 style="color: #1f2937; margin: 0 0 10px 0; font-size: 16px; font-weight: bold;">Date & Time:</h3>
+            <p style="margin: 0; font-size: 14px; color: #374151;">${formattedDate}, ${formattedTime}</p>
+          </div>
+          
+          <div style="margin-bottom: 25px;">
+            <h3 style="color: #1f2937; margin: 0 0 10px 0; font-size: 16px; font-weight: bold;">Customer Information:</h3>
+            <p style="margin: 0 0 5px 0; font-size: 14px; color: #374151;"><strong>Name:</strong> ${customerName}</p>
+            <p style="margin: 0 0 5px 0; font-size: 14px; color: #374151;"><strong>Address:</strong> ${customerAddress}</p>
+            ${customerUnit ? `<p style="margin: 0 0 5px 0; font-size: 14px; color: #374151;"><strong>Unit:</strong> ${customerUnit}</p>` : ''}
+            <p style="margin: 0 0 5px 0; font-size: 14px; color: #374151;"><strong>City:</strong> ${customerCity}, ${customerState} ${customerZipcode}</p>
+            <p style="margin: 0 0 5px 0; font-size: 14px; color: #374151;"><strong>Phone:</strong> ${customerPhone}</p>
+            <p style="margin: 0 0 5px 0; font-size: 14px; color: #374151;"><strong>Email:</strong> ${customerEmail}</p>
+          </div>
+          
+          ${booking.location_notes ? `
+          <div style="margin-bottom: 25px;">
+            <h3 style="color: #1f2937; margin: 0 0 10px 0; font-size: 16px; font-weight: bold;">Notes:</h3>
+            <p style="margin: 0; font-size: 14px; color: #374151; background-color: #f3f4f6; padding: 12px; border-radius: 4px;">${booking.location_notes}</p>
+          </div>
+          ` : ''}
+          
+          <div style="background-color: #eff6ff; padding: 20px; border-radius: 6px; border-left: 4px solid #2563eb; margin-top: 30px;">
+            <h3 style="color: #1f2937; margin: 0 0 15px 0; font-size: 16px; font-weight: bold;">Important Reminders:</h3>
+            <ul style="margin: 0; padding-left: 20px; color: #374151; font-size: 14px;">
+              <li style="margin-bottom: 8px;">Arrive 15 minutes early for setup</li>
+              <li style="margin-bottom: 8px;">Bring all necessary tools and equipment</li>
+              <li style="margin-bottom: 8px;">Contact customer if running late</li>
+              <li style="margin-bottom: 0;">Complete job documentation after service</li>
+            </ul>
+          </div>
+          
+          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+            <p style="margin: 0 0 10px 0; font-size: 14px; color: #374151;"><strong>Support Contact:</strong></p>
+            <p style="margin: 0 0 5px 0; font-size: 14px; color: #374151;">Email: Captain@herotvmounting.com</p>
+            <p style="margin: 0 0 20px 0; font-size: 14px; color: #374151;">Phone: +1 737-272-9971</p>
+            <p style="margin: 0; font-size: 14px; color: #6b7280;">Good luck with your assignment!</p>
+          </div>
+        </div>
+      </div>
     `;
 
     const emailResponse = await resend.emails.send({
