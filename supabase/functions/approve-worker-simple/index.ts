@@ -146,11 +146,40 @@ serve(async (req) => {
 
     console.log('Application approved successfully');
 
+    // Send welcome email if temporary password was generated
+    let emailSent = false;
+    if (temporaryPassword) {
+      try {
+        const emailResponse = await fetch(`${supabaseUrl}/functions/v1/send-worker-welcome-email`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${serviceRoleKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            email: application.email,
+            name: application.name,
+            temporaryPassword: temporaryPassword
+          })
+        });
+
+        if (emailResponse.ok) {
+          emailSent = true;
+          console.log('Welcome email sent successfully');
+        } else {
+          console.error('Failed to send welcome email:', await emailResponse.text());
+        }
+      } catch (emailError) {
+        console.error('Error sending welcome email:', emailError);
+      }
+    }
+
     const responseData = {
       success: true,
       message: 'Worker application approved successfully',
       workerId,
       isExistingUser,
+      emailSent,
       ...(temporaryPassword ? {
         email: application.email,
         temporaryPassword: temporaryPassword

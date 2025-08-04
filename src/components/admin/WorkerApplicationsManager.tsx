@@ -143,11 +143,22 @@ export const WorkerApplicationsManager = () => {
           setShowPasswordModal(true);
         }
 
+        // Create success message based on email status
+        let successMessage = data.isExistingUser 
+          ? "Application approved! Worker account was already active."
+          : "Application approved! Worker account created successfully.";
+        
+        if (data.temporaryPassword) {
+          if (data.emailSent) {
+            successMessage += " Welcome email with login credentials sent to worker.";
+          } else {
+            successMessage += " Note: Welcome email failed to send - password available below.";
+          }
+        }
+
         toast({
           title: "Success",
-          description: data.isExistingUser 
-            ? "Application approved! Worker account was already active."
-            : "Application approved! Worker account created successfully.",
+          description: successMessage,
         });
       } else {
         // Handle rejection
