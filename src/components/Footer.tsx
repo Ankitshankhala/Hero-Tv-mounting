@@ -33,9 +33,23 @@ export const Footer = () => {
               href="https://www.charusolutions.com/" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="text-slate-400 hover:text-slate-300 transition-colors duration-200"
+              className="hover:opacity-80 transition-opacity duration-200"
             >
-              Charu Solution
+              <span style={{ color: '#4285F4' }}>C</span>
+              <span style={{ color: '#EA4335' }}>h</span>
+              <span style={{ color: '#FBBC05' }}>a</span>
+              <span style={{ color: '#34A853' }}>r</span>
+              <span style={{ color: '#4285F4' }}>u</span>
+              <span className="text-slate-400"> </span>
+              <span style={{ color: '#EA4335' }}>S</span>
+              <span style={{ color: '#FBBC05' }}>o</span>
+              <span style={{ color: '#34A853' }}>l</span>
+              <span style={{ color: '#4285F4' }}>u</span>
+              <span style={{ color: '#EA4335' }}>t</span>
+              <span style={{ color: '#FBBC05' }}>i</span>
+              <span style={{ color: '#34A853' }}>o</span>
+              <span style={{ color: '#4285F4' }}>n</span>
+              <span style={{ color: '#EA4335' }}>s</span>
             </a>
           </p>
         </div>
