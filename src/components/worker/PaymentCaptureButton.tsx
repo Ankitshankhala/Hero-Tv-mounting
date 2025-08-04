@@ -130,10 +130,15 @@ export const PaymentCaptureButton = ({
       <Button
         onClick={handleCapturePayment}
         disabled={processing}
-        className="bg-green-600 hover:bg-green-700 text-white"
+        className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto"
       >
         <CreditCard className="h-4 w-4 mr-2" />
-        {processing ? 'Processing Payment...' : 'Mark Complete & Charge Customer'}
+        <span className="hidden sm:inline">
+          {processing ? 'Processing Payment...' : 'Mark Complete & Charge Customer'}
+        </span>
+        <span className="sm:hidden">
+          {processing ? 'Processing...' : 'Complete & Charge'}
+        </span>
       </Button>
       
       {lastError && (
