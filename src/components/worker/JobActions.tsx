@@ -121,14 +121,14 @@ const JobActions = ({
       {/* Status Update Section */}
       <div className="mt-4 pt-4 border-t border-worker-border/50">
         <div className="flex items-center gap-3">
-          <span className="text-sm font-medium text-worker-card-foreground">Update Status:</span>
+          <span className="text-sm font-medium text-gray-700">Update Status:</span>
           <Select value={job.status} onValueChange={(value) => onStatusUpdate(job.id, value)}>
-            <SelectTrigger className="w-48 bg-worker-card border-worker-border text-worker-card-foreground">
+            <SelectTrigger className="w-48 bg-white border-gray-200 text-gray-900">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="bg-worker-card border-worker-border">
+            <SelectContent className="bg-white border-gray-200 shadow-lg z-50">
               {getValidNextStatuses(job.status).map((status) => (
-                <SelectItem key={status} value={status} className="text-worker-card-foreground hover:bg-worker-card-hover">
+                <SelectItem key={status} value={status} className="text-gray-900 hover:bg-gray-100">
                   {getStatusLabel(status)}
                 </SelectItem>
               ))}
