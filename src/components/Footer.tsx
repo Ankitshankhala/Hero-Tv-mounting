@@ -33,7 +33,7 @@ export const Footer = () => {
               href="https://www.charusolutions.com/" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="transition-all duration-200"
+              className="hover-scale transition-all duration-200 inline-block"
             >
               <span 
                 style={{ color: '#4285F4' }}
