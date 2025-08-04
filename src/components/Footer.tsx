@@ -35,21 +35,11 @@ export const Footer = () => {
               rel="noopener noreferrer"
               className="hover:opacity-80 transition-opacity duration-200"
             >
-              <span style={{ color: '#4285F4' }}>C</span>
-              <span style={{ color: '#EA4335' }}>h</span>
-              <span style={{ color: '#FBBC05' }}>a</span>
-              <span style={{ color: '#34A853' }}>r</span>
-              <span style={{ color: '#4285F4' }}>u</span>
-              <span className="text-slate-400"> </span>
-              <span style={{ color: '#EA4335' }}>S</span>
-              <span style={{ color: '#FBBC05' }}>o</span>
-              <span style={{ color: '#34A853' }}>l</span>
-              <span style={{ color: '#4285F4' }}>u</span>
-              <span style={{ color: '#EA4335' }}>t</span>
-              <span style={{ color: '#FBBC05' }}>i</span>
-              <span style={{ color: '#34A853' }}>o</span>
-              <span style={{ color: '#4285F4' }}>n</span>
-              <span style={{ color: '#EA4335' }}>s</span>
+              <span style={{ color: '#4285F4' }}>Cha</span>
+              <span style={{ color: '#EA4335' }}>ru </span>
+              <span style={{ color: '#FBBC05' }}>Sol</span>
+              <span style={{ color: '#34A853' }}>uti</span>
+              <span style={{ color: '#4285F4' }}>ons</span>
             </a>
           </p>
         </div>
