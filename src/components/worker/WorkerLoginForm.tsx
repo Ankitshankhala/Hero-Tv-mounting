@@ -1,5 +1,6 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,8 +16,16 @@ const WorkerLoginForm = () => {
     password: ''
   });
   const [loading, setLoading] = useState(false);
-  const { signIn } = useAuth();
+  const navigate = useNavigate();
+  const { signIn, user, profile } = useAuth();
   const { toast } = useToast();
+
+  // Redirect authenticated workers to dashboard
+  useEffect(() => {
+    if (user && profile?.role === 'worker') {
+      navigate('/worker-dashboard');
+    }
+  }, [user, profile, navigate]);
 
   const validationRules = {
     email: { required: true, type: 'email' as const },
@@ -52,7 +61,20 @@ const WorkerLoginForm = () => {
     setLoading(true);
 
     try {
-      await signIn(formData.email, formData.password);
+      const result = await signIn(formData.email, formData.password);
+      if (!result.error) {
+        toast({
+          title: "Login Successful",
+          description: "Welcome back! Redirecting to dashboard...",
+        });
+        // Navigation will happen via useEffect when auth state updates
+      } else {
+        toast({
+          title: "Login Failed",
+          description: result.error.message || "Invalid email or password",
+          variant: "destructive",
+        });
+      }
     } catch (error) {
       toast({
         title: "Login Failed",

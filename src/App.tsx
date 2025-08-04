@@ -13,6 +13,7 @@ import WorkerDashboard from '@/pages/WorkerDashboard';
 import Admin from '@/pages/Admin';
 import NotFound from '@/pages/NotFound';
 import WorkerSignup from '@/pages/WorkerSignup';
+import WorkerLogin from '@/pages/WorkerLogin';
 
 const queryClient = new QueryClient();
 
@@ -33,6 +34,7 @@ function AppWithSecurity() {
         <Route path="/customer-dashboard" element={<CustomerDashboard />} />
         <Route path="/worker-dashboard" element={<WorkerDashboard />} />
         <Route path="/worker-signup" element={<WorkerSignup />} />
+        <Route path="/worker-login" element={<WorkerLogin />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

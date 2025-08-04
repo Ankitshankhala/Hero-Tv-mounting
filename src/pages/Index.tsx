@@ -110,12 +110,20 @@ const Index = () => {
               Are you an experienced technician looking for flexible work opportunities? 
               Join our team of professional TV mounting specialists and earn competitive pay.
             </p>
-            <a 
-              href="/worker-signup"
-              className="inline-flex items-center px-8 py-4 bg-white text-blue-900 font-semibold rounded-lg hover:bg-blue-50 transition-colors duration-200 shadow-lg"
-            >
-              Apply Now
-            </a>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <a 
+                href="/worker-signup"
+                className="inline-flex items-center px-8 py-4 bg-white text-blue-900 font-semibold rounded-lg hover:bg-blue-50 transition-colors duration-200 shadow-lg"
+              >
+                Apply Now
+              </a>
+              <a 
+                href="/worker-login"
+                className="inline-flex items-center px-8 py-4 bg-transparent text-white font-semibold rounded-lg border-2 border-white hover:bg-white hover:text-blue-900 transition-colors duration-200"
+              >
+                Worker Login
+              </a>
+            </div>
           </div>
         </section>
 
