@@ -45,8 +45,9 @@ export const Footer = () => {
                 style={{ color: '#EA4335' }}
                 className="hover:brightness-125 transition-all duration-200"
               >
-                ru 
+                ru
               </span>
+              <span className="text-slate-500"> </span>
               <span 
                 style={{ color: '#FBBC05' }}
                 className="hover:brightness-125 transition-all duration-200"
