@@ -60,26 +60,83 @@ const JobActions = ({
     }
   };
 
-  return <div className="flex items-center pt-4 border-t border-slate-600">
-      <div className="flex flex-wrap gap-2">
-        <Button size="sm" variant="outline" onClick={() => callCustomer(job.customer?.phone)} disabled={!job.customer?.phone}>
-          <Phone className="h-4 w-4 mr-1" />
+  return (
+    <div className="pt-6 border-t border-worker-border mt-6">
+      <div className="flex flex-wrap gap-3">
+        <Button 
+          size="sm" 
+          variant="outline" 
+          onClick={() => callCustomer(job.customer?.phone)} 
+          disabled={!job.customer?.phone}
+          className="bg-worker-card border-worker-border text-worker-card-foreground hover:bg-action-info hover:border-action-info hover:text-white transition-all duration-200"
+        >
+          <Phone className="h-4 w-4 mr-2" />
           Call Customer
         </Button>
-        <Button size="sm" variant="outline" onClick={() => getDirections(job.customer_address)}>
-          <MapPin className="h-4 w-4 mr-1" />
+        
+        <Button 
+          size="sm" 
+          variant="outline" 
+          onClick={() => getDirections(job.customer_address)}
+          className="bg-worker-card border-worker-border text-worker-card-foreground hover:bg-action-info hover:border-action-info hover:text-white transition-all duration-200"
+        >
+          <MapPin className="h-4 w-4 mr-2" />
           Get Directions
         </Button>
-        {canAddCharges && <Button size="sm" variant="outline" onClick={onChargeClick} className="text-green-400 border-green-400 hover:bg-green-400 hover:text-white">
-            <CreditCard className="h-4 w-4 mr-1" />
+        
+        {canAddCharges && (
+          <Button 
+            size="sm" 
+            variant="outline" 
+            onClick={onChargeClick} 
+            className="bg-action-success/10 border-action-success text-action-success hover:bg-action-success hover:text-white transition-all duration-200 font-medium"
+          >
+            <CreditCard className="h-4 w-4 mr-2" />
             Add Charge
-          </Button>}
-        {canCapturePayment && <PaymentCaptureButton bookingId={job.id} paymentStatus={job.payment_status} bookingStatus={job.status} onCaptureSuccess={onCaptureSuccess} />}
-        {canAddServices && <Button size="sm" variant="outline" onClick={onAddServicesClick} className="text-purple-400 border-purple-400 hover:bg-purple-400 hover:text-white">
-            <Plus className="h-4 w-4 mr-1" />
+          </Button>
+        )}
+        
+        {canCapturePayment && (
+          <PaymentCaptureButton 
+            bookingId={job.id} 
+            paymentStatus={job.payment_status} 
+            bookingStatus={job.status} 
+            onCaptureSuccess={onCaptureSuccess} 
+          />
+        )}
+        
+        {canAddServices && (
+          <Button 
+            size="sm" 
+            variant="outline" 
+            onClick={onAddServicesClick} 
+            className="bg-action-warning/10 border-action-warning text-action-warning hover:bg-action-warning hover:text-white transition-all duration-200 font-medium"
+          >
+            <Plus className="h-4 w-4 mr-2" />
             Add Services
-          </Button>}
+          </Button>
+        )}
       </div>
-    </div>;
+      
+      {/* Status Update Section */}
+      <div className="mt-4 pt-4 border-t border-worker-border/50">
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-medium text-worker-card-foreground">Update Status:</span>
+          <Select value={job.status} onValueChange={(value) => onStatusUpdate(job.id, value)}>
+            <SelectTrigger className="w-48 bg-worker-card border-worker-border text-worker-card-foreground">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-worker-card border-worker-border">
+              {getValidNextStatuses(job.status).map((status) => (
+                <SelectItem key={status} value={status} className="text-worker-card-foreground hover:bg-worker-card-hover">
+                  {getStatusLabel(status)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+    </div>
+  );
 };
 export default JobActions;

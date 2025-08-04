@@ -61,6 +61,28 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				worker: {
+					primary: 'hsl(var(--worker-primary))',
+					'primary-foreground': 'hsl(var(--worker-primary-foreground))',
+					card: 'hsl(var(--worker-card))',
+					'card-foreground': 'hsl(var(--worker-card-foreground))',
+					'card-hover': 'hsl(var(--worker-card-hover))',
+					border: 'hsl(var(--worker-border))',
+					muted: 'hsl(var(--worker-muted))'
+				},
+				status: {
+					pending: 'hsl(var(--status-pending))',
+					confirmed: 'hsl(var(--status-confirmed))',
+					progress: 'hsl(var(--status-progress))',
+					completed: 'hsl(var(--status-completed))',
+					cancelled: 'hsl(var(--status-cancelled))'
+				},
+				action: {
+					success: 'hsl(var(--action-success))',
+					warning: 'hsl(var(--action-warning))',
+					info: 'hsl(var(--action-info))',
+					danger: 'hsl(var(--action-danger))'
 				}
 			},
 			borderRadius: {
