@@ -24,6 +24,21 @@ export const Footer = () => {
             </a>
           </div>
         </div>
+        
+        {/* Developer Credit */}
+        <div className="mt-6 pt-4 border-t border-slate-700 text-center">
+          <p className="text-sm text-slate-500">
+            Developed by{' '}
+            <a 
+              href="https://www.charusolutions.com/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-slate-400 hover:text-slate-300 transition-colors duration-200"
+            >
+              Charu Solution
+            </a>
+          </p>
+        </div>
       </div>
     </footer>
   );
