@@ -18,6 +18,7 @@ interface WorkerJobCardProps {
     location_notes?: string;
     customer_address?: string;
     pending_payment_amount?: number;
+    special_instructions?: string | null;
     customer?: {
       name?: string;
       email?: string;
@@ -141,6 +142,16 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
             </div>
           )}
         </div>
+
+        {/* Special Instructions */}
+        {job.special_instructions && (
+          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <div className="flex items-start space-x-2">
+              <span className="font-medium text-yellow-800 text-sm">Special Instructions:</span>
+            </div>
+            <p className="text-yellow-700 text-sm mt-1">{job.special_instructions}</p>
+          </div>
+        )}
 
         {/* Actions */}
         <div className="mt-6 pt-4 border-t border-gray-100">
