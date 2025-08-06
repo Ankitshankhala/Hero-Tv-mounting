@@ -116,7 +116,6 @@ const WorkerDashboard = () => {
       const transformedJobs = (data || []).map(job => ({
         ...job,
         scheduled_at: `${job.scheduled_date}T${job.scheduled_start}`,
-        customer_address: job.location_notes || 'No address provided',
         total_price: job.service?.base_price || 0,
         total_duration_minutes: job.service?.duration_minutes || 60,
         services: job.service ? [job.service] : [],

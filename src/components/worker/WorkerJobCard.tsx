@@ -78,11 +78,6 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
     return `${displayHour}:${minutes} ${ampm}`;
   };
 
-  const getCustomerAddress = () => {
-    if (job.customer_address) return job.customer_address;
-    return null;
-  };
-
   return (
     <Card className="bg-white border border-gray-200 rounded-lg">
       <CardContent className="p-6">
@@ -118,16 +113,9 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
             </div>
           )}
 
-          {getCustomerAddress() && (
-            <div>
-              <span className="font-medium text-gray-900">Address: </span>
-              <span className="text-gray-700">{getCustomerAddress()}</span>
-            </div>
-          )}
-
           {job.location_notes && (
             <div>
-              <span className="font-medium text-gray-900">Notes: </span>
+              <span className="font-medium text-gray-900">Location: </span>
               <span className="text-gray-700">{job.location_notes}</span>
             </div>
           )}
