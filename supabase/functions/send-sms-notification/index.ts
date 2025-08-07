@@ -29,7 +29,7 @@ serve(async (req) => {
       );
     }
 
-    // Get booking details with worker info (guest-only architecture)
+    // Get booking details with worker info (supports both guest and authenticated users)
     const { data: booking, error: bookingError } = await supabaseClient
       .from('bookings')
       .select(`
@@ -39,8 +39,13 @@ serve(async (req) => {
         location_notes,
         worker_id,
         guest_customer_info,
-        users:worker_id (
+        customer_id,
+        worker:users!worker_id (
           name, 
+          phone
+        ),
+        customer:users!customer_id (
+          name,
           phone
         )
       `)
@@ -55,7 +60,7 @@ serve(async (req) => {
     }
 
     // Make sure we have a worker assigned
-    if (!booking.worker_id || !booking.users?.phone) {
+    if (!booking.worker_id || !booking.worker?.phone) {
       return new Response(
         JSON.stringify({ error: 'No worker assigned or worker has no phone' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
@@ -81,11 +86,12 @@ serve(async (req) => {
       hour12: true
     });
 
-    // Get customer info
-    const customerInfo = booking.guest_customer_info || {};
-    const customerName = customerInfo.name || 'Customer';
-    const customerAddress = customerInfo.address || 'Address in booking';
-    const customerPhone = customerInfo.phone || 'Phone in booking';
+    // Get customer info (handle both guest and authenticated users)
+    const guestInfo = booking.guest_customer_info || {};
+    const customerInfo = booking.customer || guestInfo;
+    const customerName = customerInfo.name || guestInfo.name || 'Customer';
+    const customerAddress = guestInfo.address || 'Address in booking';
+    const customerPhone = customerInfo.phone || guestInfo.phone || 'Phone in booking';
 
     // Format services
     const services = bookingServices?.map(s => `${s.service_name} x${s.quantity}`).join(', ') || 'Service details in booking';
@@ -93,7 +99,7 @@ serve(async (req) => {
     // Compose structured message
     const messageBody = `🔧 NEW JOB ASSIGNMENT
 
-Worker: ${booking.users?.name || 'Worker'}
+Worker: ${booking.worker?.name || 'Worker'}
 
 Service: ${services}
 Date: ${formattedDate}, ${formattedTime}
@@ -120,8 +126,8 @@ Reply Y to confirm or N if unavailable.`.trim();
         .from('sms_logs')
         .insert({
           booking_id: bookingId,
-          recipient_number: booking.users.phone,
-          recipient_name: booking.users.name,
+          recipient_number: booking.worker.phone,
+          recipient_name: booking.worker.name,
           message: messageBody,
           twilio_sid: 'MOCK_SID',
           status: 'sent'
@@ -154,7 +160,7 @@ Reply Y to confirm or N if unavailable.`.trim();
       },
       body: new URLSearchParams({
         From: fromPhone,
-        To: booking.users.phone,
+        To: booking.worker.phone,
         Body: messageBody,
       }),
     });
@@ -165,8 +171,8 @@ Reply Y to confirm or N if unavailable.`.trim();
       // Log failed SMS
       await supabaseClient.from('sms_logs').insert({
         booking_id: bookingId,
-        recipient_number: booking.users.phone,
-        recipient_name: booking.users.name,
+        recipient_number: booking.worker.phone,
+        recipient_name: booking.worker.name,
         message: messageBody,
         status: 'failed',
         error_message: JSON.stringify(twilioData),
@@ -183,8 +189,8 @@ Reply Y to confirm or N if unavailable.`.trim();
       .from('sms_logs')
       .insert({
         booking_id: bookingId,
-        recipient_number: booking.users.phone,
-        recipient_name: booking.users.name,
+        recipient_number: booking.worker.phone,
+        recipient_name: booking.worker.name,
         message: messageBody,
         twilio_sid: twilioData.sid,
         status: 'sent',
