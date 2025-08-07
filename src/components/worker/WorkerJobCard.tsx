@@ -104,6 +104,29 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
     return `${displayHour}:${minutes} ${ampm}`;
   };
 
+  // Extract special instructions from location_notes or special_instructions field
+  const getSpecialInstructions = () => {
+    // First check if there's a dedicated special_instructions field
+    if (job.special_instructions && job.special_instructions.trim()) {
+      return job.special_instructions.trim();
+    }
+
+    // Then check location_notes for special instructions
+    if (job.location_notes) {
+      const specialInstructionsIndex = job.location_notes.indexOf('Special Instructions:');
+      if (specialInstructionsIndex !== -1) {
+        const instructions = job.location_notes
+          .substring(specialInstructionsIndex + 'Special Instructions:'.length)
+          .trim();
+        return instructions || null;
+      }
+    }
+
+    return null;
+  };
+
+  const specialInstructions = getSpecialInstructions();
+
   return (
     <Card className="bg-white border border-gray-200 rounded-lg">
       <CardContent className="p-6">
@@ -211,15 +234,13 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
           </div>
         </div>
 
-        {/* Special Instructions */}
-        {job.special_instructions && (
-          <div className="mb-6">
-            <h4 className="text-base font-bold text-gray-900 mb-2">Special Instructions:</h4>
-            <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700">
-              {job.special_instructions}
-            </div>
+        {/* Special Instructions - Always Show */}
+        <div className="mb-6">
+          <h4 className="text-base font-bold text-gray-900 mb-2">Special Instructions:</h4>
+          <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700">
+            {specialInstructions || "No special instructions provided"}
           </div>
-        )}
+        </div>
 
         {/* Actions */}
         <div className="pt-4 border-t border-gray-100">
