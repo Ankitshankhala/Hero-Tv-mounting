@@ -98,15 +98,8 @@ const WorkerDashboard = () => {
         .from('bookings')
         .select(`
           *,
-          customer:users!customer_id(name, phone, email),
-          service:services!service_id(name, description, base_price, duration_minutes),
-          booking_services(
-            id,
-            service_name,
-            quantity,
-            base_price,
-            configuration
-          )
+          customer:users!customer_id(name, phone),
+          service:services!service_id(name, description, base_price, duration_minutes)
         `)
         .eq('worker_id', user.id)
         .order('updated_at', { ascending: false })
