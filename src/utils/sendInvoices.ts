@@ -1,7 +1,49 @@
 import { supabase } from "@/integrations/supabase/client";
 
-export async function sendInvoiceForBooking(bookingId: string) {
+export async function verifyEmailForBooking(bookingId: string) {
   try {
+    console.log(`Verifying email for booking ID: ${bookingId}`);
+    
+    const { data, error } = await supabase.functions.invoke('verify-invoice-emails', {
+      body: { booking_ids: [bookingId] }
+    });
+
+    if (error) {
+      console.error(`Error verifying email for booking ${bookingId}:`, error);
+      return { success: false, error: error.message };
+    }
+
+    const verification = data.verifications[0];
+    
+    if (verification.success) {
+      console.log(`✅ Email verified for booking ${bookingId}: ${verification.email_address} (${verification.customer_name})`);
+    } else {
+      console.error(`❌ No valid email for booking ${bookingId}: ${verification.error}`);
+    }
+
+    return { success: true, verification };
+  } catch (error) {
+    console.error(`Exception verifying email for booking ${bookingId}:`, error);
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+export async function sendInvoiceForBooking(bookingId: string, skipVerification = false) {
+  try {
+    // First verify the email address unless skipped
+    if (!skipVerification) {
+      const verificationResult = await verifyEmailForBooking(bookingId);
+      if (!verificationResult.success || !verificationResult.verification?.success) {
+        return { 
+          success: false, 
+          error: `Email verification failed: ${verificationResult.error || verificationResult.verification?.error}`,
+          verification: verificationResult.verification
+        };
+      }
+      
+      console.log(`Email verified for booking ${bookingId}. Proceeding with invoice generation...`);
+    }
+
     console.log(`Sending invoice for booking ID: ${bookingId}`);
     
     const { data, error } = await supabase.functions.invoke('enhanced-invoice-generator', {
@@ -25,22 +67,60 @@ export async function sendInvoiceForBooking(bookingId: string) {
   }
 }
 
-// Send invoices for specific booking IDs
-export async function sendInvoicesForBookings() {
+// Verify emails first, then send invoices
+export async function verifyAndSendInvoicesForBookings() {
   const bookingIds = ['716bffa3', 'c036bceb'];
   
-  console.log('Starting to send invoices for bookings:', bookingIds);
+  console.log('Starting email verification for bookings:', bookingIds);
   
+  // First, verify all email addresses
+  const { data: verificationData, error: verificationError } = await supabase.functions.invoke('verify-invoice-emails', {
+    body: { booking_ids: bookingIds }
+  });
+
+  if (verificationError) {
+    console.error('Failed to verify emails:', verificationError);
+    return;
+  }
+
+  console.log('Email verification results:');
+  verificationData.verifications.forEach((verification: any) => {
+    if (verification.success) {
+      console.log(`✅ ${verification.booking_id}: ${verification.email_address} (${verification.customer_name}) - ${verification.customer_type} customer`);
+    } else {
+      console.log(`❌ ${verification.booking_id}: ${verification.error}`);
+    }
+  });
+
+  // Only send invoices for bookings with valid emails
+  const validBookings = verificationData.verifications.filter((v: any) => v.success);
+  const invalidBookings = verificationData.verifications.filter((v: any) => !v.success);
+
+  if (invalidBookings.length > 0) {
+    console.warn(`⚠️ Skipping ${invalidBookings.length} booking(s) with invalid emails:`, 
+      invalidBookings.map((b: any) => b.booking_id));
+  }
+
+  if (validBookings.length === 0) {
+    console.error('❌ No bookings have valid email addresses. Cannot send invoices.');
+    return;
+  }
+
+  console.log(`📧 Proceeding to send invoices to ${validBookings.length} booking(s) with valid emails...`);
+
+  // Send invoices for valid bookings
   const results = await Promise.all(
-    bookingIds.map(bookingId => sendInvoiceForBooking(bookingId))
+    validBookings.map((verification: any) => 
+      sendInvoiceForBooking(verification.booking_id, true) // Skip verification since we already did it
+    )
   );
   
   results.forEach((result, index) => {
-    const bookingId = bookingIds[index];
+    const verification = validBookings[index];
     if (result.success) {
-      console.log(`✅ Invoice sent successfully for booking ${bookingId}`);
+      console.log(`✅ Invoice sent successfully for booking ${verification.booking_id} to ${verification.email_address}`);
     } else {
-      console.error(`❌ Failed to send invoice for booking ${bookingId}:`, result.error);
+      console.error(`❌ Failed to send invoice for booking ${verification.booking_id}:`, result.error);
     }
   });
   
@@ -48,8 +128,8 @@ export async function sendInvoicesForBookings() {
 }
 
 // Auto-execute when this file is imported
-sendInvoicesForBookings().then(() => {
-  console.log('All invoice sending attempts completed');
+verifyAndSendInvoicesForBookings().then(() => {
+  console.log('All email verification and invoice sending attempts completed');
 }).catch(error => {
-  console.error('Error in batch invoice sending:', error);
+  console.error('Error in batch email verification and invoice sending:', error);
 });
