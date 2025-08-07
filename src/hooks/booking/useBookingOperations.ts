@@ -138,6 +138,39 @@ export const useBookingOperations = () => {
       // Support both authenticated users and guests
       const customerId = user?.id || null; // NULL for guests, user ID for authenticated users
 
+      // Check for existing pending booking to prevent duplicates
+      let existingBooking = null;
+      try {
+        const { data, error } = await supabase.rpc('find_existing_pending_booking' as any, {
+          p_customer_id: customerId,
+          p_guest_email: !user ? formData.customerEmail : null,
+          p_guest_phone: !user ? formData.customerPhone : null,
+          p_scheduled_date: format(formData.selectedDate!, 'yyyy-MM-dd'),
+          p_scheduled_start: formData.selectedTime,
+          p_grace_period_minutes: 30
+        });
+
+        if (!error && data && Array.isArray(data) && data.length > 0) {
+          existingBooking = data[0];
+        }
+      } catch (error) {
+        console.warn('Duplicate check failed, continuing with new booking:', error);
+      }
+
+      // If existing booking found, return it instead of creating new one
+      if (existingBooking) {
+        console.log('Found existing pending booking:', existingBooking.booking_id);
+        setBookingId(existingBooking.booking_id);
+        
+        toast({
+          title: "Existing Booking Found",
+          description: "We found your recent booking for this time slot. Redirecting to payment...",
+          variant: "default",
+        });
+        
+        return existingBooking.booking_id;
+      }
+
       // Create booking with payment_pending status
       const bookingData = {
         customer_id: customerId,
@@ -555,7 +588,27 @@ export const useBookingOperations = () => {
     }
   };
 
-  // No legacy wrapper methods needed - use createInitialBooking directly
+  // Cleanup expired pending bookings
+  const cleanupExpiredBookings = async (gracePeriodMinutes: number = 30) => {
+    try {
+      const { data, error } = await supabase.rpc('cleanup_expired_pending_bookings' as any, {
+        p_grace_period_minutes: gracePeriodMinutes
+      });
+
+      if (error) {
+        console.warn('Cleanup failed:', error);
+        return { success: false, error: error.message };
+      }
+
+      const cleanedCount = Array.isArray(data) ? data.length : 0;
+      console.log(`Cleaned up ${cleanedCount} expired pending bookings`);
+      
+      return { success: true, cleanedCount, cleanedBookings: data };
+    } catch (error) {
+      console.warn('Cleanup error:', error);
+      return { success: false, error: 'Failed to cleanup expired bookings' };
+    }
+  };
 
   return {
     loading,
@@ -571,6 +624,7 @@ export const useBookingOperations = () => {
     createInitialBooking,
     confirmBookingAfterPayment,
     validateMinimumCart,
+    cleanupExpiredBookings,
     user,
     MINIMUM_BOOKING_AMOUNT,
     // New unified methods

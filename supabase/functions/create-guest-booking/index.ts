@@ -28,6 +28,35 @@ serve(async (req) => {
       throw new Error('Missing required guest customer information');
     }
 
+    // Check for existing pending booking to prevent duplicates
+    const { data: existingBookings, error: duplicateError } = await supabase.rpc('find_existing_pending_booking', {
+      p_customer_id: null,
+      p_guest_email: bookingData.guest_customer_info.email,
+      p_guest_phone: bookingData.guest_customer_info.phone,
+      p_scheduled_date: bookingData.scheduled_date,
+      p_scheduled_start: bookingData.scheduled_start,
+      p_grace_period_minutes: 30
+    });
+
+    // If existing booking found, return it instead of creating new one
+    if (!duplicateError && existingBookings && existingBookings.length > 0) {
+      const existingBooking = existingBookings[0];
+      console.log('Found existing guest booking:', existingBooking.booking_id);
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          booking_id: existingBooking.booking_id,
+          message: 'Existing booking found',
+          is_duplicate: true
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      );
+    }
+
     // Insert booking with service role permissions (bypasses RLS)
     const { data: newBooking, error: bookingError } = await supabase
       .from('bookings')
