@@ -127,17 +127,9 @@ export const InvoiceDetailsModal = ({ invoice, isOpen, onClose }: InvoiceDetails
             {/* Totals */}
             <div className="flex justify-end">
               <div className="w-80 space-y-2">
-                <div className="flex justify-between">
-                  <span>Subtotal:</span>
-                  <span>${invoice.amount.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Tax:</span>
-                  <span>${invoice.tax_amount.toFixed(2)}</span>
-                </div>
                 <div className="flex justify-between font-bold text-lg border-t pt-2">
                   <span>Total:</span>
-                  <span>${invoice.total_amount.toFixed(2)}</span>
+                  <span>${invoice.amount.toFixed(2)}</span>
                 </div>
               </div>
             </div>

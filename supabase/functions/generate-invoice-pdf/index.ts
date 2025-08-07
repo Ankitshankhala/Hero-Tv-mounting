@@ -148,10 +148,8 @@ ${data.services.map((s: any, i: number) => `
 0 -40 Td
 (Subtotal: $${data.subtotal.toFixed(2)}) Tj
 0 -20 Td
-(Tax: $${data.taxAmount.toFixed(2)}) Tj
-0 -20 Td
 /F1 16 Tf
-(Total: $${data.total.toFixed(2)}) Tj
+(Total: $${data.subtotal.toFixed(2)}) Tj
 ET
 endstream
 endobj
