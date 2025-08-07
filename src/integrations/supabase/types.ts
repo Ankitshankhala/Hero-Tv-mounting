@@ -1227,6 +1227,13 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: number
       }
+      cleanup_expired_pending_bookings: {
+        Args: { p_grace_period_minutes?: number }
+        Returns: {
+          cleaned_booking_id: string
+          payment_intent_id: string
+        }[]
+      }
       cleanup_orphaned_payment_records: {
         Args: Record<PropertyKey, never>
         Returns: number
@@ -1248,6 +1255,21 @@ export type Database = {
           worker_email: string
           worker_phone: string
           distance_priority: number
+        }[]
+      }
+      find_existing_pending_booking: {
+        Args: {
+          p_customer_id?: string
+          p_guest_email?: string
+          p_guest_phone?: string
+          p_scheduled_date?: string
+          p_scheduled_start?: string
+          p_grace_period_minutes?: number
+        }
+        Returns: {
+          booking_id: string
+          created_at: string
+          payment_intent_id: string
         }[]
       }
       find_workers_for_coverage: {

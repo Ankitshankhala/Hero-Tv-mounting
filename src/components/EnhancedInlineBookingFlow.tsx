@@ -71,6 +71,28 @@ export const EnhancedInlineBookingFlow = ({
   // State to track if booking has been created in this session
   const [hasCreatedBooking, setHasCreatedBooking] = useState(false);
   
+  // Check for existing booking in session storage on component mount
+  useState(() => {
+    const pendingBookingId = sessionStorage.getItem('pendingBookingId');
+    const pendingTimestamp = sessionStorage.getItem('pendingBookingTimestamp');
+    
+    if (pendingBookingId && pendingTimestamp) {
+      const bookingAge = Date.now() - parseInt(pendingTimestamp);
+      const thirtyMinutes = 30 * 60 * 1000; // 30 minutes in milliseconds
+      
+      // Only restore if booking is less than 30 minutes old
+      if (bookingAge < thirtyMinutes) {
+        setBookingId(pendingBookingId);
+        setHasCreatedBooking(true);
+        optimizedLog('📂 Restored pending booking from session:', pendingBookingId);
+      } else {
+        // Clear expired session data
+        sessionStorage.removeItem('pendingBookingId');
+        sessionStorage.removeItem('pendingBookingTimestamp');
+      }
+    }
+  });
+  
   const isMinimumCartMet = getTotalPrice() >= MINIMUM_BOOKING_AMOUNT;
   const amountNeeded = MINIMUM_BOOKING_AMOUNT - getTotalPrice();
 

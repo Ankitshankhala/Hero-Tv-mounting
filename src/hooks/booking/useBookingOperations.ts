@@ -159,13 +159,16 @@ export const useBookingOperations = () => {
 
       // If existing booking found, return it instead of creating new one
       if (existingBooking) {
-        console.log('Found existing pending booking:', existingBooking.booking_id);
+        optimizedLog('✅ Found existing pending booking, resuming...', existingBooking.booking_id);
         setBookingId(existingBooking.booking_id);
         
+        // Store booking state in session storage for persistence
+        sessionStorage.setItem('pendingBookingId', existingBooking.booking_id);
+        sessionStorage.setItem('pendingBookingTimestamp', Date.now().toString());
+        
         toast({
-          title: "Existing Booking Found",
-          description: "We found your recent booking for this time slot. Redirecting to payment...",
-          variant: "default",
+          title: "Resuming Previous Booking",
+          description: "We found your previous booking attempt. You can complete the payment now.",
         });
         
         return existingBooking.booking_id;
@@ -235,6 +238,10 @@ export const useBookingOperations = () => {
       }
 
       setBookingId(newBooking.id);
+      
+      // Store booking state in session storage for persistence
+      sessionStorage.setItem('pendingBookingId', newBooking.id);
+      sessionStorage.setItem('pendingBookingTimestamp', Date.now().toString());
       
       toast({
         title: "Your booking is created!",

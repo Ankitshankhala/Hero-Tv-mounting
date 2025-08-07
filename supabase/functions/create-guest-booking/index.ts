@@ -28,27 +28,41 @@ serve(async (req) => {
       throw new Error('Missing required guest customer information');
     }
 
-    // Check for existing pending booking to prevent duplicates
-    const { data: existingBookings, error: duplicateError } = await supabase.rpc('find_existing_pending_booking', {
-      p_customer_id: null,
-      p_guest_email: bookingData.guest_customer_info.email,
-      p_guest_phone: bookingData.guest_customer_info.phone,
-      p_scheduled_date: bookingData.scheduled_date,
-      p_scheduled_start: bookingData.scheduled_start,
-      p_grace_period_minutes: 30
+    console.log('Checking for existing pending booking for guest user:', {
+      email: bookingData.guest_customer_info.email,
+      phone: bookingData.guest_customer_info.phone,
+      date: bookingData.scheduled_date,
+      time: bookingData.scheduled_start
     });
 
+    // Check for existing pending booking within grace period
+    const { data: existingBooking, error: checkError } = await supabase
+      .rpc('find_existing_pending_booking', {
+        p_customer_id: null,
+        p_guest_email: bookingData.guest_customer_info.email,
+        p_guest_phone: bookingData.guest_customer_info.phone,
+        p_scheduled_date: bookingData.scheduled_date,
+        p_scheduled_start: bookingData.scheduled_start,
+        p_grace_period_minutes: 30
+      });
+
+    if (checkError) {
+      console.error('Error checking for existing booking:', checkError);
+      // Continue with booking creation if check fails
+    }
+
     // If existing booking found, return it instead of creating new one
-    if (!duplicateError && existingBookings && existingBookings.length > 0) {
-      const existingBooking = existingBookings[0];
-      console.log('Found existing guest booking:', existingBooking.booking_id);
+    if (existingBooking && existingBooking.length > 0) {
+      const existing = existingBooking[0];
+      console.log('Found existing pending booking:', existing.booking_id);
       
       return new Response(
         JSON.stringify({ 
           success: true, 
-          booking_id: existingBooking.booking_id,
-          message: 'Existing booking found',
-          is_duplicate: true
+          booking_id: existing.booking_id,
+          message: 'Resuming existing booking within grace period',
+          resumed: true,
+          created_at: existing.created_at
         }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -56,6 +70,8 @@ serve(async (req) => {
         }
       );
     }
+
+    console.log('No existing booking found, creating new booking');
 
     // Insert booking with service role permissions (bypasses RLS)
     const { data: newBooking, error: bookingError } = await supabase
@@ -94,15 +110,19 @@ serve(async (req) => {
         .insert(bookingServices);
 
       if (servicesError) {
+        console.warn('Failed to create booking services:', servicesError);
         // Don't fail the whole operation
       }
     }
+
+    console.log('Successfully created new booking:', newBooking.id);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         booking_id: newBooking.id,
-        message: 'Guest booking created successfully'
+        message: 'Guest booking created successfully',
+        resumed: false
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -111,6 +131,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
+    console.error('Guest booking creation error:', error);
     return new Response(
       JSON.stringify({ 
         success: false, 
@@ -122,4 +143,4 @@ serve(async (req) => {
       }
     );
   }
-});
+})
