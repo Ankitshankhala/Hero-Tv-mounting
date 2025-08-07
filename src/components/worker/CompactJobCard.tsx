@@ -55,20 +55,40 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
     return job.customer_address || 'Address not available';
   };
 
-  // Get status color
+  // Get status color using design system
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'scheduled':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
+        return 'bg-status-confirmed text-white border-status-confirmed';
       case 'in_progress':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+        return 'bg-status-progress text-white border-status-progress';
       case 'completed':
-        return 'bg-green-100 text-green-800 border-green-200';
+        return 'bg-status-completed text-white border-status-completed';
       case 'cancelled':
-        return 'bg-red-100 text-red-800 border-red-200';
+        return 'bg-status-cancelled text-white border-status-cancelled';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return 'bg-status-pending text-white border-status-pending';
     }
+  };
+
+  // Check if this is a new job (within last 24 hours)
+  const isNewJob = () => {
+    const jobTime = new Date(job.created_at).getTime();
+    const dayAgo = Date.now() - (24 * 60 * 60 * 1000);
+    return jobTime > dayAgo;
+  };
+
+  // Get time since creation for display
+  const getTimeSinceCreation = () => {
+    const jobTime = new Date(job.created_at);
+    const now = new Date();
+    const diffHours = Math.floor((now.getTime() - jobTime.getTime()) / (1000 * 60 * 60));
+    
+    if (diffHours < 1) return 'Just now';
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return jobTime.toLocaleDateString();
   };
 
   return (
@@ -83,12 +103,22 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
           {/* Left: Status and Service */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 mb-1">
-              <Badge 
-                variant="outline" 
-                className={`text-xs font-medium ${getStatusColor(job.status)}`}
-              >
-                {job.status.replace('_', ' ').toUpperCase()}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge 
+                  variant="outline" 
+                  className={`text-xs font-medium ${getStatusColor(job.status)}`}
+                >
+                  {job.status.replace('_', ' ').toUpperCase()}
+                </Badge>
+                {isNewJob() && (
+                  <Badge 
+                    variant="outline" 
+                    className="text-xs font-medium bg-action-info text-white border-action-info"
+                  >
+                    NEW
+                  </Badge>
+                )}
+              </div>
               <span className="text-sm font-medium text-foreground truncate">
                 {getCustomerName()}
               </span>
@@ -105,6 +135,9 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
             </div>
             <div className="text-sm text-muted-foreground truncate">
               {getShortAddress()}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              Received {getTimeSinceCreation()}
             </div>
           </div>
 
