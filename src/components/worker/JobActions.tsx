@@ -69,7 +69,7 @@ const JobActions = ({
           variant="outline" 
           onClick={() => callCustomer(job.customer?.phone)} 
           disabled={!job.customer?.phone}
-          className="bg-worker-card border-worker-border text-worker-card-foreground hover:bg-action-info hover:border-action-info hover:text-white transition-all duration-200"
+          className="border-input bg-background hover:bg-accent hover:text-accent-foreground transition-all duration-200"
         >
           <Phone className="h-4 w-4 mr-2" />
           Call Customer
@@ -79,7 +79,7 @@ const JobActions = ({
           size="sm" 
           variant="outline" 
           onClick={() => getDirections(job.customer_address)}
-          className="bg-worker-card border-worker-border text-worker-card-foreground hover:bg-action-info hover:border-action-info hover:text-white transition-all duration-200"
+          className="border-input bg-background hover:bg-accent hover:text-accent-foreground transition-all duration-200"
         >
           <MapPin className="h-4 w-4 mr-2" />
           Get Directions
@@ -90,7 +90,7 @@ const JobActions = ({
             size="sm" 
             variant="outline" 
             onClick={onChargeClick} 
-            className="bg-action-success/10 border-action-success text-action-success hover:bg-action-success hover:text-white transition-all duration-200 font-medium"
+            className="border-action-success text-action-success hover:bg-action-success hover:text-white transition-all duration-200"
           >
             <CreditCard className="h-4 w-4 mr-2" />
             Add Charge
@@ -111,7 +111,7 @@ const JobActions = ({
             size="sm" 
             variant="outline" 
             onClick={onAddServicesClick} 
-            className="bg-action-warning/10 border-action-warning text-action-warning hover:bg-action-warning hover:text-white transition-all duration-200 font-medium"
+            className="border-action-warning text-action-warning hover:bg-action-warning hover:text-white transition-all duration-200"
           >
             <Plus className="h-4 w-4 mr-2" />
             Add Services

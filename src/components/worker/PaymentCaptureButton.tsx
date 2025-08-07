@@ -104,7 +104,7 @@ export const PaymentCaptureButton = ({
           disabled={processing}
           size="sm"
           variant="outline"
-          className="text-blue-600 border-blue-600 hover:bg-blue-50"
+          className="border-action-info text-action-info hover:bg-action-info hover:text-white transition-all duration-200"
         >
           <CreditCard className="h-4 w-4 mr-2" />
           {processing ? 'Retrying...' : 'Retry Capture'}
@@ -130,7 +130,8 @@ export const PaymentCaptureButton = ({
       <Button
         onClick={handleCapturePayment}
         disabled={processing}
-        className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto"
+        size="sm"
+        className="bg-action-success hover:bg-action-success/90 text-white border-action-success transition-all duration-200"
       >
         <CreditCard className="h-4 w-4 mr-2" />
         <span className="hidden sm:inline">
