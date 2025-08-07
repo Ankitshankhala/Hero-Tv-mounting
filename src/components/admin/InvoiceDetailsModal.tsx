@@ -117,8 +117,8 @@ export const InvoiceDetailsModal = ({ invoice, isOpen, onClose }: InvoiceDetails
                     <TableCell className="font-medium">{invoice.booking.service.name}</TableCell>
                     <TableCell>Professional TV mounting and installation service</TableCell>
                     <TableCell className="text-right">1</TableCell>
-                    <TableCell className="text-right">₹{invoice.amount.toFixed(2)}</TableCell>
-                    <TableCell className="text-right">₹{invoice.amount.toFixed(2)}</TableCell>
+                    <TableCell className="text-right">${invoice.amount.toFixed(2)}</TableCell>
+                    <TableCell className="text-right">${invoice.amount.toFixed(2)}</TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
@@ -129,15 +129,15 @@ export const InvoiceDetailsModal = ({ invoice, isOpen, onClose }: InvoiceDetails
               <div className="w-80 space-y-2">
                 <div className="flex justify-between">
                   <span>Subtotal:</span>
-                  <span>₹{invoice.amount.toFixed(2)}</span>
+                  <span>${invoice.amount.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>GST (18%):</span>
-                  <span>₹{invoice.tax_amount.toFixed(2)}</span>
+                  <span>Tax:</span>
+                  <span>${invoice.tax_amount.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between font-bold text-lg border-t pt-2">
                   <span>Total:</span>
-                  <span>₹{invoice.total_amount.toFixed(2)}</span>
+                  <span>${invoice.total_amount.toFixed(2)}</span>
                 </div>
               </div>
             </div>
