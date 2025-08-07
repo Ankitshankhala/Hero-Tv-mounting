@@ -129,33 +129,33 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
 
   return (
     <Card className="bg-white border border-gray-200 rounded-lg">
-      <CardContent className="p-6">
+      <CardContent className="p-4">
         {/* Header */}
-        <div className="mb-6">
-          <h3 className="text-xl font-bold text-blue-600 mb-2">NEW JOB ASSIGNMENT</h3>
-          <p className="text-sm text-gray-600 mb-3">Hero TV Mounting</p>
+        <div className="mb-4">
+          <h3 className="text-lg font-bold text-blue-600 mb-1">NEW JOB ASSIGNMENT</h3>
+          <p className="text-xs text-gray-600 mb-2">Hero TV Mounting</p>
           <Badge 
             variant="secondary" 
-            className="bg-blue-100 text-blue-800 font-normal"
+            className="bg-blue-100 text-blue-800 font-normal text-xs"
           >
             {job.status.replace('_', ' ').toUpperCase()}
           </Badge>
         </div>
 
         {/* Three Column Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
           {/* Service Details - Left */}
           <div>
-            <h4 className="text-base font-bold text-gray-900 mb-3">Service Details:</h4>
-            <div className="space-y-2">
+            <h4 className="text-sm font-bold text-gray-900 mb-2">Service Details:</h4>
+            <div className="space-y-1">
               {job.booking_services && job.booking_services.length > 0 ? (
                 job.booking_services.map((service, index) => (
-                  <div key={index} className="text-sm text-gray-700">
+                  <div key={index} className="text-xs text-gray-700">
                     <div className="font-medium">
                       {service.service_name} × {service.quantity}
                     </div>
                     {service.configuration && (
-                      <div className="ml-4 mt-1 space-y-1 text-gray-600">
+                      <div className="ml-3 mt-1 space-y-0.5 text-gray-600">
                         {service.configuration.wallType && (
                           <div>• Wall Type: {service.configuration.wallType}</div>
                         )}
@@ -173,7 +173,7 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
                   </div>
                 ))
               ) : (
-                <div className="text-sm text-gray-700">
+                <div className="text-xs text-gray-700">
                   {job.service?.name || 'Service details unavailable'}
                 </div>
               )}
@@ -182,8 +182,8 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
 
           {/* Date & Time - Middle */}
           <div>
-            <h4 className="text-base font-bold text-gray-900 mb-3">Date & Time:</h4>
-            <div className="text-sm text-gray-700">
+            <h4 className="text-sm font-bold text-gray-900 mb-2">Date & Time:</h4>
+            <div className="text-xs text-gray-700">
               <div className="font-medium">{formatDate(job.scheduled_date)}</div>
               <div>{formatTime(job.scheduled_start)}</div>
             </div>
@@ -191,8 +191,8 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
 
           {/* Customer Information - Right */}
           <div>
-            <h4 className="text-base font-bold text-gray-900 mb-3">Customer Information:</h4>
-            <div className="space-y-1 text-sm text-gray-700">
+            <h4 className="text-sm font-bold text-gray-900 mb-2">Customer Information:</h4>
+            <div className="space-y-0.5 text-xs text-gray-700">
               {/* Determine customer info source */}
               {(() => {
                 const customerInfo = job.guest_customer_info || job.customer;
@@ -235,15 +235,15 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
         </div>
 
         {/* Special Instructions - Always Show */}
-        <div className="mb-6">
-          <h4 className="text-base font-bold text-gray-900 mb-2">Special Instructions:</h4>
-          <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700">
+        <div className="mb-4">
+          <h4 className="text-sm font-bold text-gray-900 mb-2">Special Instructions:</h4>
+          <div className="p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-700">
             {specialInstructions || "No special instructions provided"}
           </div>
         </div>
 
         {/* Actions */}
-        <div className="pt-4 border-t border-gray-100">
+        <div className="pt-3 border-t border-gray-100">
           <JobActions
             job={job}
             onStatusUpdate={onStatusUpdate || (() => {})}
