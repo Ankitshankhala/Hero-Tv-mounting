@@ -3,6 +3,7 @@ import { Edit, Phone, MapPin, CreditCard, DollarSign, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PaymentCaptureButton } from './PaymentCaptureButton';
+import { initiatePhoneCall } from '@/utils/phoneUtils';
 interface JobActionsProps {
   job: any;
   onStatusUpdate: (jobId: string, newStatus: string) => void;
@@ -20,7 +21,7 @@ const JobActions = ({
   onAddServicesClick
 }: JobActionsProps) => {
   const callCustomer = (phone: string) => {
-    window.open(`tel:${phone}`, '_self');
+    initiatePhoneCall(phone);
   };
   const getDirections = (address: string) => {
     const encodedAddress = encodeURIComponent(address);

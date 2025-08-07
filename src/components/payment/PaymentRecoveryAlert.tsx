@@ -3,6 +3,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, Phone, Mail, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { initiatePhoneCall } from '@/utils/phoneUtils';
 
 interface PaymentRecoveryAlertProps {
   paymentIntentId: string;
@@ -96,7 +97,7 @@ export const PaymentRecoveryAlert = ({
           </Button>
           <Button
             variant="outline"
-            onClick={() => window.open('tel:+1-555-0123', '_blank')}
+            onClick={() => initiatePhoneCall('+1-555-0123')}
             className="flex items-center gap-2"
             size="sm"
           >
