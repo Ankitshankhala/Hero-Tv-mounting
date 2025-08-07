@@ -27,6 +27,10 @@ const JobActions = ({
     return job.guest_customer_info?.address || job.customer?.address || '';
   };
 
+  const getCustomerPhone = () => {
+    return job.guest_customer_info?.phone || job.customer?.phone || '';
+  };
+
   const getDirections = () => {
     const address = getCustomerAddress();
     if (address) {
@@ -75,7 +79,7 @@ const JobActions = ({
   };
   return <div className="pt-6 border-t border-worker-border mt-6">
       <div className="flex flex-wrap gap-2 sm:gap-3">
-        <Button size="sm" variant="outline" onClick={() => callCustomer(job.customer?.phone)} disabled={!job.customer?.phone} className="border-input bg-background hover:bg-accent hover:text-accent-foreground transition-all duration-200">
+        <Button size="sm" variant="outline" onClick={() => callCustomer(getCustomerPhone())} disabled={!getCustomerPhone()} className="border-input bg-background hover:bg-accent hover:text-accent-foreground transition-all duration-200">
           <Phone className="h-4 w-4 mr-2" />
           Call Customer
         </Button>
