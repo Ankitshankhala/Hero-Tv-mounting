@@ -219,7 +219,7 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-slate-800 border-slate-700">
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-slate-800 border-slate-700 [&>button]:text-white [&>button]:opacity-100 [&>button]:hover:text-slate-300 [&>button]:hover:opacity-80">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-white flex items-center space-x-2">
               {showPaymentForm && (
