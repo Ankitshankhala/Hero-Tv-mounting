@@ -30,6 +30,7 @@ export const AdminSidebar = ({ activeTab, onTabChange }: AdminSidebarProps) => {
     { id: 'reviews', label: 'Reviews', icon: Star },
     { id: 'payments', label: 'Payments', icon: CreditCard },
     { id: 'invoices', label: 'Invoices', icon: FileText },
+    { id: 'invoice-monitoring', label: 'Invoice Monitor', icon: FileText },
     { id: 'sms', label: 'SMS Logs', icon: MessageSquare },
     { id: 'email', label: 'Email Logs', icon: Mail },
     { id: 'blog', label: 'Blog', icon: FileText },

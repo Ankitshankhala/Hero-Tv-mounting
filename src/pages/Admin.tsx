@@ -20,6 +20,7 @@ import { BlogManager } from '@/components/admin/BlogManager';
 import { AdminCalendarView } from '@/components/admin/AdminCalendarView';
 import { CoverageRequestsManager } from '@/components/admin/CoverageRequestsManager';
 import { InvoicesManager } from '@/components/admin/InvoicesManager';
+import { InvoiceMonitoringPanel } from '@/components/admin/InvoiceMonitoringPanel';
 import { EmailLogsManager } from '@/components/admin/EmailLogsManager';
 
 const Admin = () => {
@@ -92,6 +93,8 @@ const Admin = () => {
         return <PaymentsManager />;
       case 'invoices':
         return <InvoicesManager />;
+      case 'invoice-monitoring':
+        return <InvoiceMonitoringPanel />;
       case 'sms':
         return <SMSLogsManager />;
       case 'email':

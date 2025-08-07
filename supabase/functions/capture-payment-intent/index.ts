@@ -122,22 +122,22 @@ serve(async (req) => {
       
       console.log('Capture amounts:', { originalAmount, pendingAmount, totalCapturedAmount });
       
-      // First, update existing transaction to captured status
-      console.log('Updating existing transaction to captured status...');
+      // Update existing transaction to capture type to trigger invoice generation
+      console.log('Updating transaction to capture type...');
       const { error: transactionUpdateError } = await supabaseServiceRole
         .from('transactions')
         .update({
           status: 'completed',
           captured_at: new Date().toISOString(),
-          transaction_type: 'capture',
-          amount: totalCapturedAmount // Update to include pending amount
+          transaction_type: 'capture', // This will trigger invoice generation
+          amount: totalCapturedAmount
         })
         .eq('payment_intent_id', booking.payment_intent_id)
         .eq('status', 'authorized');
 
       if (transactionUpdateError) {
-        console.error('Failed to update existing transaction:', transactionUpdateError);
-        // Don't throw here, we can still proceed with booking update
+        console.error('Failed to update transaction:', transactionUpdateError);
+        throw new Error(`Failed to update transaction: ${transactionUpdateError.message}`);
       }
       
       // If there was a pending payment amount, create additional transaction record
@@ -159,6 +159,7 @@ serve(async (req) => {
         }
       }
       
+
       // Update booking to completed status and clear pending amounts
       console.log('Updating booking to completed status...');
       const { error: updateError } = await supabaseServiceRole
