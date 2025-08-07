@@ -202,7 +202,7 @@ export const InvoicesManager = () => {
                     <TableCell>
                       {new Date(invoice.invoice_date).toLocaleDateString()}
                     </TableCell>
-                    <TableCell>${invoice.total_amount.toFixed(2)}</TableCell>
+                    <TableCell>${invoice.amount.toFixed(2)}</TableCell>
                     <TableCell>{getStatusBadge(invoice.status)}</TableCell>
                     <TableCell>
                       {invoice.email_sent ? (
