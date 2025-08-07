@@ -208,11 +208,11 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
         </div>
 
         {/* Special Instructions */}
-        {(job.location_notes || job.special_instructions) && (
+        {job.special_instructions && (
           <div className="mb-6">
             <h4 className="text-base font-bold text-gray-900 mb-2">Special Instructions:</h4>
             <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700">
-              {job.location_notes || job.special_instructions}
+              {job.special_instructions}
             </div>
           </div>
         )}
