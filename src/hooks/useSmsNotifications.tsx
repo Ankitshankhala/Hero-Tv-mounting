@@ -98,6 +98,41 @@ export const useSmsNotifications = () => {
     }
   };
 
+  const resendCustomerEmail = async (bookingId: string) => {
+    try {
+      console.log('Resending customer confirmation email for booking:', bookingId);
+      
+      const { data, error } = await supabase.functions.invoke('send-customer-booking-confirmation', {
+        body: { bookingId }
+      });
+
+      if (error) {
+        console.error('Error resending customer email:', error);
+        toast({
+          title: "Email Error",
+          description: "Failed to resend customer email",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      console.log('Customer email resend triggered:', data);
+      toast({
+        title: "Email Sent",
+        description: "Customer confirmation email resent successfully",
+      });
+      return true;
+    } catch (error) {
+      console.error('Failed to resend customer email:', error);
+      toast({
+        title: "Email Error", 
+        description: "Failed to resend customer email",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   const getSmsLogs = async (bookingId?: string) => {
     try {
       let query = supabase
@@ -152,6 +187,7 @@ export const useSmsNotifications = () => {
     sendWorkerAssignmentSms,
     resendWorkerSms,
     resendWorkerEmail,
+    resendCustomerEmail,
     getSmsLogs,
     getEmailLogs
   };

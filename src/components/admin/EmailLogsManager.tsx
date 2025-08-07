@@ -8,6 +8,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Search, RefreshCw, Mail, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { EmailTestSuite } from './EmailTestSuite';
+import { EmailHealthCheck } from './EmailHealthCheck';
+import { useSmsNotifications } from '@/hooks/useSmsNotifications';
 import { format } from 'date-fns';
 
 interface EmailLog {
@@ -28,6 +30,7 @@ export const EmailLogsManager = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const { toast } = useToast();
+  const { resendCustomerEmail, resendWorkerEmail } = useSmsNotifications();
 
   const fetchEmailLogs = async () => {
     try {
@@ -107,8 +110,9 @@ export const EmailLogsManager = () => {
       </div>
 
       <Tabs defaultValue="logs" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="logs">Email Logs</TabsTrigger>
+          <TabsTrigger value="health">Health Check</TabsTrigger>
           <TabsTrigger value="testing">Email Testing</TabsTrigger>
         </TabsList>
         
@@ -191,6 +195,29 @@ export const EmailLogsManager = () => {
                         )}
                       </div>
 
+                      {/* Resend Actions */}
+                      {log.booking_id && log.status === 'failed' && (
+                        <div className="flex gap-2 mt-3">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => resendCustomerEmail(log.booking_id!)}
+                          >
+                            Resend Customer Email
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => resendWorkerEmail(log.booking_id!)}
+                          >
+                            Resend Worker Email
+                          </Button>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-1 gap-4">
+                      </div>
+
                       {log.error_message && (
                         <div>
                           <span className="text-sm font-medium text-red-600">Error:</span>
@@ -225,6 +252,10 @@ export const EmailLogsManager = () => {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+        
+        <TabsContent value="health">
+          <EmailHealthCheck />
         </TabsContent>
         
         <TabsContent value="testing">

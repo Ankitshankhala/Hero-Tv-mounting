@@ -243,7 +243,7 @@ export const useBookingOperations = () => {
         throw new Error(`Failed to confirm booking: ${updateError.message}`);
       }
 
-      // Send customer confirmation email
+      // Send customer confirmation email with proper error handling
       try {
         console.log('Triggering customer confirmation email for booking:', bookingId);
         const { data: emailData, error: emailError } = await supabase.functions.invoke('send-customer-booking-confirmation', {
@@ -252,17 +252,21 @@ export const useBookingOperations = () => {
         
         if (emailError) {
           console.error('Customer email error:', emailError);
+          toast({
+            title: "Email Warning",
+            description: "Booking confirmed but failed to send confirmation email. You can resend it from the admin panel.",
+            variant: "destructive",
+          });
         } else {
-          console.log('Customer email response:', emailData);
-        }
-        
-        if (emailError) {
-          console.warn('Failed to send customer confirmation email:', emailError);
-        } else {
-          console.log('Customer confirmation email sent successfully');
+          console.log('Customer confirmation email sent successfully:', emailData);
         }
       } catch (emailError) {
-        console.warn('Error sending customer confirmation email:', emailError);
+        console.error('Error sending customer confirmation email:', emailError);
+        toast({
+          title: "Email Warning", 
+          description: "Booking confirmed but email service is unavailable. Please check admin panel.",
+          variant: "destructive",
+        });
       }
 
       // Auto-assign worker after confirmation - handle both authenticated users and guests
@@ -302,7 +306,8 @@ export const useBookingOperations = () => {
                   });
                   
                   if (workerEmailError) {
-                    console.warn('Failed to send worker assignment email:', workerEmailError);
+                    console.error('Failed to send worker assignment email:', workerEmailError);
+                    // Note: Don't show toast here to avoid overwhelming users with multiple notifications
                   } else {
                     console.log('Worker assignment email sent successfully');
                   }
@@ -313,7 +318,8 @@ export const useBookingOperations = () => {
                   });
                   
                   if (workerSmsError) {
-                    console.warn('Failed to send worker assignment SMS:', workerSmsError);
+                    console.error('Failed to send worker assignment SMS:', workerSmsError);
+                    // Note: Don't show toast here to avoid overwhelming users with multiple notifications
                   } else {
                     console.log('Worker assignment SMS sent successfully');
                   }
