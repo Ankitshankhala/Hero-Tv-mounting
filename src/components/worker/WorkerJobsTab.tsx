@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { WorkerJobCard } from './WorkerJobCard';
+import { ExpandableJobCardContainer } from './ExpandableJobCardContainer';
 import { User } from 'lucide-react';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -30,9 +30,9 @@ const WorkerJobsTab = ({ jobs, onStatusUpdate, onJobCancelled }: WorkerJobsTabPr
             <p className="text-worker-muted/70 text-sm">Check back later for new job assignments</p>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {jobs.map((job) => (
-              <WorkerJobCard
+              <ExpandableJobCardContainer
                 key={job.id}
                 job={job}
                 onStatusUpdate={onStatusUpdate}
