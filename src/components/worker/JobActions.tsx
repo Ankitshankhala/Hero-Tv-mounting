@@ -23,9 +23,16 @@ const JobActions = ({
   const callCustomer = (phone: string) => {
     initiatePhoneCall(phone);
   };
-  const getDirections = (address: string) => {
-    const encodedAddress = encodeURIComponent(address);
-    window.open(`https://maps.google.com/?q=${encodedAddress}`, '_blank');
+  const getCustomerAddress = () => {
+    return job.guest_customer_info?.address || job.customer?.address || '';
+  };
+
+  const getDirections = () => {
+    const address = getCustomerAddress();
+    if (address) {
+      const encodedAddress = encodeURIComponent(address);
+      window.open(`https://maps.google.com/?q=${encodedAddress}`, '_blank');
+    }
   };
   const canAddCharges = (job.status === 'in_progress' || job.status === 'confirmed') && job.payment_status !== 'authorized';
   const canCapturePayment = job.payment_status === 'authorized' && job.status !== 'completed';
@@ -73,7 +80,7 @@ const JobActions = ({
           Call Customer
         </Button>
         
-        <Button size="sm" variant="outline" onClick={() => getDirections(job.customer_address)} className="border-input bg-background hover:bg-accent hover:text-accent-foreground transition-all duration-200">
+        <Button size="sm" variant="outline" onClick={getDirections} disabled={!getCustomerAddress()} className="border-input bg-background hover:bg-accent hover:text-accent-foreground transition-all duration-200">
           <MapPin className="h-4 w-4 mr-2" />
           Get Directions
         </Button>
