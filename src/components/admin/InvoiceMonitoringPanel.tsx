@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertCircle, CheckCircle2, Clock, Download, Mail, RefreshCw } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Clock, Download, Mail, RefreshCw, Send } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -31,6 +31,7 @@ interface Invoice {
 export const InvoiceMonitoringPanel = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
+  const [processingBatch, setProcessingBatch] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
   const { toast } = useToast();
 
@@ -81,6 +82,36 @@ export const InvoiceMonitoringPanel = () => {
         description: 'Failed to retry invoice delivery',
         variant: 'destructive',
       });
+    }
+  };
+
+  const generateBatchInvoices = async () => {
+    setProcessingBatch(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('batch-invoice-generator', {
+        body: { 
+          force_regenerate: false,
+          send_email: true 
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Batch Processing Complete',
+        description: `Generated ${data.generated_count} invoices, ${data.failed_count} failed, ${data.skipped_count} skipped`,
+      });
+
+      fetchInvoices();
+    } catch (error) {
+      console.error('Error generating batch invoices:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to generate batch invoices',
+        variant: 'destructive',
+      });
+    } finally {
+      setProcessingBatch(false);
     }
   };
 
@@ -184,10 +215,20 @@ export const InvoiceMonitoringPanel = () => {
                 Monitor invoice generation and delivery status
               </CardDescription>
             </div>
-            <Button onClick={fetchInvoices} variant="outline" size="sm">
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Refresh
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button onClick={fetchInvoices} variant="outline" size="sm">
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Refresh
+              </Button>
+              <Button 
+                onClick={generateBatchInvoices} 
+                disabled={processingBatch}
+                size="sm"
+              >
+                <Send className="w-4 h-4 mr-2" />
+                {processingBatch ? 'Processing...' : 'Generate All Invoices'}
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
