@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import puppeteer from "npm:puppeteer@20.7.4";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -51,60 +50,26 @@ serve(async (req: Request) => {
 
     const paymentDate = booking.transactions?.[0]?.processed_at || booking.transactions?.[0]?.created_at || new Date().toISOString();
 
-    const html = `
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8" />
-<style>
-  body { font-family: Arial, sans-serif; padding: 20px; }
-  h1 { text-align: center; }
-  table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-  th, td { border-bottom: 1px solid #ccc; padding: 8px; text-align: left; }
-  th { background: #f0f0f0; }
-  .totals { text-align: right; margin-top: 10px; }
-</style>
-</head>
-<body>
-  <h1>Hero TV Mounting</h1>
-  <h2>Invoice ${booking.invoices?.[0]?.invoice_number || ''}</h2>
-  <p><strong>Booking ID:</strong> ${booking.id}</p>
-  <p><strong>Payment Date:</strong> ${new Date(paymentDate).toLocaleDateString()}</p>
-  <p><strong>Customer:</strong> ${booking.customer.name} (${booking.customer.email})</p>
-  <p><strong>Worker:</strong> ${booking.worker ? booking.worker.name : 'Unassigned'}</p>
-  <table>
-    <thead>
-      <tr>
-        <th>Service</th>
-        <th>Qty</th>
-        <th>Price</th>
-        <th>Total</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${services.map((s: any) => `
-        <tr>
-          <td>${s.service_name}</td>
-          <td>${s.quantity}</td>
-          <td>$${s.base_price.toFixed(2)}</td>
-          <td>$${(s.base_price * s.quantity).toFixed(2)}</td>
-        </tr>
-      `).join('')}
-    </tbody>
-  </table>
-  <div class="totals">
-    <p><strong>Subtotal:</strong> $${subtotal.toFixed(2)}</p>
-    <p><strong>Tax:</strong> $${taxAmount.toFixed(2)}</p>
-    <p><strong>Total:</strong> $${total.toFixed(2)}</p>
-  </div>
-</body>
-</html>`;
+    // Create simple PDF content as text for now
+    const pdfContent = createSimplePDF({
+      invoiceNumber: booking.invoices?.[0]?.invoice_number || '',
+      bookingId: booking.id,
+      paymentDate: new Date(paymentDate).toLocaleDateString(),
+      customer: booking.customer,
+      worker: booking.worker,
+      services,
+      subtotal,
+      taxAmount,
+      total
+    });
 
-    const pdfBuffer = await generatePdf(html);
-
-    return new Response(pdfBuffer, {
+    return new Response(pdfContent, {
       status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/pdf' },
+      headers: { 
+        ...corsHeaders, 
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="invoice-${booking.invoices?.[0]?.invoice_number || booking.id}.pdf"`
+      },
     });
   } catch (err) {
     console.error('Invoice PDF error:', err);
@@ -115,11 +80,98 @@ serve(async (req: Request) => {
   }
 });
 
-async function generatePdf(html: string): Promise<Uint8Array> {
-  const browser = await puppeteer.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'], headless: true });
-  const page = await browser.newPage();
-  await page.setContent(html, { waitUntil: 'networkidle0' });
-  const buffer = await page.pdf({ format: 'A4', printBackground: true });
-  await browser.close();
-  return buffer;
+function createSimplePDF(data: any): Uint8Array {
+  // Create a simple PDF structure
+  const pdfHeader = `%PDF-1.4
+1 0 obj
+<<
+/Type /Catalog
+/Pages 2 0 R
+>>
+endobj
+
+2 0 obj
+<<
+/Type /Pages
+/Kids [3 0 R]
+/Count 1
+>>
+endobj
+
+3 0 obj
+<<
+/Type /Page
+/Parent 2 0 R
+/Resources <<
+/Font <<
+/F1 4 0 R
+>>
+>>
+/MediaBox [0 0 612 792]
+/Contents 5 0 R
+>>
+endobj
+
+4 0 obj
+<<
+/Type /Font
+/Subtype /Type1
+/BaseFont /Helvetica
+>>
+endobj
+
+5 0 obj
+<<
+/Length 800
+>>
+stream
+BT
+/F1 18 Tf
+50 750 Td
+(Hero TV Mounting) Tj
+0 -30 Td
+/F1 14 Tf
+(Invoice: ${data.invoiceNumber}) Tj
+0 -20 Td
+(Booking ID: ${data.bookingId}) Tj
+0 -20 Td
+(Payment Date: ${data.paymentDate}) Tj
+0 -20 Td
+(Customer: ${data.customer.name}) Tj
+0 -20 Td
+(Email: ${data.customer.email}) Tj
+0 -30 Td
+(Services:) Tj
+${data.services.map((s: any, i: number) => `
+0 -20 Td
+(${s.service_name} - Qty: ${s.quantity} - $${s.base_price.toFixed(2)}) Tj`).join('')}
+0 -40 Td
+(Subtotal: $${data.subtotal.toFixed(2)}) Tj
+0 -20 Td
+(Tax: $${data.taxAmount.toFixed(2)}) Tj
+0 -20 Td
+/F1 16 Tf
+(Total: $${data.total.toFixed(2)}) Tj
+ET
+endstream
+endobj
+
+xref
+0 6
+0000000000 65535 f 
+0000000015 00000 n 
+0000000068 00000 n 
+0000000125 00000 n 
+0000000259 00000 n 
+0000000332 00000 n 
+trailer
+<<
+/Size 6
+/Root 1 0 R
+>>
+startxref
+1200
+%%EOF`;
+
+  return new TextEncoder().encode(pdfHeader);
 }
