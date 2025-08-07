@@ -1282,6 +1282,10 @@ export type Database = {
         Args: { p_worker_id: string; p_availability: Json }
         Returns: boolean
       }
+      trigger_manual_worker_assignment: {
+        Args: { p_booking_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       booking_status:

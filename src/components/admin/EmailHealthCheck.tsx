@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useSmsNotifications } from '@/hooks/useSmsNotifications';
 import { CheckCircle, XCircle, Mail, Send, RefreshCw } from 'lucide-react';
+import { WorkerAssignmentTester } from './WorkerAssignmentTester';
 
 interface HealthCheckResult {
   service: string;
@@ -206,55 +207,59 @@ export const EmailHealthCheck = () => {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Mail className="h-5 w-5" />
-          Email System Health Check
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex gap-2">
-          <Button onClick={runHealthCheck} disabled={checking}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${checking ? 'animate-spin' : ''}`} />
-            Run Health Check
-          </Button>
-          <Button onClick={testEmailWithRecentBooking} variant="outline">
-            <Send className="h-4 w-4 mr-2" />
-            Test with Recent Booking
-          </Button>
-        </div>
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Mail className="h-5 w-5" />
+            Email System Health Check
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2">
+            <Button onClick={runHealthCheck} disabled={checking}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${checking ? 'animate-spin' : ''}`} />
+              Run Health Check
+            </Button>
+            <Button onClick={testEmailWithRecentBooking} variant="outline">
+              <Send className="h-4 w-4 mr-2" />
+              Test with Recent Booking
+            </Button>
+          </div>
 
-        {healthResults.length > 0 && (
-          <div className="space-y-3">
-            {healthResults.map((result, index) => (
-              <div key={index} className="border rounded-lg p-4">
-                <div className="flex justify-between items-start">
-                  <div className="flex items-center gap-2">
-                    {getStatusIcon(result.status)}
-                    <span className="font-medium">{result.service}</span>
-                    {getStatusBadge(result.status)}
+          {healthResults.length > 0 && (
+            <div className="space-y-3">
+              {healthResults.map((result, index) => (
+                <div key={index} className="border rounded-lg p-4">
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-2">
+                      {getStatusIcon(result.status)}
+                      <span className="font-medium">{result.service}</span>
+                      {getStatusBadge(result.status)}
+                    </div>
                   </div>
+                  
+                  <p className="text-sm text-gray-600 mt-1">{result.message}</p>
+                  
+                  {result.details && (
+                    <p className="text-xs text-gray-500 mt-1 bg-gray-50 p-2 rounded">
+                      {result.details}
+                    </p>
+                  )}
                 </div>
-                
-                <p className="text-sm text-gray-600 mt-1">{result.message}</p>
-                
-                {result.details && (
-                  <p className="text-xs text-gray-500 mt-1 bg-gray-50 p-2 rounded">
-                    {result.details}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
 
-        {healthResults.length === 0 && !checking && (
-          <div className="text-center py-8 text-gray-500">
-            Run a health check to see email system status
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          {healthResults.length === 0 && !checking && (
+            <div className="text-center py-8 text-gray-500">
+              Run a health check to see email system status
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      
+      <WorkerAssignmentTester />
+    </>
   );
 };
