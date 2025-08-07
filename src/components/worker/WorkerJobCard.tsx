@@ -119,91 +119,95 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
           </Badge>
         </div>
 
-        {/* Service Details */}
-        <div className="mb-6">
-          <h4 className="text-base font-bold text-gray-900 mb-3">Service Details:</h4>
-          <div className="space-y-2">
-            {job.booking_services && job.booking_services.length > 0 ? (
-              job.booking_services.map((service, index) => (
-                <div key={index} className="text-sm text-gray-700">
-                  <div className="font-medium">
-                    {service.service_name} × {service.quantity}
+        {/* Three Column Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          {/* Service Details - Left */}
+          <div>
+            <h4 className="text-base font-bold text-gray-900 mb-3">Service Details:</h4>
+            <div className="space-y-2">
+              {job.booking_services && job.booking_services.length > 0 ? (
+                job.booking_services.map((service, index) => (
+                  <div key={index} className="text-sm text-gray-700">
+                    <div className="font-medium">
+                      {service.service_name} × {service.quantity}
+                    </div>
+                    {service.configuration && (
+                      <div className="ml-4 mt-1 space-y-1 text-gray-600">
+                        {service.configuration.wallType && (
+                          <div>• Wall Type: {service.configuration.wallType}</div>
+                        )}
+                        {service.configuration.tvSize && (
+                          <div>• TV Size: {service.configuration.tvSize}"</div>
+                        )}
+                        {service.configuration.mountType && (
+                          <div>• Mount Type: {service.configuration.mountType}</div>
+                        )}
+                        {service.configuration.cableManagement && (
+                          <div>• Cable Management: Yes</div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  {service.configuration && (
-                    <div className="ml-4 mt-1 space-y-1 text-gray-600">
-                      {service.configuration.wallType && (
-                        <div>• Wall Type: {service.configuration.wallType}</div>
-                      )}
-                      {service.configuration.tvSize && (
-                        <div>• TV Size: {service.configuration.tvSize}"</div>
-                      )}
-                      {service.configuration.mountType && (
-                        <div>• Mount Type: {service.configuration.mountType}</div>
-                      )}
-                      {service.configuration.cableManagement && (
-                        <div>• Cable Management: Yes</div>
-                      )}
-                    </div>
-                  )}
+                ))
+              ) : (
+                <div className="text-sm text-gray-700">
+                  {job.service?.name || 'Service details unavailable'}
                 </div>
-              ))
-            ) : (
-              <div className="text-sm text-gray-700">
-                {job.service?.name || 'Service details unavailable'}
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* Date & Time */}
-        <div className="mb-6">
-          <h4 className="text-base font-bold text-gray-900 mb-2">Date & Time:</h4>
-          <p className="text-sm text-gray-700">
-            {formatDate(job.scheduled_date)}, {formatTime(job.scheduled_start)}
-          </p>
-        </div>
+          {/* Date & Time - Middle */}
+          <div>
+            <h4 className="text-base font-bold text-gray-900 mb-3">Date & Time:</h4>
+            <div className="text-sm text-gray-700">
+              <div className="font-medium">{formatDate(job.scheduled_date)}</div>
+              <div>{formatTime(job.scheduled_start)}</div>
+            </div>
+          </div>
 
-        {/* Customer Information */}
-        <div className="mb-6">
-          <h4 className="text-base font-bold text-gray-900 mb-3">Customer Information:</h4>
-          <div className="space-y-1 text-sm text-gray-700">
-            {/* Determine customer info source */}
-            {(() => {
-              const customerInfo = job.guest_customer_info || job.customer;
-              const customerName = job.guest_customer_info?.name || job.customer?.name;
-              const customerEmail = job.guest_customer_info?.email || job.customer?.email;
-              const customerPhone = job.guest_customer_info?.phone || job.customer?.phone;
-              const customerAddress = job.guest_customer_info?.address;
-              const customerUnit = job.guest_customer_info?.unit;
-              const customerCity = job.guest_customer_info?.city;
-              const customerState = job.guest_customer_info?.state;
-              const customerZipcode = job.guest_customer_info?.zipcode;
+          {/* Customer Information - Right */}
+          <div>
+            <h4 className="text-base font-bold text-gray-900 mb-3">Customer Information:</h4>
+            <div className="space-y-1 text-sm text-gray-700">
+              {/* Determine customer info source */}
+              {(() => {
+                const customerInfo = job.guest_customer_info || job.customer;
+                const customerName = job.guest_customer_info?.name || job.customer?.name;
+                const customerEmail = job.guest_customer_info?.email || job.customer?.email;
+                const customerPhone = job.guest_customer_info?.phone || job.customer?.phone;
+                const customerAddress = job.guest_customer_info?.address;
+                const customerUnit = job.guest_customer_info?.unit;
+                const customerCity = job.guest_customer_info?.city;
+                const customerState = job.guest_customer_info?.state;
+                const customerZipcode = job.guest_customer_info?.zipcode;
 
-              return (
-                <>
-                  {customerName && (
-                    <div><span className="font-medium">Name:</span> {customerName}</div>
-                  )}
-                  {customerAddress && (
-                    <div><span className="font-medium">Address:</span> {customerAddress}</div>
-                  )}
-                  {customerUnit && (
-                    <div><span className="font-medium">Unit:</span> {customerUnit}</div>
-                  )}
-                  {(customerCity || customerState || customerZipcode) && (
-                    <div>
-                      <span className="font-medium">City:</span> {customerCity}, {customerState} {customerZipcode}
-                    </div>
-                  )}
-                  {customerPhone && (
-                    <div><span className="font-medium">Phone:</span> {customerPhone}</div>
-                  )}
-                  {customerEmail && (
-                    <div><span className="font-medium">Email:</span> {customerEmail}</div>
-                  )}
-                </>
-              );
-            })()}
+                return (
+                  <>
+                    {customerName && (
+                      <div><span className="font-medium">Name:</span> {customerName}</div>
+                    )}
+                    {customerAddress && (
+                      <div><span className="font-medium">Address:</span> {customerAddress}</div>
+                    )}
+                    {customerUnit && (
+                      <div><span className="font-medium">Unit:</span> {customerUnit}</div>
+                    )}
+                    {(customerCity || customerState || customerZipcode) && (
+                      <div>
+                        <span className="font-medium">City:</span> {customerCity}, {customerState} {customerZipcode}
+                      </div>
+                    )}
+                    {customerPhone && (
+                      <div><span className="font-medium">Phone:</span> {customerPhone}</div>
+                    )}
+                    {customerEmail && (
+                      <div><span className="font-medium">Email:</span> {customerEmail}</div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
           </div>
         </div>
 
