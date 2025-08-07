@@ -1216,6 +1216,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: number
       }
+      delete_booking_with_cascade: {
+        Args: { p_booking_id: string }
+        Returns: Json
+      }
       find_available_workers: {
         Args: {
           p_zipcode: string

@@ -21,25 +21,34 @@ export const DeleteBookingModal = ({ booking, isOpen, onClose, onBookingDeleted 
     setLoading(true);
 
     try {
-      const { error } = await supabase
-        .from('bookings')
-        .delete()
-        .eq('id', booking.id);
+      const { data, error } = await supabase.rpc('delete_booking_with_cascade', {
+        p_booking_id: booking.id
+      });
 
       if (error) throw error;
 
-      toast({
-        title: "Success",
-        description: "Booking deleted successfully",
-      });
+      // Type the response data properly
+      const result = data as { success: boolean; deleted_counts?: Record<string, number>; error?: string };
 
-      onBookingDeleted();
-      onClose();
+      if (result?.success) {
+        const deletedCounts = result.deleted_counts || {};
+        const totalDeleted = Object.values(deletedCounts).reduce((sum: number, count: number) => sum + count, 0);
+        
+        toast({
+          title: "Success",
+          description: `Booking deleted successfully (${totalDeleted} records removed)`,
+        });
+
+        onBookingDeleted();
+        onClose();
+      } else {
+        throw new Error(result?.error || 'Failed to delete booking');
+      }
     } catch (error) {
       console.error('Error deleting booking:', error);
       toast({
         title: "Error",
-        description: "Failed to delete booking",
+        description: error instanceof Error ? error.message : "Failed to delete booking",
         variant: "destructive",
       });
     } finally {
