@@ -217,39 +217,6 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
           </div>
         )}
 
-        {/* Important Reminders */}
-        <div className="mb-6 p-4 bg-blue-50 border-l-4 border-blue-600 rounded-r-lg">
-          <h4 className="text-base font-bold text-gray-900 mb-3">Important Reminders:</h4>
-          <ul className="text-sm text-gray-700 space-y-2">
-            <li className="flex items-start">
-              <span className="mr-2">•</span>
-              <span>Arrive 15 minutes early for setup</span>
-            </li>
-            <li className="flex items-start">
-              <span className="mr-2">•</span>
-              <span>Bring all necessary tools and equipment</span>
-            </li>
-            <li className="flex items-start">
-              <span className="mr-2">•</span>
-              <span>Contact customer if running late</span>
-            </li>
-            <li className="flex items-start">
-              <span className="mr-2">•</span>
-              <span>Complete job documentation after service</span>
-            </li>
-          </ul>
-        </div>
-
-        {/* Support Contact */}
-        <div className="mb-6 pt-4 border-t border-gray-200">
-          <p className="text-sm font-medium text-gray-900 mb-2">Support Contact:</p>
-          <div className="text-sm text-gray-700 space-y-1">
-            <div>Email: Captain@herotvmounting.com</div>
-            <div>Phone: +1 737-272-9971</div>
-          </div>
-          <p className="text-sm text-gray-600 mt-2">Good luck with your assignment!</p>
-        </div>
-
         {/* Actions */}
         <div className="pt-4 border-t border-gray-100">
           <JobActions
