@@ -2,7 +2,10 @@
   "ci": {
     "collect": {
       "url": [
-        "http://localhost:4173/"
+        "http://localhost:4173/",
+        "http://localhost:4173/worker-login",
+        "http://localhost:4173/admin",
+        "http://localhost:4173/booking-success"
       ],
       "numberOfRuns": 1,
       "startServerCommand": "npm run preview -- --port=4173 --strictPort",

@@ -258,22 +258,45 @@ Reply Y to confirm or N if unavailable.`.trim();
         error_message: JSON.stringify(twilioData),
       });
 
-      // Send admin alert email (if RESEND configured)
+      // Throttle admin alerts to avoid noise (30 min window)
       try {
-        const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
-        await resend.emails.send({
-          from: 'Hero TV Mounting <alerts@herotvmounting.com>',
-          to: ['Captain@herotvmounting.com'],
-          subject: 'ALERT: Worker SMS delivery failed',
-          html: `
-            <h2>Worker SMS Failed</h2>
-            <p><strong>Booking:</strong> ${bookingId}</p>
-            <p><strong>Worker:</strong> ${booking.worker?.name} (${booking.worker?.phone})</p>
-            <pre style="white-space:pre-wrap;background:#f5f5f5;padding:12px;border-radius:6px;">${JSON.stringify(twilioData, null, 2)}</pre>
-          `,
-        });
+        const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+        const { data: recentAlert } = await supabaseClient
+          .from('sms_logs')
+          .select('id, created_at')
+          .eq('booking_id', bookingId)
+          .eq('recipient_number', 'admin_alert')
+          .gte('created_at', thirtyMinAgo)
+          .limit(1)
+          .maybeSingle();
+
+        if (!recentAlert) {
+          const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
+          await resend.emails.send({
+            from: 'Hero TV Mounting <alerts@herotvmounting.com>',
+            to: ['Captain@herotvmounting.com'],
+            subject: 'ALERT: Worker SMS delivery failed',
+            html: `
+              <h2>Worker SMS Failed</h2>
+              <p><strong>Booking:</strong> ${bookingId}</p>
+              <p><strong>Worker:</strong> ${booking.worker?.name} (${booking.worker?.phone})</p>
+              <pre style="white-space:pre-wrap;background:#f5f5f5;padding:12px;border-radius:6px;">${JSON.stringify(twilioData, null, 2)}</pre>
+            `,
+          });
+
+          // Mark alert in logs to dedupe future alerts
+          await supabaseClient.from('sms_logs').insert({
+            booking_id: bookingId,
+            recipient_number: 'admin_alert',
+            recipient_name: 'System',
+            message: 'ALERT: Worker SMS delivery failed',
+            status: 'sent'
+          });
+        } else {
+          console.log('Skipping admin alert email: recent alert already sent');
+        }
       } catch (e) {
-        console.warn('Failed to send admin alert email:', e);
+        console.warn('Failed during admin alert handling:', e);
       }
 
       // Mark idempotency as failed

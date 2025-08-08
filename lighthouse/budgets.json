@@ -13,5 +13,51 @@
       { "resourceType": "stylesheet", "budget": 5 },
       { "resourceType": "image", "budget": 30 }
     ]
+  },
+  {
+    "path": "/worker-login",
+    "resourceSizes": [
+      { "resourceType": "total", "budget": 500 },
+      { "resourceType": "script", "budget": 250 },
+      { "resourceType": "stylesheet", "budget": 120 },
+      { "resourceType": "image", "budget": 120 }
+    ],
+    "resourceCounts": [
+      { "resourceType": "total", "budget": 40 },
+      { "resourceType": "script", "budget": 8 },
+      { "resourceType": "stylesheet", "budget": 4 },
+      { "resourceType": "image", "budget": 12 }
+    ]
+  },
+  {
+    "path": "/admin",
+    "resourceSizes": [
+      { "resourceType": "total", "budget": 700 },
+      { "resourceType": "script", "budget": 300 },
+      { "resourceType": "stylesheet", "budget": 150 },
+      { "resourceType": "image", "budget": 200 }
+    ],
+    "resourceCounts": [
+      { "resourceType": "total", "budget": 50 },
+      { "resourceType": "script", "budget": 10 },
+      { "resourceType": "stylesheet", "budget": 5 },
+      { "resourceType": "image", "budget": 15 }
+    ]
+  },
+  {
+    "path": "/booking-success",
+    "resourceSizes": [
+      { "resourceType": "total", "budget": 800 },
+      { "resourceType": "script", "budget": 320 },
+      { "resourceType": "stylesheet", "budget": 150 },
+      { "resourceType": "image", "budget": 350 }
+    ],
+    "resourceCounts": [
+      { "resourceType": "total", "budget": 55 },
+      { "resourceType": "script", "budget": 10 },
+      { "resourceType": "stylesheet", "budget": 5 },
+      { "resourceType": "image", "budget": 20 }
+    ]
   }
 ]
+

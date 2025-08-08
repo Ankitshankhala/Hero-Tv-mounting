@@ -376,19 +376,44 @@ const handler = async (req: Request): Promise<Response> => {
         });
       
         console.log('Error logged successfully');
-        // Send admin alert email (best-effort)
+        // Send admin alert email (best-effort) with noise throttling (30m window)
         try {
-          const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
-          await resend.emails.send({
-            from: 'Hero TV Mounting <alerts@herotvmounting.com>',
-            to: ['Captain@herotvmounting.com'],
-            subject: 'ALERT: Customer confirmation email failed',
-            html: `
-              <h2>Customer Email Failed</h2>
-              <p><strong>Booking:</strong> ${bookingId}</p>
-              <pre style="white-space:pre-wrap;background:#f5f5f5;padding:12px;border-radius:6px;">${error.message}</pre>
-            `,
-          });
+          if (bookingId !== 'unknown') {
+            const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+            const { data: recentAlert } = await supabase
+              .from('sms_logs')
+              .select('id, created_at')
+              .eq('booking_id', bookingId)
+              .eq('recipient_number', 'admin_alert')
+              .gte('created_at', thirtyMinAgo)
+              .limit(1)
+              .maybeSingle();
+
+            if (!recentAlert) {
+              const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
+              await resend.emails.send({
+                from: 'Hero TV Mounting <alerts@herotvmounting.com>',
+                to: ['Captain@herotvmounting.com'],
+                subject: 'ALERT: Customer confirmation email failed',
+                html: `
+                  <h2>Customer Email Failed</h2>
+                  <p><strong>Booking:</strong> ${bookingId}</p>
+                  <pre style="white-space:pre-wrap;background:#f5f5f5;padding:12px;border-radius:6px;">${error.message}</pre>
+                `,
+              });
+
+              // Log an admin alert marker for dedupe
+              await supabase.from('sms_logs').insert({
+                booking_id: bookingId,
+                recipient_number: 'admin_alert',
+                recipient_name: 'System',
+                message: 'ALERT: Customer confirmation email failed',
+                status: 'sent'
+              });
+            } else {
+              console.log('Skipping admin alert email: recent alert already sent');
+            }
+          }
         } catch (alertErr) {
           console.warn('Failed to send admin alert email:', alertErr);
         }
