@@ -1,6 +1,8 @@
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import { Resend } from 'npm:resend@2.0.0';
+
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -255,6 +257,24 @@ Reply Y to confirm or N if unavailable.`.trim();
         status: 'failed',
         error_message: JSON.stringify(twilioData),
       });
+
+      // Send admin alert email (if RESEND configured)
+      try {
+        const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
+        await resend.emails.send({
+          from: 'Hero TV Mounting <alerts@herotvmounting.com>',
+          to: ['Captain@herotvmounting.com'],
+          subject: 'ALERT: Worker SMS delivery failed',
+          html: `
+            <h2>Worker SMS Failed</h2>
+            <p><strong>Booking:</strong> ${bookingId}</p>
+            <p><strong>Worker:</strong> ${booking.worker?.name} (${booking.worker?.phone})</p>
+            <pre style="white-space:pre-wrap;background:#f5f5f5;padding:12px;border-radius:6px;">${JSON.stringify(twilioData, null, 2)}</pre>
+          `,
+        });
+      } catch (e) {
+        console.warn('Failed to send admin alert email:', e);
+      }
 
       // Mark idempotency as failed
       try {

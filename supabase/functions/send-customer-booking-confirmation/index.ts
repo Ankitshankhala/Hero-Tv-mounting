@@ -375,10 +375,26 @@ const handler = async (req: Request): Promise<Response> => {
           sent_at: new Date().toISOString()
         });
       
-      console.log('Error logged successfully');
-    } catch (logError) {
-      console.error('Failed to log email error:', logError);
-    }
+        console.log('Error logged successfully');
+        // Send admin alert email (best-effort)
+        try {
+          const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
+          await resend.emails.send({
+            from: 'Hero TV Mounting <alerts@herotvmounting.com>',
+            to: ['Captain@herotvmounting.com'],
+            subject: 'ALERT: Customer confirmation email failed',
+            html: `
+              <h2>Customer Email Failed</h2>
+              <p><strong>Booking:</strong> ${bookingId}</p>
+              <pre style="white-space:pre-wrap;background:#f5f5f5;padding:12px;border-radius:6px;">${error.message}</pre>
+            `,
+          });
+        } catch (alertErr) {
+          console.warn('Failed to send admin alert email:', alertErr);
+        }
+      } catch (logError) {
+        console.error('Failed to log email error:', logError);
+      }
 
 
     return new Response(
