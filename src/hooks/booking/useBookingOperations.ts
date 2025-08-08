@@ -292,53 +292,12 @@ export const useBookingOperations = () => {
       let assignmentCompleted = false;
       
       if (hasZipcode) {
-        try {
-          console.log('Starting auto-assignment for booking:', bookingId, 'with zipcode:', hasZipcode);
-          
-          const { data: assignmentData, error: assignmentError } = await supabase.rpc(
-            'auto_assign_workers_with_coverage',
-            { p_booking_id: bookingId }
-          );
-
-          if (assignmentError) {
-            console.error('Auto-assignment error:', assignmentError);
-            toast({
-              title: "Booking Confirmed",
-              description: "Your booking is confirmed, but we're still finding the best worker for you. You'll be notified soon!",
-            });
-            assignmentCompleted = true;
-          } else {
-            console.log('Auto-assignment response:', assignmentData);
-            
-            // Check assignment results and provide appropriate feedback
-            if (assignmentData && assignmentData.length > 0) {
-              const result = assignmentData[0];
-              console.log('Assignment result:', result);
-              
-              if (result.assignment_status === 'direct_assigned' && result.assigned_worker_id) {
-                assignmentCompleted = true;
-                toast({
-                  title: "Worker Assigned",
-                  description: "A worker has been assigned. Notifications will be sent automatically.",
-                });
-              } else if (result.assignment_status === 'coverage_notifications_sent') {
-                console.log('Coverage notifications sent to workers');
-                assignmentCompleted = true;
-                toast({
-                  title: "Finding Worker",
-                  description: `Notifications sent to ${result.notifications_sent || 'multiple'} workers. You'll be notified when someone accepts.`,
-                });
-              }
-            }
-          }
-        } catch (assignmentError) {
-          // Don't fail the booking confirmation for assignment errors
-          toast({
-            title: "Booking Confirmed",
-            description: "Your payment was successful! We're working on assigning a worker to your booking.",
-          });
-          assignmentCompleted = true;
-        }
+        // Let DB triggers handle auto-assignment; just inform the user
+        toast({
+          title: "Booking Confirmed",
+          description: "We’re assigning a worker now. You’ll be notified once confirmed.",
+        });
+        assignmentCompleted = true;
       } else {
         toast({
           title: "Booking Confirmed",
@@ -421,48 +380,13 @@ export const useBookingOperations = () => {
 
       optimizedLog('Guest booking created successfully:', result);
 
-      // Try to auto-assign workers
-      try {
-        const { data: assignments, error: assignmentError } = await supabase
-          .rpc('auto_assign_workers_with_coverage', {
-            p_booking_id: result.booking_id
-          });
-
-        if (assignmentError) {
-          optimizedError('Worker assignment error:', assignmentError);
-          return {
-            booking_id: result.booking_id,
-            assigned_workers: [],
-            status: 'pending',
-            message: 'Booking created! No workers currently available in your area, but we will assign one soon and contact you.'
-          };
-        }
-
-        const assignedWorkers = assignments || [];
-        const workerAssigned = assignedWorkers.length > 0 && assignedWorkers[0].assigned_worker_id;
-
-        // Send worker assignment email if worker was directly assigned
-        if (workerAssigned && assignedWorkers[0].assignment_status === 'direct_assigned') {
-          // Email functionality removed - worker assigned without email notification
-        }
-
-        return {
-          booking_id: result.booking_id,
-          assigned_workers: assignedWorkers,
-          status: workerAssigned ? 'confirmed' : 'pending',
-          message: workerAssigned ? 
-            `Booking confirmed! We've assigned a worker to your job and will contact you soon.` :
-            'Booking created! No workers currently available in your area, but we will assign one soon and contact you.'
-        };
-      } catch (assignmentError) {
-        optimizedError('Assignment process failed:', assignmentError);
-        return {
-          booking_id: result.booking_id,
-          assigned_workers: [],
-          status: 'pending',
-          message: 'Booking created! Worker assignment will be done manually.'
-        };
-      }
+      // Defer worker assignment until after payment authorization; DB triggers will handle it
+      return {
+        booking_id: result.booking_id,
+        assigned_workers: [],
+        status: 'pending',
+        message: 'Booking created! After payment authorization, we’ll assign a worker and notify you.'
+      };
     } catch (error) {
       optimizedError('Error in createUnauthenticatedBooking:', error);
       return {
