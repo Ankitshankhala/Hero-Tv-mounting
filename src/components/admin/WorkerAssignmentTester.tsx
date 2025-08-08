@@ -54,26 +54,9 @@ export const WorkerAssignmentTester = () => {
         const result = assignmentResult[0];
         
         if (result.assignment_status === 'direct_assigned' && result.assigned_worker_id) {
-          // Test worker notifications
-          console.log('Testing worker notifications for assigned worker:', result.assigned_worker_id);
-          
-          // Test email notification
-          const { error: emailError } = await supabase.functions.invoke('send-worker-assignment-notification', {
-            body: { 
-              bookingId: booking.id,
-              workerId: result.assigned_worker_id 
-            }
-          });
-
-          // Test SMS notification
-          const { error: smsError } = await supabase.functions.invoke('send-sms-notification', {
-            body: { bookingId: booking.id }
-          });
-
           toast({
             title: "Assignment Test Complete",
-            description: `Worker assigned! Email: ${emailError ? 'Failed' : 'Sent'}, SMS: ${smsError ? 'Failed' : 'Sent'}`,
-            variant: emailError || smsError ? "destructive" : "default",
+            description: "Worker assigned. Notifications will be sent automatically by the system.",
           });
         } else {
           toast({

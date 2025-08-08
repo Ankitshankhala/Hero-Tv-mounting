@@ -283,31 +283,8 @@ export const useBookingOperations = () => {
         throw new Error(`Failed to confirm booking: ${updateError.message}`);
       }
 
-      // Send customer confirmation email with proper error handling
-      try {
-        console.log('Triggering customer confirmation email for booking:', bookingId);
-        const { data: emailData, error: emailError } = await supabase.functions.invoke('send-customer-booking-confirmation', {
-          body: { bookingId }
-        });
-        
-        if (emailError) {
-          console.error('Customer email error:', emailError);
-          toast({
-            title: "Email Warning",
-            description: "Booking confirmed but failed to send confirmation email. You can resend it from the admin panel.",
-            variant: "destructive",
-          });
-        } else {
-          console.log('Customer confirmation email sent successfully:', emailData);
-        }
-      } catch (emailError) {
-        console.error('Error sending customer confirmation email:', emailError);
-        toast({
-          title: "Email Warning", 
-          description: "Booking confirmed but email service is unavailable. Please check admin panel.",
-          variant: "destructive",
-        });
-      }
+      // Notifications (customer email/SMS) are handled by database triggers after assignment to avoid duplicates.
+      // No direct email dispatch here.
 
       // Auto-assign worker after confirmation - handle both authenticated users and guests
       const guestInfo = updatedBooking.guest_customer_info as any;
@@ -338,58 +315,11 @@ export const useBookingOperations = () => {
               const result = assignmentData[0];
               console.log('Assignment result:', result);
               
-              // Send worker assignment notifications for direct assignments
               if (result.assignment_status === 'direct_assigned' && result.assigned_worker_id) {
-                console.log('Worker directly assigned, sending notifications');
-                
-                try {
-                  // Send email notification
-                  const { error: workerEmailError } = await supabase.functions.invoke('send-worker-assignment-notification', {
-                    body: { 
-                      bookingId,
-                      workerId: result.assigned_worker_id 
-                    }
-                  });
-                  
-                  if (workerEmailError) {
-                    console.error('Failed to send worker assignment email:', workerEmailError);
-                    toast({
-                      title: "Email Warning",
-                      description: "Worker assigned but notification email failed. Check admin panel.",
-                      variant: "destructive",
-                    });
-                  } else {
-                    console.log('Worker assignment email sent successfully');
-                  }
-
-                  // Send SMS notification
-                  const { error: workerSmsError } = await supabase.functions.invoke('send-sms-notification', {
-                    body: { bookingId }
-                  });
-                  
-                  if (workerSmsError) {
-                    console.error('Failed to send worker assignment SMS:', workerSmsError);
-                    toast({
-                      title: "SMS Warning",
-                      description: "Worker assigned but SMS notification failed. Worker will be contacted by email.",
-                      variant: "destructive",
-                    });
-                  } else {
-                    console.log('Worker assignment SMS sent successfully');
-                  }
-                } catch (notificationError) {
-                  console.error('Worker notification error:', notificationError);
-                  toast({
-                    title: "Notification Warning",
-                    description: "Worker assigned but notifications failed. Please check admin panel.",
-                    variant: "destructive",
-                  });
-                }
-                
                 assignmentCompleted = true;
                 toast({
                   title: "Worker Assigned",
-                  description: "A worker has been assigned to your booking and notified.",
+                  description: "A worker has been assigned. Notifications will be sent automatically.",
                 });
               } else if (result.assignment_status === 'coverage_notifications_sent') {
                 console.log('Coverage notifications sent to workers');

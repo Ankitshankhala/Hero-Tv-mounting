@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { useSmsNotifications } from '@/hooks/useSmsNotifications';
 import { supabase } from '@/integrations/supabase/client';
 
 interface WorkerAssignmentManagerProps {
@@ -17,7 +16,7 @@ export const WorkerAssignmentManager = ({
 }: WorkerAssignmentManagerProps) => {
   const [assigning, setAssigning] = useState(false);
   const { toast } = useToast();
-  const { sendWorkerAssignmentSms } = useSmsNotifications();
+  
 
   const assignWorkerWithEmail = async () => {
     setAssigning(true);
@@ -36,59 +35,11 @@ export const WorkerAssignmentManager = ({
         throw new Error(`Failed to assign worker: ${assignmentError.message}`);
       }
 
-      // Email functionality removed - worker assigned without email notification
-
-      // Send both email and SMS notifications
-      let emailSuccess = false;
-      let smsSuccess = false;
-
-      // Send worker assignment email
-      try {
-        console.log('Triggering worker assignment email for booking:', bookingId, 'worker:', workerId);
-        const { data: emailData, error: emailError } = await supabase.functions.invoke('send-worker-assignment-notification', {
-          body: { 
-            bookingId,
-            workerId 
-          }
-        });
-        
-        if (emailError) {
-          console.error('Worker assignment email error:', emailError);
-        } else {
-          console.log('Worker assignment email response:', emailData);
-          emailSuccess = true;
-        }
-      } catch (emailException) {
-        console.error('Exception sending worker assignment email:', emailException);
-      }
-
-      // Send SMS notification
-      try {
-        console.log('Triggering worker assignment SMS for booking:', bookingId);
-        smsSuccess = await sendWorkerAssignmentSms(bookingId);
-      } catch (smsException) {
-        console.error('Exception sending worker assignment SMS:', smsException);
-      }
-
-      // Show appropriate success/warning message
-      if (emailSuccess && smsSuccess) {
-        toast({
-          title: "Worker Assigned Successfully",
-          description: "Worker has been assigned and notified via email and SMS",
-        });
-      } else if (emailSuccess || smsSuccess) {
-        toast({
-          title: "Worker Assigned with Warnings",
-          description: `Worker assigned but some notifications failed: ${emailSuccess ? 'Email sent' : 'Email failed'}, ${smsSuccess ? 'SMS sent' : 'SMS failed'}`,
-          variant: "default"
-        });
-      } else {
-        toast({
-          title: "Worker Assigned with Notification Issues",
-          description: "Worker assigned but both email and SMS notifications failed",
-          variant: "default"
-        });
-      }
+      // Notifications are handled by database triggers to avoid duplicates
+      toast({
+        title: "Worker Assigned Successfully",
+        description: "Worker has been assigned. Email and SMS notifications will be sent automatically.",
+      });
 
       onAssignmentComplete?.();
 
