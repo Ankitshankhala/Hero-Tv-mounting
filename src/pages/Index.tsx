@@ -114,10 +114,8 @@ const Index = () => {
 
       <Header />
 
-      {/* Primary SEO H1 (kept simple to satisfy single-H1 rule) */}
-      <header className="container mx-auto px-6 pt-8">
-        <h1 className="text-3xl md:text-4xl font-bold">Hero TV Mounting — Professional TV Mounting Services</h1>
-      </header>
+      {/* Primary SEO H1 (visually hidden to preserve single-H1 for SEO) */}
+      <h1 className="sr-only">Hero TV Mounting — Professional TV Mounting Services</h1>
 
       {/* Testing Mode Indicator */}
       <div className="container mx-auto px-6 pt-4">
