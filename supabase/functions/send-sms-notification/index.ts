@@ -67,6 +67,64 @@ serve(async (req) => {
       );
     }
 
+    // Idempotency guard: prevent duplicate worker SMS within TTL
+    const idempotencyKey = `worker_sms_${booking.id}_${booking.worker_id}`;
+    const requestHash = btoa(JSON.stringify({ bookingId, workerId: booking.worker_id, phone: booking.worker.phone }));
+    let idempotencyRecordId: string | null = null;
+    try {
+      const { data: existing } = await supabaseClient
+        .from('idempotency_records')
+        .select('*')
+        .eq('idempotency_key', idempotencyKey)
+        .eq('operation_type', 'worker_sms')
+        .single();
+
+      if (existing) {
+        const expired = new Date(existing.expires_at) < new Date();
+        if (!expired) {
+          if (existing.request_hash !== requestHash) {
+            return new Response(JSON.stringify({ error: 'Idempotency key reused with different request' }), {
+              status: 409,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          if (existing.status === 'completed') {
+            return new Response(JSON.stringify(existing.response_data || { success: true, cached: true }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 200,
+            });
+          }
+          if (existing.status === 'pending') {
+            return new Response(JSON.stringify({ error: 'Operation in progress' }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 409,
+            });
+          }
+        } else {
+          await supabaseClient.from('idempotency_records').delete().eq('id', existing.id);
+        }
+      }
+
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+      const { data: created, error: idemInsertErr } = await supabaseClient
+        .from('idempotency_records')
+        .insert({
+          idempotency_key: idempotencyKey,
+          operation_type: 'worker_sms',
+          request_hash: requestHash,
+          user_id: booking.worker_id,
+          status: 'pending',
+          expires_at: expiresAt,
+          response_data: null,
+        })
+        .select('id')
+        .single();
+      if (idemInsertErr) throw idemInsertErr;
+      idempotencyRecordId = created.id;
+    } catch (idErr) {
+      console.warn('Idempotency pre-check error (continuing):', idErr);
+    }
+
     // Get booking services
     const { data: bookingServices } = await supabaseClient
       .from('booking_services')
@@ -142,6 +200,14 @@ Reply Y to confirm or N if unavailable.`.trim();
         );
       }
 
+      // Update idempotency on success
+      if (idempotencyRecordId) {
+        await supabaseClient
+          .from('idempotency_records')
+          .update({ status: 'completed', response_data: { success: true, mock: true, sms: smsLog } })
+          .eq('id', idempotencyRecordId);
+      }
+
       return new Response(
         JSON.stringify({ success: true, mock: true, sms: smsLog }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -177,6 +243,15 @@ Reply Y to confirm or N if unavailable.`.trim();
         status: 'failed',
         error_message: JSON.stringify(twilioData),
       });
+
+      // Mark idempotency as failed
+      try {
+        await supabaseClient
+          .from('idempotency_records')
+          .update({ status: 'failed', response_data: { error: twilioData } })
+          .eq('id', idempotencyRecordId || '')
+          .eq('operation_type', 'worker_sms');
+      } catch (_) {}
       
       return new Response(
         JSON.stringify({ error: 'Failed to send SMS', twilio_error: twilioData }),
