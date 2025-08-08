@@ -14,6 +14,7 @@ import Admin from '@/pages/Admin';
 import NotFound from '@/pages/NotFound';
 import WorkerSignup from '@/pages/WorkerSignup';
 import WorkerLogin from '@/pages/WorkerLogin';
+import { HelmetProvider } from 'react-helmet-async';
 
 const queryClient = new QueryClient();
 
@@ -46,10 +47,12 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <TestingModeProvider>
-          <Toaster />
-          <AppWithSecurity />
-        </TestingModeProvider>
+        <HelmetProvider>
+          <TestingModeProvider>
+            <Toaster />
+            <AppWithSecurity />
+          </TestingModeProvider>
+        </HelmetProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

@@ -14,6 +14,7 @@ import { EnhancedInlineBookingFlow } from '@/components/EnhancedInlineBookingFlo
 import { TestingModeIndicator } from '@/components/TestingModeIndicator';
 import { CartItem } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { SEO } from '@/components/SEO';
 
 const Index = () => {
   const { isTestingMode } = useTestingMode();
@@ -89,8 +90,35 @@ const Index = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
+      <SEO 
+        title="Hero TV Mounting | Professional TV Mounting Services"
+        description="Fast, professional TV mounting, cable concealment, and furniture assembly. Book same-day service."
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Hero TV Mounting",
+            "url": typeof window !== 'undefined' ? window.location.origin : 'https://herotvmounting.com',
+            "logo": "/assets/images/logo.png"
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Service",
+            "serviceType": "TV Mounting",
+            "provider": { "@type": "Organization", "name": "Hero TV Mounting" },
+            "areaServed": "US",
+            "offers": { "@type": "Offer", "priceCurrency": "USD", "price": "90" }
+          }
+        ]}
+      />
+
       <Header />
-      
+
+      {/* Primary SEO H1 (kept simple to satisfy single-H1 rule) */}
+      <header className="container mx-auto px-6 pt-8">
+        <h1 className="text-3xl md:text-4xl font-bold">Hero TV Mounting — Professional TV Mounting Services</h1>
+      </header>
+
       {/* Testing Mode Indicator */}
       <div className="container mx-auto px-6 pt-4">
         <TestingModeIndicator />
