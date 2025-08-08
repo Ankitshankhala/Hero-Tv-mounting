@@ -77,6 +77,65 @@ const handler = async (req: Request): Promise<Response> => {
 
     const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
 
+    // Idempotency guard: prevent duplicate customer emails within TTL
+    const idempotencyKey = `customer_email_${requestData.bookingId}`;
+    const requestHash = btoa(JSON.stringify({ bookingId: requestData.bookingId }));
+    let idempotencyRecordId: string | null = null;
+
+    try {
+      const { data: existing } = await supabase
+        .from('idempotency_records')
+        .select('*')
+        .eq('idempotency_key', idempotencyKey)
+        .eq('operation_type', 'customer_email')
+        .single();
+
+      if (existing) {
+        const expired = new Date(existing.expires_at) < new Date();
+        if (!expired) {
+          if (existing.request_hash !== requestHash) {
+            return new Response(JSON.stringify({ error: 'Idempotency key reused with different request' }), {
+              status: 409,
+              headers: { 'Content-Type': 'application/json', ...corsHeaders },
+            });
+          }
+          if (existing.status === 'completed') {
+            return new Response(JSON.stringify(existing.response_data || { success: true, cached: true }), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json', ...corsHeaders },
+            });
+          }
+          if (existing.status === 'pending') {
+            return new Response(JSON.stringify({ error: 'Operation in progress' }), {
+              status: 409,
+              headers: { 'Content-Type': 'application/json', ...corsHeaders },
+            });
+          }
+        } else {
+          await supabase.from('idempotency_records').delete().eq('id', existing.id);
+        }
+      }
+
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+      const { data: created, error: idemInsertErr } = await supabase
+        .from('idempotency_records')
+        .insert({
+          idempotency_key: idempotencyKey,
+          operation_type: 'customer_email',
+          request_hash: requestHash,
+          user_id: booking?.customer_id || null,
+          status: 'pending',
+          expires_at: expiresAt,
+          response_data: null,
+        })
+        .select('id')
+        .single();
+      if (idemInsertErr) throw idemInsertErr;
+      idempotencyRecordId = created.id;
+    } catch (idErr) {
+      console.warn('Idempotency pre-check error (continuing):', idErr);
+    }
+
     // Get booking details
     console.log('Fetching booking with ID:', requestData.bookingId);
     const { data: booking, error: bookingError } = await supabase
@@ -218,12 +277,27 @@ const handler = async (req: Request): Promise<Response> => {
       <p>Hero TV Mounting Team</p>
     `;
 
-    const emailResponse = await resend.emails.send({
-      from: "Hero TV Mounting <bookings@herotvmounting.com>",
-      to: [customerEmail],
-      subject: `Booking Confirmation - ${requestData.bookingId}`,
-      html: htmlContent,
-    });
+    // Retry send with basic backoff
+    const sendWithRetry = async (attempts = 3) => {
+      let lastError: any = null;
+      for (let i = 0; i < attempts; i++) {
+        try {
+          return await resend.emails.send({
+            from: "Hero TV Mounting <bookings@herotvmounting.com>",
+            to: [customerEmail],
+            subject: `Booking Confirmation - ${requestData.bookingId}`,
+            html: htmlContent,
+          });
+        } catch (err) {
+          lastError = err;
+          await new Promise(r => setTimeout(r, 500 * Math.pow(2, i)));
+        }
+      }
+      throw lastError;
+    };
+
+    const emailResponse = await sendWithRetry();
+
 
     console.log('Customer email sent successfully:', emailResponse);
 
@@ -238,6 +312,15 @@ const handler = async (req: Request): Promise<Response> => {
         status: 'sent',
         sent_at: new Date().toISOString()
       });
+
+    // Update idempotency record on success
+    if (idempotencyRecordId) {
+      await supabase
+        .from('idempotency_records')
+        .update({ status: 'completed', response_data: { success: true, messageId: emailResponse.data?.id } })
+        .eq('id', idempotencyRecordId);
+    }
+
 
     return new Response(JSON.stringify({ 
       success: true, 
@@ -261,6 +344,20 @@ const handler = async (req: Request): Promise<Response> => {
     );
 
     try {
+      // Mark idempotency record as failed if exists
+      try {
+        const idemKey = requestData?.bookingId ? `customer_email_${requestData.bookingId}` : null;
+        if (idemKey) {
+          await supabase
+            .from('idempotency_records')
+            .update({ status: 'failed', response_data: { error: error.message } })
+            .eq('idempotency_key', idemKey)
+            .eq('operation_type', 'customer_email');
+        }
+      } catch (idemUpdateErr) {
+        console.warn('Failed to update idempotency on error:', idemUpdateErr);
+      }
+
       // Use requestData if available, otherwise provide fallback values
       const bookingId = requestData?.bookingId || 'unknown';
       
@@ -282,6 +379,7 @@ const handler = async (req: Request): Promise<Response> => {
     } catch (logError) {
       console.error('Failed to log email error:', logError);
     }
+
 
     return new Response(
       JSON.stringify({ error: error.message }),

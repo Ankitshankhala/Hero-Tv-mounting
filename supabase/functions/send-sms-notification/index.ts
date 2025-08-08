@@ -214,22 +214,34 @@ Reply Y to confirm or N if unavailable.`.trim();
       );
     }
 
-    // Send SMS via Twilio
+    // Send SMS via Twilio with retry
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
     const twilioAuth = btoa(`${accountSid}:${authToken}`);
-    
-    const twilioResponse = await fetch(twilioUrl, {
-      method: 'POST',
-      headers: {
-        Authorization: `Basic ${twilioAuth}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        From: fromPhone,
-        To: booking.worker.phone,
-        Body: messageBody,
-      }),
-    });
+
+    const sendTwilio = async (attempts = 3) => {
+      let lastResp: any = null;
+      for (let i = 0; i < attempts; i++) {
+        const resp = await fetch(twilioUrl, {
+          method: 'POST',
+          headers: {
+            Authorization: `Basic ${twilioAuth}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            From: fromPhone,
+            To: booking.worker.phone,
+            Body: messageBody,
+          }),
+        });
+        if (resp.ok) return resp;
+        lastResp = resp;
+        await new Promise(r => setTimeout(r, 500 * Math.pow(2, i)));
+      }
+      return lastResp;
+    };
+
+    const twilioResponse = await sendTwilio();
+
 
     const twilioData = await twilioResponse.json();
     

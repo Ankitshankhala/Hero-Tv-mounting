@@ -17,6 +17,7 @@ import { WorkerCreateBookingModal } from '@/components/worker/WorkerCreateBookin
 import TestBookingCreator from '@/components/worker/TestBookingCreator';
 import CoverageNotifications from '@/components/worker/CoverageNotifications';
 import type { Database } from '@/integrations/supabase/types';
+import { SEO } from '@/components/SEO';
 
 type BookingStatus = Database['public']['Enums']['booking_status'];
 
@@ -264,6 +265,11 @@ const WorkerDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      <SEO 
+        title="Worker Dashboard | Hero TV Mounting"
+        description="Manage your jobs, schedule, and live assignments."
+        noindex
+      />
       <WorkerDashboardHeader workerName={profile?.name || 'Worker'} />
 
       <div className="container mx-auto px-4 py-8">

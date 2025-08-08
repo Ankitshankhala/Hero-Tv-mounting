@@ -12,6 +12,7 @@ import { useRealtimeBookings } from '@/hooks/useRealtimeBookings';
 import { useToast } from '@/hooks/use-toast';
 import { InvoiceModificationCard } from '@/components/customer/InvoiceModificationCard';
 import { NotificationsBell } from '@/components/customer/NotificationsBell';
+import { SEO } from '@/components/SEO';
 
 const CustomerDashboard = () => {
   const [customerBookings, setCustomerBookings] = useState([]);
@@ -136,6 +137,10 @@ const CustomerDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      <SEO 
+        title="My Dashboard | Hero TV Mounting"
+        description="View your bookings, upcoming appointments, and invoices."
+      />
       <header className="bg-slate-800/50 border-b border-slate-700">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">

@@ -319,12 +319,27 @@ const handler = async (req: Request): Promise<Response> => {
       </div>
     `;
 
-    const emailResponse = await resend.emails.send({
-      from: "Hero TV Mounting <dispatch@herotvmounting.com>",
-      to: [worker.email],
-      subject: `New Job Assignment - ${formattedDate} at ${formattedTime}`,
-      html: htmlContent,
-    });
+    // Retry send with basic backoff
+    const sendWithRetry = async (attempts = 3) => {
+      let lastError: any = null;
+      for (let i = 0; i < attempts; i++) {
+        try {
+          return await resend.emails.send({
+            from: "Hero TV Mounting <dispatch@herotvmounting.com>",
+            to: [worker.email],
+            subject: `New Job Assignment - ${formattedDate} at ${formattedTime}`,
+            html: htmlContent,
+          });
+        } catch (err) {
+          lastError = err;
+          await new Promise(r => setTimeout(r, 500 * Math.pow(2, i)));
+        }
+      }
+      throw lastError;
+    };
+
+    const emailResponse = await sendWithRetry();
+
 
     console.log('Worker assignment email sent successfully:', emailResponse);
 

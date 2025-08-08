@@ -10,6 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { DayAvailabilityCard } from '@/components/worker/DayAvailabilityCard';
+import { SEO } from '@/components/SEO';
 
 const WorkerSignup = () => {
   const [formData, setFormData] = useState({
@@ -138,6 +139,11 @@ const WorkerSignup = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      <SEO 
+        title="Worker Signup | Hero TV Mounting"
+        description="Apply to become a professional TV mounting technician."
+        noindex
+      />
       <header className="bg-slate-800/50 border-b border-slate-700">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center space-x-4">

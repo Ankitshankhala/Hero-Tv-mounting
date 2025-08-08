@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { SEO } from '@/components/SEO';
 
 const BookingSuccess = () => {
   const [searchParams] = useSearchParams();
@@ -95,6 +96,10 @@ const BookingSuccess = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-12 px-4">
+      <SEO 
+        title="Booking Confirmed | Hero TV Mounting"
+        description="Payment successful—your TV mounting appointment is confirmed."
+      />
       <div className="max-w-2xl mx-auto">
         {/* Success Header */}
         <div className="text-center mb-8">

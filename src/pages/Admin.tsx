@@ -22,6 +22,7 @@ import { CoverageRequestsManager } from '@/components/admin/CoverageRequestsMana
 import { InvoicesManager } from '@/components/admin/InvoicesManager';
 import { InvoiceMonitoringPanel } from '@/components/admin/InvoiceMonitoringPanel';
 import { EmailLogsManager } from '@/components/admin/EmailLogsManager';
+import { SEO } from '@/components/SEO';
 
 const Admin = () => {
   const { user, profile, loading } = useAuth();
@@ -109,15 +110,22 @@ const Admin = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex w-full">
-      <AdminSidebar activeTab={activeTab} onTabChange={setActiveTab} />
-      <div className="flex-1 flex flex-col">
-        <AdminHeader />
-        <main className="flex-1 p-6">
-          {renderContent()}
-        </main>
+    <>
+      <SEO 
+        title="Admin Dashboard | Hero TV Mounting"
+        description="Admin controls for bookings, payments, invoices, and system health."
+        noindex
+      />
+      <div className="min-h-screen bg-gray-50 flex w-full">
+        <AdminSidebar activeTab={activeTab} onTabChange={setActiveTab} />
+        <div className="flex-1 flex flex-col">
+          <AdminHeader />
+          <main className="flex-1 p-6">
+            {renderContent()}
+          </main>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

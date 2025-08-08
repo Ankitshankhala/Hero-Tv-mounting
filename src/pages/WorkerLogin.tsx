@@ -3,6 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import WorkerLoginForm from '@/components/worker/WorkerLoginForm';
 import { ArrowLeft } from 'lucide-react';
+import { SEO } from '@/components/SEO';
+
 
 const WorkerLogin = () => {
   const navigate = useNavigate();
@@ -17,6 +19,7 @@ const WorkerLogin = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative">
+      <SEO title="Worker Login | Hero TV Mounting" description="Sign in to manage your jobs and schedule." noindex />
       {/* Back to Home Button */}
       <div className="absolute top-4 left-4">
         <Link 
