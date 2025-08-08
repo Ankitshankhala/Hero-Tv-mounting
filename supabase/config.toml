@@ -90,3 +90,9 @@ verify_jwt = false
 
 [functions.simple-email-test]
 verify_jwt = false
+
+[functions.test-e2e-booking-capture]
+verify_jwt = false
+
+[functions.alert-metrics]
+verify_jwt = false
