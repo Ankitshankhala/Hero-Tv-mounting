@@ -146,17 +146,6 @@ serve(async (req) => {
 
     logStep("Booking creation completed successfully", response);
     
-    // Trigger watchdog to ensure notification emails are sent
-    setTimeout(async () => {
-      try {
-        await supabaseServiceRole.functions.invoke('booking-notification-watchdog', {
-          body: { bookingId }
-        });
-      } catch (watchdogError) {
-        console.error('Watchdog trigger failed:', watchdogError);
-      }
-    }, 2000); // 2 second delay to allow email functions to complete
-    
     return new Response(JSON.stringify(response), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
