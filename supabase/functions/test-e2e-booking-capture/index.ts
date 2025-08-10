@@ -11,6 +11,19 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // DISABLED: This function was creating test bookings automatically
+  return new Response(
+    JSON.stringify({ 
+      success: false, 
+      message: 'E2E test booking creation has been disabled to prevent automatic test customer creation',
+      disabled_at: new Date().toISOString()
+    }),
+    { 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200
+    }
+  );
+
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
