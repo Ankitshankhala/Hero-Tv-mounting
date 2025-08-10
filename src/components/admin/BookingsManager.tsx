@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Calendar, Plus } from 'lucide-react';
+
+import { Calendar } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRealtimeBookings } from '@/hooks/useRealtimeBookings';
 import { BookingFilters } from './BookingFilters';
@@ -9,8 +9,6 @@ import { BookingTable } from './BookingTable';
 import { CreateBookingModal } from './CreateBookingModal';
 import { useBookingManager } from '@/hooks/useBookingManager';
 import { AuthGuard } from '@/components/AuthGuard';
-import { useToast } from '@/hooks/use-toast';
-import { createTestBooking } from '@/utils/createTestBooking';
 export const BookingsManager = () => {
   const [filteredBookings, setFilteredBookings] = useState([]);
   const [filterStatus, setFilterStatus] = useState('all');
@@ -20,9 +18,6 @@ export const BookingsManager = () => {
   const {
     user
   } = useAuth();
-  const { toast } = useToast();
-  const [creating, setCreating] = useState(false);
-
   // Use our enhanced booking manager hook
   const {
     bookings,
@@ -67,26 +62,6 @@ export const BookingsManager = () => {
     console.log('Booking updated from BookingTable, refreshing list');
     fetchBookings();
   };
-  const handleQuickTestBooking = async () => {
-    try {
-      setCreating(true);
-      const booking = await createTestBooking();
-      toast({
-        title: 'Success',
-        description: `Test booking created: ${booking.id}`,
-      });
-      fetchBookings();
-    } catch (error) {
-      console.error('Quick test booking failed:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to create test booking',
-        variant: 'destructive',
-      });
-    } finally {
-      setCreating(false);
-    }
-  };
   return <AuthGuard allowedRoles={['admin']}>
       <div className="space-y-6">
         <Card>
@@ -97,10 +72,6 @@ export const BookingsManager = () => {
                 <span>Bookings Management</span>
               </CardTitle>
               <div className="flex items-center space-x-4">
-                <Button onClick={handleQuickTestBooking} disabled={creating}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  {creating ? 'Creating…' : 'Quick E2E Test booking'}
-                </Button>
                 {isConnected && <span className="text-sm text-green-600">● Live updates enabled</span>}
               </div>
             </div>

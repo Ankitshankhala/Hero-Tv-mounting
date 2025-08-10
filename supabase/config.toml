@@ -108,3 +108,6 @@ verify_jwt = false
 
 [functions.send-customer-worker-sms]
 verify_jwt = false
+
+[functions.booking-notification-watchdog]
+verify_jwt = false
