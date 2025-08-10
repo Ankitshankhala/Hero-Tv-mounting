@@ -2,6 +2,8 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Edit, Trash2, DollarSign, UserPlus, CheckCircle, Mail } from 'lucide-react';
 import { EditBookingModal } from './EditBookingModal';
 import { DeleteBookingModal } from './DeleteBookingModal';
@@ -10,6 +12,7 @@ import { AssignWorkerModal } from './AssignWorkerModal';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useSmsNotifications } from '@/hooks/useSmsNotifications';
+import { useNotificationFailures } from '@/hooks/useNotificationFailures';
 interface Booking {
   id: string;
   customer?: {
@@ -52,8 +55,11 @@ export const BookingTable = React.memo(({
   const [showAssignWorkerModal, setShowAssignWorkerModal] = useState(false);
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
   const [isResending, setIsResending] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isBulkResending, setIsBulkResending] = useState(false);
   const { toast } = useToast();
   const { resendWorkerEmail, resendCustomerEmail, resendWorkerSms } = useSmsNotifications();
+  const { failureMap } = useNotificationFailures(bookings.map(b => b.id));
   const getStatusBadge = (status: string) => {
     const statusConfig = {
       pending: {
@@ -274,6 +280,62 @@ export const BookingTable = React.memo(({
     }
   }, [resendWorkerEmail, resendCustomerEmail, resendWorkerSms, toast]);
 
+  // Selection helpers
+  const failedIds = useMemo(() => Object.keys(failureMap || {}), [failureMap]);
+  const allSelected = useMemo(
+    () => bookings.length > 0 && bookings.every(b => selectedIds.has(b.id)),
+    [bookings, selectedIds]
+  );
+
+  const toggleSelect = useCallback((id: string, checked: boolean | "indeterminate") => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback((checked: boolean | "indeterminate") => {
+    if (checked) {
+      setSelectedIds(new Set(bookings.map(b => b.id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  }, [bookings]);
+
+  const selectAllFailed = useCallback(() => {
+    setSelectedIds(new Set(failedIds));
+  }, [failedIds]);
+
+  const handleBulkResend = useCallback(async () => {
+    if (selectedIds.size === 0) return;
+    setIsBulkResending(true);
+    try {
+      const ids = Array.from(selectedIds);
+      const results = await Promise.allSettled(
+        ids.map(async (id) => {
+          await Promise.allSettled([
+            resendWorkerEmail(id),
+            resendCustomerEmail(id),
+            resendWorkerSms(id),
+          ]);
+          return true;
+        })
+      );
+      const successCount = results.filter(r => r.status === 'fulfilled').length;
+      toast({
+        title: 'Bulk resend complete',
+        description: `Processed ${ids.length} booking(s). Success: ${successCount}`,
+      });
+    } catch (e) {
+      console.error('Bulk resend failed', e);
+      toast({ title: 'Bulk resend failed', variant: 'destructive' });
+    } finally {
+      setIsBulkResending(false);
+    }
+  }, [selectedIds, resendWorkerEmail, resendCustomerEmail, resendWorkerSms, toast]);
+
   const handleModalClose = useCallback(() => {
     setSelectedBooking(null);
     setShowEditModal(false);
@@ -301,9 +363,34 @@ export const BookingTable = React.memo(({
   }, [bookings]);
   return <>
       <div className="rounded-md border">
+        {failedIds.length > 0 && (
+          <Alert className="m-3">
+            <AlertDescription>
+              {failedIds.length} booking(s) have failed notifications.
+              <Button variant="outline" size="sm" onClick={selectAllFailed} className="ml-2">
+                Select all failed
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+        <div className="flex items-center justify-between px-3 py-2 border-b">
+          <div className="text-sm">{selectedIds.size} selected</div>
+          <div>
+            <Button size="sm" onClick={handleBulkResend} disabled={selectedIds.size === 0 || isBulkResending}>
+              Retry failed notifications
+            </Button>
+          </div>
+        </div>
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>
+                <Checkbox
+                  checked={allSelected}
+                  onCheckedChange={toggleSelectAll}
+                  aria-label="Select all"
+                />
+              </TableHead>
               <TableHead>Booking ID</TableHead>
               <TableHead>Customer</TableHead>
               <TableHead>Service</TableHead>
@@ -326,6 +413,13 @@ export const BookingTable = React.memo(({
             const canChargeFee = booking.canChargeFee;
             const needsWorkerAssignment = booking.needsWorkerAssignment;
             return <TableRow key={booking.id}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedIds.has(booking.id)}
+                      onCheckedChange={(checked) => toggleSelect(booking.id, checked)}
+                      aria-label="Select booking"
+                    />
+                  </TableCell>
                   <TableCell className="font-medium">{booking.id.slice(0, 8)}</TableCell>
                   <TableCell>{booking.customer?.name || 'N/A'}</TableCell>
                   <TableCell>{booking.formattedServices}</TableCell>
@@ -346,7 +440,12 @@ export const BookingTable = React.memo(({
                         Unassigned
                       </Badge> : booking.worker?.name || 'Unassigned'}
                   </TableCell>
-                  <TableCell>{getStatusBadge(booking.status)}</TableCell>
+                  <TableCell>
+                    {getStatusBadge(booking.status)}
+                    {failureMap[booking.id] && (
+                      <Badge variant="destructive" className="ml-2">Notif failed</Badge>
+                    )}
+                  </TableCell>
                   <TableCell>{getPaymentStatusBadge(booking.payment_status, booking)}</TableCell>
                   <TableCell className="font-medium">${booking.total_price || 0}</TableCell>
                    <TableCell>
