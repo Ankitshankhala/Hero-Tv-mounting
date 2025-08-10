@@ -415,12 +415,40 @@ serve(async (req) => {
 
     console.log('Application approved successfully');
 
+    // If a new user was created with temporary password, send welcome email
+    if (temporaryPassword) {
+      console.log('Sending welcome email to new worker...');
+      try {
+        const { data: emailData, error: emailError } = await supabaseAdmin.functions.invoke(
+          'send-worker-welcome-email',
+          {
+            body: {
+              email: application.email,
+              name: application.name,
+              temporaryPassword: temporaryPassword
+            }
+          }
+        );
+
+        if (emailError) {
+          console.error('Failed to send welcome email:', emailError);
+          // Don't fail the whole approval process if email fails
+        } else {
+          console.log('Welcome email sent successfully:', emailData);
+        }
+      } catch (emailException) {
+        console.error('Exception while sending welcome email:', emailException);
+        // Don't fail the whole approval process if email fails
+      }
+    }
+
     // Return success response
     const responseData = {
       success: true,
       message: 'Worker application approved successfully',
       workerId,
       isExistingUser,
+      emailSent: !!temporaryPassword,
       ...(temporaryPassword ? {
         email: application.email,
         temporaryPassword: temporaryPassword
