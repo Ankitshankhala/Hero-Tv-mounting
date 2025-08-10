@@ -35,6 +35,7 @@ export const AdminSidebar = ({ activeTab, onTabChange }: AdminSidebarProps) => {
     { id: 'email', label: 'Email Logs', icon: Mail },
     { id: 'blog', label: 'Blog', icon: FileText },
     { id: 'coverage', label: 'Coverage Requests', icon: MapPin },
+    { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
   return (

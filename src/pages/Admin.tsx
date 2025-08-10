@@ -23,6 +23,7 @@ import { InvoicesManager } from '@/components/admin/InvoicesManager';
 import { InvoiceMonitoringPanel } from '@/components/admin/InvoiceMonitoringPanel';
 import { EmailLogsManager } from '@/components/admin/EmailLogsManager';
 import { SEO } from '@/components/SEO';
+import { NotificationsSettings } from '@/components/admin/NotificationsSettings';
 
 const Admin = () => {
   const { user, profile, loading } = useAuth();
@@ -104,6 +105,8 @@ const Admin = () => {
         return <BlogManager />;
       case 'coverage':
         return <CoverageRequestsManager />;
+      case 'settings':
+        return <NotificationsSettings />;
       default:
         return <DashboardStats />;
     }
