@@ -27,7 +27,10 @@ export const AdminHeader = () => {
   React.useEffect(() => {
     const checkStripeConfig = async () => {
       try {
-        const { data, error } = await supabase.functions.invoke('test-stripe-config');
+        const {
+          data,
+          error
+        } = await supabase.functions.invoke('test-stripe-config');
         if (error) throw error;
         setStripeStatus(data.keyType === 'live' ? 'live' : 'test');
       } catch (error) {
@@ -46,7 +49,6 @@ export const AdminHeader = () => {
       duration: 5000
     });
   };
-
   const handleTestingModeDeactivate = () => {
     deactivateTestingMode();
     toast({
@@ -77,10 +79,7 @@ export const AdminHeader = () => {
           </div>
           <div className="flex items-center space-x-3">
             {/* Stripe Status Indicator */}
-            <Badge 
-              variant={stripeStatus === 'live' ? 'default' : stripeStatus === 'test' ? 'secondary' : 'destructive'}
-              className={stripeStatus === 'live' ? 'bg-green-600' : ''}
-            >
+            <Badge variant={stripeStatus === 'live' ? 'default' : stripeStatus === 'test' ? 'secondary' : 'destructive'} className={stripeStatus === 'live' ? 'bg-green-600' : ''}>
               {stripeStatus === 'checking' && '🔄 Checking...'}
               {stripeStatus === 'live' && '✅ Live Keys'}
               {stripeStatus === 'test' && '⚠️ Test Keys'}
@@ -88,8 +87,7 @@ export const AdminHeader = () => {
             </Badge>
             
             {/* Testing Mode Status & Controls */}
-            {isTestingMode ? (
-              <div className="flex items-center space-x-2">
+            {isTestingMode ? <div className="flex items-center space-x-2">
                 <Badge variant="destructive" className="animate-pulse">
                   <TestTube className="h-3 w-3 mr-1" />
                   TESTING MODE ACTIVE
@@ -98,22 +96,12 @@ export const AdminHeader = () => {
                   <Clock className="h-3 w-3 mr-1" />
                   {formatTimeRemaining(timeRemaining)}
                 </Badge>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={handleTestingModeDeactivate}
-                  className="text-red-600 border-red-300 hover:bg-red-50"
-                >
+                <Button variant="outline" size="sm" onClick={handleTestingModeDeactivate} className="text-red-600 border-red-300 hover:bg-red-50">
                   Deactivate Testing
                 </Button>
-              </div>
-            ) : (
-              <AlertDialog>
+              </div> : <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="text-blue-600 border-blue-300 hover:bg-blue-50">
-                    <TestTube className="h-4 w-4 mr-2" />
-                    Activate Testing Mode
-                  </Button>
+                  
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
@@ -140,8 +128,7 @@ export const AdminHeader = () => {
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
-              </AlertDialog>
-            )}
+              </AlertDialog>}
             
             <Button variant="outline" onClick={() => setShowTodaysJobs(true)}>
               <Calendar className="h-4 w-4 mr-2" />
