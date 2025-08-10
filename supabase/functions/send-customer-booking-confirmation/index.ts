@@ -123,7 +123,7 @@ const handler = async (req: Request): Promise<Response> => {
           idempotency_key: idempotencyKey,
           operation_type: 'customer_email',
           request_hash: requestHash,
-          user_id: booking?.customer_id || null,
+          user_id: null,
           status: 'pending',
           expires_at: expiresAt,
           response_data: null,

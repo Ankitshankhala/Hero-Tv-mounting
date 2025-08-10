@@ -96,3 +96,9 @@ verify_jwt = false
 
 [functions.alert-metrics]
 verify_jwt = false
+
+[functions.send-customer-booking-confirmation]
+verify_jwt = false
+
+[functions.send-worker-assignment-notification]
+verify_jwt = false
