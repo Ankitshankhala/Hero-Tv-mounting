@@ -513,6 +513,27 @@ export type Database = {
           },
         ]
       }
+      notification_settings: {
+        Row: {
+          created_at: string
+          id: string
+          sms_enabled: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          sms_enabled?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          sms_enabled?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       onsite_charges: {
         Row: {
           added_by: string
@@ -1310,6 +1331,10 @@ export type Database = {
       get_tax_rate_by_state: {
         Args: { state_abbreviation: string }
         Returns: number
+      }
+      is_sms_enabled: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
       }
       resend_worker_sms: {
         Args: { booking_id_param: string }
