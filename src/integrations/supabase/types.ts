@@ -1319,6 +1319,10 @@ export type Database = {
         Args: { p_notification_id: string; p_response: string }
         Returns: boolean
       }
+      retry_unsent_notifications: {
+        Args: { p_lookback_minutes?: number; p_grace_minutes?: number }
+        Returns: Json
+      }
       set_worker_weekly_availability: {
         Args: { p_worker_id: string; p_availability: Json }
         Returns: boolean
