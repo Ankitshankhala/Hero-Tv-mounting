@@ -11,7 +11,7 @@ export interface JobFilters {
 
 const defaultFilters: JobFilters = {
   afterLastJob: false,
-  sortBy: 'earliest',
+  sortBy: 'newest',
   statuses: [],
   searchTerm: '',
   serviceTypes: []
@@ -84,7 +84,28 @@ export const useJobFilters = (jobs: any[]) => {
     }
 
     // Sort jobs
+    const getStatusWeight = (status: string) => {
+      const weightMap: Record<string, number> = {
+        in_progress: 0,
+        scheduled: 0,
+        confirmed: 0,
+        pending: 1,
+        assigned: 1,
+        // Default bucket for active/other statuses
+        // Completed-like statuses go to bottom
+        completed: 3,
+        cancelled: 3,
+        canceled: 3,
+        failed: 3,
+      };
+      return weightMap[status] ?? 2;
+    };
+
     result.sort((a, b) => {
+      const wa = getStatusWeight(a.status);
+      const wb = getStatusWeight(b.status);
+      if (wa !== wb) return wa - wb;
+
       switch (filters.sortBy) {
         case 'earliest':
           return new Date(`${a.scheduled_date} ${a.scheduled_start}`).getTime() - 
@@ -120,7 +141,7 @@ export const useJobFilters = (jobs: any[]) => {
            filters.statuses.length > 0 || 
            filters.searchTerm.trim() !== '' ||
            filters.serviceTypes.length > 0 ||
-           filters.sortBy !== 'earliest';
+           filters.sortBy !== 'newest';
   }, [filters]);
 
   // Get filter summary
