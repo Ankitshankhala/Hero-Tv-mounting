@@ -59,7 +59,7 @@ export const BookingTable = React.memo(({
   const [isBulkResending, setIsBulkResending] = useState(false);
   const { toast } = useToast();
   const { resendWorkerEmail, resendCustomerEmail, resendWorkerSms } = useSmsNotifications();
-  const { failureMap } = useNotificationFailures(bookings.map(b => b.id));
+  const { failureMap, refetch: refetchNotificationStatuses } = useNotificationFailures(bookings.map(b => b.id));
   const getStatusBadge = (status: string) => {
     const statusConfig = {
       pending: {
@@ -277,8 +277,9 @@ export const BookingTable = React.memo(({
       });
     } finally {
       setIsResending(null);
+      refetchNotificationStatuses();
     }
-  }, [resendWorkerEmail, resendCustomerEmail, resendWorkerSms, toast]);
+  }, [resendWorkerEmail, resendCustomerEmail, resendWorkerSms, toast, refetchNotificationStatuses]);
 
   // Selection helpers
   const failedIds = useMemo(() => Object.keys(failureMap || {}), [failureMap]);
@@ -333,8 +334,9 @@ export const BookingTable = React.memo(({
       toast({ title: 'Bulk resend failed', variant: 'destructive' });
     } finally {
       setIsBulkResending(false);
+      refetchNotificationStatuses();
     }
-  }, [selectedIds, resendWorkerEmail, resendCustomerEmail, resendWorkerSms, toast]);
+  }, [selectedIds, resendWorkerEmail, resendCustomerEmail, resendWorkerSms, toast, refetchNotificationStatuses]);
 
   const handleModalClose = useCallback(() => {
     setSelectedBooking(null);
