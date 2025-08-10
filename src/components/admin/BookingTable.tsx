@@ -2,13 +2,14 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Edit, Trash2, DollarSign, UserPlus, CheckCircle } from 'lucide-react';
+import { Edit, Trash2, DollarSign, UserPlus, CheckCircle, Mail } from 'lucide-react';
 import { EditBookingModal } from './EditBookingModal';
 import { DeleteBookingModal } from './DeleteBookingModal';
 import { ManualChargeModal } from '@/components/worker/payment/ManualChargeModal';
 import { AssignWorkerModal } from './AssignWorkerModal';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useSmsNotifications } from '@/hooks/useSmsNotifications';
 interface Booking {
   id: string;
   customer?: {
@@ -50,9 +51,9 @@ export const BookingTable = React.memo(({
   const [showManualChargeModal, setShowManualChargeModal] = useState(false);
   const [showAssignWorkerModal, setShowAssignWorkerModal] = useState(false);
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
-  const {
-    toast
-  } = useToast();
+  const [isResending, setIsResending] = useState<string | null>(null);
+  const { toast } = useToast();
+  const { resendWorkerEmail, resendCustomerEmail, resendWorkerSms } = useSmsNotifications();
   const getStatusBadge = (status: string) => {
     const statusConfig = {
       pending: {
@@ -244,6 +245,35 @@ export const BookingTable = React.memo(({
       setIsUpdating(null);
     }
   }, [onBookingUpdate, toast]);
+
+  const handleResendNotifications = useCallback(async (booking: Booking) => {
+    setIsResending(booking.id);
+    try {
+      // Fire all relevant notifications concurrently
+      const results = await Promise.allSettled([
+        resendWorkerEmail(booking.id),
+        resendCustomerEmail(booking.id),
+        resendWorkerSms(booking.id),
+      ]);
+      // Basic summary toast; individual hooks also show detailed toasts
+      const anySuccess = results.some(r => r.status === 'fulfilled' && r.value === true);
+      toast({
+        title: anySuccess ? "Notifications re-sent" : "Notifications failed",
+        description: anySuccess ? "Worker and customer notifications have been re-triggered." : "Could not resend notifications. Check logs.",
+        variant: anySuccess ? "default" : "destructive",
+      });
+    } catch (error) {
+      console.error('Error resending notifications:', error);
+      toast({
+        title: "Error",
+        description: "Failed to resend notifications",
+        variant: "destructive",
+      });
+    } finally {
+      setIsResending(null);
+    }
+  }, [resendWorkerEmail, resendCustomerEmail, resendWorkerSms, toast]);
+
   const handleModalClose = useCallback(() => {
     setSelectedBooking(null);
     setShowEditModal(false);
@@ -321,21 +351,60 @@ export const BookingTable = React.memo(({
                   <TableCell className="font-medium">${booking.total_price || 0}</TableCell>
                    <TableCell>
                      <div className="flex space-x-2">
-                       {needsWorkerAssignment && <Button variant="outline" size="sm" onClick={() => handleAssignWorker(booking)} className="text-green-600 hover:text-green-700" title="Assign Worker">
+                       {needsWorkerAssignment && (
+                         <Button
+                           variant="outline"
+                           size="sm"
+                           onClick={() => handleAssignWorker(booking)}
+                           className="text-green-600 hover:text-green-700"
+                           title="Assign Worker"
+                         >
                            <UserPlus className="h-4 w-4" />
-                         </Button>}
-                       {canMarkComplete(booking) && <Button variant="outline" size="sm" onClick={() => handleMarkComplete(booking)} disabled={isUpdating === booking.id} className="text-green-600 hover:text-green-700" title="Mark as Completed">
+                         </Button>
+                       )}
+
+                       {canMarkComplete(booking) && (
+                         <Button
+                           variant="outline"
+                           size="sm"
+                           onClick={() => handleMarkComplete(booking)}
+                           disabled={isUpdating === booking.id}
+                           className="text-green-600 hover:text-green-700"
+                           title="Mark as Completed"
+                         >
                            <CheckCircle className="h-4 w-4" />
-                         </Button>}
+                         </Button>
+                       )}
+
+                       {!needsWorkerAssignment && (
+                         <Button
+                           variant="outline"
+                           size="sm"
+                           onClick={() => handleResendNotifications(booking)}
+                           disabled={isResending === booking.id}
+                           title="Resend Notifications"
+                         >
+                           <Mail className="h-4 w-4" />
+                         </Button>
+                       )}
+
                        <Button variant="outline" size="sm" onClick={() => handleEdit(booking)}>
                          <Edit className="h-4 w-4" />
                        </Button>
                        <Button variant="outline" size="sm" onClick={() => handleDelete(booking)}>
                          <Trash2 className="h-4 w-4" />
                        </Button>
-                       {canChargeFee && <Button variant="outline" size="sm" onClick={() => handleLateFeeCharge(booking)} className="text-orange-600 hover:text-orange-700" title="Charge Late Fee">
+                       {canChargeFee && (
+                         <Button
+                           variant="outline"
+                           size="sm"
+                           onClick={() => handleLateFeeCharge(booking)}
+                           className="text-orange-600 hover:text-orange-700"
+                           title="Charge Late Fee"
+                         >
                            <DollarSign className="h-4 w-4" />
-                         </Button>}
+                         </Button>
+                       )}
                      </div>
                    </TableCell>
                 </TableRow>;
