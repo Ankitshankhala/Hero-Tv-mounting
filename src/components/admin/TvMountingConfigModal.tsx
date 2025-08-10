@@ -218,7 +218,7 @@ export const TvMountingConfigModal: React.FC<TvMountingConfigModalProps> = ({
                       />
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
-                          <span className="font-medium text-gray-900">Stone/Brick/Tile Wall</span>
+                          <span className="font-medium text-gray-900">Stone/Brick/Steel/Tile Wall</span>
                           {config.wallType !== 'standard' && (
                             <span className="text-green-600 font-semibold">
                               +${stoneWallService?.base_price || 50}

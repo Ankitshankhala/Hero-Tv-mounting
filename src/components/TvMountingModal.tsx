@@ -145,7 +145,7 @@ export const TvMountingModal = ({ open, onClose, onAddToCart, services }: TvMoun
                         className="w-5 h-5 text-blue-600 bg-slate-700 border-slate-600 rounded focus:ring-blue-500"
                       />
                       <div className="flex-1">
-                        <div className="font-medium text-white">Stone/Brick/Tile Wall</div>
+                        <div className="font-medium text-white">Stone/Brick/Steel/Tile Wall</div>
                         <div className="text-sm text-slate-400">
                           Additional charge for specialty wall surfaces (+$50)
                         </div>

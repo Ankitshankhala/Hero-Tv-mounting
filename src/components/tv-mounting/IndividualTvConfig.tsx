@@ -96,7 +96,7 @@ export const IndividualTvConfig: React.FC<IndividualTvConfigProps> = ({
             />
             <div className="flex-1">
               <div className="flex items-center justify-between">
-                <span className="font-medium text-white">Stone/Brick/Tile Wall</span>
+                <span className="font-medium text-white">Stone/Brick/Steel/Tile Wall</span>
                 {tvConfig.wallType !== 'standard' && (
                   <span className="text-green-400 font-semibold">
                     +${stoneWallService?.base_price || 50}
