@@ -157,6 +157,14 @@ const handler = async (req: Request): Promise<Response> => {
       .select('service_name, base_price, quantity, configuration')
       .eq('booking_id', requestData.bookingId);
 
+    // Get invoice data for actual total amount
+    console.log('Fetching invoice for booking:', requestData.bookingId);
+    const { data: invoice, error: invoiceError } = await supabase
+      .from('invoices')
+      .select('total_amount, amount')
+      .eq('booking_id', requestData.bookingId)
+      .maybeSingle();
+
     if (servicesError) {
       console.error('Booking services fetch error:', servicesError);
       throw new Error(`Failed to fetch booking services: ${servicesError?.message}`);
@@ -218,16 +226,19 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('Customer email determined:', customerEmail);
     console.log('Sending email to customer:', customerEmail, 'for booking:', requestData.bookingId);
 
-    // Format service details
+    // Format service details with actual service prices
     const serviceDetails = bookingServices?.length ? 
       bookingServices.map((service: any) => {
-        return `${service.service_name} (Qty: ${service.quantity}) - $${service.base_price}`;
+        const servicePrice = service.base_price * service.quantity;
+        return `${service.service_name} (Qty: ${service.quantity}) - $${servicePrice.toFixed(2)}`;
       }).join('<br>') : 'Service details unavailable';
 
-    const totalAmount = bookingServices?.length ? 
-      bookingServices.reduce((sum: number, service: any) => 
-        sum + (service.base_price * service.quantity), 0
-      ) : 0;
+    // Use invoice total amount if available, otherwise calculate from services
+    const totalAmount = invoice?.total_amount || invoice?.amount || 
+      (bookingServices?.length ? 
+        bookingServices.reduce((sum: number, service: any) => 
+          sum + (service.base_price * service.quantity), 0
+        ) : 0);
 
     // Format scheduled date and time
     const scheduledDateTime = new Date(`${booking.scheduled_date}T${booking.scheduled_start}`);
@@ -242,6 +253,24 @@ const handler = async (req: Request): Promise<Response> => {
       minute: '2-digit',
       hour12: true
     });
+
+    // Format user-friendly status
+    const formatStatus = (status: string) => {
+      switch (status) {
+        case 'payment_authorized':
+          return 'Payment Authorised';
+        case 'confirmed':
+          return 'Confirmed';
+        case 'completed':
+          return 'Completed';
+        case 'payment_pending':
+          return 'Payment Pending';
+        case 'pending':
+          return 'Pending';
+        default:
+          return status.charAt(0).toUpperCase() + status.slice(1);
+      }
+    };
 
     // Worker information (if assigned)
     const workerInfo = workerUser?.name ? 
@@ -259,15 +288,13 @@ const handler = async (req: Request): Promise<Response> => {
       <p><strong>Booking ID:</strong> ${requestData.bookingId}</p>
       <p><strong>Scheduled Date:</strong> ${formattedDate}</p>
       <p><strong>Scheduled Time:</strong> ${formattedTime}</p>
-      <p><strong>Status:</strong> ${booking.status}</p>
+      <p><strong>Status:</strong> ${formatStatus(booking.status)}</p>
       
       <h3>Services:</h3>
       <p>${serviceDetails}</p>
       <p><strong>Total Amount:</strong> $${totalAmount.toFixed(2)}</p>
       
       ${workerInfo}
-      
-      ${booking.location_notes ? `<p><strong>Location Notes:</strong> ${booking.location_notes}</p>` : ''}
       
       <p>If you have any questions, please contact us at:</p>
       <p>Email: Captain@herotvmounting.com<br>
