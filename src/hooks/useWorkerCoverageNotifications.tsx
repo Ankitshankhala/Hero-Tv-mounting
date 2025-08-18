@@ -119,7 +119,7 @@ export const useWorkerCoverageNotifications = () => {
   useEffect(() => {
     fetchNotifications();
 
-    // Set up real-time subscription for new notifications
+    // Set up real-time subscription for new notifications and updates
     if (user) {
       const channel = supabase
         .channel(`worker-coverage-${user.id}`)
@@ -137,6 +137,18 @@ export const useWorkerCoverageNotifications = () => {
               title: "New Coverage Request",
               description: "You have a new job coverage request",
             });
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'worker_coverage_notifications',
+            filter: `worker_id=eq.${user.id}`,
+          },
+          () => {
+            fetchNotifications();
           }
         )
         .subscribe();

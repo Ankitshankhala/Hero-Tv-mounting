@@ -290,10 +290,8 @@ const WorkerDashboard = () => {
           </Button>
         </div>
 
-        {/* Add Coverage Notifications at the top */}
-        <div className="mb-6">
-          <CoverageNotifications />
-        </div>
+        {/* Coverage Notifications - only shows when there are active requests */}
+        <CoverageNotifications />
 
         {/* Test booking creator for development */}
         {process.env.NODE_ENV === 'development' && (

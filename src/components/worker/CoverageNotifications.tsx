@@ -17,33 +17,9 @@ const CoverageNotifications = () => {
 
   const pendingNotifications = getPendingNotifications();
 
-  if (loading) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-            <span className="ml-2">Loading coverage requests...</span>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (pendingNotifications.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Bell className="h-5 w-5" />
-            <span>Coverage Requests</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-gray-500 text-center py-4">No pending coverage requests</p>
-        </CardContent>
-      </Card>
-    );
+  // Only show the component if there are pending notifications
+  if (loading || pendingNotifications.length === 0) {
+    return null;
   }
 
   const getDistanceBadge = (priority: number) => {
@@ -60,7 +36,7 @@ const CoverageNotifications = () => {
   };
 
   return (
-    <Card>
+    <Card className="mb-6">
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
           <Bell className="h-5 w-5" />
