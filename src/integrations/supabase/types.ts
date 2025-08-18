@@ -243,6 +243,7 @@ export type Database = {
         Row: {
           booking_id: string | null
           created_at: string
+          email_type: string | null
           error_message: string | null
           id: string
           message: string
@@ -254,6 +255,7 @@ export type Database = {
         Insert: {
           booking_id?: string | null
           created_at?: string
+          email_type?: string | null
           error_message?: string | null
           id?: string
           message: string
@@ -265,6 +267,7 @@ export type Database = {
         Update: {
           booking_id?: string | null
           created_at?: string
+          email_type?: string | null
           error_message?: string | null
           id?: string
           message?: string
