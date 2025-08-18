@@ -104,7 +104,8 @@ const WorkerDashboard = () => {
       } = await supabase.from('bookings').select(`
           *,
           customer:users!customer_id(name, phone),
-          service:services!service_id(name, description, base_price, duration_minutes)
+          service:services!service_id(name, description, base_price, duration_minutes),
+          booking_services(service_name, quantity, base_price, configuration)
         `).eq('worker_id', user.id).order('updated_at', {
         ascending: false
       }).order('scheduled_date', {
