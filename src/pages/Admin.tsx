@@ -24,7 +24,7 @@ import { InvoiceMonitoringPanel } from '@/components/admin/InvoiceMonitoringPane
 import { EmailLogsManager } from '@/components/admin/EmailLogsManager';
 import { SEO } from '@/components/SEO';
 import { NotificationsSettings } from '@/components/admin/NotificationsSettings';
-import { SidebarProvider } from '@/components/ui/sidebar';
+import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarTrigger } from '@/components/ui/sidebar';
 
 const Admin = () => {
   const { user, profile, loading } = useAuth();
