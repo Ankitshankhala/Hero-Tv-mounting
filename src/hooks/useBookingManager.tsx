@@ -1,8 +1,8 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { calculateBookingTotal } from '@/utils/pricing';
+import { DEFAULT_SERVICE_TIMEZONE } from '@/utils/timezoneUtils';
 
 interface BookingData {
   id: string;
@@ -91,17 +91,20 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
       console.log('Booking', booking.id.slice(0, 8), 'fallback price:', totalPrice);
     }
 
-    // Create backward-compatible format
+    // Create backward-compatible format while preserving new timezone fields
     return {
       ...booking,
       customer,
       worker,
       service,
       services: service ? [service] : [],
-      scheduled_at: `${booking.scheduled_date}T${booking.scheduled_start}`,
+      // Use new timezone-aware field if available, otherwise construct from legacy fields
+      scheduled_at: booking.start_time_utc || `${booking.scheduled_date}T${booking.scheduled_start}`,
       customer_address: booking.location_notes || 'No address provided',
       total_price: totalPrice,
-      booking_services: bookingServices
+      booking_services: bookingServices,
+      // Ensure service_tz is set for timezone calculations
+      service_tz: booking.service_tz || DEFAULT_SERVICE_TIMEZONE
     };
   };
 
@@ -110,9 +113,11 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
       setLoading(true);
       console.log('Fetching bookings...');
 
+      // Order by start_time_utc first, then fallback to legacy fields
       const { data: bookingsData, error: bookingsError } = await supabase
         .from('bookings')
         .select('*')
+        .order('start_time_utc', { ascending: false, nullsLast: true })
         .order('created_at', { ascending: false });
 
       if (bookingsError) {

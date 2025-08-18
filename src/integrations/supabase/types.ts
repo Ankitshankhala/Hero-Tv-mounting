@@ -139,6 +139,8 @@ export type Database = {
           is_archived: boolean | null
           late_fee_amount: number | null
           late_fee_charged: boolean | null
+          local_service_date: string | null
+          local_service_time: string | null
           location_notes: string | null
           payment_intent_id: string | null
           payment_status: string | null
@@ -147,6 +149,8 @@ export type Database = {
           scheduled_date: string
           scheduled_start: string
           service_id: string
+          service_tz: string | null
+          start_time_utc: string | null
           status: Database["public"]["Enums"]["booking_status"] | null
           stripe_customer_id: string | null
           stripe_payment_method_id: string | null
@@ -164,6 +168,8 @@ export type Database = {
           is_archived?: boolean | null
           late_fee_amount?: number | null
           late_fee_charged?: boolean | null
+          local_service_date?: string | null
+          local_service_time?: string | null
           location_notes?: string | null
           payment_intent_id?: string | null
           payment_status?: string | null
@@ -172,6 +178,8 @@ export type Database = {
           scheduled_date: string
           scheduled_start: string
           service_id: string
+          service_tz?: string | null
+          start_time_utc?: string | null
           status?: Database["public"]["Enums"]["booking_status"] | null
           stripe_customer_id?: string | null
           stripe_payment_method_id?: string | null
@@ -189,6 +197,8 @@ export type Database = {
           is_archived?: boolean | null
           late_fee_amount?: number | null
           late_fee_charged?: boolean | null
+          local_service_date?: string | null
+          local_service_time?: string | null
           location_notes?: string | null
           payment_intent_id?: string | null
           payment_status?: string | null
@@ -197,6 +207,8 @@ export type Database = {
           scheduled_date?: string
           scheduled_start?: string
           service_id?: string
+          service_tz?: string | null
+          start_time_utc?: string | null
           status?: Database["public"]["Enums"]["booking_status"] | null
           stripe_customer_id?: string | null
           stripe_payment_method_id?: string | null

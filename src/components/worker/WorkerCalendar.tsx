@@ -9,6 +9,8 @@ import { CalendarHeader } from './calendar/CalendarHeader';
 import { CalendarContent } from './calendar/CalendarContent';
 import { CalendarLegend } from './calendar/CalendarLegend';
 import { CalendarLoading } from './calendar/CalendarLoading';
+import { formatBookingTimeForContext, getUserTimezone } from '@/utils/timezoneUtils';
+import { fromZonedTime } from 'date-fns-tz';
 
 interface Job {
   id: string;
@@ -61,9 +63,10 @@ const WorkerCalendar = ({ workerId }: WorkerCalendarProps) => {
         .select(`
           *,
           customer:users!customer_id(name, phone),
-          service:services!service_id(name, description, duration_minutes, base_price)
+          service:services(name, description, duration_minutes, base_price)
         `)
         .eq('worker_id', targetWorkerId)
+        .order('start_time_utc', { ascending: true, nullsLast: true })
         .order('scheduled_date', { ascending: true })
         .order('scheduled_start', { ascending: true });
 
@@ -76,10 +79,29 @@ const WorkerCalendar = ({ workerId }: WorkerCalendarProps) => {
         console.log('All jobs data:', data);
       }
 
+      const workerTimezone = getUserTimezone();
+
       const transformedJobs: Job[] = (data || []).map(job => {
-        const startDateTime = new Date(`${job.scheduled_date}T${job.scheduled_start}`);
+        let startDateTime: Date;
+        let endDateTime: Date;
+
+        // Use timezone-aware conversion
+        if (job.start_time_utc) {
+          // Use canonical UTC timestamp
+          startDateTime = new Date(job.start_time_utc);
+        } else if (job.local_service_date && job.local_service_time && job.service_tz) {
+          // Convert from local service time to UTC
+          const localDateTime = `${job.local_service_date} ${job.local_service_time}`;
+          startDateTime = fromZonedTime(new Date(`${localDateTime}T00:00:00`), job.service_tz);
+        } else {
+          // Fallback to legacy fields - assume service timezone
+          const legacyDateTime = `${job.scheduled_date}T${job.scheduled_start}`;
+          startDateTime = fromZonedTime(new Date(legacyDateTime), job.service_tz || 'America/Chicago');
+        }
+
+        // Calculate end time based on service duration
         const durationMinutes = job.service?.duration_minutes || 60;
-        const endDateTime = new Date(startDateTime.getTime() + durationMinutes * 60000);
+        endDateTime = new Date(startDateTime.getTime() + durationMinutes * 60000);
 
         return {
           id: job.id,
