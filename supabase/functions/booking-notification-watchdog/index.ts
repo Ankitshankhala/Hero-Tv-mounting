@@ -135,10 +135,10 @@ serve(async (req) => {
       );
     }
 
-    // Load booking basics
+    // Load booking basics with payment status for enhanced coverage
     const { data: booking, error: bookingErr } = await supabase
       .from("bookings")
-      .select("id, created_at, worker_id, customer_id, guest_customer_info")
+      .select("id, created_at, worker_id, customer_id, guest_customer_info, payment_status, status")
       .eq("id", bookingId)
       .single();
 
@@ -200,12 +200,18 @@ serve(async (req) => {
       });
     };
 
+    // Enhanced email coverage checks
     const customerEmailSent = wasEmailSentTo(customerEmail || undefined, 'booking_confirmation');
     const workerEmailSent = wasEmailSentTo(workerEmail || undefined, 'worker_assignment');
+    const paymentPendingSent = wasEmailSentTo(customerEmail || undefined, 'payment_pending');
+    const paymentReminderSent = wasEmailSentTo(customerEmail || undefined, 'payment_reminder');
 
     const actions: string[] = [];
+    const now = Date.now();
+    const bookingAge = now - createdTs;
+    const twoHoursMs = 2 * 60 * 60 * 1000;
 
-    // Only (re)send emails that are missing
+    // 1. Core confirmation emails (existing logic)
     if (!customerEmailSent && customerEmail) {
       const { error } = await supabase.functions.invoke("send-customer-booking-confirmation", {
         body: { bookingId },
@@ -220,6 +226,25 @@ serve(async (req) => {
       });
       if (!error) actions.push("sent_worker_email");
       else console.error("Watchdog: failed to invoke worker email", error);
+    }
+
+    // 2. Payment pending notices (for new bookings)
+    if (booking.payment_status === 'pending' && !paymentPendingSent && customerEmail) {
+      const { error } = await supabase.functions.invoke("send-payment-pending-notice", {
+        body: { bookingId },
+      });
+      if (!error) actions.push("sent_payment_pending");
+      else console.error("Watchdog: failed to invoke payment pending notice", error);
+    }
+
+    // 3. Payment reminders (for bookings older than 2 hours with pending payment)
+    if (booking.payment_status === 'pending' && bookingAge > twoHoursMs && 
+        !paymentReminderSent && customerEmail) {
+      const { error } = await supabase.functions.invoke("send-payment-reminder-email", {
+        body: { bookingId },
+      });
+      if (!error) actions.push("sent_payment_reminder");
+      else console.error("Watchdog: failed to invoke payment reminder", error);
     }
 
     // Log summary
