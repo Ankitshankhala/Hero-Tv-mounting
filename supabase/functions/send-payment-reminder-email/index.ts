@@ -35,20 +35,44 @@ serve(async (req) => {
       throw new Error("Booking ID is required");
     }
 
-    // Get booking details
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(bookingId)) {
+      throw new Error("Invalid booking ID format. Must be a valid UUID.");
+    }
+
+    // Get booking details first
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
-      .select(`
-        *,
-        customer:users!bookings_customer_id_fkey(name, email, phone),
-        booking_services(service_name, quantity, base_price, configuration)
-      `)
+      .select('*')
       .eq('id', bookingId)
       .single();
 
     if (bookingError || !booking) {
       throw new Error(`Booking not found: ${bookingError?.message}`);
     }
+
+    // Get customer information if it's a registered user
+    let customer = null;
+    if (booking.customer_id) {
+      const { data: customerData } = await supabase
+        .from('users')
+        .select('name, email, phone')
+        .eq('id', booking.customer_id)
+        .single();
+      customer = customerData;
+    }
+
+    // Get booking services separately
+    const { data: bookingServices } = await supabase
+      .from('booking_services')
+      .select('service_name, quantity, base_price, configuration')
+      .eq('booking_id', bookingId);
+
+    // Add services to booking object for compatibility
+    booking.customer = customer;
+    booking.booking_services = bookingServices || [];
+
 
     logStep("Booking retrieved", { status: booking.status, payment_status: booking.payment_status });
 

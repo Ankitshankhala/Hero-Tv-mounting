@@ -1,23 +1,40 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Mail, Send, CheckCircle, AlertCircle, Clock } from 'lucide-react';
+import { Mail, Send, CheckCircle, AlertCircle, Clock, Search } from 'lucide-react';
 
 export const EmailNotificationManager = () => {
   const [bookingId, setBookingId] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [recentEmails, setRecentEmails] = useState<any[]>([]);
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [loadingBookings, setLoadingBookings] = useState(false);
   const { toast } = useToast();
+
+  const validateUUID = (id: string): boolean => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(id);
+  };
 
   const sendTestEmail = async (emailType: 'confirmation' | 'reminder') => {
     if (!bookingId) {
       toast({
         title: "Error",
         description: "Please enter a booking ID",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!validateUUID(bookingId)) {
+      toast({
+        title: "Invalid Booking ID",
+        description: "Please enter a valid UUID format (e.g. 11d71f72-1c1c-4b40-84fd-04817e774831)",
         variant: "destructive",
       });
       return;
@@ -59,6 +76,15 @@ export const EmailNotificationManager = () => {
       toast({
         title: "Error",
         description: "Please enter a booking ID",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!validateUUID(bookingId)) {
+      toast({
+        title: "Invalid Booking ID",
+        description: "Please enter a valid UUID format (e.g. 11d71f72-1c1c-4b40-84fd-04817e774831)",
         variant: "destructive",
       });
       return;
@@ -106,6 +132,29 @@ export const EmailNotificationManager = () => {
     }
   };
 
+  const fetchBookings = async () => {
+    setLoadingBookings(true);
+    try {
+      const { data, error } = await supabase
+        .from('bookings')
+        .select('id, guest_customer_info, scheduled_date, scheduled_start, payment_status, status')
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (error) throw error;
+      setBookings(data || []);
+    } catch (error) {
+      console.error('Error fetching bookings:', error);
+    } finally {
+      setLoadingBookings(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRecentEmails();
+    fetchBookings();
+  }, []);
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'sent':
@@ -130,16 +179,43 @@ export const EmailNotificationManager = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <Input
-              placeholder="Enter Booking ID"
-              value={bookingId}
-              onChange={(e) => setBookingId(e.target.value)}
-              className="flex-1"
-            />
-            <Button onClick={fetchRecentEmails} variant="outline">
-              Refresh Logs
-            </Button>
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <Input
+                placeholder="Enter Booking ID (UUID format)"
+                value={bookingId}
+                onChange={(e) => setBookingId(e.target.value)}
+                className="flex-1"
+              />
+              <Button onClick={fetchBookings} variant="outline" disabled={loadingBookings}>
+                <Search className="h-4 w-4 mr-2" />
+                Find Bookings
+              </Button>
+              <Button onClick={fetchRecentEmails} variant="outline">
+                Refresh Logs
+              </Button>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Or select a recent booking:</label>
+              <Select value={bookingId} onValueChange={setBookingId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a booking..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {bookings.map((booking) => {
+                    const customerName = booking.guest_customer_info?.name || 'Unknown Customer';
+                    const date = new Date(booking.scheduled_date).toLocaleDateString();
+                    const shortId = booking.id.slice(-8).toUpperCase();
+                    return (
+                      <SelectItem key={booking.id} value={booking.id}>
+                        #{shortId} - {customerName} ({date}) - {booking.payment_status}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

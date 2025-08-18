@@ -32,6 +32,12 @@ serve(async (req) => {
       throw new Error("Booking ID is required");
     }
 
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(bookingId)) {
+      throw new Error("Invalid booking ID format. Must be a valid UUID.");
+    }
+
     // Get booking details to determine which email to send
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
