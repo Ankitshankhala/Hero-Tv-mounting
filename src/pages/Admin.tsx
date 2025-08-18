@@ -24,6 +24,7 @@ import { InvoiceMonitoringPanel } from '@/components/admin/InvoiceMonitoringPane
 import { EmailLogsManager } from '@/components/admin/EmailLogsManager';
 import { SEO } from '@/components/SEO';
 import { NotificationsSettings } from '@/components/admin/NotificationsSettings';
+import { EmailNotificationManager } from '@/components/admin/EmailNotificationManager';
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarTrigger } from '@/components/ui/sidebar';
 
 const Admin = () => {
@@ -114,6 +115,8 @@ const Admin = () => {
         return <SMSLogsManager />;
       case 'email':
         return <EmailLogsManager />;
+      case 'email-notifications':
+        return <EmailNotificationManager />;
       case 'blog':
         return <BlogManager />;
       case 'coverage':

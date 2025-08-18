@@ -1370,6 +1370,10 @@ export type Database = {
         Args: { p_booking_id: string }
         Returns: Json
       }
+      send_email_for_booking: {
+        Args: { p_booking_id: string }
+        Returns: Json
+      }
       set_worker_weekly_availability: {
         Args: { p_availability: Json; p_worker_id: string }
         Returns: boolean

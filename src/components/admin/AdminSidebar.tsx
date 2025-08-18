@@ -45,6 +45,7 @@ export const AdminSidebar = ({ activeTab, onTabChange }: AdminSidebarProps) => {
     { id: 'invoice-monitoring', label: 'Invoice Monitor', icon: FileText },
     { id: 'sms', label: 'SMS Logs', icon: MessageSquare },
     { id: 'email', label: 'Email Logs', icon: Mail },
+    { id: 'email-notifications', label: 'Email System', icon: Mail },
     { id: 'blog', label: 'Blog', icon: FileText },
     { id: 'coverage', label: 'Coverage Requests', icon: MapPin },
     { id: 'settings', label: 'Settings', icon: Settings },
