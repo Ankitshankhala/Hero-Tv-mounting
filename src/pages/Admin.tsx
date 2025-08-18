@@ -31,6 +31,18 @@ const Admin = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard');
 
+  // Get sidebar state from cookie for persistence
+  const getSidebarState = () => {
+    if (typeof window !== 'undefined') {
+      const saved = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('sidebar:state='))
+        ?.split('=')[1];
+      return saved === 'true';
+    }
+    return false;
+  };
+
   console.log('Admin page - Auth state:', { user: user?.email, profile: profile?.role, loading });
 
   // Show loading while auth is being checked
@@ -121,7 +133,7 @@ const Admin = () => {
         noindex
       />
       <SidebarProvider
-        defaultOpen={false}
+        defaultOpen={getSidebarState()}
         className="w-full"
         style={{
           "--sidebar-width": "280px",
