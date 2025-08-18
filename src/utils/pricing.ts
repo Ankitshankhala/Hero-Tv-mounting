@@ -6,7 +6,7 @@ interface BookingService {
 }
 
 export function calculateServiceLinePrice(service: BookingService): number {
-  let price = service.base_price;
+  let price = Number(service.base_price) || 0;
   const config = service.configuration || {};
 
   // TV Mounting specific pricing
@@ -25,6 +25,7 @@ export function calculateServiceLinePrice(service: BookingService): number {
 export function calculateBookingTotal(services: BookingService[]): number {
   return services.reduce((sum, service) => {
     const servicePrice = calculateServiceLinePrice(service);
-    return sum + (servicePrice * service.quantity);
+    const quantity = Number(service.quantity) || 1;
+    return sum + (servicePrice * quantity);
   }, 0);
 }

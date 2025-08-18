@@ -170,11 +170,14 @@ export const BookingTable = React.memo(({
 
     return (
       <div className="space-y-1">
-        {visibleServices.map((service, index) => (
-          <div key={index} className="text-sm">
-            {service.service_name} {service.quantity > 1 && `× ${service.quantity}`}
-          </div>
-        ))}
+        {visibleServices.map((service, index) => {
+          const quantity = Number(service.quantity) || 1;
+          return (
+            <div key={index} className="text-sm">
+              {service.service_name} × {quantity}
+            </div>
+          );
+        })}
         {remainingCount > 0 && (
           <div className="text-xs text-muted-foreground">
             +{remainingCount} more
