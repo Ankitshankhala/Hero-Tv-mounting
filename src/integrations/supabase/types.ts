@@ -1374,8 +1374,10 @@ export type Database = {
         Returns: Json
       }
       run_automated_watchdog: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
+        Args:
+          | Record<PropertyKey, never>
+          | { p_batch_limit?: number; p_lookback_minutes?: number }
+        Returns: Json
       }
       send_email_for_booking: {
         Args: { p_booking_id: string }
