@@ -148,37 +148,20 @@ export const BookingTable = React.memo(({
     );
   };
   const formatServices = (booking: Booking) => {
-    const services = [];
+    // If we have booking_services data, use that directly
+    if (booking.booking_services && booking.booking_services.length > 0) {
+      return booking.booking_services.map(service => ({
+        service_name: service.service_name,
+        quantity: Number(service.quantity) || 1
+      }));
+    }
     
-    // Always include main service first
+    // Fallback to main service if no booking_services
     const mainServiceName = booking.service?.name || 
       (Array.isArray(booking.services) && booking.services[0]?.name) || 
       'TV Mounting';
-    services.push({ service_name: mainServiceName, quantity: 1 });
     
-    // Add expanded add-ons from booking_services configurations
-    if (booking.booking_services && booking.booking_services.length > 0) {
-      booking.booking_services.forEach(service => {
-        const config = service.configuration || {};
-        const qty = Number(service.quantity) || 1;
-        
-        // Add configuration-based add-ons
-        if (config.over65) {
-          services.push({ service_name: 'TV 65"+ Upgrade', quantity: qty });
-        }
-        if (config.frameMount) {
-          services.push({ service_name: 'Frame Mount', quantity: qty });
-        }
-        if (config.soundbar) {
-          services.push({ service_name: 'Soundbar Install', quantity: qty });
-        }
-        if (config.wallType && ['stone', 'brick', 'tile'].includes(config.wallType)) {
-          services.push({ service_name: `${config.wallType.charAt(0).toUpperCase() + config.wallType.slice(1)} Wall`, quantity: qty });
-        }
-      });
-    }
-    
-    return services.length > 1 ? services : [{ service_name: mainServiceName, quantity: 1 }];
+    return [{ service_name: mainServiceName, quantity: 1 }];
   };
 
   const renderServiceLines = (services: any[]) => {
