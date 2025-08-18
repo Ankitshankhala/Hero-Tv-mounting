@@ -27,17 +27,14 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
     return `${month} ${day}, ${displayHour}:${minutes} ${ampm}`;
   };
 
-  // Get primary service name
-  const getPrimaryService = () => {
+  // Get all service lines with quantities
+  const getServiceLines = () => {
     if (job.booking_services && job.booking_services.length > 0) {
-      const tvMounting = job.booking_services.find((s: any) => s.service_name === 'TV Mounting');
-      if (tvMounting) {
-        return `TV Mounting × ${tvMounting.quantity}`;
-      }
-      const firstService = job.booking_services[0];
-      return `${firstService.service_name} × ${firstService.quantity}`;
+      return job.booking_services.map((service: any) => 
+        `${service.service_name} × ${service.quantity}`
+      );
     }
-    return job.service?.name || 'Service';
+    return [job.service?.name || 'Service'];
   };
 
   // Get customer name
@@ -123,8 +120,12 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
                 {getCustomerName()}
               </span>
             </div>
-            <div className="text-sm text-muted-foreground truncate">
-              {getPrimaryService()}
+            <div className="text-sm text-muted-foreground space-y-1">
+              {getServiceLines().map((serviceLine, index) => (
+                <div key={index} className="truncate">
+                  {serviceLine}
+                </div>
+              ))}
             </div>
           </div>
 
