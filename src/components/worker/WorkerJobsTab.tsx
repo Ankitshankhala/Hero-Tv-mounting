@@ -1,10 +1,10 @@
-
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ExpandableJobCardContainer } from './ExpandableJobCardContainer';
 import { JobFiltersBar } from './JobFiltersBar';
 import { useJobFilters } from '@/hooks/useJobFilters';
-import { User } from 'lucide-react';
+import { Calendar, Briefcase, Archive } from 'lucide-react';
 import type { Database } from '@/integrations/supabase/types';
 
 type BookingStatus = Database['public']['Enums']['booking_status'];
@@ -15,38 +15,30 @@ interface WorkerJobsTabProps {
   onJobCancelled: () => void;
 }
 
-const WorkerJobsTab = ({ jobs, onStatusUpdate, onJobCancelled }: WorkerJobsTabProps) => {
-  const {
-    filters,
-    filteredJobs,
-    updateFilter,
-    clearFilters,
-    hasActiveFilters,
-    filterSummary,
-    debouncedSearch
-  } = useJobFilters(jobs);
+export const WorkerJobsTab = ({ jobs, onStatusUpdate, onJobCancelled }: WorkerJobsTabProps) => {
+  // Separate active and archived jobs
+  const activeJobs = useMemo(() => jobs.filter(job => !job.is_archived), [jobs]);
+  const archivedJobs = useMemo(() => jobs.filter(job => job.is_archived), [jobs]);
 
-  // Get available filter options from jobs data
+  // Use the job filters hook for both active and archived jobs
+  const activeFilters = useJobFilters(activeJobs);
+  const archivedFilters = useJobFilters(archivedJobs);
+
+  // Memoize filter options for performance
   const availableStatuses = useMemo(() => {
-    const statuses = [...new Set(jobs.map(job => job.status))];
+    const statuses = Array.from(new Set(jobs.map(job => job.status).filter(Boolean)));
     return statuses.sort();
   }, [jobs]);
 
   const availableServices = useMemo(() => {
-    const services = new Set<string>();
-    jobs.forEach(job => {
-      if (job.booking_services) {
-        job.booking_services.forEach((service: any) => {
-          services.add(service.service_name);
-        });
-      }
-    });
-    return Array.from(services).sort();
+    const services = Array.from(new Set(jobs.flatMap(job => 
+      job.booking_services?.map(service => service.service_name) || []
+    ).filter(Boolean)));
+    return services.sort();
   }, [jobs]);
 
-  return (
+  const renderJobsList = (filteredJobs: any[], filters: any, updateFilter: any, clearFilters: any, debouncedSearch: any, hasActiveFilters: boolean, filterSummary: any, isArchived = false) => (
     <div className="space-y-6">
-      {/* Filters Bar */}
       <JobFiltersBar
         filters={filters}
         onFilterChange={updateFilter}
@@ -58,36 +50,35 @@ const WorkerJobsTab = ({ jobs, onStatusUpdate, onJobCancelled }: WorkerJobsTabPr
         availableServices={availableServices}
       />
 
-      {/* Jobs List */}
       <Card className="bg-worker-card border-worker-border shadow-lg">
         <CardHeader className="bg-gradient-to-r from-worker-card to-worker-card-hover border-b border-worker-border">
           <CardTitle className="text-worker-card-foreground text-xl font-semibold">
-            My Jobs
+            {isArchived ? 'Archived Jobs' : 'Active Jobs'}
             {filterSummary.filtered !== filterSummary.total && (
               <span className="text-worker-muted text-base font-normal ml-2">
                 ({filterSummary.filtered} of {filterSummary.total})
               </span>
             )}
           </CardTitle>
-          <p className="text-worker-muted text-sm">Manage your assigned jobs and track progress</p>
+          <p className="text-worker-muted text-sm">
+            {isArchived ? 'View completed and archived jobs' : 'Manage your active job assignments'}
+          </p>
         </CardHeader>
         <CardContent className="p-6">
           {filteredJobs.length === 0 ? (
             <div className="text-center py-12">
               <div className="bg-worker-border/30 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                <User className="h-8 w-8 text-worker-muted" />
+                {isArchived ? <Archive className="h-8 w-8 text-worker-muted" /> : <Calendar className="h-8 w-8 text-worker-muted" />}
               </div>
-              {jobs.length === 0 ? (
-                <>
-                  <p className="text-worker-muted text-lg mb-2">No jobs assigned yet</p>
-                  <p className="text-worker-muted/70 text-sm">Check back later for new job assignments</p>
-                </>
-              ) : (
-                <>
-                  <p className="text-worker-muted text-lg mb-2">No jobs match your filters</p>
-                  <p className="text-worker-muted/70 text-sm">Try adjusting your filter criteria</p>
-                </>
-              )}
+              <p className="text-worker-muted text-lg mb-2">
+                {isArchived ? 'No archived jobs' : 'No active jobs'}
+              </p>
+              <p className="text-worker-muted/70 text-sm">
+                {isArchived 
+                  ? 'Completed and archived jobs will appear here'
+                  : 'Check back later for new job assignments'
+                }
+              </p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -103,6 +94,49 @@ const WorkerJobsTab = ({ jobs, onStatusUpdate, onJobCancelled }: WorkerJobsTabPr
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+
+  return (
+    <div className="space-y-6">
+      <Tabs defaultValue="active" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="active" className="flex items-center space-x-2">
+            <Briefcase className="h-4 w-4" />
+            <span>Active Jobs ({activeJobs.length})</span>
+          </TabsTrigger>
+          <TabsTrigger value="archived" className="flex items-center space-x-2">
+            <Archive className="h-4 w-4" />
+            <span>Archived Jobs ({archivedJobs.length})</span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="active" className="mt-6">
+          {renderJobsList(
+            activeFilters.filteredJobs,
+            activeFilters.filters,
+            activeFilters.updateFilter,
+            activeFilters.clearFilters,
+            activeFilters.debouncedSearch,
+            activeFilters.hasActiveFilters,
+            activeFilters.filterSummary,
+            false
+          )}
+        </TabsContent>
+
+        <TabsContent value="archived" className="mt-6">
+          {renderJobsList(
+            archivedFilters.filteredJobs,
+            archivedFilters.filters,
+            archivedFilters.updateFilter,
+            archivedFilters.clearFilters,
+            archivedFilters.debouncedSearch,
+            archivedFilters.hasActiveFilters,
+            archivedFilters.filterSummary,
+            true
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

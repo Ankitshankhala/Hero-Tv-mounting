@@ -13,6 +13,7 @@ export const BookingsManager = () => {
   const [filteredBookings, setFilteredBookings] = useState([]);
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterRegion, setFilterRegion] = useState('all');
+  const [archiveFilter, setArchiveFilter] = useState('active');
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const {
@@ -43,6 +44,14 @@ export const BookingsManager = () => {
   useEffect(() => {
     // Apply filters
     let filtered = bookings;
+    
+    // Archive filter
+    if (archiveFilter === 'active') {
+      filtered = filtered.filter(booking => !booking.is_archived);
+    } else if (archiveFilter === 'archived') {
+      filtered = filtered.filter(booking => booking.is_archived);
+    }
+    
     if (filterStatus !== 'all') {
       filtered = filtered.filter(booking => booking.status === filterStatus);
     }
@@ -53,7 +62,7 @@ export const BookingsManager = () => {
       filtered = filtered.filter(booking => booking.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) || booking.id.toLowerCase().includes(searchTerm.toLowerCase()) || booking.services?.some(service => service.name?.toLowerCase().includes(searchTerm.toLowerCase())) || booking.worker?.name?.toLowerCase().includes(searchTerm.toLowerCase()));
     }
     setFilteredBookings(filtered);
-  }, [bookings, filterStatus, filterRegion, searchTerm]);
+  }, [bookings, filterStatus, filterRegion, archiveFilter, searchTerm]);
   const handleBookingCreated = () => {
     console.log('Booking created, refreshing list');
     fetchBookings();
@@ -80,7 +89,7 @@ export const BookingsManager = () => {
             {loading ? <div className="flex items-center justify-center p-8">
                 <div className="text-gray-600">Loading bookings...</div>
               </div> : <>
-                <BookingFilters searchTerm={searchTerm} filterStatus={filterStatus} filterRegion={filterRegion} onSearchChange={setSearchTerm} onStatusChange={setFilterStatus} onRegionChange={setFilterRegion} />
+                <BookingFilters searchTerm={searchTerm} filterStatus={filterStatus} filterRegion={filterRegion} archiveFilter={archiveFilter} onSearchChange={setSearchTerm} onStatusChange={setFilterStatus} onRegionChange={setFilterRegion} onArchiveFilterChange={setArchiveFilter} />
 
                 <BookingTable bookings={filteredBookings} onBookingUpdate={handleBookingUpdated} />
               </>}

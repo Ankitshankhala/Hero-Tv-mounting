@@ -11,6 +11,8 @@ interface BookingData {
   scheduled_date: string;
   scheduled_start: string;
   status: string;
+  is_archived?: boolean;
+  archived_at?: string;
   location_notes?: string;
   created_at: string;
   customer?: any;

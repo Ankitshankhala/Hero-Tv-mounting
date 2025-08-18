@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -129,12 +129,14 @@ export type Database = {
       }
       bookings: {
         Row: {
+          archived_at: string | null
           cancellation_deadline: string | null
           created_at: string | null
           customer_id: string | null
           guest_customer_info: Json | null
           has_modifications: boolean | null
           id: string
+          is_archived: boolean | null
           late_fee_amount: number | null
           late_fee_charged: boolean | null
           location_notes: string | null
@@ -152,12 +154,14 @@ export type Database = {
           worker_id: string | null
         }
         Insert: {
+          archived_at?: string | null
           cancellation_deadline?: string | null
           created_at?: string | null
           customer_id?: string | null
           guest_customer_info?: Json | null
           has_modifications?: boolean | null
           id?: string
+          is_archived?: boolean | null
           late_fee_amount?: number | null
           late_fee_charged?: boolean | null
           location_notes?: string | null
@@ -175,12 +179,14 @@ export type Database = {
           worker_id?: string | null
         }
         Update: {
+          archived_at?: string | null
           cancellation_deadline?: string | null
           created_at?: string | null
           customer_id?: string | null
           guest_customer_info?: Json | null
           has_modifications?: boolean | null
           id?: string
+          is_archived?: boolean | null
           late_fee_amount?: number | null
           late_fee_charged?: boolean | null
           location_notes?: string | null
@@ -1227,21 +1233,21 @@ export type Database = {
       check_booking_inconsistencies: {
         Args: Record<PropertyKey, never>
         Returns: {
-          issue_type: string
           booking_id: string
           current_status: string
-          recommended_action: string
           details: string
+          issue_type: string
+          recommended_action: string
         }[]
       }
       cleanup_booking_inconsistencies: {
         Args: Record<PropertyKey, never>
         Returns: {
-          cleanup_type: string
           booking_id: string
-          old_status: string
-          new_status: string
+          cleanup_type: string
           description: string
+          new_status: string
+          old_status: string
         }[]
       }
       cleanup_expired_idempotency_records: {
@@ -1265,27 +1271,27 @@ export type Database = {
       }
       find_available_workers: {
         Args: {
-          p_zipcode: string
+          p_duration_minutes?: number
           p_scheduled_date: string
           p_scheduled_start: string
-          p_duration_minutes?: number
+          p_zipcode: string
         }
         Returns: {
+          distance_priority: number
+          worker_email: string
           worker_id: string
           worker_name: string
-          worker_email: string
           worker_phone: string
-          distance_priority: number
         }[]
       }
       find_existing_pending_booking: {
         Args: {
           p_customer_id?: string
+          p_grace_period_minutes?: number
           p_guest_email?: string
           p_guest_phone?: string
           p_scheduled_date?: string
           p_scheduled_start?: string
-          p_grace_period_minutes?: number
         }
         Returns: {
           booking_id: string
@@ -1296,12 +1302,12 @@ export type Database = {
       find_workers_for_coverage: {
         Args: { p_booking_id: string; p_max_distance_priority?: number }
         Returns: {
+          customer_zipcode: string
+          distance_priority: number
+          worker_email: string
           worker_id: string
           worker_name: string
-          worker_email: string
           worker_phone: string
-          distance_priority: number
-          customer_zipcode: string
         }[]
       }
       generate_invoice_number: {
@@ -1310,13 +1316,13 @@ export type Database = {
       }
       get_available_time_slots: {
         Args: {
-          p_zipcode: string
           p_date: string
           p_service_duration_minutes?: number
+          p_zipcode: string
         }
         Returns: {
-          time_slot: string
           available_workers: number
+          time_slot: string
           worker_ids: string[]
         }[]
       }
@@ -1345,7 +1351,7 @@ export type Database = {
         Returns: boolean
       }
       retry_unsent_notifications: {
-        Args: { p_lookback_minutes?: number; p_grace_minutes?: number }
+        Args: { p_grace_minutes?: number; p_lookback_minutes?: number }
         Returns: Json
       }
       retry_unsent_notifications_for_booking: {
@@ -1353,7 +1359,7 @@ export type Database = {
         Returns: Json
       }
       set_worker_weekly_availability: {
-        Args: { p_worker_id: string; p_availability: Json }
+        Args: { p_availability: Json; p_worker_id: string }
         Returns: boolean
       }
       trigger_manual_worker_assignment: {

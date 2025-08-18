@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Edit, Trash2, DollarSign, UserPlus, CheckCircle, Mail } from 'lucide-react';
+import { Edit, Trash2, DollarSign, UserPlus, CheckCircle, Mail, Archive, ArchiveRestore } from 'lucide-react';
 import { EditBookingModal } from './EditBookingModal';
 import { DeleteBookingModal } from './DeleteBookingModal';
 import { ManualChargeModal } from '@/components/worker/payment/ManualChargeModal';
@@ -32,6 +32,8 @@ interface Booking {
   };
   status: string;
   payment_status?: string;
+  is_archived?: boolean;
+  archived_at?: string;
   total_price?: number;
   customer_address?: string;
   location_notes?: string;
@@ -281,6 +283,35 @@ export const BookingTable = React.memo(({
     }
   }, [resendWorkerEmail, resendCustomerEmail, resendWorkerSms, toast, refetchNotificationStatuses]);
 
+  const handleArchiveToggle = useCallback(async (bookingId: string, isCurrentlyArchived: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .update({ 
+          is_archived: !isCurrentlyArchived,
+          archived_at: !isCurrentlyArchived ? new Date().toISOString() : null
+        })
+        .eq('id', bookingId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: `Booking ${!isCurrentlyArchived ? 'archived' : 'restored'} successfully`
+      });
+      if (onBookingUpdate) {
+        onBookingUpdate();
+      }
+    } catch (error) {
+      console.error('Error toggling archive status:', error);
+      toast({
+        title: "Error",
+        description: `Failed to ${!isCurrentlyArchived ? 'archive' : 'restore'} booking`,
+        variant: "destructive"
+      });
+    }
+  }, [onBookingUpdate, toast]);
+
   // Selection helpers
   const failedIds = useMemo(() => Object.keys(failureMap || {}), [failureMap]);
   const allSelected = useMemo(
@@ -401,6 +432,7 @@ export const BookingTable = React.memo(({
               <TableHead>Worker</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Payment Status</TableHead>
+              <TableHead>Archive Status</TableHead>
               <TableHead>Price</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
@@ -447,8 +479,13 @@ export const BookingTable = React.memo(({
                       <Badge variant="destructive" className="ml-2">Notif failed</Badge>
                     )}
                   </TableCell>
-                  <TableCell>{getPaymentStatusBadge(booking.payment_status, booking)}</TableCell>
-                  <TableCell className="font-medium">${booking.total_price || 0}</TableCell>
+                   <TableCell>{getPaymentStatusBadge(booking.payment_status, booking)}</TableCell>
+                   <TableCell>
+                     <Badge variant={booking.is_archived ? 'outline' : 'default'}>
+                       {booking.is_archived ? 'Archived' : 'Active'}
+                     </Badge>
+                   </TableCell>
+                   <TableCell className="font-medium">${booking.total_price || 0}</TableCell>
                    <TableCell className="min-w-[200px]">
                      <div className="flex flex-wrap gap-1">
                        {needsWorkerAssignment && (
@@ -488,12 +525,22 @@ export const BookingTable = React.memo(({
                          </Button>
                        )}
 
-                       <Button variant="outline" size="sm" onClick={() => handleEdit(booking)}>
-                         <Edit className="h-4 w-4" />
-                       </Button>
-                       <Button variant="outline" size="sm" onClick={() => handleDelete(booking)}>
-                         <Trash2 className="h-4 w-4" />
-                       </Button>
+                        <Button variant="outline" size="sm" onClick={() => handleEdit(booking)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => handleArchiveToggle(booking.id, booking.is_archived)}
+                          title={booking.is_archived ? "Restore Booking" : "Archive Booking"}
+                        >
+                          {booking.is_archived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
+                        </Button>
+                        
+                        <Button variant="outline" size="sm" onClick={() => handleDelete(booking)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                        {canChargeFee && (
                          <Button
                            variant="outline"
