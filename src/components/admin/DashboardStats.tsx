@@ -29,11 +29,11 @@ export const DashboardStats = () => {
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[1, 2, 3, 4].map((i) => (
-            <Card key={i} className="animate-pulse">
+            <Card key={i} className="animate-pulse bg-slate-800/50 border-slate-700">
               <CardContent className="p-6">
-                <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                <div className="h-8 bg-gray-200 rounded mb-1"></div>
-                <div className="h-3 bg-gray-200 rounded"></div>
+                <div className="h-4 bg-slate-700 rounded mb-2"></div>
+                <div className="h-8 bg-slate-700 rounded mb-1"></div>
+                <div className="h-3 bg-slate-700 rounded"></div>
               </CardContent>
             </Card>
           ))}
@@ -108,15 +108,15 @@ export const DashboardStats = () => {
         {stats.map((stat, index) => {
           const Icon = stat.icon;
           return (
-            <Card key={index} className="hover:shadow-lg transition-shadow">
+            <Card key={index} className="bg-slate-800/50 border-slate-700 backdrop-blur-sm hover:bg-slate-800/70 transition-all duration-200 hover:shadow-xl hover:shadow-blue-500/10">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600">
+                <CardTitle className="text-sm font-medium text-slate-300">
                   {stat.title}
                 </CardTitle>
                 <Icon className={`h-4 w-4 ${stat.color}`} />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-gray-900">{stat.value}</div>
+                <div className="text-2xl font-bold text-white">{stat.value}</div>
                 <p className={`text-xs mt-1 ${getGrowthColor(stat.growth)}`}>
                   {stat.description}
                 </p>
@@ -131,16 +131,16 @@ export const DashboardStats = () => {
         {additionalStats.map((stat, index) => {
           const Icon = stat.icon;
           return (
-            <Card key={index} className="hover:shadow-lg transition-shadow">
+            <Card key={index} className="bg-slate-800/50 border-slate-700 backdrop-blur-sm hover:bg-slate-800/70 transition-all duration-200 hover:shadow-xl hover:shadow-blue-500/10">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600">
+                <CardTitle className="text-sm font-medium text-slate-300">
                   {stat.title}
                 </CardTitle>
                 <Icon className={`h-4 w-4 ${stat.color}`} />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-gray-900">{stat.value}</div>
-                <p className="text-xs text-gray-600 mt-1">
+                <div className="text-2xl font-bold text-white">{stat.value}</div>
+                <p className="text-xs text-slate-400 mt-1">
                   {stat.description}
                 </p>
               </CardContent>
@@ -150,24 +150,24 @@ export const DashboardStats = () => {
       </div>
 
       {/* Quick Status Overview */}
-      <Card>
+      <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
         <CardHeader>
-          <CardTitle>System Status Overview</CardTitle>
-          <CardDescription>Current system health and activity</CardDescription>
+          <CardTitle className="text-white">System Status Overview</CardTitle>
+          <CardDescription className="text-slate-400">Current system health and activity</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
-            <Badge variant={metrics.pendingBookings > 0 ? "destructive" : "default"}>
+            <Badge variant={metrics.pendingBookings > 0 ? "destructive" : "default"} className="bg-blue-600/20 text-blue-400 border-blue-500/30">
               {metrics.pendingBookings} Pending Bookings
             </Badge>
-            <Badge variant={metrics.activeWorkers > 0 ? "default" : "secondary"}>
+            <Badge variant={metrics.activeWorkers > 0 ? "default" : "secondary"} className="bg-green-600/20 text-green-400 border-green-500/30">
               {metrics.activeWorkers} Active Workers
             </Badge>
-            <Badge variant="outline">
+            <Badge variant="outline" className="border-slate-600 text-slate-300">
               {metrics.totalReviews} Total Reviews
             </Badge>
             {metrics.averageRating > 4.5 && (
-              <Badge variant="default" className="bg-yellow-500">
+              <Badge variant="default" className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
                 ⭐ Excellent Rating
               </Badge>
             )}

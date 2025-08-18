@@ -63,18 +63,18 @@ export const AdminHeader = () => {
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
   return <>
-      <header className="bg-white shadow-sm border-b px-6 py-4">
+      <header className="bg-slate-800/30 backdrop-blur-sm border-b border-slate-700 px-6 py-4">
         <div className="flex justify-between items-center">
           <div className="flex items-center space-x-4">
             <Link to="/">
-              <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-900">
+              <Button variant="outline" size="sm" className="bg-slate-700/50 text-slate-300 border-slate-600 hover:bg-white hover:text-slate-900 transition-colors">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Site
               </Button>
             </Link>
-            <div className="border-l border-gray-300 pl-4">
-              <h2 className="text-2xl font-bold text-gray-900">Admin Dashboard</h2>
-              <p className="text-gray-600">Manage your TV mounting business</p>
+            <div className="border-l border-slate-600 pl-4">
+              <h2 className="text-2xl font-bold text-white">Admin Dashboard</h2>
+              <p className="text-slate-300">Manage your TV mounting business</p>
             </div>
           </div>
           <div className="flex items-center space-x-3">
@@ -96,7 +96,7 @@ export const AdminHeader = () => {
                   <Clock className="h-3 w-3 mr-1" />
                   {formatTimeRemaining(timeRemaining)}
                 </Badge>
-                <Button variant="outline" size="sm" onClick={handleTestingModeDeactivate} className="text-red-600 border-red-300 hover:bg-red-50">
+                <Button variant="outline" size="sm" onClick={handleTestingModeDeactivate} className="bg-red-900/20 text-red-400 border-red-600/50 hover:bg-red-600 hover:text-white transition-colors">
                   Deactivate Testing
                 </Button>
               </div> : <AlertDialog>
@@ -130,7 +130,7 @@ export const AdminHeader = () => {
                 </AlertDialogContent>
               </AlertDialog>}
             
-            <Button variant="outline" onClick={() => setShowTodaysJobs(true)}>
+            <Button variant="outline" onClick={() => setShowTodaysJobs(true)} className="bg-slate-700/50 text-slate-300 border-slate-600 hover:bg-white hover:text-slate-900 transition-colors">
               <Calendar className="h-4 w-4 mr-2" />
               Today's Jobs
             </Button>
