@@ -257,15 +257,8 @@ export const BookingTable = ({
                       </div>
                     </td>
                     <td className="p-3">
-                      <div className="space-y-1">
-                        <div className="font-medium">
-                          ${Number(booking.total_price || 0).toFixed(2)}
-                        </div>
-                        {booking.stripe_authorized_amount && (
-                          <div className="text-xs text-muted-foreground">
-                            Auth: ${Number(booking.stripe_authorized_amount).toFixed(2)}
-                          </div>
-                        )}
+                      <div className="font-medium">
+                        ${Number(booking.stripe_authorized_amount || booking.total_price || 0).toFixed(2)}
                       </div>
                     </td>
                     <td className="p-3">
