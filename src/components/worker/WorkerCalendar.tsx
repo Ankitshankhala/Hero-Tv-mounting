@@ -1,125 +1,80 @@
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
+import { format, parse, startOfWeek, getDay } from 'date-fns';
+import { enUS } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { useCalendarSync } from '@/hooks/useCalendarSync';
-import { CalendarHeader } from './calendar/CalendarHeader';
-import { CalendarContent } from './calendar/CalendarContent';
-import { CalendarLegend } from './calendar/CalendarLegend';
-import { CalendarLoading } from './calendar/CalendarLoading';
-import { formatBookingTimeForContext, getUserTimezone } from '@/utils/timezoneUtils';
-import { fromZonedTime } from 'date-fns-tz';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { formatBookingTimeForContext } from '@/utils/timezoneUtils';
+import 'react-big-calendar/lib/css/react-big-calendar.css';
 
-interface Job {
-  id: string;
-  title: string;
-  start: Date;
-  end: Date;
-  status: string;
-  customer?: any;
-  service?: any;
-}
+const localizer = dateFnsLocalizer({
+  format,
+  parse,
+  startOfWeek,
+  getDay,
+  locales: {
+    'en-US': enUS,
+  },
+});
 
-interface WorkerCalendarProps {
-  workerId?: string; // Optional workerId for admin viewing other workers
-}
-
-const WorkerCalendar = ({ workerId }: WorkerCalendarProps) => {
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [loading, setLoading] = useState(true);
+const WorkerCalendar = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Use the provided workerId or fall back to authenticated user
-  const targetWorkerId = workerId || user?.id;
-
-  const { isConnected, isRefreshing, forceRefresh } = useCalendarSync({
-    userId: targetWorkerId,
-    userRole: 'worker',
-    onBookingUpdate: () => {
-      fetchAllJobs();
-    },
-    onScheduleUpdate: () => {
-      // Optionally fetch schedule changes here
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Worker schedule updated');
-      }
+  useEffect(() => {
+    if (user) {
+      fetchBookings();
     }
-  });
+  }, [user]);
 
-  const fetchAllJobs = async () => {
-    if (!targetWorkerId) return;
-
+  const fetchBookings = async () => {
     try {
       setLoading(true);
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Fetching all jobs for worker:', targetWorkerId);
-      }
-
+      
       const { data, error } = await supabase
         .from('bookings')
         .select(`
           *,
-          customer:users!customer_id(name, phone),
-          service:services(name, description, duration_minutes, base_price)
+          customer:users!bookings_customer_id_fkey(name, email, phone),
+          service:services(name, description)
         `)
-        .eq('worker_id', targetWorkerId)
-        .order('start_time_utc', { ascending: true, nullsLast: true })
-        .order('scheduled_date', { ascending: true })
-        .order('scheduled_start', { ascending: true });
+        .eq('worker_id', user?.id)
+        .not('status', 'eq', 'cancelled')
+        .order('start_time_utc', { ascending: false, nullsFirst: false }); // Fixed: removed nullsLast
 
       if (error) {
-        console.error('Error fetching all jobs:', error);
+        console.error('Error fetching bookings:', error);
         throw error;
       }
 
-      if (process.env.NODE_ENV === 'development') {
-        console.log('All jobs data:', data);
-      }
-
-      const workerTimezone = getUserTimezone();
-
-      const transformedJobs: Job[] = (data || []).map(job => {
-        let startDateTime: Date;
-        let endDateTime: Date;
-
-        // Use timezone-aware conversion
-        if (job.start_time_utc) {
-          // Use canonical UTC timestamp
-          startDateTime = new Date(job.start_time_utc);
-        } else if (job.local_service_date && job.local_service_time && job.service_tz) {
-          // Convert from local service time to UTC
-          const localDateTime = `${job.local_service_date} ${job.local_service_time}`;
-          startDateTime = fromZonedTime(new Date(`${localDateTime}T00:00:00`), job.service_tz);
-        } else {
-          // Fallback to legacy fields - assume service timezone
-          const legacyDateTime = `${job.scheduled_date}T${job.scheduled_start}`;
-          startDateTime = fromZonedTime(new Date(legacyDateTime), job.service_tz || 'America/Chicago');
-        }
-
-        // Calculate end time based on service duration
-        const durationMinutes = job.service?.duration_minutes || 60;
-        endDateTime = new Date(startDateTime.getTime() + durationMinutes * 60000);
-
+      const calendarEvents = (data || []).map(booking => {
+        // Use the new timezone-aware formatting
+        const eventStart = booking.start_time_utc 
+          ? new Date(booking.start_time_utc)
+          : new Date(`${booking.scheduled_date}T${booking.scheduled_start}`);
+          
+        const eventEnd = new Date(eventStart.getTime() + (booking.service?.duration_minutes || 60) * 60000);
+        
         return {
-          id: job.id,
-          title: `${job.service?.name || 'Service'} - ${job.customer?.name || 'Customer'}`,
-          start: startDateTime,
-          end: endDateTime,
-          status: job.status,
-          customer: job.customer,
-          service: job.service
+          id: booking.id,
+          title: `${booking.customer?.name || 'Guest'} - ${booking.service?.name || 'Service'}`,
+          start: eventStart,
+          end: eventEnd,
+          resource: booking,
         };
       });
 
-      setJobs(transformedJobs);
+      setBookings(calendarEvents);
     } catch (error) {
-      console.error('Error fetching all jobs:', error);
+      console.error('Error fetching bookings:', error);
       toast({
         title: "Error",
-        description: "Failed to load worker schedule",
+        description: "Failed to load calendar events",
         variant: "destructive",
       });
     } finally {
@@ -127,28 +82,58 @@ const WorkerCalendar = ({ workerId }: WorkerCalendarProps) => {
     }
   };
 
-  useEffect(() => {
-    if (targetWorkerId) {
-      fetchAllJobs();
-    }
-  }, [targetWorkerId]);
+  const handleSelectEvent = (event) => {
+    const booking = event.resource;
+    const formattedTime = formatBookingTimeForContext(booking, 'worker');
+    
+    toast({
+      title: `Booking: ${event.title}`,
+      description: `Scheduled for ${formattedTime}`,
+    });
+  };
 
   if (loading) {
-    return <CalendarLoading />;
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Calendar</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
-    <Card className="w-full">
-      <CalendarHeader
-        workerId={workerId}
-        isConnected={isConnected}
-        isRefreshing={isRefreshing}
-        onRefresh={forceRefresh}
-      />
-      
+    <Card>
+      <CardHeader>
+        <CardTitle>Your Calendar</CardTitle>
+      </CardHeader>
       <CardContent>
-        <CalendarContent jobs={jobs} />
-        <CalendarLegend />
+        <div style={{ height: '600px' }}>
+          <Calendar
+            localizer={localizer}
+            events={bookings}
+            startAccessor="start"
+            endAccessor="end"
+            onSelectEvent={handleSelectEvent}
+            views={['month', 'week', 'day']}
+            defaultView="week"
+            eventPropGetter={(event) => ({
+              style: {
+                backgroundColor: '#3174ad',
+                borderRadius: '4px',
+                opacity: 0.8,
+                color: 'white',
+                border: '0px',
+                display: 'block'
+              }
+            })}
+          />
+        </div>
       </CardContent>
     </Card>
   );

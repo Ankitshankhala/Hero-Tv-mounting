@@ -52,7 +52,7 @@ const getStatusVariant = (status: string) => {
     case 'confirmed':
       return 'default';
     case 'completed':
-      return 'success';
+      return 'outline';
     case 'cancelled':
       return 'destructive';
     default:
@@ -67,9 +67,9 @@ const getPaymentStatusVariant = (status: string | undefined) => {
     case 'authorized':
       return 'secondary';
     case 'succeeded':
-      return 'success';
+      return 'outline';
     case 'completed':
-      return 'success';
+      return 'outline';
     case 'failed':
       return 'destructive';
     default:
@@ -96,6 +96,7 @@ interface BookingTableProps {
   onViewBooking: (booking: Booking) => void;
   onAssignWorker: (booking: Booking) => void;
   onViewCalendar?: (workerId: string) => void;
+  onBookingUpdate?: () => void;
   loading?: boolean;
 }
 
@@ -106,6 +107,7 @@ export const BookingTable = ({
   onViewBooking, 
   onAssignWorker,
   onViewCalendar,
+  onBookingUpdate,
   loading = false 
 }: BookingTableProps) => {
   const [displayTimezone, setDisplayTimezone] = useState(DEFAULT_SERVICE_TIMEZONE);

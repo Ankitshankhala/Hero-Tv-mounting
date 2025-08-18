@@ -117,7 +117,7 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
       const { data: bookingsData, error: bookingsError } = await supabase
         .from('bookings')
         .select('*')
-        .order('start_time_utc', { ascending: false, nullsLast: true })
+        .order('start_time_utc', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false });
 
       if (bookingsError) {
