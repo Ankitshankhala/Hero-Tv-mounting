@@ -123,6 +123,10 @@ const Admin = () => {
       <SidebarProvider
         defaultOpen={false}
         className="w-full"
+        style={{
+          "--sidebar-width": "280px",
+          "--sidebar-width-mobile": "280px",
+        } as React.CSSProperties}
       >
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex w-full overflow-hidden">
           <AdminSidebar activeTab={activeTab} onTabChange={setActiveTab} />
