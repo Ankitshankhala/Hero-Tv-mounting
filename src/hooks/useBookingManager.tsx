@@ -79,9 +79,11 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
     if (bookingServices.length > 0) {
       // Use booking services if they exist
       totalPrice = calculateBookingTotal(bookingServices);
+      console.log('Booking', booking.id.slice(0, 8), 'services:', bookingServices, 'total:', totalPrice);
     } else if (service?.base_price) {
       // Fallback to main service price
       totalPrice = Number(service.base_price) || 0;
+      console.log('Booking', booking.id.slice(0, 8), 'fallback price:', totalPrice);
     }
 
     // Create backward-compatible format
