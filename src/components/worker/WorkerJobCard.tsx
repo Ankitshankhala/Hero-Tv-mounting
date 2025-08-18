@@ -155,66 +155,14 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
       );
     }
 
-    const { tvMountingService, addOnServices, otherServices } = groupTvMountingServices(job.booking_services);
-
+    // Show all services with quantities
     return (
       <div className="space-y-1">
-        {/* TV Mounting with add-ons */}
-        {tvMountingService && (
-          <div className="text-xs text-gray-700">
-            <div className="font-medium">
-              {tvMountingService.service_name} × {tvMountingService.quantity}
-            </div>
-            
-            {/* Show add-ons as sub-items */}
-            {addOnServices.map((addon, index) => (
-              <div key={`addon-${index}`} className="ml-3 text-gray-600">
-                • {addon.service_name} × {addon.quantity}
-              </div>
-            ))}
-            
-            {/* Show configuration for TV mounting */}
-            {tvMountingService.configuration && (
-              <div className="ml-3 mt-1 space-y-0.5 text-gray-600">
-                {tvMountingService.configuration.wallType && (
-                  <div>• Wall Type: {tvMountingService.configuration.wallType}</div>
-                )}
-                {tvMountingService.configuration.tvSize && (
-                  <div>• TV Size: {tvMountingService.configuration.tvSize}"</div>
-                )}
-                {tvMountingService.configuration.mountType && (
-                  <div>• Mount Type: {tvMountingService.configuration.mountType}</div>
-                )}
-                {tvMountingService.configuration.cableManagement && (
-                  <div>• Cable Management: Yes</div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Other non-TV mounting services */}
-        {otherServices.map((service, index) => (
-          <div key={`other-${index}`} className="text-xs text-gray-700">
+        {job.booking_services.map((service, index) => (
+          <div key={index} className="text-xs text-gray-700">
             <div className="font-medium">
               {service.service_name} × {service.quantity}
             </div>
-            {service.configuration && (
-              <div className="ml-3 mt-1 space-y-0.5 text-gray-600">
-                {service.configuration.wallType && (
-                  <div>• Wall Type: {service.configuration.wallType}</div>
-                )}
-                {service.configuration.tvSize && (
-                  <div>• TV Size: {service.configuration.tvSize}"</div>
-                )}
-                {service.configuration.mountType && (
-                  <div>• Mount Type: {service.configuration.mountType}</div>
-                )}
-                {service.configuration.cableManagement && (
-                  <div>• Cable Management: Yes</div>
-                )}
-              </div>
-            )}
           </div>
         ))}
       </div>
