@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { calculateServiceLinePrice, calculateBookingTotal } from '@/utils/pricing';
 
 interface BookingService {
   id: string;
@@ -72,10 +73,7 @@ export const useRealTimeInvoiceOperations = (bookingId: string | null) => {
 
   // Calculate total price
   useEffect(() => {
-    const total = services.reduce((sum, service) => {
-      const servicePrice = calculateServicePrice(service);
-      return sum + (servicePrice * service.quantity);
-    }, 0);
+    const total = calculateBookingTotal(services);
     setTotalPrice(total);
   }, [services]);
 
@@ -85,20 +83,7 @@ export const useRealTimeInvoiceOperations = (bookingId: string | null) => {
   }, [bookingId]);
 
   const calculateServicePrice = (service: BookingService) => {
-    let price = service.base_price;
-    const config = service.configuration || {};
-
-    // TV Mounting specific pricing
-    if (service.service_name === 'TV Mounting') {
-      if (config.over65) price += 50;
-      if (config.frameMount) price += 75;
-      if (config.wallType === 'stone' || config.wallType === 'brick' || config.wallType === 'tile') {
-        price += 100;
-      }
-      if (config.soundbar) price += 30;
-    }
-
-    return price;
+    return calculateServiceLinePrice(service);
   };
 
   const addService = async (serviceData: any) => {

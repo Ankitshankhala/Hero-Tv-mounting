@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { calculateBookingTotal } from '@/utils/pricing';
 
 interface BookingData {
   id: string;
@@ -22,6 +23,7 @@ interface BookingData {
   scheduled_at?: string; // For backwards compatibility
   customer_address?: string; // For backwards compatibility
   total_price?: number; // For backwards compatibility
+  booking_services?: any[]; // Service line items
 }
 
 export const useBookingManager = (isCalendarConnected: boolean = false) => {
@@ -100,12 +102,51 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
         return;
       }
 
-      // Enrich bookings with customer, worker, and service data
+      // Fetch booking services for all bookings
+      let servicesByBooking = {};
+      if (bookingsData.length > 0) {
+        const bookingIds = bookingsData.map(booking => booking.id);
+        const { data: bookingServicesData, error: servicesError } = await supabase
+          .from('booking_services')
+          .select('booking_id, service_name, quantity, base_price, configuration')
+          .in('booking_id', bookingIds);
+
+        if (servicesError) {
+          console.error('Error fetching booking services:', servicesError);
+        } else {
+          servicesByBooking = (bookingServicesData || []).reduce((acc, service) => {
+            if (!acc[service.booking_id]) {
+              acc[service.booking_id] = [];
+            }
+            acc[service.booking_id].push(service);
+            return acc;
+          }, {} as Record<string, any[]>);
+        }
+      }
+
+      // Enrich bookings with customer, worker, service data, and booking_services
       const enrichedBookings = await Promise.all(
-        bookingsData.map(enrichSingleBooking)
+        bookingsData.map(async (booking) => {
+          const enriched = await enrichSingleBooking(booking);
+          const bookingServices = servicesByBooking[booking.id] || [];
+          
+          // Calculate total authorized amount from booking services or fallback
+          let computedTotalAuthorized = 0;
+          if (bookingServices.length > 0) {
+            computedTotalAuthorized = calculateBookingTotal(bookingServices);
+          } else if (enriched.service?.base_price) {
+            computedTotalAuthorized = enriched.service.base_price;
+          }
+
+          return {
+            ...enriched,
+            booking_services: bookingServices,
+            total_price: computedTotalAuthorized
+          };
+        })
       );
 
-      console.log('Enriched bookings:', enrichedBookings);
+      console.log('Enriched bookings with services:', enrichedBookings);
       setBookings(enrichedBookings);
     } catch (error) {
       console.error('Error in fetchBookings:', error);
@@ -126,17 +167,39 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
       // Enrich the updated booking with related data
       const enrichedBooking = await enrichSingleBooking(updatedBooking);
       
+      // Fetch booking services for the updated booking
+      const { data: bookingServicesData, error: servicesError } = await supabase
+        .from('booking_services')
+        .select('booking_id, service_name, quantity, base_price, configuration')
+        .eq('booking_id', updatedBooking.id);
+
+      const bookingServices = servicesError ? [] : (bookingServicesData || []);
+      
+      // Calculate total authorized amount
+      let computedTotalAuthorized = 0;
+      if (bookingServices.length > 0) {
+        computedTotalAuthorized = calculateBookingTotal(bookingServices);
+      } else if (enrichedBooking.service?.base_price) {
+        computedTotalAuthorized = enrichedBooking.service.base_price;
+      }
+
+      const finalEnrichedBooking = {
+        ...enrichedBooking,
+        booking_services: bookingServices,
+        total_price: computedTotalAuthorized
+      };
+      
       setBookings(prevBookings => {
         const existingIndex = prevBookings.findIndex(booking => booking.id === updatedBooking.id);
         
         if (existingIndex >= 0) {
           // Update existing booking
           const newBookings = [...prevBookings];
-          newBookings[existingIndex] = enrichedBooking;
+          newBookings[existingIndex] = finalEnrichedBooking;
           return newBookings;
         } else {
           // Add new booking if it doesn't exist
-          return [enrichedBooking, ...prevBookings];
+          return [finalEnrichedBooking, ...prevBookings];
         }
       });
 

@@ -24,6 +24,7 @@ interface Booking {
     duration_minutes?: number;
   };
   services?: any[];
+  booking_services?: any[];
   scheduled_date?: string;
   scheduled_start?: string;
   scheduled_at?: string;
@@ -143,13 +144,60 @@ export const BookingTable = React.memo(({
     );
   };
   const formatServices = (booking: Booking) => {
+    // Use booking_services if available for detailed service display
+    if (booking.booking_services && booking.booking_services.length > 0) {
+      return booking.booking_services;
+    }
+    
+    // Fallback to main service
     if (booking.service?.name) {
-      return booking.service.name;
+      return [{ service_name: booking.service.name, quantity: 1 }];
     }
     if (Array.isArray(booking.services) && booking.services.length > 0) {
-      return booking.services.map(s => s.name).join(', ');
+      return booking.services.map(s => ({ service_name: s.name, quantity: 1 }));
     }
-    return 'N/A';
+    return [{ service_name: 'N/A', quantity: 1 }];
+  };
+
+  const renderServiceLines = (services: any[]) => {
+    if (!services || services.length === 0) {
+      return <span className="text-muted-foreground">N/A</span>;
+    }
+
+    const maxVisible = 3;
+    const visibleServices = services.slice(0, maxVisible);
+    const remainingCount = services.length - maxVisible;
+
+    return (
+      <div className="space-y-1">
+        {visibleServices.map((service, index) => (
+          <div key={index} className="text-sm">
+            {service.service_name} {service.quantity > 1 && `× ${service.quantity}`}
+          </div>
+        ))}
+        {remainingCount > 0 && (
+          <div className="text-xs text-muted-foreground">
+            +{remainingCount} more
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const formatPrice = (price: number | undefined) => {
+    const amount = price || 0;
+    const formatter = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2
+    });
+    
+    return (
+      <div>
+        <div className="font-medium">{formatter.format(amount)}</div>
+        <div className="text-xs text-muted-foreground">Total Authorized</div>
+      </div>
+    );
   };
   const formatDuration = (booking: Booking) => {
     let totalMinutes = 0;
@@ -390,7 +438,7 @@ export const BookingTable = React.memo(({
       formattedDateTime: formatDateTime(booking),
       canChargeFee: isEligibleForLateFee(booking),
       needsWorkerAssignment: isUnassigned(booking),
-      formattedServices: formatServices(booking),
+      serviceLines: formatServices(booking),
       formattedDuration: formatDuration(booking)
     }));
   }, [bookings]);
@@ -455,7 +503,7 @@ export const BookingTable = React.memo(({
                   </TableCell>
                   <TableCell className="font-medium">{booking.id.slice(0, 8)}</TableCell>
                   <TableCell>{booking.customer?.name || 'N/A'}</TableCell>
-                  <TableCell>{booking.formattedServices}</TableCell>
+                  <TableCell>{renderServiceLines(booking.serviceLines)}</TableCell>
                   <TableCell>
                     <span className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">
                       {booking.formattedDuration}
@@ -485,7 +533,7 @@ export const BookingTable = React.memo(({
                        {booking.is_archived ? 'Archived' : 'Active'}
                      </Badge>
                    </TableCell>
-                   <TableCell className="font-medium">${booking.total_price || 0}</TableCell>
+                   <TableCell>{formatPrice(booking.total_price)}</TableCell>
                    <TableCell className="min-w-[200px]">
                      <div className="flex flex-wrap gap-1">
                        {needsWorkerAssignment && (
