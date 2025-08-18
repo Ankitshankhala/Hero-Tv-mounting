@@ -20,7 +20,7 @@ export const ArrowSidebarToggle = () => {
             <span className="text-lg font-bold mr-2">
               {open ? '←' : '→'}
             </span>
-            <span className="hidden md:inline">Sidebar</span>
+            <span className="hidden md:inline">Admin Panel</span>
           </Button>
         </TooltipTrigger>
         <TooltipContent>
