@@ -20,17 +20,24 @@ const localizer = dateFnsLocalizer({
   },
 });
 
-const WorkerCalendar = () => {
+interface WorkerCalendarProps {
+  workerId?: string;
+}
+
+const WorkerCalendar = ({ workerId }: WorkerCalendarProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Use provided workerId or fall back to current user
+  const targetWorkerId = workerId || user?.id;
+
   useEffect(() => {
-    if (user) {
+    if (targetWorkerId) {
       fetchBookings();
     }
-  }, [user]);
+  }, [targetWorkerId]);
 
   const fetchBookings = async () => {
     try {
@@ -41,11 +48,11 @@ const WorkerCalendar = () => {
         .select(`
           *,
           customer:users!bookings_customer_id_fkey(name, email, phone),
-          service:services(name, description)
+          service:services(name, description, duration_minutes)
         `)
-        .eq('worker_id', user?.id)
+        .eq('worker_id', targetWorkerId)
         .not('status', 'eq', 'cancelled')
-        .order('start_time_utc', { ascending: false, nullsFirst: false }); // Fixed: removed nullsLast
+        .order('start_time_utc', { ascending: false, nullsFirst: false });
 
       if (error) {
         console.error('Error fetching bookings:', error);
@@ -110,7 +117,7 @@ const WorkerCalendar = () => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Your Calendar</CardTitle>
+        <CardTitle>{workerId ? 'Worker Calendar' : 'Your Calendar'}</CardTitle>
       </CardHeader>
       <CardContent>
         <div style={{ height: '600px' }}>

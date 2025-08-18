@@ -1,6 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-
 import { Calendar } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRealtimeBookings } from '@/hooks/useRealtimeBookings';
@@ -9,6 +9,7 @@ import { BookingTable } from './BookingTable';
 import { CreateBookingModal } from './CreateBookingModal';
 import { useBookingManager } from '@/hooks/useBookingManager';
 import { AuthGuard } from '@/components/AuthGuard';
+
 export const BookingsManager = () => {
   const [filteredBookings, setFilteredBookings] = useState([]);
   const [filterStatus, setFilterStatus] = useState('all');
@@ -16,9 +17,8 @@ export const BookingsManager = () => {
   const [archiveFilter, setArchiveFilter] = useState('active');
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const {
-    user
-  } = useAuth();
+  const { user } = useAuth();
+
   // Use our enhanced booking manager hook
   const {
     bookings,
@@ -30,17 +30,15 @@ export const BookingsManager = () => {
   // Set up real-time subscriptions for admin with enhanced callback
   const handleRealtimeUpdate = React.useCallback((updatedBooking: any) => {
     console.log('Real-time booking update received in BookingsManager:', updatedBooking);
-
-    // Use the enhanced update handler that enriches data
     handleBookingUpdate(updatedBooking);
   }, [handleBookingUpdate]);
-  const {
-    isConnected
-  } = useRealtimeBookings({
+
+  const { isConnected } = useRealtimeBookings({
     userId: user?.id,
     userRole: 'admin',
     onBookingUpdate: handleRealtimeUpdate
   });
+
   useEffect(() => {
     // Apply filters
     let filtered = bookings;
@@ -59,19 +57,49 @@ export const BookingsManager = () => {
       filtered = filtered.filter(booking => booking.customer?.region?.toLowerCase() === filterRegion.toLowerCase());
     }
     if (searchTerm) {
-      filtered = filtered.filter(booking => booking.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) || booking.id.toLowerCase().includes(searchTerm.toLowerCase()) || booking.services?.some(service => service.name?.toLowerCase().includes(searchTerm.toLowerCase())) || booking.worker?.name?.toLowerCase().includes(searchTerm.toLowerCase()));
+      filtered = filtered.filter(booking => 
+        booking.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        booking.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        booking.services?.some(service => service.name?.toLowerCase().includes(searchTerm.toLowerCase())) || 
+        booking.worker?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     }
     setFilteredBookings(filtered);
   }, [bookings, filterStatus, filterRegion, archiveFilter, searchTerm]);
+
   const handleBookingCreated = () => {
     console.log('Booking created, refreshing list');
     fetchBookings();
   };
+
   const handleBookingUpdated = () => {
     console.log('Booking updated from BookingTable, refreshing list');
     fetchBookings();
   };
-  return <AuthGuard allowedRoles={['admin']}>
+
+  // Placeholder handlers for BookingTable - these would need proper implementation
+  const handleEditBooking = (booking: any) => {
+    console.log('Edit booking:', booking);
+    // TODO: Implement edit booking modal
+  };
+
+  const handleDeleteBooking = (booking: any) => {
+    console.log('Delete booking:', booking);
+    // TODO: Implement delete booking functionality
+  };
+
+  const handleViewBooking = (booking: any) => {
+    console.log('View booking:', booking);
+    // TODO: Implement view booking modal
+  };
+
+  const handleAssignWorker = (booking: any) => {
+    console.log('Assign worker to booking:', booking);
+    // TODO: Implement assign worker modal
+  };
+
+  return (
+    <AuthGuard allowedRoles={['admin']}>
       <div className="space-y-6">
         <Card>
           <CardHeader>
@@ -81,24 +109,53 @@ export const BookingsManager = () => {
                 <span>Bookings Management</span>
               </CardTitle>
               <div className="flex items-center space-x-4">
-                {isConnected && <span className="text-sm text-green-600">● Live updates enabled</span>}
+                {isConnected && (
+                  <span className="text-sm text-green-600">● Live updates enabled</span>
+                )}
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            {loading ? <div className="flex items-center justify-center p-8">
+            {loading ? (
+              <div className="flex items-center justify-center p-8">
                 <div className="text-gray-600">Loading bookings...</div>
-              </div> : <>
-                <BookingFilters searchTerm={searchTerm} filterStatus={filterStatus} filterRegion={filterRegion} archiveFilter={archiveFilter} onSearchChange={setSearchTerm} onStatusChange={setFilterStatus} onRegionChange={setFilterRegion} onArchiveFilterChange={setArchiveFilter} />
+              </div>
+            ) : (
+              <>
+                <BookingFilters
+                  searchTerm={searchTerm}
+                  filterStatus={filterStatus}
+                  filterRegion={filterRegion}
+                  archiveFilter={archiveFilter}
+                  onSearchChange={setSearchTerm}
+                  onStatusChange={setFilterStatus}
+                  onRegionChange={setFilterRegion}
+                  onArchiveFilterChange={setArchiveFilter}
+                />
 
-                <BookingTable bookings={filteredBookings} onBookingUpdate={handleBookingUpdated} />
-              </>}
+                <BookingTable 
+                  bookings={filteredBookings} 
+                  onBookingUpdate={handleBookingUpdated}
+                  onEditBooking={handleEditBooking}
+                  onDeleteBooking={handleDeleteBooking}
+                  onViewBooking={handleViewBooking}
+                  onAssignWorker={handleAssignWorker}
+                />
+              </>
+            )}
           </CardContent>
         </Card>
 
         {/* Create Booking Modal */}
-        {showCreateModal && <CreateBookingModal onClose={() => setShowCreateModal(false)} onBookingCreated={handleBookingCreated} />}
+        {showCreateModal && (
+          <CreateBookingModal 
+            onClose={() => setShowCreateModal(false)} 
+            onBookingCreated={handleBookingCreated} 
+          />
+        )}
       </div>
-    </AuthGuard>;
+    </AuthGuard>
+  );
 };
+
 export default BookingsManager;
