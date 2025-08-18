@@ -66,6 +66,24 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
       service = serviceData;
     }
 
+    // Fetch booking services to calculate accurate total
+    const { data: bookingServicesData } = await supabase
+      .from('booking_services')
+      .select('service_name, quantity, base_price, configuration')
+      .eq('booking_id', booking.id);
+
+    const bookingServices = bookingServicesData || [];
+    
+    // Calculate total price including main service + add-ons
+    let totalPrice = 0;
+    if (bookingServices.length > 0) {
+      // Use booking services if they exist
+      totalPrice = calculateBookingTotal(bookingServices);
+    } else if (service?.base_price) {
+      // Fallback to main service price
+      totalPrice = Number(service.base_price) || 0;
+    }
+
     // Create backward-compatible format
     return {
       ...booking,
@@ -75,7 +93,8 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
       services: service ? [service] : [],
       scheduled_at: `${booking.scheduled_date}T${booking.scheduled_start}`,
       customer_address: booking.location_notes || 'No address provided',
-      total_price: service?.base_price || 0
+      total_price: totalPrice,
+      booking_services: bookingServices
     };
   };
 
