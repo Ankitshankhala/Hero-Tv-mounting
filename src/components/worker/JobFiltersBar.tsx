@@ -109,14 +109,15 @@ export const JobFiltersBar = ({
           </div>
 
           {/* Last Job Toggle */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 select-none" style={{ touchAction: 'manipulation' }}>
             <Calendar className="h-4 w-4 text-worker-muted" />
             <Switch
               id="after-last-job"
               checked={filters.afterLastJob}
               onCheckedChange={(checked) => onFilterChange('afterLastJob', checked)}
+              aria-label="Filter jobs created since last job"
             />
-            <Label htmlFor="after-last-job" className="text-sm text-worker-card-foreground">
+            <Label htmlFor="after-last-job" className="text-base sm:text-sm text-worker-card-foreground">
               New since last job
             </Label>
           </div>
@@ -178,7 +179,7 @@ export const JobFiltersBar = ({
         )}
 
         {/* Filter Summary and Actions */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-2 border-t border-worker-border">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-2 border-t border-worker-border min-h-[40px]">
           <div className="flex items-center gap-4">
             <div className="text-sm text-worker-muted">
               Showing {filterSummary.showing} of {filterSummary.total} jobs

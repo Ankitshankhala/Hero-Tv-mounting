@@ -135,7 +135,23 @@
     @apply border-border;
   }
 
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
   body {
     @apply bg-background text-foreground;
+  }
+
+  /* Prevent iOS auto-zoom on form inputs */
+  input, select, textarea, button {
+    font-size: 16px;
+  }
+
+  @media (min-width: 640px) {
+    input, select, textarea, button {
+      font-size: inherit;
+    }
   }
 }
