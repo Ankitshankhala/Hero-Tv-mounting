@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { AssignWorkerModal } from './AssignWorkerModal';
 import { TodaysJobsModal } from './TodaysJobsModal';
 import { supabase } from '@/integrations/supabase/client';
+import { SidebarTrigger } from '@/components/ui/sidebar';
 export const AdminHeader = () => {
   const [showAssignWorker, setShowAssignWorker] = useState(false);
   const [showTodaysJobs, setShowTodaysJobs] = useState(false);
@@ -66,6 +67,7 @@ export const AdminHeader = () => {
       <header className="bg-slate-800/30 backdrop-blur-sm border-b border-slate-700 px-6 py-4">
         <div className="flex justify-between items-center">
           <div className="flex items-center space-x-4">
+            <SidebarTrigger className="text-slate-300 hover:text-white hover:bg-slate-700/50 data-[state=open]:bg-slate-700" />
             <Link to="/">
               <Button variant="outline" size="sm" className="bg-slate-700/50 text-slate-300 border-slate-600 hover:bg-white hover:text-slate-900 transition-colors">
                 <ArrowLeft className="h-4 w-4 mr-2" />
