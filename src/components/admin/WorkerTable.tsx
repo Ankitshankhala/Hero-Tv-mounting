@@ -166,7 +166,8 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
   return (
     <>
       <div className="rounded-md border">
-        <Table>
+        <div className="overflow-x-auto">
+          <Table className="min-w-[800px]">
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
@@ -195,7 +196,8 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
               />
             ))}
           </TableBody>
-        </Table>
+          </Table>
+        </div>
       </div>
 
       <WorkerCalendarModal

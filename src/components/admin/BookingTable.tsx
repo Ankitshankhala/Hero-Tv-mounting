@@ -367,23 +367,22 @@ export const BookingTable = React.memo(({
       <div className="rounded-md border">
         {failedIds.length > 0 && (
           <Alert className="m-3">
-            <AlertDescription>
-              {failedIds.length} booking(s) have failed notifications.
-              <Button variant="outline" size="sm" onClick={selectAllFailed} className="ml-2">
+            <AlertDescription className="flex flex-wrap items-center gap-2">
+              <span>{failedIds.length} booking(s) have failed notifications.</span>
+              <Button variant="outline" size="sm" onClick={selectAllFailed}>
                 Select all failed
               </Button>
             </AlertDescription>
           </Alert>
         )}
-        <div className="flex items-center justify-between px-3 py-2 border-b">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 border-b">
           <div className="text-sm">{selectedIds.size} selected</div>
-          <div>
-            <Button size="sm" onClick={handleBulkResend} disabled={selectedIds.size === 0 || isBulkResending}>
-              Retry failed notifications
-            </Button>
-          </div>
+          <Button size="sm" onClick={handleBulkResend} disabled={selectedIds.size === 0 || isBulkResending}>
+            Retry failed notifications
+          </Button>
         </div>
-        <Table>
+        <div className="overflow-x-auto">
+          <Table className="min-w-[1200px]">
           <TableHeader>
             <TableRow>
               <TableHead>
@@ -450,8 +449,8 @@ export const BookingTable = React.memo(({
                   </TableCell>
                   <TableCell>{getPaymentStatusBadge(booking.payment_status, booking)}</TableCell>
                   <TableCell className="font-medium">${booking.total_price || 0}</TableCell>
-                   <TableCell>
-                     <div className="flex space-x-2">
+                   <TableCell className="min-w-[200px]">
+                     <div className="flex flex-wrap gap-1">
                        {needsWorkerAssignment && (
                          <Button
                            variant="outline"
@@ -511,7 +510,8 @@ export const BookingTable = React.memo(({
                 </TableRow>;
           })}
           </TableBody>
-        </Table>
+          </Table>
+        </div>
         
         {bookings.length === 0 && <div className="text-center py-8 text-gray-500">
             No bookings found matching your criteria

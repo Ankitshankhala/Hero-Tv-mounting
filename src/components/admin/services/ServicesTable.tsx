@@ -62,7 +62,8 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
 
   return (
     <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-      <Table>
+      <div className="overflow-x-auto">
+        <Table className="min-w-[900px]">
         <TableHeader>
           <TableRow className="bg-gray-50 hover:bg-gray-50">
             <TableHead className="font-semibold">Order</TableHead>
@@ -104,7 +105,8 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
             </DndContext>
           )}
         </TableBody>
-      </Table>
+        </Table>
+      </div>
     </div>
   );
 };
