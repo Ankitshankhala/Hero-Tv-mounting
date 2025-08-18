@@ -12,6 +12,8 @@ interface BookingData {
   scheduled_date: string;
   scheduled_start: string;
   status: string;
+  payment_status?: string;
+  payment_intent_id?: string;
   is_archived?: boolean;
   archived_at?: string;
   location_notes?: string;

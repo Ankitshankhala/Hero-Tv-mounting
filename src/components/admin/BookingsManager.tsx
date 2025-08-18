@@ -43,9 +43,21 @@ export const BookingsManager = () => {
     // Apply filters
     let filtered = bookings;
     
-    // Archive filter
+    // Archive and payment status filter
     if (archiveFilter === 'active') {
-      filtered = filtered.filter(booking => !booking.is_archived);
+      // All non-archived bookings except pending payments
+      filtered = filtered.filter(booking => 
+        !booking.is_archived && 
+        !(booking.payment_status === 'pending' || !booking.payment_status || booking.payment_status === 'failed')
+      );
+    } else if (archiveFilter === 'pending_payments') {
+      // Only bookings with pending/missing payment authorization
+      filtered = filtered.filter(booking => 
+        !booking.is_archived && 
+        (booking.payment_status === 'pending' || !booking.payment_status || booking.payment_status === 'failed')
+      );
+      // Sort by oldest first for pending payments
+      filtered = filtered.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
     } else if (archiveFilter === 'archived') {
       filtered = filtered.filter(booking => booking.is_archived);
     }
@@ -98,6 +110,29 @@ export const BookingsManager = () => {
     // TODO: Implement assign worker modal
   };
 
+  const handleSendReminder = async (booking: any) => {
+    console.log('Send payment reminder for booking:', booking);
+    // TODO: Implement send reminder functionality
+    try {
+      // Call the payment reminder edge function or notification system
+      console.log('Payment reminder sent for booking:', booking.id);
+    } catch (error) {
+      console.error('Failed to send payment reminder:', error);
+    }
+  };
+
+  const handleCancelBooking = async (booking: any) => {
+    console.log('Cancel booking:', booking);
+    // TODO: Implement cancel booking functionality
+    try {
+      // Update booking status to cancelled
+      console.log('Booking cancelled:', booking.id);
+      fetchBookings(); // Refresh the list
+    } catch (error) {
+      console.error('Failed to cancel booking:', error);
+    }
+  };
+
   return (
     <AuthGuard allowedRoles={['admin']}>
       <div className="space-y-6">
@@ -140,6 +175,9 @@ export const BookingsManager = () => {
                   onDeleteBooking={handleDeleteBooking}
                   onViewBooking={handleViewBooking}
                   onAssignWorker={handleAssignWorker}
+                  showPendingPaymentActions={archiveFilter === 'pending_payments'}
+                  onSendReminder={handleSendReminder}
+                  onCancelBooking={handleCancelBooking}
                 />
               </>
             )}

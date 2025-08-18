@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { format } from 'date-fns';
-import { Edit, Trash2, Eye, UserPlus, Calendar, DollarSign, CreditCard } from 'lucide-react';
+import { Edit, Trash2, Eye, UserPlus, Calendar, DollarSign, CreditCard, Send, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -98,6 +98,9 @@ interface BookingTableProps {
   onViewCalendar?: (workerId: string) => void;
   onBookingUpdate?: () => void;
   loading?: boolean;
+  showPendingPaymentActions?: boolean;
+  onSendReminder?: (booking: Booking) => void;
+  onCancelBooking?: (booking: Booking) => void;
 }
 
 export const BookingTable = ({ 
@@ -108,7 +111,10 @@ export const BookingTable = ({
   onAssignWorker,
   onViewCalendar,
   onBookingUpdate,
-  loading = false 
+  loading = false,
+  showPendingPaymentActions = false,
+  onSendReminder,
+  onCancelBooking
 }: BookingTableProps) => {
   const [displayTimezone, setDisplayTimezone] = useState(DEFAULT_SERVICE_TIMEZONE);
 
@@ -280,27 +286,57 @@ export const BookingTable = ({
                     </td>
                     <td className="p-3">
                       <div className="flex gap-1 justify-end">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onViewBooking(booking)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onEditBooking(booking)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onDeleteBooking(booking)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {showPendingPaymentActions ? (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => onSendReminder?.(booking)}
+                              title="Send Payment Reminder"
+                            >
+                              <Send className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => onCancelBooking?.(booking)}
+                              title="Cancel Booking"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => onViewBooking(booking)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => onViewBooking(booking)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => onEditBooking(booking)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => onDeleteBooking(booking)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>

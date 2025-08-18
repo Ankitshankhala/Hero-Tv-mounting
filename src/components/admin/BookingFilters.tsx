@@ -25,10 +25,11 @@ export const BookingFilters = ({
 }: BookingFiltersProps) => {
   return (
     <div className="space-y-4 mb-6">
-      {/* Archive Filter Tabs */}
+      {/* Booking Filter Tabs */}
       <Tabs value={archiveFilter} onValueChange={onArchiveFilterChange} className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="active">Active Bookings</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="active">All Bookings</TabsTrigger>
+          <TabsTrigger value="pending_payments">Pending Payments</TabsTrigger>
           <TabsTrigger value="archived">Archived Bookings</TabsTrigger>
         </TabsList>
       </Tabs>
