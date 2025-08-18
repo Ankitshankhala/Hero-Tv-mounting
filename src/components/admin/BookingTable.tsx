@@ -42,6 +42,10 @@ interface Booking {
   late_fee_charged?: boolean;
   stripe_customer_id?: string;
   stripe_payment_method_id?: string;
+  // Stripe snapshot
+  stripe_authorized_amount?: number;
+  stripe_payment_status?: string;
+  stripe_currency?: string;
 }
 interface BookingTableProps {
   bookings: Booking[];
@@ -205,18 +209,19 @@ export const BookingTable = React.memo(({
     );
   };
 
-  const formatPrice = (price: number | undefined) => {
-    const amount = price || 0;
+  const formatPrice = (booking: Booking) => {
+    const amount = (booking.stripe_authorized_amount ?? booking.total_price ?? 0) as number;
+    const currency = booking.stripe_currency || 'USD';
     const formatter = new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD',
+      currency,
       minimumFractionDigits: 2
     });
-    
+    const isStripe = booking.stripe_authorized_amount != null;
     return (
       <div>
-        <div className="font-medium">{formatter.format(amount)}</div>
-        <div className="text-xs text-muted-foreground">Total Authorized</div>
+        <div className="font-medium">{formatter.format(Number(amount))}</div>
+        <div className="text-xs text-muted-foreground">{isStripe ? 'Authorized via Stripe' : 'Estimated Total'}</div>
       </div>
     );
   };
@@ -554,7 +559,7 @@ export const BookingTable = React.memo(({
                        {booking.is_archived ? 'Archived' : 'Active'}
                      </Badge>
                    </TableCell>
-                   <TableCell>{formatPrice(booking.total_price)}</TableCell>
+                   <TableCell>{formatPrice(booking)}</TableCell>
                    <TableCell className="min-w-[200px]">
                      <div className="flex flex-wrap gap-1">
                        {needsWorkerAssignment && (

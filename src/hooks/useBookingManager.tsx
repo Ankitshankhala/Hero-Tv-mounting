@@ -24,6 +24,11 @@ interface BookingData {
   customer_address?: string; // For backwards compatibility
   total_price?: number; // For backwards compatibility
   booking_services?: any[]; // Service line items
+  // Stripe transaction snapshot
+  stripe_authorized_amount?: number;
+  stripe_payment_status?: string;
+  stripe_currency?: string;
+  stripe_tx_created_at?: string;
 }
 
 export const useBookingManager = (isCalendarConnected: boolean = false) => {
@@ -144,8 +149,29 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
           }, {} as Record<string, any[]>);
         }
       }
+      // Fetch latest Stripe transactions (authorized or completed) for all bookings
+      let txByBooking: Record<string, any> = {};
+      if (bookingsData.length > 0) {
+        const bookingIds = bookingsData.map(b => b.id);
+        const { data: txData, error: txError } = await supabase
+          .from('transactions')
+          .select('booking_id, amount, status, currency, created_at')
+          .in('booking_id', bookingIds)
+          .in('status', ['authorized','completed'])
+          .order('created_at', { ascending: false });
 
-      // Enrich bookings with customer, worker, service data, and booking_services
+        if (txError) {
+          console.error('Error fetching transactions:', txError);
+        } else {
+          (txData || []).forEach((tx: any) => {
+            if (!txByBooking[tx.booking_id]) {
+              txByBooking[tx.booking_id] = tx;
+            }
+          });
+        }
+      }
+
+      // Enrich bookings with customer, worker, service data, services, and Stripe snapshot
       const enrichedBookings = await Promise.all(
         bookingsData.map(async (booking) => {
           const enriched = await enrichSingleBooking(booking);
@@ -159,15 +185,21 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
             computedTotalAuthorized = enriched.service.base_price;
           }
 
+          const latestTx = txByBooking[booking.id];
+
           return {
             ...enriched,
             booking_services: bookingServices,
-            total_price: computedTotalAuthorized
+            total_price: computedTotalAuthorized,
+            stripe_authorized_amount: latestTx ? Number(latestTx.amount) : undefined,
+            stripe_payment_status: latestTx?.status,
+            stripe_currency: latestTx?.currency || 'USD',
+            stripe_tx_created_at: latestTx?.created_at
           };
         })
       );
 
-      console.log('Enriched bookings with services:', enrichedBookings);
+      console.log('Enriched bookings with services and Stripe snapshot:', enrichedBookings);
       setBookings(enrichedBookings);
     } catch (error) {
       console.error('Error in fetchBookings:', error);
@@ -203,11 +235,26 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
       } else if (enrichedBooking.service?.base_price) {
         computedTotalAuthorized = enrichedBooking.service.base_price;
       }
+      
+      // Fetch latest Stripe transaction for this booking
+      const { data: txData, error: txError } = await supabase
+        .from('transactions')
+        .select('booking_id, amount, status, currency, created_at')
+        .eq('booking_id', updatedBooking.id)
+        .in('status', ['authorized','completed'])
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      const latestTx = txError ? null : ((txData && txData[0]) || null);
 
       const finalEnrichedBooking = {
         ...enrichedBooking,
         booking_services: bookingServices,
-        total_price: computedTotalAuthorized
+        total_price: computedTotalAuthorized,
+        stripe_authorized_amount: latestTx ? Number(latestTx.amount) : enrichedBooking.stripe_authorized_amount,
+        stripe_payment_status: latestTx?.status || enrichedBooking.stripe_payment_status,
+        stripe_currency: latestTx?.currency || enrichedBooking.stripe_currency || 'USD',
+        stripe_tx_created_at: latestTx?.created_at || enrichedBooking.stripe_tx_created_at
       };
       
       setBookings(prevBookings => {
@@ -244,6 +291,36 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
 
   useEffect(() => {
     fetchBookings();
+  }, []);
+
+  // Realtime subscription to Stripe transactions to keep amounts fresh
+  useEffect(() => {
+    const channel = supabase
+      .channel('transactions-admin')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, (payload) => {
+        const tx: any = (payload as any).new;
+        if (!tx?.booking_id) return;
+        if (['authorized','completed'].includes(tx.status)) {
+          setBookings(prev => prev.map(b => {
+            if (b.id !== tx.booking_id) return b;
+            const prevTs = b.stripe_tx_created_at ? new Date(b.stripe_tx_created_at).getTime() : 0;
+            const newTs = tx.created_at ? new Date(tx.created_at).getTime() : Date.now();
+            if (newTs < prevTs) return b;
+            return {
+              ...b,
+              stripe_authorized_amount: Number(tx.amount) || b.stripe_authorized_amount,
+              stripe_payment_status: tx.status,
+              stripe_currency: tx.currency || b.stripe_currency || 'USD',
+              stripe_tx_created_at: tx.created_at || new Date().toISOString(),
+            };
+          }));
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   return {
