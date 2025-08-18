@@ -6,6 +6,88 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Embedded idempotency helper to prevent duplicate operations
+class IdempotencyHelper {
+  private supabase: any;
+  private recordId: string | null = null;
+
+  constructor(supabase: any) {
+    this.supabase = supabase;
+  }
+
+  async checkAndStore(idempotencyKey: string, operationType: string, requestData: any): Promise<{ canProceed: boolean; existingResult?: any }> {
+    const requestHash = await this.generateHash(JSON.stringify(requestData));
+    
+    // Check for existing record
+    const { data: existing } = await this.supabase
+      .from('idempotency_records')
+      .select('*')
+      .eq('idempotency_key', idempotencyKey)
+      .eq('operation_type', operationType)
+      .single();
+
+    if (existing) {
+      if (existing.status === 'completed') {
+        return { canProceed: false, existingResult: existing.response_data };
+      }
+      if (existing.status === 'pending') {
+        throw new Error('Operation already in progress');
+      }
+    }
+
+    // Store new record
+    const { data: newRecord } = await this.supabase
+      .from('idempotency_records')
+      .insert({
+        idempotency_key: idempotencyKey,
+        operation_type: operationType,
+        request_hash: requestHash,
+        user_id: '00000000-0000-0000-0000-000000000000', // System user
+        expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1 hour TTL
+        status: 'pending'
+      })
+      .select()
+      .single();
+
+    this.recordId = newRecord?.id;
+    return { canProceed: true };
+  }
+
+  async markCompleted(responseData: any): Promise<void> {
+    if (this.recordId) {
+      await this.supabase
+        .from('idempotency_records')
+        .update({
+          status: 'completed',
+          response_data: responseData,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', this.recordId);
+    }
+  }
+
+  async markFailed(error: string): Promise<void> {
+    if (this.recordId) {
+      await this.supabase
+        .from('idempotency_records')
+        .update({
+          status: 'failed',
+          response_data: { error },
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', this.recordId);
+    }
+  }
+
+  private async generateHash(data: string): Promise<string> {
+    const encoder = new TextEncoder();
+    const dataBuffer = encoder.encode(data);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+}
+
 interface WatchdogRequest {
   bookingId: string;
 }
@@ -33,6 +115,25 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
+
+    // Initialize idempotency helper
+    const idempotency = new IdempotencyHelper(supabase);
+    const idempotencyKey = `watchdog-${bookingId}`;
+    
+    // Check idempotency
+    const { canProceed, existingResult } = await idempotency.checkAndStore(
+      idempotencyKey,
+      'email_watchdog',
+      { bookingId }
+    );
+
+    if (!canProceed) {
+      console.log(`Watchdog: operation already completed for booking ${bookingId}`);
+      return new Response(
+        JSON.stringify(existingResult),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
 
     // Load booking basics
     const { data: booking, error: bookingErr } = await supabase
@@ -73,10 +174,10 @@ serve(async (req) => {
       if (!wrkErr) workerEmail = (wrk?.email || null);
     }
 
-    // Fetch recent email logs for this booking
+    // Fetch recent email logs for this booking with email_type for better tracking
     const { data: emailLogs, error: logsErr } = await supabase
       .from("email_logs")
-      .select("recipient_email, status, sent_at, created_at")
+      .select("recipient_email, status, sent_at, created_at, email_type")
       .eq("booking_id", booking.id)
       .eq("status", "sent")
       .order("created_at", { ascending: false });
@@ -87,18 +188,20 @@ serve(async (req) => {
 
     const createdTs = new Date(booking.created_at).getTime();
 
-    const wasEmailSentTo = (target: string | null | undefined) => {
+    const wasEmailSentTo = (target: string | null | undefined, emailType: string = 'general') => {
       if (!target) return false;
       const targetLc = target.toLowerCase();
       return (emailLogs || []).some((row) => {
         const recipient = (row.recipient_email || "").toLowerCase();
         const ts = new Date((row.sent_at as string) || (row.created_at as string)).getTime();
-        return recipient === targetLc && ts > createdTs;
+        const logEmailType = row.email_type || 'general';
+        return recipient === targetLc && ts > createdTs && 
+               (emailType === 'general' || logEmailType === emailType);
       });
     };
 
-    const customerEmailSent = wasEmailSentTo(customerEmail || undefined);
-    const workerEmailSent = wasEmailSentTo(workerEmail || undefined);
+    const customerEmailSent = wasEmailSentTo(customerEmail || undefined, 'booking_confirmation');
+    const workerEmailSent = wasEmailSentTo(workerEmail || undefined, 'worker_assignment');
 
     const actions: string[] = [];
 
@@ -136,12 +239,29 @@ serve(async (req) => {
       });
     }
 
+    const result = { bookingId, actions, customerEmail, workerEmail };
+    
+    // Mark idempotency operation as completed
+    await idempotency.markCompleted(result);
+
     return new Response(
-      JSON.stringify({ bookingId, actions, customerEmail, workerEmail }),
+      JSON.stringify(result),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   } catch (e: any) {
     console.error("Watchdog: error", e);
+    
+    // Mark idempotency operation as failed if helper exists
+    try {
+      const idempotency = new IdempotencyHelper(createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+      ));
+      await idempotency.markFailed(e?.message || "Unexpected error");
+    } catch (idempotencyError) {
+      console.error("Watchdog: Failed to mark idempotency as failed", idempotencyError);
+    }
+    
     return new Response(JSON.stringify({ error: e?.message || "Unexpected error" }), {
       status: 500,
       headers: { "Content-Type": "application/json", ...corsHeaders },

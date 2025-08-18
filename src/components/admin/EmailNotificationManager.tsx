@@ -117,6 +117,57 @@ export const EmailNotificationManager = () => {
     }
   };
 
+  const runWatchdog = async () => {
+    if (!bookingId) {
+      toast({
+        title: "Error",
+        description: "Please enter a booking ID",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!validateUUID(bookingId)) {
+      toast({
+        title: "Invalid Booking ID",
+        description: "Please enter a valid UUID format",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('booking-notification-watchdog', {
+        body: { bookingId }
+      });
+
+      if (error) throw error;
+
+      const actions = data.actions || [];
+      const message = actions.length > 0 
+        ? `Watchdog completed: ${actions.join(', ')}`
+        : 'Watchdog check completed - no missing emails detected';
+
+      toast({
+        title: "Watchdog Completed",
+        description: message,
+      });
+
+      // Refresh email logs
+      fetchRecentEmails();
+    } catch (error) {
+      console.error('Error running watchdog:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to run watchdog",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const fetchRecentEmails = async () => {
     try {
       const { data, error } = await supabase
@@ -218,7 +269,7 @@ export const EmailNotificationManager = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <Button
               onClick={() => sendTestEmail('confirmation')}
               disabled={isLoading}
@@ -247,6 +298,16 @@ export const EmailNotificationManager = () => {
               <Mail className="h-4 w-4" />
               Smart Email (Auto-detect)
             </Button>
+
+            <Button
+              onClick={runWatchdog}
+              disabled={isLoading}
+              variant="destructive"
+              className="flex items-center gap-2"
+            >
+              <Search className="h-4 w-4" />
+              Run Watchdog
+            </Button>
           </div>
 
           <div className="bg-muted p-4 rounded-lg">
@@ -255,6 +316,7 @@ export const EmailNotificationManager = () => {
               <p><strong>Stage 1 (Confirmation):</strong> Sent when payment is authorized AND worker is assigned</p>
               <p><strong>Stage 2 (Reminder):</strong> Sent when booking exists but payment is incomplete</p>
               <p><strong>Smart Email:</strong> Automatically detects which stage and sends appropriate email</p>
+              <p><strong>Watchdog:</strong> Checks if emails were sent and resends missing ones with idempotency protection</p>
             </div>
           </div>
         </CardContent>

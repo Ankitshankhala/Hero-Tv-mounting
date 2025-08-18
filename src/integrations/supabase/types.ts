@@ -1373,6 +1373,10 @@ export type Database = {
         Args: { p_booking_id: string }
         Returns: Json
       }
+      run_automated_watchdog: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       send_email_for_booking: {
         Args: { p_booking_id: string }
         Returns: Json
