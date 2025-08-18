@@ -98,28 +98,54 @@ const WorkerDashboard = () => {
     try {
       setLoading(true);
       console.log('Fetching jobs for worker:', user.id);
-      const {
-        data,
-        error
-      } = await supabase.from('bookings').select(`
+      
+      // Fetch bookings without booking_services to avoid FK error
+      const { data: bookingsData, error: bookingsError } = await supabase.from('bookings').select(`
           *,
           customer:users!customer_id(name, phone),
-          service:services!service_id(name, description, base_price, duration_minutes),
-          booking_services(service_name, quantity, base_price, configuration)
+          service:services!service_id(name, description, base_price, duration_minutes)
         `).eq('worker_id', user.id).order('updated_at', {
         ascending: false
       }).order('scheduled_date', {
         ascending: true
       });
-      if (error) {
-        console.error('Supabase error:', error);
-        throw error;
+
+      if (bookingsError) {
+        console.error('Supabase error:', bookingsError);
+        throw bookingsError;
       }
-      console.log('Raw jobs data:', data);
+
+      let servicesByBooking = {};
+      
+      if (bookingsData && bookingsData.length > 0) {
+        // Fetch booking services separately for all bookings
+        const bookingIds = bookingsData.map(booking => booking.id);
+        const { data: bookingServicesData, error: servicesError } = await supabase
+          .from('booking_services')
+          .select('booking_id, service_name, quantity, base_price, configuration')
+          .in('booking_id', bookingIds);
+
+        if (servicesError) {
+          console.error('Error fetching booking services:', servicesError);
+        } else {
+          // Group booking services by booking_id
+          servicesByBooking = (bookingServicesData || []).reduce((acc, service) => {
+            if (!acc[service.booking_id]) {
+              acc[service.booking_id] = [];
+            }
+            acc[service.booking_id].push(service);
+            return acc;
+          }, {} as Record<string, any[]>);
+        }
+      }
+
+      console.log('Raw jobs data:', bookingsData);
+      console.log('Booking services data:', servicesByBooking);
 
       // Transform data to match expected format
-      const transformedJobs = (data || []).map(job => ({
+      const transformedJobs = (bookingsData || []).map(job => ({
         ...job,
+        booking_services: servicesByBooking[job.id] || [],
         scheduled_at: `${job.scheduled_date}T${job.scheduled_start}`,
         total_price: job.service?.base_price || 0,
         total_duration_minutes: job.service?.duration_minutes || 60,
@@ -127,8 +153,9 @@ const WorkerDashboard = () => {
         // Ensure customer data is properly nested and accessible
         customer: job.customer || null
       }));
-      console.log('Transformed jobs:', transformedJobs);
+      console.log('Transformed jobs with services:', transformedJobs);
       console.log('First job customer data:', transformedJobs[0]?.customer);
+      console.log('First job booking services:', transformedJobs[0]?.booking_services);
       setJobs(transformedJobs);
       toast({
         title: "Jobs Loaded",
