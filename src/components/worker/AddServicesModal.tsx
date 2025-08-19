@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ServiceCard } from '@/components/ServiceCard';
 import { TvMountingModal } from '@/components/TvMountingModal';
 import { InlineStripePaymentForm } from './payment/InlineStripePaymentForm';
+import { PaymentVerificationForm } from './payment/PaymentVerificationForm';
 import { CartItem } from '@/types';
 import { usePublicServicesData } from '@/hooks/usePublicServicesData';
 import { supabase } from '@/integrations/supabase/client';
@@ -43,6 +44,7 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
     clientSecret: string;
     amount: number;
     paymentIntentId: string;
+    sessionId?: string;
   } | null>(null);
   const { services, loading } = usePublicServicesData();
   const { toast } = useToast();
@@ -145,13 +147,22 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
         throw new Error(data?.error || 'Failed to add services and update payment authorization');
       }
 
-      // Check if additional payment or new authorization is required
-      if ((data.requires_additional_payment || data.requires_new_authorization) && data.payment_intent_client_secret) {
-        // Show inline payment form
+      // Check if payment gateway is required
+      if (data.requires_payment_gateway && data.checkout_url) {
+        // Open Stripe Checkout in new tab
+        window.open(data.checkout_url, '_blank');
+        
+        toast({
+          title: "Payment Gateway Opened",
+          description: "Please complete payment in the new tab. Click 'Verify Payment' once done.",
+        });
+
+        // Show verification UI
         setPaymentData({
-          clientSecret: data.payment_intent_client_secret,
-          amount: data.requires_new_authorization ? data.total_amount : data.additional_amount,
-          paymentIntentId: data.payment_intent_id
+          clientSecret: '', // Not needed for checkout flow
+          amount: data.total_amount || data.additional_amount,
+          paymentIntentId: data.payment_intent_id,
+          sessionId: data.session_id
         });
         setShowPaymentForm(true);
         setProcessing(false);
@@ -255,13 +266,22 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
                   </CardContent>
                 </Card>
 
-                <InlineStripePaymentForm
-                  job={job}
-                  amount={paymentData.amount.toFixed(2)}
-                  clientSecret={paymentData.clientSecret}
-                  onPaymentSuccess={handlePaymentSuccess}
-                  onPaymentFailure={handlePaymentFailure}
-                />
+                {paymentData.sessionId ? (
+                  <PaymentVerificationForm
+                    sessionId={paymentData.sessionId}
+                    amount={paymentData.amount}
+                    onPaymentSuccess={handlePaymentSuccess}
+                    onPaymentFailure={handlePaymentFailure}
+                  />
+                ) : (
+                  <InlineStripePaymentForm
+                    job={job}
+                    amount={paymentData.amount.toFixed(2)}
+                    clientSecret={paymentData.clientSecret}
+                    onPaymentSuccess={handlePaymentSuccess}
+                    onPaymentFailure={handlePaymentFailure}
+                  />
+                )}
               </div>
             ) : (
               <>
