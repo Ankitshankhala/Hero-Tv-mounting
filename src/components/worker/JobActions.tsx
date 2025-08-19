@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PaymentCaptureButton } from './PaymentCaptureButton';
 import { initiatePhoneCall } from '@/utils/phoneUtils';
-import { openDirections } from '@/utils/maps';
+import { MapAppSelector } from './MapAppSelector';
 interface JobActionsProps {
   job: any;
   onStatusUpdate: (jobId: string, newStatus: string) => void;
@@ -34,12 +34,6 @@ const JobActions = ({
     return job.guest_customer_info?.phone || job.customer?.phone || '';
   };
 
-  const getDirections = () => {
-    const address = getCustomerAddress();
-    if (address) {
-      openDirections(address);
-    }
-  };
   const canAddCharges = (job.status === 'in_progress' || job.status === 'confirmed') && job.payment_status !== 'authorized';
   const canCapturePayment = job.payment_status === 'authorized' && job.status !== 'completed';
   const canAddServices = job.status === 'confirmed' || job.status === 'in_progress';
@@ -87,10 +81,7 @@ const JobActions = ({
           Call Customer
         </Button>
         
-        <Button size="sm" variant="outline" onClick={getDirections} disabled={!getCustomerAddress()} className="border-input bg-background hover:bg-accent hover:text-accent-foreground transition-all duration-200">
-          <MapPin className="h-4 w-4 mr-2" />
-          Get Directions
-        </Button>
+        <MapAppSelector address={getCustomerAddress()} />
         
         {canAddCharges && <Button size="sm" variant="outline" onClick={onChargeClick} className="border-action-success text-action-success hover:bg-action-success hover:text-white transition-all duration-200">
             <CreditCard className="h-4 w-4 mr-2" />
