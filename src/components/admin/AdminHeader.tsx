@@ -103,10 +103,7 @@ export const AdminHeader = () => {
                 </Button>
               </div> : <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="bg-orange-600/20 text-orange-400 border-orange-600/50 hover:bg-orange-600 hover:text-white transition-colors">
-                    <TestTube className="h-4 w-4 mr-2" />
-                    Enable $1 Testing (10 min)
-                  </Button>
+                  
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
