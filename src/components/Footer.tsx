@@ -5,29 +5,43 @@ export const Footer = () => {
   return (
     <footer className="bg-slate-800 border-t border-slate-700 py-8">
       <div className="container mx-auto px-4">
-        <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
+        <div className="flex flex-col md:flex-row justify-between items-start space-y-6 md:space-y-0">
           <div className="text-center md:text-left text-slate-400">
             <p>&copy; 2025 Hero TV Mounting. All rights reserved.</p>
           </div>
-          <div className="flex space-x-6">
-            <a 
-              href="/worker-signup" 
-              className="text-blue-400 hover:text-blue-300 transition-colors duration-200 font-medium"
-            >
-              Join Our Team
-            </a>
-            <a 
-              href="/worker-login" 
-              className="text-slate-400 hover:text-slate-300 transition-colors duration-200"
-            >
-              Technician Portal
-            </a>
-            <a 
-              href="tel:+17372729971" 
-              className="text-slate-400 hover:text-slate-300 transition-colors duration-200"
-            >
-              Contact Us
-            </a>
+          
+          <div className="flex flex-col md:flex-row gap-8">
+            <div className="text-center md:text-left">
+              <div className="text-slate-300 font-semibold mb-2">Service Areas</div>
+              <ul className="space-y-1 text-slate-400 text-sm">
+                <li><a href="/locations/austin" className="hover:text-slate-200 transition-colors duration-200">Austin, TX</a></li>
+                <li><a href="/locations/san-antonio" className="hover:text-slate-200 transition-colors duration-200">San Antonio, TX</a></li>
+                <li><a href="/locations/fort-worth" className="hover:text-slate-200 transition-colors duration-200">Fort Worth, TX</a></li>
+                <li><a href="/locations/dallas" className="hover:text-slate-200 transition-colors duration-200">Dallas, TX</a></li>
+                <li><a href="/locations/houston" className="hover:text-slate-200 transition-colors duration-200">Houston, TX</a></li>
+              </ul>
+            </div>
+            
+            <div className="flex flex-col space-y-2 text-center md:text-left">
+              <a 
+                href="/worker-signup" 
+                className="text-blue-400 hover:text-blue-300 transition-colors duration-200 font-medium"
+              >
+                Join Our Team
+              </a>
+              <a 
+                href="/worker-login" 
+                className="text-slate-400 hover:text-slate-300 transition-colors duration-200"
+              >
+                Technician Portal
+              </a>
+              <a 
+                href="tel:+17372729971" 
+                className="text-slate-400 hover:text-slate-300 transition-colors duration-200"
+              >
+                Contact Us
+              </a>
+            </div>
           </div>
         </div>
         

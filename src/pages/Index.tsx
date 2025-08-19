@@ -126,6 +126,62 @@ const Index = () => {
         <ReviewsSection />
         <BlogSection />
         
+        {/* Service Areas Section */}
+        <section className="py-16 bg-slate-800">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+                Service Areas in Texas
+              </h2>
+              <p className="text-slate-300 text-lg max-w-2xl mx-auto">
+                We provide professional TV mounting services across major Texas cities with same-day availability.
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 max-w-6xl mx-auto">
+              <a 
+                href="/locations/austin"
+                className="bg-slate-700 hover:bg-slate-600 rounded-lg p-6 text-center transition-colors duration-200 group"
+              >
+                <h3 className="text-xl font-semibold text-white mb-2 group-hover:text-blue-300">Austin</h3>
+                <p className="text-slate-400 text-sm">Professional TV mounting in Austin, TX</p>
+              </a>
+              
+              <a 
+                href="/locations/san-antonio"
+                className="bg-slate-700 hover:bg-slate-600 rounded-lg p-6 text-center transition-colors duration-200 group"
+              >
+                <h3 className="text-xl font-semibold text-white mb-2 group-hover:text-blue-300">San Antonio</h3>
+                <p className="text-slate-400 text-sm">Expert TV mounting in San Antonio, TX</p>
+              </a>
+              
+              <a 
+                href="/locations/fort-worth"
+                className="bg-slate-700 hover:bg-slate-600 rounded-lg p-6 text-center transition-colors duration-200 group"
+              >
+                <h3 className="text-xl font-semibold text-white mb-2 group-hover:text-blue-300">Fort Worth</h3>
+                <p className="text-slate-400 text-sm">Reliable TV mounting in Fort Worth, TX</p>
+              </a>
+              
+              <a 
+                href="/locations/dallas"
+                className="bg-slate-700 hover:bg-slate-600 rounded-lg p-6 text-center transition-colors duration-200 group"
+              >
+                <h3 className="text-xl font-semibold text-white mb-2 group-hover:text-blue-300">Dallas</h3>
+                <p className="text-slate-400 text-sm">Professional TV mounting in Dallas, TX</p>
+              </a>
+              
+              <a 
+                href="/locations/houston"
+                className="bg-slate-700 hover:bg-slate-600 rounded-lg p-6 text-center transition-colors duration-200 group"
+              >
+                <h3 className="text-xl font-semibold text-white mb-2 group-hover:text-blue-300">Houston</h3>
+                <p className="text-slate-400 text-sm">Top-rated TV mounting in Houston, TX</p>
+              </a>
+            </div>
+          </div>
+        </section>
+        
         {/* Worker Recruitment Section */}
         <section className="py-16 bg-gradient-to-r from-blue-900 to-purple-900">
           <div className="container mx-auto px-4 text-center">

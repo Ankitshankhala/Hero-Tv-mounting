@@ -14,6 +14,7 @@ import Admin from '@/pages/Admin';
 import NotFound from '@/pages/NotFound';
 import WorkerSignup from '@/pages/WorkerSignup';
 import WorkerLogin from '@/pages/WorkerLogin';
+import CityPage from '@/pages/cities/CityPage';
 import { HelmetProvider } from 'react-helmet-async';
 
 const queryClient = new QueryClient();
@@ -37,6 +38,15 @@ function AppWithSecurity() {
         <Route path="/worker-signup" element={<WorkerSignup />} />
         <Route path="/worker-login" element={<WorkerLogin />} />
         <Route path="/admin" element={<Admin />} />
+        
+        {/* City landing pages */}
+        <Route path="/locations/:slug" element={<CityPage />} />
+        <Route path="/austin-tv-mounting" element={<CityPage />} />
+        <Route path="/san-antonio-tv-mounting" element={<CityPage />} />
+        <Route path="/fort-worth-tv-mounting" element={<CityPage />} />
+        <Route path="/dallas-tv-mounting" element={<CityPage />} />
+        <Route path="/houston-tv-mounting" element={<CityPage />} />
+        
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Router>
