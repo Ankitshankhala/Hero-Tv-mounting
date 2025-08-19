@@ -187,16 +187,16 @@ const WorkerDashboard = () => {
       }
       console.log('Status updated successfully:', data);
 
-      // Handle payment capture for completed jobs
-      if (newStatus === 'completed') {
-        console.log('Job completed, capturing payment automatically...');
+      // Handle payment capture for completed jobs with authorized payments
+      if (newStatus === 'completed' && data?.payment_status === 'authorized') {
+        console.log('Job completed with authorized payment, capturing payment automatically...');
         try {
           const {
             data: captureResult,
             error: captureError
           } = await supabase.functions.invoke('capture-payment-intent', {
             body: {
-              bookingId: jobId
+              booking_id: jobId  // Fixed: use booking_id instead of bookingId
             }
           });
           if (captureError) {
