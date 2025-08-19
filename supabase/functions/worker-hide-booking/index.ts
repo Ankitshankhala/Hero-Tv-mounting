@@ -26,7 +26,7 @@ serve(async (req) => {
       throw new Error("User not authenticated");
     }
 
-    const { booking_id, is_hidden = true } = await req.json();
+    const { booking_id, is_hidden = true, reason } = await req.json();
 
     if (!booking_id) {
       throw new Error("Booking ID is required");
@@ -52,6 +52,7 @@ serve(async (req) => {
         booking_id: booking_id,
         is_hidden: is_hidden,
         hidden_at: is_hidden ? new Date().toISOString() : null,
+        reason: reason || null,
         updated_at: new Date().toISOString()
       }, {
         onConflict: 'worker_id,booking_id'
@@ -62,17 +63,21 @@ serve(async (req) => {
     }
 
     // Log the action
+    const actionMessage = is_hidden 
+      ? `Booking soft deleted by worker${reason ? `: ${reason}` : ''}`
+      : 'Booking restored by worker';
+    
     await supabaseClient.from('sms_logs').insert({
       booking_id: booking_id,
       recipient_number: 'system',
-      message: `Booking ${is_hidden ? 'hidden' : 'unhidden'} by worker`,
+      message: actionMessage,
       status: 'sent'
     });
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Booking ${is_hidden ? 'hidden' : 'restored'} successfully`
+        message: `Booking ${is_hidden ? 'soft deleted' : 'restored'} successfully`
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

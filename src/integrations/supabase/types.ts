@@ -1065,6 +1065,7 @@ export type Database = {
           hidden_at: string | null
           id: string
           is_hidden: boolean
+          reason: string | null
           updated_at: string
           worker_id: string
         }
@@ -1074,6 +1075,7 @@ export type Database = {
           hidden_at?: string | null
           id?: string
           is_hidden?: boolean
+          reason?: string | null
           updated_at?: string
           worker_id: string
         }
@@ -1083,6 +1085,7 @@ export type Database = {
           hidden_at?: string | null
           id?: string
           is_hidden?: boolean
+          reason?: string | null
           updated_at?: string
           worker_id?: string
         }
