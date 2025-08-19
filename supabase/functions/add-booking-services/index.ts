@@ -339,35 +339,6 @@ serve(async (req) => {
             logStep('Warning: Failed to update booking with new PaymentIntent', { error: bookingUpdateError.message });
           }
 
-          // Create Stripe Checkout session for consolidated payment
-          const checkoutSession = await stripe.checkout.sessions.create({
-            payment_method_types: ['card'],
-            mode: 'payment',
-            amount: totalAmountCents,
-            currency: 'usd',
-            customer_email: customerEmail,
-            success_url: `${Deno.env.get('SITE_URL') || 'http://localhost:5173'}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: `${Deno.env.get('SITE_URL') || 'http://localhost:5173'}/worker-dashboard`,
-            metadata: {
-              booking_id: booking_id,
-              type: 'consolidated_payment',
-              original_amount: originalAmountCents.toString(),
-              additional_amount: additionalAmountCents.toString(),
-              payment_intent_id: newPaymentIntent.id
-            },
-            line_items: [{
-              price_data: {
-                currency: 'usd',
-                product_data: {
-                  name: `Booking #${booking_id.slice(0, 8)} - Complete Service`,
-                  description: `Original service + additional services`
-                },
-                unit_amount: totalAmountCents,
-              },
-              quantity: 1,
-            }]
-          });
-
           return new Response(
             JSON.stringify({ 
               success: true, 
@@ -375,11 +346,10 @@ serve(async (req) => {
               total_amount: totalAmountCents / 100,
               original_amount: originalAmountCents / 100,
               additional_amount: additionalAmount,
-              requires_payment_gateway: true,
-              checkout_url: checkoutSession.url,
-              session_id: checkoutSession.id,
+              requires_inline_payment: true,
+              client_secret: newPaymentIntent.client_secret,
               payment_intent_id: newPaymentIntent.id,
-              message: 'Services added. Payment gateway required for consolidated payment.'
+              message: 'Services added. Inline payment required for consolidated payment.'
             }),
             { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
@@ -403,31 +373,10 @@ serve(async (req) => {
             }
           });
 
-          // Create Stripe Checkout session for additional services
-          const checkoutSession = await stripe.checkout.sessions.create({
-            payment_method_types: ['card'],
-            mode: 'payment',
-            amount: additionalAmountCents,
-            currency: 'usd',
-            customer_email: customerEmail,
-            success_url: `${Deno.env.get('SITE_URL') || 'http://localhost:5173'}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: `${Deno.env.get('SITE_URL') || 'http://localhost:5173'}/worker-dashboard`,
-            metadata: {
-              booking_id: booking_id,
-              type: 'additional_services_fallback',
-              payment_intent_id: newPaymentIntent.id
-            },
-            line_items: [{
-              price_data: {
-                currency: 'usd',
-                product_data: {
-                  name: `Booking #${booking_id.slice(0, 8)} - Additional Services`,
-                  description: `Additional services for existing booking`
-                },
-                unit_amount: additionalAmountCents,
-              },
-              quantity: 1,
-            }]
+          // Return PaymentIntent client_secret for inline payment
+          logStep('Returning PaymentIntent for inline payment', { 
+            payment_intent_id: newPaymentIntent.id,
+            amount: additionalAmountCents
           });
 
           const { error: transactionError } = await supabase
@@ -462,11 +411,10 @@ serve(async (req) => {
               success: true, 
               invoice_total: newTotal,
               additional_amount: additionalAmount,
-              requires_payment_gateway: true,
-              checkout_url: checkoutSession.url,
-              session_id: checkoutSession.id,
+              requires_inline_payment: true,
+              client_secret: newPaymentIntent.client_secret,
               payment_intent_id: newPaymentIntent.id,
-              message: 'Services added. Payment gateway required for additional services (fallback mode).'
+              message: 'Services added. Inline payment required for additional services (fallback mode).'
             }),
             { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
