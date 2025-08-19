@@ -11,6 +11,7 @@ interface JobActionsProps {
   onChargeClick: () => void;
   onCaptureSuccess?: () => void;
   onAddServicesClick?: () => void;
+  onModifyServicesClick?: () => void;
 }
 const JobActions = ({
   job,
@@ -18,7 +19,8 @@ const JobActions = ({
   onModifyClick,
   onChargeClick,
   onCaptureSuccess,
-  onAddServicesClick
+  onAddServicesClick,
+  onModifyServicesClick
 }: JobActionsProps) => {
   const callCustomer = (phone: string) => {
     initiatePhoneCall(phone);
@@ -41,6 +43,7 @@ const JobActions = ({
   const canAddCharges = (job.status === 'in_progress' || job.status === 'confirmed') && job.payment_status !== 'authorized';
   const canCapturePayment = job.payment_status === 'authorized' && job.status !== 'completed';
   const canAddServices = job.status === 'confirmed' || job.status === 'in_progress';
+  const canModifyServices = job.status === 'confirmed' || job.status === 'in_progress';
   const getValidNextStatuses = (currentStatus: string) => {
     switch (currentStatus) {
       case 'pending':
@@ -99,6 +102,11 @@ const JobActions = ({
         {canAddServices && <Button size="sm" variant="outline" onClick={onAddServicesClick} className="border-action-warning text-action-warning hover:bg-action-warning hover:text-white transition-all duration-200">
             <Plus className="h-4 w-4 mr-2" />
             Add Services
+          </Button>}
+        
+        {canModifyServices && <Button size="sm" variant="outline" onClick={onModifyServicesClick} className="border-action-info text-action-info hover:bg-action-info hover:text-white transition-all duration-200">
+            <Edit className="h-4 w-4 mr-2" />
+            Modify Services
           </Button>}
       </div>
       

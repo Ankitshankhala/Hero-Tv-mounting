@@ -263,6 +263,7 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
             onChargeClick={handleChargeClick}
             onCaptureSuccess={handleCaptureSuccess}
             onAddServicesClick={handleAddServicesClick}
+            onModifyServicesClick={handleModifyClick}
           />
         </div>
       </CardContent>

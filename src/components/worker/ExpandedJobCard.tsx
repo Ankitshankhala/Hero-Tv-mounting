@@ -326,6 +326,7 @@ export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onCollaps
             onChargeClick={handleChargeClick}
             onCaptureSuccess={handleCaptureSuccess}
             onAddServicesClick={handleAddServicesClick}
+            onModifyServicesClick={handleModifyClick}
           />
         </div>
       </CardContent>
