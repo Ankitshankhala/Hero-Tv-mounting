@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PaymentCaptureButton } from './PaymentCaptureButton';
 import { initiatePhoneCall } from '@/utils/phoneUtils';
+import { openDirections } from '@/utils/maps';
 interface JobActionsProps {
   job: any;
   onStatusUpdate: (jobId: string, newStatus: string) => void;
@@ -36,8 +37,7 @@ const JobActions = ({
   const getDirections = () => {
     const address = getCustomerAddress();
     if (address) {
-      const encodedAddress = encodeURIComponent(address);
-      window.open(`https://maps.google.com/?q=${encodedAddress}`, '_blank');
+      openDirections(address);
     }
   };
   const canAddCharges = (job.status === 'in_progress' || job.status === 'confirmed') && job.payment_status !== 'authorized';

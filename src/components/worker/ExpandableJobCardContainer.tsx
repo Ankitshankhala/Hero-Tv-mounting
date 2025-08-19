@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { CompactJobCard } from './CompactJobCard';
 import { ExpandedJobCard } from './ExpandedJobCard';
+import { openDirections } from '@/utils/maps';
 
 interface ExpandableJobCardContainerProps {
   job: any;
@@ -42,8 +43,7 @@ export const ExpandableJobCardContainer = ({
     }
     
     if (address) {
-      const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
-      window.open(mapsUrl, '_blank');
+      openDirections(address);
     }
   };
 
