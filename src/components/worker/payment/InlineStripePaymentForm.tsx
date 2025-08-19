@@ -62,8 +62,34 @@ export const InlineStripePaymentForm = ({
 
         console.log('PaymentIntent status:', paymentIntent.status);
         
-        // Check for successful payment statuses
-        if (['succeeded', 'processing', 'requires_capture'].includes(paymentIntent.status)) {
+        // Handle payment based on status
+        if (paymentIntent.status === 'requires_capture') {
+          console.log('Payment requires manual capture, triggering capture process...');
+          
+          // Trigger payment capture
+          const { data: captureData, error: captureError } = await supabase.functions.invoke('capture-payment-intent', {
+            body: {
+              payment_intent_id: paymentIntent.id,
+              booking_id: job.id
+            }
+          });
+
+          if (captureError) {
+            console.error('Capture error:', captureError);
+            throw new Error(`Payment capture failed: ${captureError.message}`);
+          }
+
+          if (!captureData?.success) {
+            throw new Error(captureData?.error || 'Payment capture failed');
+          }
+
+          toast({
+            title: "Payment Successful",
+            description: `Successfully charged $${amount} for additional services`,
+          });
+
+          onPaymentSuccess();
+        } else if (['succeeded', 'processing'].includes(paymentIntent.status)) {
           // Update transaction status via edge function
           const { data, error: updateError } = await supabase.functions.invoke('process-service-addition-payment', {
             body: {

@@ -292,6 +292,7 @@ serve(async (req) => {
             currency: 'usd',
             receipt_email: customerEmail,
             capture_method: 'automatic',
+            confirm: false,
             description: `Complete service for booking ${booking_id} (original + additional services)`,
             metadata: {
               booking_id: booking_id,
@@ -364,6 +365,7 @@ serve(async (req) => {
             currency: 'usd',
             receipt_email: customerEmail,
             capture_method: 'automatic',
+            confirm: false,
             description: `Additional services for booking ${booking_id} (fallback)`,
             metadata: {
               booking_id: booking_id,
