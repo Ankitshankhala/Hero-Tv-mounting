@@ -20,11 +20,9 @@ import { BlogManager } from '@/components/admin/BlogManager';
 import { AdminCalendarView } from '@/components/admin/AdminCalendarView';
 import { CoverageRequestsManager } from '@/components/admin/CoverageRequestsManager';
 import { InvoicesManager } from '@/components/admin/InvoicesManager';
-import { InvoiceMonitoringPanel } from '@/components/admin/InvoiceMonitoringPanel';
 import { EmailLogsManager } from '@/components/admin/EmailLogsManager';
 import { SEO } from '@/components/SEO';
 import { NotificationsSettings } from '@/components/admin/NotificationsSettings';
-import { EmailNotificationManager } from '@/components/admin/EmailNotificationManager';
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarTrigger } from '@/components/ui/sidebar';
 
 const Admin = () => {
@@ -109,20 +107,21 @@ const Admin = () => {
         return <PaymentsManager />;
       case 'invoices':
         return <InvoicesManager />;
-      case 'invoice-monitoring':
-        return <InvoiceMonitoringPanel />;
       case 'sms':
         return <SMSLogsManager />;
       case 'email':
         return <EmailLogsManager />;
-      case 'email-notifications':
-        return <EmailNotificationManager />;
       case 'blog':
         return <BlogManager />;
       case 'coverage':
         return <CoverageRequestsManager />;
       case 'settings':
         return <NotificationsSettings />;
+      case 'invoice-monitoring':
+      case 'email-notifications':
+        // Redirect to dashboard for hidden tabs
+        setActiveTab('dashboard');
+        return <DashboardStats />;
       default:
         return <DashboardStats />;
     }
