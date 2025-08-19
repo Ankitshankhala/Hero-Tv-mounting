@@ -7,8 +7,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Search, RefreshCw, Mail, CheckCircle, XCircle, Clock } from 'lucide-react';
-import { EmailTestSuite } from './EmailTestSuite';
-import { EmailHealthCheck } from './EmailHealthCheck';
 import { useSmsNotifications } from '@/hooks/useSmsNotifications';
 import { format } from 'date-fns';
 
@@ -110,10 +108,8 @@ export const EmailLogsManager = () => {
       </div>
 
       <Tabs defaultValue="logs" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-1">
           <TabsTrigger value="logs">Email Logs</TabsTrigger>
-          <TabsTrigger value="health">Health Check</TabsTrigger>
-          <TabsTrigger value="testing">Email Testing</TabsTrigger>
         </TabsList>
         
         <TabsContent value="logs" className="space-y-6">
@@ -252,14 +248,6 @@ export const EmailLogsManager = () => {
               )}
             </CardContent>
           </Card>
-        </TabsContent>
-        
-        <TabsContent value="health">
-          <EmailHealthCheck />
-        </TabsContent>
-        
-        <TabsContent value="testing">
-          <EmailTestSuite />
         </TabsContent>
       </Tabs>
     </div>
