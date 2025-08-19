@@ -135,10 +135,10 @@ export const PaymentCaptureButton = ({
       >
         <CreditCard className="h-4 w-4 mr-2" />
         <span className="hidden sm:inline">
-          {processing ? 'Processing Payment...' : 'Mark Complete & Charge Customer'}
+          {processing ? 'Processing Payment...' : 'Charge'}
         </span>
         <span className="sm:hidden">
-          {processing ? 'Processing...' : 'Complete & Charge'}
+          {processing ? 'Processing...' : 'Charge'}
         </span>
       </Button>
       
