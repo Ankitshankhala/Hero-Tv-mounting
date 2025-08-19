@@ -33,7 +33,9 @@ export const TvMountingConfigurationModal: React.FC<TvMountingConfigurationModal
     totalPrice,
     calculateTvMountingPrice,
     buildServicesList,
-    buildCartItemName
+    buildCartItemName,
+    isReady,
+    servicesLoading
   } = useTvMountingModal(services);
 
   // Initialize with existing configuration
@@ -149,9 +151,10 @@ export const TvMountingConfigurationModal: React.FC<TvMountingConfigurationModal
             Cancel
           </Button>
           <Button
-            onClick={handleComplete}
-            variant="default"
-          >
+             onClick={handleComplete}
+             variant="default"
+             disabled={!isReady}
+           >
             Apply Configuration
           </Button>
         </div>

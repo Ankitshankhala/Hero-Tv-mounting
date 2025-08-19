@@ -15,7 +15,7 @@ interface TvConfiguration {
 export const useTvMountingModal = (publicServices: PublicService[]) => {
   const { isTestingMode } = useTestingMode();
   // Use full services data (including non-visible add-ons) for finding all services
-  const { services: allServices } = useServicesData();
+  const { services: allServices, loading: servicesLoading } = useServicesData();
   const [numberOfTvs, setNumberOfTvs] = useState(1);
   const [tvConfigurations, setTvConfigurations] = useState<TvConfiguration[]>([
     { id: '1', over65: false, frameMount: false, wallType: 'standard', soundbar: false }
@@ -26,6 +26,7 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
   const over65Service = allServices.find(s => s.name === 'Over 65" TV Add-on');
   const frameMountService = allServices.find(s => s.name === 'Frame Mount Add-on');
   const stoneWallService = allServices.find(s => s.name === 'Stone/Brick/Tile Wall');
+  const isReady = Boolean(tvMountingService?.id);
 
   const calculateTvMountingPrice = (numTvs: number) => {
     let totalPrice = 0;
@@ -110,8 +111,8 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
     
     // Main TV mounting service - ensure we have a valid UUID
     if (!tvMountingService?.id) {
-      console.error('❌ TV Mounting service not found in database');
-      throw new Error('TV Mounting service is not available. Please contact support.');
+      console.warn('TV Mounting service not ready; returning empty list');
+      return selectedServices;
     }
     
     const basePrice = isTestingMode ? 1 : calculateTvMountingPrice(numberOfTvs);
@@ -132,45 +133,45 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
 
     const over65Count = tvConfigurations.filter(config => config.over65).length;
     if (over65Count > 0) {
-      if (!over65Service?.id) {
-        console.error('❌ Over 65" TV Add-on service not found in database');
-        throw new Error('Over 65" TV Add-on service is not available. Please contact support.');
+      if (over65Service?.id) {
+        selectedServices.push({
+          id: over65Service.id,
+          name: `Over 65" TV Add-on${over65Count > 1 ? ` (${over65Count} TVs)` : ''}`,
+          price: over65Service.base_price * over65Count,
+          quantity: 1
+        });
+      } else {
+        console.warn('Over 65" TV Add-on service not found in database, skipping');
       }
-      selectedServices.push({
-        id: over65Service.id,
-        name: `Over 65" TV Add-on${over65Count > 1 ? ` (${over65Count} TVs)` : ''}`,
-        price: over65Service.base_price * over65Count,
-        quantity: 1
-      });
     }
     
     const frameMountCount = tvConfigurations.filter(config => config.frameMount).length;
     if (frameMountCount > 0) {
-      if (!frameMountService?.id) {
-        console.error('❌ Frame Mount Add-on service not found in database');
-        throw new Error('Frame Mount Add-on service is not available. Please contact support.');
+      if (frameMountService?.id) {
+        selectedServices.push({
+          id: frameMountService.id,
+          name: `Frame Mount Add-on${frameMountCount > 1 ? ` (${frameMountCount} TVs)` : ''}`,
+          price: frameMountService.base_price * frameMountCount,
+          quantity: 1
+        });
+      } else {
+        console.warn('Frame Mount Add-on service not found in database, skipping');
       }
-      selectedServices.push({
-        id: frameMountService.id,
-        name: `Frame Mount Add-on${frameMountCount > 1 ? ` (${frameMountCount} TVs)` : ''}`,
-        price: frameMountService.base_price * frameMountCount,
-        quantity: 1
-      });
     }
     
     const specialWallCount = tvConfigurations.filter(config => config.wallType !== 'standard').length;
     if (specialWallCount > 0) {
-      if (!stoneWallService?.id) {
-        console.error('❌ Stone/Brick/Tile Wall service not found in database');
-        throw new Error('Special wall service is not available. Please contact support.');
+      if (stoneWallService?.id) {
+        const wallTypes = [...new Set(tvConfigurations.filter(config => config.wallType !== 'standard').map(config => config.wallType))];
+        selectedServices.push({
+          id: stoneWallService.id,
+          name: `Special Wall Service (${wallTypes.join(', ')})${specialWallCount > 1 ? ` (${specialWallCount} TVs)` : ''}`,
+          price: stoneWallService.base_price * specialWallCount,
+          quantity: 1
+        });
+      } else {
+        console.warn('Stone/Brick/Tile Wall service not found in database, skipping');
       }
-      const wallTypes = [...new Set(tvConfigurations.filter(config => config.wallType !== 'standard').map(config => config.wallType))];
-      selectedServices.push({
-        id: stoneWallService.id,
-        name: `Special Wall Service (${wallTypes.join(', ')})${specialWallCount > 1 ? ` (${specialWallCount} TVs)` : ''}`,
-        price: stoneWallService.base_price * specialWallCount,
-        quantity: 1
-      });
     }
 
     const soundbarCount = tvConfigurations.filter(config => config.soundbar).length;
@@ -224,6 +225,8 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
     totalPrice,
     calculateTvMountingPrice,
     buildServicesList,
-    buildCartItemName
+    buildCartItemName,
+    isReady,
+    servicesLoading
   };
 };
