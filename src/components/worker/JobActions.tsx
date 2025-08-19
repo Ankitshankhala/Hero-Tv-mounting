@@ -1,5 +1,5 @@
 import React from 'react';
-import { Edit, Phone, MapPin, CreditCard, DollarSign, Plus } from 'lucide-react';
+import { Trash2, Phone, MapPin, CreditCard, DollarSign, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PaymentCaptureButton } from './PaymentCaptureButton';
@@ -105,8 +105,8 @@ const JobActions = ({
           </Button>}
         
         {canModifyServices && <Button size="sm" variant="outline" onClick={onModifyServicesClick} className="border-action-info text-action-info hover:bg-action-info hover:text-white transition-all duration-200">
-            <Edit className="h-4 w-4 mr-2" />
-            Modify Services
+            <Trash2 className="h-4 w-4 mr-2" />
+            Remove Services
           </Button>}
       </div>
       

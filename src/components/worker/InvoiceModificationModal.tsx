@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { EnhancedInvoiceModificationModal } from './EnhancedInvoiceModificationModal';
+import { RemoveServicesModal } from './RemoveServicesModal';
 
 interface InvoiceModificationModalProps {
   isOpen: boolean;
@@ -10,7 +10,7 @@ interface InvoiceModificationModalProps {
 }
 
 const InvoiceModificationModal = (props: InvoiceModificationModalProps) => {
-  return <EnhancedInvoiceModificationModal {...props} />;
+  return <RemoveServicesModal {...props} />;
 };
 
 export default InvoiceModificationModal;

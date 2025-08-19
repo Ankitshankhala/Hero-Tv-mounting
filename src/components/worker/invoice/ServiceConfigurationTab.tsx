@@ -20,6 +20,7 @@ interface ServiceConfigurationTabProps {
   onRemoveService: (serviceId: string) => void;
   onTvMountingConfiguration: (serviceId: string) => void;
   calculateServicePrice: (service: BookingService) => number;
+  removeOnly?: boolean;
 }
 
 export const ServiceConfigurationTab: React.FC<ServiceConfigurationTabProps> = ({
@@ -28,7 +29,8 @@ export const ServiceConfigurationTab: React.FC<ServiceConfigurationTabProps> = (
   onUpdateConfiguration,
   onRemoveService,
   onTvMountingConfiguration,
-  calculateServicePrice
+  calculateServicePrice,
+  removeOnly = false
 }) => {
   const renderServiceConfiguration = (service: BookingService) => {
     const config = service.configuration || {};
@@ -50,14 +52,16 @@ export const ServiceConfigurationTab: React.FC<ServiceConfigurationTabProps> = (
     return (
       <div className="text-center py-8">
         <div className="text-slate-400 mb-4">No services configured for this booking</div>
-        <div className="text-sm text-slate-500">Add services using the "Add New Services" tab</div>
+        {!removeOnly && <div className="text-sm text-slate-500">Add services using the "Add New Services" tab</div>}
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-white mb-4">Current Services</h3>
+      <h3 className="text-lg font-semibold text-white mb-4">
+        {removeOnly ? 'Remove Services' : 'Current Services'}
+      </h3>
       
       {services.map((service) => {
         const servicePrice = calculateServicePrice(service);
@@ -69,7 +73,7 @@ export const ServiceConfigurationTab: React.FC<ServiceConfigurationTabProps> = (
               <div className="flex items-center justify-between">
                 <CardTitle className="text-white text-lg">{service.service_name}</CardTitle>
                 <div className="flex items-center space-x-2">
-                  {service.service_name === 'TV Mounting' && (
+                  {!removeOnly && service.service_name === 'TV Mounting' && (
                     <Button
                       variant="outline"
                       size="sm"
@@ -86,15 +90,16 @@ export const ServiceConfigurationTab: React.FC<ServiceConfigurationTabProps> = (
                     onClick={() => onRemoveService(service.id)}
                     className="border-destructive text-destructive hover:bg-destructive/10"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Remove
                   </Button>
                 </div>
               </div>
             </CardHeader>
             
             <CardContent className="space-y-4">
-              {/* Configuration Options */}
-              {configItems.length > 0 && (
+              {/* Configuration Options - only show if not removeOnly */}
+              {!removeOnly && configItems.length > 0 && (
                 <div className="space-y-2">
                   <div className="text-sm text-slate-300">Configuration:</div>
                   <div className="flex flex-wrap gap-2">
@@ -107,33 +112,39 @@ export const ServiceConfigurationTab: React.FC<ServiceConfigurationTabProps> = (
                 </div>
               )}
 
-              {/* Quantity Controls */}
+              {/* Service Details and Price - always show */}
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <span className="text-slate-300">Quantity:</span>
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onUpdateQuantity(service.id, service.quantity - 1)}
-                      disabled={service.quantity <= 1}
-                      className="h-8 w-8 p-0 border-border text-foreground hover:bg-accent hover:text-accent-foreground"
-                    >
-                      <Minus className="h-4 w-4" />
-                    </Button>
-                    <span className="w-8 text-center text-foreground font-medium">
-                      {service.quantity}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onUpdateQuantity(service.id, service.quantity + 1)}
-                      className="h-8 w-8 p-0 border-border text-foreground hover:bg-accent hover:text-accent-foreground"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
+                {!removeOnly ? (
+                  <div className="flex items-center space-x-4">
+                    <span className="text-slate-300">Quantity:</span>
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onUpdateQuantity(service.id, service.quantity - 1)}
+                        disabled={service.quantity <= 1}
+                        className="h-8 w-8 p-0 border-border text-foreground hover:bg-accent hover:text-accent-foreground"
+                      >
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                      <span className="w-8 text-center text-foreground font-medium">
+                        {service.quantity}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onUpdateQuantity(service.id, service.quantity + 1)}
+                        className="h-8 w-8 p-0 border-border text-foreground hover:bg-accent hover:text-accent-foreground"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="flex items-center space-x-4">
+                    <span className="text-slate-300">Quantity: {service.quantity}</span>
+                  </div>
+                )}
                 
                 <div className="text-right">
                   <div className="text-sm text-slate-400">
