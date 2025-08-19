@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { format } from 'date-fns';
-import { Edit, Trash2, Eye, UserPlus, Calendar, DollarSign, CreditCard, Send, X } from 'lucide-react';
+import { Edit, Trash2, Eye, UserPlus, Calendar, DollarSign, CreditCard, Send, X, ArchiveRestore } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -101,6 +101,8 @@ interface BookingTableProps {
   showPendingPaymentActions?: boolean;
   onSendReminder?: (booking: Booking) => void;
   onCancelBooking?: (booking: Booking) => void;
+  onUnarchiveBooking?: (booking: Booking) => void;
+  showArchiveActions?: boolean;
 }
 
 export const BookingTable = ({ 
@@ -114,7 +116,9 @@ export const BookingTable = ({
   loading = false,
   showPendingPaymentActions = false,
   onSendReminder,
-  onCancelBooking
+  onCancelBooking,
+  onUnarchiveBooking,
+  showArchiveActions = false
 }: BookingTableProps) => {
   const [displayTimezone, setDisplayTimezone] = useState(DEFAULT_SERVICE_TIMEZONE);
 
@@ -303,6 +307,24 @@ export const BookingTable = ({
                               title="Cancel Booking"
                             >
                               <X className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => onViewBooking(booking)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </>
+                        ) : showArchiveActions ? (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => onUnarchiveBooking?.(booking)}
+                              title="Unarchive Booking"
+                            >
+                              <ArchiveRestore className="h-4 w-4" />
                             </Button>
                             <Button
                               variant="ghost"

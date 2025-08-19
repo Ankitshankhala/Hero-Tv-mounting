@@ -1,16 +1,24 @@
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { TestTube } from 'lucide-react';
 
 interface BookingFiltersProps {
   searchTerm: string;
   filterStatus: string;
   filterRegion: string;
   archiveFilter: string;
+  includeArchived: boolean;
+  testingFilter: boolean;
   onSearchChange: (value: string) => void;
   onStatusChange: (value: string) => void;
   onRegionChange: (value: string) => void;
   onArchiveFilterChange: (value: string) => void;
+  onIncludeArchivedChange: (value: boolean) => void;
+  onTestingFilterChange: (value: boolean) => void;
 }
 
 export const BookingFilters = ({
@@ -18,10 +26,14 @@ export const BookingFilters = ({
   filterStatus,
   filterRegion,
   archiveFilter,
+  includeArchived,
+  testingFilter,
   onSearchChange,
   onStatusChange,
   onRegionChange,
-  onArchiveFilterChange
+  onArchiveFilterChange,
+  onIncludeArchivedChange,
+  onTestingFilterChange
 }: BookingFiltersProps) => {
   return (
     <div className="space-y-4 mb-6">
@@ -33,6 +45,30 @@ export const BookingFilters = ({
           <TabsTrigger value="archived">Archived Bookings</TabsTrigger>
         </TabsList>
       </Tabs>
+
+      {/* Quick filters for All Bookings tab only */}
+      {archiveFilter === 'active' && (
+        <div className="flex flex-wrap items-center gap-4 p-3 bg-muted/30 rounded-lg">
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="include-archived"
+              checked={includeArchived}
+              onCheckedChange={onIncludeArchivedChange}
+            />
+            <Label htmlFor="include-archived" className="text-sm">Include archived</Label>
+          </div>
+          
+          <Button
+            variant={testingFilter ? "default" : "outline"}
+            size="sm"
+            onClick={() => onTestingFilterChange(!testingFilter)}
+            className="h-8"
+          >
+            <TestTube className="h-3 w-3 mr-2" />
+            Testing ($1-5)
+          </Button>
+        </div>
+      )}
 
       <div className="flex flex-col md:flex-row gap-4">
         <div className="flex-1">
