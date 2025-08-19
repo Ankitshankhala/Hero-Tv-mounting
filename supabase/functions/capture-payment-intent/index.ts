@@ -13,8 +13,11 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let bookingId = null; // Declare bookingId in outer scope
+
   try {
-    const { booking_id: bookingId } = await req.json();
+    const { booking_id } = await req.json();
+    bookingId = booking_id;
 
     console.log('=== CAPTURE PAYMENT DEBUG ===');
     console.log('Capturing payment for booking:', bookingId);
