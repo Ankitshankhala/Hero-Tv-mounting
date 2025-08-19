@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
 import JobActions from './JobActions';
-import { EnhancedInvoiceModificationModal } from './EnhancedInvoiceModificationModal';
+import { RemoveServicesModal } from './RemoveServicesModal';
 import OnSiteChargeModal from './OnSiteChargeModal';
 import { AddServicesModal } from './AddServicesModal';
 
@@ -270,7 +270,7 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
 
       {/* Modals */}
       {showModifyModal && (
-        <EnhancedInvoiceModificationModal
+        <RemoveServicesModal
           isOpen={showModifyModal}
           onClose={() => setShowModifyModal(false)}
           job={job}

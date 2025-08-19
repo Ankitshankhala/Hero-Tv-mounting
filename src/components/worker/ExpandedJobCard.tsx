@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
 
 import JobActions from './JobActions';
-import { EnhancedInvoiceModificationModal } from './EnhancedInvoiceModificationModal';
+import { RemoveServicesModal } from './RemoveServicesModal';
 import OnSiteChargeModal from './OnSiteChargeModal';
 import { AddServicesModal } from './AddServicesModal';
 
@@ -333,7 +333,7 @@ export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onCollaps
 
       {/* Modals */}
       {showModifyModal && (
-        <EnhancedInvoiceModificationModal
+        <RemoveServicesModal
           isOpen={showModifyModal}
           onClose={() => setShowModifyModal(false)}
           job={job}
