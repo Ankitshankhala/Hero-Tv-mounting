@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { ServiceConfigurationTab } from './invoice/ServiceConfigurationTab';
+import { ModificationSummary } from './invoice/ModificationSummary';
+import { calculateServiceLinePrice, calculateBookingTotal } from '@/utils/pricing';
 import { Loader2 } from 'lucide-react';
 
 interface BookingService {
@@ -29,9 +31,19 @@ export const RemoveServicesModal = ({
   onModificationCreated 
 }: RemoveServicesModalProps) => {
   const [services, setServices] = useState<BookingService[]>([]);
+  const [originalServices, setOriginalServices] = useState<BookingService[]>([]);
   const [loading, setLoading] = useState(false);
   const [removing, setRemoving] = useState(false);
   const { toast } = useToast();
+
+  // Calculate totals using the pricing utility
+  const originalTotal = useMemo(() => {
+    return calculateBookingTotal(originalServices);
+  }, [originalServices]);
+
+  const newTotal = useMemo(() => {
+    return calculateBookingTotal(services);
+  }, [services]);
 
   // Define calculateServicePrice function
   const calculateServicePrice = useCallback((service: BookingService) => {
@@ -68,6 +80,7 @@ export const RemoveServicesModal = ({
       }
 
       setServices(data || []);
+      setOriginalServices(data || []); // Store original services for price comparison
     } catch (error) {
       console.error('Error fetching booking services:', error);
       toast({
@@ -177,6 +190,13 @@ export const RemoveServicesModal = ({
         </DialogHeader>
 
         <div className="space-y-6">
+          {originalServices.length > 0 && (
+            <ModificationSummary
+              originalTotal={originalTotal}
+              newTotal={newTotal}
+            />
+          )}
+          
           <ServiceConfigurationTab
             services={services}
             onUpdateQuantity={() => {}} // Not used in remove-only mode
