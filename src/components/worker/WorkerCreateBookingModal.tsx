@@ -6,11 +6,13 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { X, Plus, Settings } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { usePublicServicesData } from '@/hooks/usePublicServicesData';
+import { useTestingMode, getEffectiveServicePrice } from '@/contexts/TestingModeContext';
 import { TvMountingConfigModal } from '../admin/TvMountingConfigModal';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -67,6 +69,7 @@ const WorkerCreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingMo
   const { user } = useAuth();
   const { toast } = useToast();
   const { services, loading: servicesLoading } = usePublicServicesData();
+  const { isTestingMode } = useTestingMode();
 
   // Find TV mounting service
   const tvMountingService = services.find(s => s.name === 'TV Mounting');
@@ -75,11 +78,11 @@ const WorkerCreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingMo
   const addService = (serviceId: string) => {
     const service = services.find(s => s.id === serviceId);
     if (service && !selectedServices.find(ss => ss.service.id === serviceId)) {
-      setSelectedServices([...selectedServices, { 
+        setSelectedServices([...selectedServices, { 
         service: {
           id: service.id,
           name: service.name,
-          base_price: service.base_price,
+          base_price: getEffectiveServicePrice(service.base_price, isTestingMode),
           duration_minutes: service.duration_minutes
         }, 
         quantity: 1 
@@ -235,7 +238,14 @@ const WorkerCreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingMo
         <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-slate-800 border-slate-700">
           <CardHeader>
             <div className="flex justify-between items-center">
-              <CardTitle className="text-white">Create New Booking</CardTitle>
+              <div className="flex items-center space-x-3">
+                <CardTitle className="text-white">Create New Booking</CardTitle>
+                {isTestingMode && (
+                  <Badge variant="secondary" className="bg-yellow-600 text-yellow-100">
+                    TEST MODE active — $1 pricing
+                  </Badge>
+                )}
+              </div>
               <Button variant="ghost" size="sm" onClick={onClose} className="text-white">
                 <X className="h-4 w-4" />
               </Button>
@@ -331,7 +341,7 @@ const WorkerCreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingMo
                       <SelectContent className="bg-slate-700 border-slate-600">
                         {services.filter(s => !selectedServices.find(ss => ss.service.id === s.id)).map((service) => (
                           <SelectItem key={service.id} value={service.id} className="text-white">
-                            {service.name} - ${service.base_price}
+                            {service.name} - ${getEffectiveServicePrice(service.base_price, isTestingMode)}
                           </SelectItem>
                         ))}
                       </SelectContent>

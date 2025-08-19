@@ -4,8 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { Plus } from 'lucide-react';
 import { usePublicServicesData } from '@/hooks/usePublicServicesData';
+import { useTestingMode, getEffectiveServicePrice } from '@/contexts/TestingModeContext';
 
 interface AddServicesTabProps {
   onAddService: (service: any) => void;
@@ -16,6 +18,7 @@ export const AddServicesTab: React.FC<AddServicesTabProps> = ({
 }) => {
   const { services, loading } = usePublicServicesData();
   const [quantities, setQuantities] = useState<{ [key: string]: number }>({});
+  const { isTestingMode } = useTestingMode();
 
   useEffect(() => {
     // Initialize quantities for all services
@@ -36,10 +39,11 @@ export const AddServicesTab: React.FC<AddServicesTabProps> = ({
 
   const handleAddService = (service: any) => {
     const quantity = quantities[service.id] || 1;
+    const effectivePrice = getEffectiveServicePrice(service.base_price, isTestingMode);
     const serviceToAdd = {
       id: service.id,
       name: service.name,
-      price: service.base_price,
+      price: effectivePrice,
       quantity: quantity
     };
     
@@ -62,7 +66,14 @@ export const AddServicesTab: React.FC<AddServicesTabProps> = ({
 
   return (
     <div className="space-y-4">
-      <Label className="text-white text-lg font-semibold">Available Services</Label>
+      <div className="flex items-center justify-between">
+        <Label className="text-white text-lg font-semibold">Available Services</Label>
+        {isTestingMode && (
+          <Badge variant="secondary" className="bg-yellow-600 text-yellow-100">
+            TEST MODE: $1 pricing active
+          </Badge>
+        )}
+      </div>
       <div className="grid gap-4">
         {services.map((service) => (
           <Card key={service.id} className="bg-slate-700 border-slate-600">
@@ -87,10 +98,10 @@ export const AddServicesTab: React.FC<AddServicesTabProps> = ({
                   </div>
                   <div className="text-slate-300">
                     <span className="text-sm">Price: </span>
-                    <span className="font-semibold">${service.base_price}</span>
+                    <span className="font-semibold">${getEffectiveServicePrice(service.base_price, isTestingMode)}</span>
                     {quantities[service.id] > 1 && (
                       <span className="text-xs text-slate-400 ml-1">
-                        (Total: ${(service.base_price * quantities[service.id]).toFixed(2)})
+                        (Total: ${(getEffectiveServicePrice(service.base_price, isTestingMode) * quantities[service.id]).toFixed(2)})
                       </span>
                     )}
                   </div>

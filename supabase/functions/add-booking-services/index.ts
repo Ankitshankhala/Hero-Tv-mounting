@@ -10,6 +10,7 @@ const corsHeaders = {
 interface AddServiceRequest {
   booking_id: string;
   services: { service_id: string; quantity?: number }[];
+  testing_mode?: boolean;
 }
 
 const logStep = (step: string, details?: Record<string, unknown>) => {
@@ -23,7 +24,7 @@ serve(async (req) => {
   }
 
   try {
-    const { booking_id, services }: AddServiceRequest = await req.json();
+    const { booking_id, services, testing_mode }: AddServiceRequest = await req.json();
 
     if (!booking_id || !Array.isArray(services) || services.length === 0) {
       return new Response(
@@ -81,12 +82,13 @@ serve(async (req) => {
 
     const bookingServices = services.map((svc) => {
       const details = servicesMap.get(svc.service_id);
+      const effectivePrice = testing_mode ? 1 : (details?.base_price || 0);
       return {
         booking_id,
         service_id: svc.service_id,
         service_name: details?.name || 'Service',
         quantity: svc.quantity || 1,
-        base_price: details?.base_price || 0,
+        base_price: effectivePrice,
         configuration: {},
       };
     });
@@ -193,14 +195,19 @@ serve(async (req) => {
       logStep('Invoice created successfully', { invoice_id: invoice.id });
     }
 
-    const invoiceItems = bookingServices.map((svc) => ({
-      invoice_id: invoice.id,
-      service_name: svc.service_name,
-      description: servicesMap.get(svc.service_id)?.description || '',
-      quantity: svc.quantity,
-      unit_price: svc.base_price,
-      total_price: svc.base_price * (svc.quantity || 1),
-    }));
+    const invoiceItems = bookingServices.map((svc) => {
+      const description = testing_mode 
+        ? `[TEST] ${servicesMap.get(svc.service_id)?.description || ''}`
+        : servicesMap.get(svc.service_id)?.description || '';
+      return {
+        invoice_id: invoice.id,
+        service_name: svc.service_name,
+        description,
+        quantity: svc.quantity,
+        unit_price: svc.base_price,
+        total_price: svc.base_price * (svc.quantity || 1),
+      };
+    });
 
     logStep('Inserting invoice_items', { count: invoiceItems.length });
     const { error: itemError } = await supabase
@@ -298,7 +305,8 @@ serve(async (req) => {
               booking_id: booking_id,
               type: 'consolidated_payment',
               original_amount: originalAmountCents.toString(),
-              additional_amount: additionalAmountCents.toString()
+              additional_amount: additionalAmountCents.toString(),
+              ...(testing_mode && { test_mode: 'true' })
             }
           });
 
@@ -369,7 +377,8 @@ serve(async (req) => {
             description: `Additional services for booking ${booking_id} (fallback)`,
             metadata: {
               booking_id: booking_id,
-              type: 'additional_services_fallback'
+              type: 'additional_services_fallback',
+              ...(testing_mode && { test_mode: 'true' })
             }
           });
 

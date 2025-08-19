@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { ServiceCard } from '@/components/ServiceCard';
 import { TvMountingModal } from '@/components/TvMountingModal';
 import { InlineStripePaymentForm } from './payment/InlineStripePaymentForm';
@@ -10,6 +11,7 @@ import { CartItem } from '@/types';
 import { usePublicServicesData } from '@/hooks/usePublicServicesData';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useTestingMode, getEffectiveServicePrice } from '@/contexts/TestingModeContext';
 import { ShoppingCart, CreditCard, Plus, X, ArrowLeft } from 'lucide-react';
 
 interface AddServicesModalProps {
@@ -48,6 +50,7 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
   } | null>(null);
   const { services, loading } = usePublicServicesData();
   const { toast } = useToast();
+  const { isTestingMode } = useTestingMode();
 
   const handleServiceClick = (serviceId: string, serviceName: string) => {
     if (serviceName === 'TV Mounting') {
@@ -56,10 +59,11 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
       // For other services, just add to cart
       const service = services.find(s => s.id === serviceId);
       if (service) {
+        const effectivePrice = getEffectiveServicePrice(service.base_price, isTestingMode);
         const serviceItem = {
           id: serviceId,
           name: serviceName,
-          price: service.base_price,
+          price: effectivePrice,
           quantity: 1
         };
         addToCart(serviceItem);
@@ -131,6 +135,7 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
       const { data, error } = await supabase.functions.invoke('add-booking-services', {
         body: {
           booking_id: job.id,
+          testing_mode: isTestingMode,
           services: cart.map(item => ({
             service_id: item.id,
             quantity: item.quantity
@@ -260,6 +265,11 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
               <span>
                 {showPaymentForm ? 'Payment Required' : `Add Services to Job #${job.id.slice(0, 8)}`}
               </span>
+              {isTestingMode && !showPaymentForm && (
+                <Badge variant="secondary" className="bg-yellow-600 text-yellow-100">
+                  TEST MODE: $1 pricing active
+                </Badge>
+              )}
             </DialogTitle>
           </DialogHeader>
 
@@ -316,7 +326,7 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
                     key={service.id}
                     id={service.id}
                     name={service.name}
-                    price={service.base_price}
+                    price={getEffectiveServicePrice(service.base_price, isTestingMode)}
                     image={service.image_url || getServiceImage(service.name)}
                     description={service.description || `Professional ${service.name.toLowerCase()} service`}
                     onAddToCart={() => handleServiceClick(service.id, service.name)}
