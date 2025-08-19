@@ -90,6 +90,24 @@ const WorkerDashboard = () => {
     console.log('User and profile loaded, fetching jobs...');
     fetchWorkerJobs();
   }, [user, profile, authLoading]);
+
+  // Auto-scroll to Active Jobs section when data loads
+  useEffect(() => {
+    if (!loading && jobs.length > 0) {
+      const timer = setTimeout(() => {
+        const activeJobsSection = document.getElementById('active-jobs-section');
+        if (activeJobsSection) {
+          const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          activeJobsSection.scrollIntoView({
+            behavior: prefersReducedMotion ? 'auto' : 'smooth',
+            block: 'start'
+          });
+        }
+      }, 100); // Small delay to ensure DOM is ready
+      
+      return () => clearTimeout(timer);
+    }
+  }, [loading, jobs.length]);
   const fetchWorkerJobs = async () => {
     if (!user || !profile || profile.role !== 'worker') {
       console.log('Cannot fetch jobs: missing user or invalid role');

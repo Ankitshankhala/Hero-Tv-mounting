@@ -111,7 +111,7 @@ export const WorkerJobsTab = ({ jobs, onStatusUpdate, onJobCancelled }: WorkerJo
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="active" className="mt-6">
+        <TabsContent value="active" id="active-jobs-section" className="mt-6 scroll-mt-24">
           {renderJobsList(
             activeFilters.filteredJobs,
             activeFilters.filters,
