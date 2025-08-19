@@ -9,8 +9,6 @@ import { BookingTable } from './BookingTable';
 import { CreateBookingModal } from './CreateBookingModal';
 import { useBookingManager } from '@/hooks/useBookingManager';
 import { AuthGuard } from '@/components/AuthGuard';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 
 export const BookingsManager = () => {
   const [filteredBookings, setFilteredBookings] = useState([]);
@@ -19,8 +17,6 @@ export const BookingsManager = () => {
   const [archiveFilter, setArchiveFilter] = useState('active');
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [includeArchived, setIncludeArchived] = useState(false);
-  const [testingFilter, setTestingFilter] = useState(false);
   const { user } = useAuth();
 
   // Use our enhanced booking manager hook
@@ -49,16 +45,11 @@ export const BookingsManager = () => {
     
     // Archive and payment status filter
     if (archiveFilter === 'active') {
-      if (includeArchived) {
-        // Include all bookings when "Include archived" is on
-        filtered = bookings;
-      } else {
-        // All non-archived bookings except pending payments
-        filtered = filtered.filter(booking => 
-          !booking.is_archived && 
-          !(booking.payment_status === 'pending' || !booking.payment_status || booking.payment_status === 'failed')
-        );
-      }
+      // All non-archived bookings except pending payments
+      filtered = filtered.filter(booking => 
+        !booking.is_archived && 
+        !(booking.payment_status === 'pending' || !booking.payment_status || booking.payment_status === 'failed')
+      );
     } else if (archiveFilter === 'pending_payments') {
       // Only bookings with pending/missing payment authorization
       filtered = filtered.filter(booking => 
@@ -69,15 +60,6 @@ export const BookingsManager = () => {
       filtered = filtered.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
     } else if (archiveFilter === 'archived') {
       filtered = filtered.filter(booking => booking.is_archived);
-    }
-    
-    // Testing filter (for small amounts or recent test bookings)
-    if (testingFilter && archiveFilter === 'active') {
-      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
-      filtered = filtered.filter(booking => {
-        const amount = booking.stripe_authorized_amount || booking.total_price || 0;
-        return amount <= 5 || new Date(booking.created_at) > tenMinutesAgo;
-      });
     }
     
     if (filterStatus !== 'all') {
@@ -95,7 +77,7 @@ export const BookingsManager = () => {
       );
     }
     setFilteredBookings(filtered);
-  }, [bookings, filterStatus, filterRegion, archiveFilter, searchTerm, includeArchived, testingFilter]);
+  }, [bookings, filterStatus, filterRegion, archiveFilter, searchTerm]);
 
   const handleBookingCreated = () => {
     console.log('Booking created, refreshing list');
@@ -151,26 +133,6 @@ export const BookingsManager = () => {
     }
   };
 
-  const handleUnarchiveBooking = async (booking: any) => {
-    try {
-      const { error } = await supabase
-        .from('bookings')
-        .update({ 
-          is_archived: false, 
-          archived_at: null 
-        })
-        .eq('id', booking.id);
-
-      if (error) throw error;
-
-      toast.success('Booking unarchived successfully');
-      fetchBookings(); // Refresh the list
-    } catch (error) {
-      console.error('Failed to unarchive booking:', error);
-      toast.error('Failed to unarchive booking');
-    }
-  };
-
   return (
     <AuthGuard allowedRoles={['admin']}>
       <div className="space-y-6">
@@ -200,14 +162,10 @@ export const BookingsManager = () => {
                   filterStatus={filterStatus}
                   filterRegion={filterRegion}
                   archiveFilter={archiveFilter}
-                  includeArchived={includeArchived}
-                  testingFilter={testingFilter}
                   onSearchChange={setSearchTerm}
                   onStatusChange={setFilterStatus}
                   onRegionChange={setFilterRegion}
                   onArchiveFilterChange={setArchiveFilter}
-                  onIncludeArchivedChange={setIncludeArchived}
-                  onTestingFilterChange={setTestingFilter}
                 />
 
                 <BookingTable 
@@ -218,10 +176,8 @@ export const BookingsManager = () => {
                   onViewBooking={handleViewBooking}
                   onAssignWorker={handleAssignWorker}
                   showPendingPaymentActions={archiveFilter === 'pending_payments'}
-                  showArchiveActions={archiveFilter === 'archived' || (archiveFilter === 'active' && includeArchived)}
                   onSendReminder={handleSendReminder}
                   onCancelBooking={handleCancelBooking}
-                  onUnarchiveBooking={handleUnarchiveBooking}
                 />
               </>
             )}
