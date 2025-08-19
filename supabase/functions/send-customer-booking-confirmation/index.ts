@@ -174,6 +174,30 @@ const handler = async (req: Request): Promise<Response> => {
     }
     console.log('Booking fetched successfully:', booking.id);
 
+    // Check if confirmation email was already sent using the flag
+    if (booking.confirmation_email_sent) {
+      console.log('Confirmation email already sent for booking (flag check):', requestData.bookingId);
+      return new Response(JSON.stringify({ 
+        success: true, 
+        message: 'Confirmation email already sent',
+        cached: true
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    // Verify booking is ready for confirmation (payment confirmed and worker assigned)
+    if (!booking.payment_status || !['authorized', 'completed', 'captured'].includes(booking.payment_status)) {
+      console.log('Booking payment not confirmed yet:', booking.payment_status);
+      throw new Error('Booking payment is not confirmed yet');
+    }
+
+    if (!booking.worker_id) {
+      console.log('Worker not assigned yet for booking:', requestData.bookingId);
+      throw new Error('Worker not assigned yet - confirmation email will be sent automatically when worker is assigned');
+    }
+
     // Get booking services separately
     console.log('Fetching booking services for booking:', requestData.bookingId);
     const { data: bookingServices, error: servicesError } = await supabase

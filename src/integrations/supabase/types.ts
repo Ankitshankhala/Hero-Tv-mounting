@@ -131,6 +131,7 @@ export type Database = {
         Row: {
           archived_at: string | null
           cancellation_deadline: string | null
+          confirmation_email_sent: boolean | null
           created_at: string | null
           customer_id: string | null
           guest_customer_info: Json | null
@@ -160,6 +161,7 @@ export type Database = {
         Insert: {
           archived_at?: string | null
           cancellation_deadline?: string | null
+          confirmation_email_sent?: boolean | null
           created_at?: string | null
           customer_id?: string | null
           guest_customer_info?: Json | null
@@ -189,6 +191,7 @@ export type Database = {
         Update: {
           archived_at?: string | null
           cancellation_deadline?: string | null
+          confirmation_email_sent?: boolean | null
           created_at?: string | null
           customer_id?: string | null
           guest_customer_info?: Json | null
