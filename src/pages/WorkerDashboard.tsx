@@ -93,8 +93,11 @@ const WorkerDashboard = () => {
 
   // Auto-scroll to Active Jobs section when data loads
   useEffect(() => {
-    if (!loading && jobs.length > 0) {
-      const timer = setTimeout(() => {
+    if (!loading) {
+      let attempts = 0;
+      const maxAttempts = 10;
+      
+      const scrollToActiveJobs = () => {
         const activeJobsSection = document.getElementById('active-jobs-section');
         if (activeJobsSection) {
           const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -102,12 +105,26 @@ const WorkerDashboard = () => {
             behavior: prefersReducedMotion ? 'auto' : 'smooth',
             block: 'start'
           });
+          return true;
         }
-      }, 100); // Small delay to ensure DOM is ready
-      
-      return () => clearTimeout(timer);
+        return false;
+      };
+
+      const retryScroll = () => {
+        if (scrollToActiveJobs()) {
+          return; // Success, stop retrying
+        }
+        
+        attempts++;
+        if (attempts < maxAttempts) {
+          setTimeout(retryScroll, 100);
+        }
+      };
+
+      // Start the retry process
+      setTimeout(retryScroll, 50);
     }
-  }, [loading, jobs.length]);
+  }, [loading]);
   const fetchWorkerJobs = async () => {
     if (!user || !profile || profile.role !== 'worker') {
       console.log('Cannot fetch jobs: missing user or invalid role');

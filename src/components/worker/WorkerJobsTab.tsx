@@ -51,7 +51,10 @@ export const WorkerJobsTab = ({ jobs, onStatusUpdate, onJobCancelled }: WorkerJo
       />
 
       <Card className="bg-worker-card border-worker-border shadow-lg">
-        <CardHeader className="bg-gradient-to-r from-worker-card to-worker-card-hover border-b border-worker-border">
+        <CardHeader 
+          id={!isArchived ? "active-jobs-section" : undefined}
+          className="bg-gradient-to-r from-worker-card to-worker-card-hover border-b border-worker-border scroll-mt-24"
+        >
           <CardTitle className="text-worker-card-foreground text-xl font-semibold">
             {isArchived ? 'Archived Jobs' : 'Active Jobs'}
             {filterSummary.filtered !== filterSummary.total && (
@@ -111,7 +114,7 @@ export const WorkerJobsTab = ({ jobs, onStatusUpdate, onJobCancelled }: WorkerJo
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="active" id="active-jobs-section" className="mt-6 scroll-mt-24">
+        <TabsContent value="active" className="mt-6">
           {renderJobsList(
             activeFilters.filteredJobs,
             activeFilters.filters,
