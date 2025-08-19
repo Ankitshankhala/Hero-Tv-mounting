@@ -318,7 +318,7 @@ serve(async (req) => {
               amount: totalAmountCents / 100, // Convert back to dollars
               currency: 'USD',
               status: 'pending',
-              transaction_type: 'consolidated_authorization',
+              transaction_type: 'charge',
             });
 
           if (transactionError) {
@@ -387,7 +387,7 @@ serve(async (req) => {
               amount: additionalAmount,
               currency: 'USD',
               status: 'pending',
-              transaction_type: 'additional_authorization',
+               transaction_type: 'charge',
             });
 
           if (transactionError) {
@@ -446,7 +446,7 @@ serve(async (req) => {
             amount: additionalAmount,
             currency: 'USD',
             status: 'authorized',
-            transaction_type: 'additional_authorization',
+             transaction_type: 'charge',
           });
 
         if (transactionError) {

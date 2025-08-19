@@ -1058,6 +1058,36 @@ export type Database = {
           },
         ]
       }
+      worker_booking_preferences: {
+        Row: {
+          booking_id: string
+          created_at: string
+          hidden_at: string | null
+          id: string
+          is_hidden: boolean
+          updated_at: string
+          worker_id: string
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          hidden_at?: string | null
+          id?: string
+          is_hidden?: boolean
+          updated_at?: string
+          worker_id: string
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          hidden_at?: string | null
+          id?: string
+          is_hidden?: boolean
+          updated_at?: string
+          worker_id?: string
+        }
+        Relationships: []
+      }
       worker_bookings: {
         Row: {
           assigned_at: string | null
