@@ -77,10 +77,34 @@ const handler = async (req: Request): Promise<Response> => {
 
     const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
 
-    // Idempotency guard: prevent duplicate customer emails within TTL
+    // Enhanced idempotency: Use system user UUID and proper email_type
+    const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
     const idempotencyKey = `customer_email_${requestData.bookingId}`;
     const requestHash = btoa(JSON.stringify({ bookingId: requestData.bookingId }));
     let idempotencyRecordId: string | null = null;
+
+    // Check for existing email with proper email_type
+    const { data: existingEmail } = await supabase
+      .from('email_logs')
+      .select('id, status, created_at, email_type')
+      .eq('booking_id', requestData.bookingId)
+      .eq('email_type', 'booking_confirmation')
+      .eq('status', 'sent')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existingEmail) {
+      console.log('Customer confirmation email already sent for booking:', requestData.bookingId);
+      return new Response(JSON.stringify({ 
+        success: true, 
+        message: 'Email already sent',
+        cached: true
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
 
     try {
       const { data: existing } = await supabase
@@ -123,7 +147,7 @@ const handler = async (req: Request): Promise<Response> => {
           idempotency_key: idempotencyKey,
           operation_type: 'customer_email',
           request_hash: requestHash,
-          user_id: null,
+          user_id: SYSTEM_USER_ID, // Fix: Use system user ID instead of null
           status: 'pending',
           expires_at: expiresAt,
           response_data: null,
@@ -325,10 +349,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     const emailResponse = await sendWithRetry();
 
-
     console.log('Customer email sent successfully:', emailResponse);
 
-    // Log email attempt
+    // Log email attempt with proper email_type
     await supabase
       .from('email_logs')
       .insert({
@@ -337,6 +360,7 @@ const handler = async (req: Request): Promise<Response> => {
         subject: `Booking Confirmation - ${requestData.bookingId}`,
         message: htmlContent,
         status: 'sent',
+        email_type: 'booking_confirmation', // Fix: Set proper email_type
         sent_at: new Date().toISOString()
       });
 
@@ -347,7 +371,6 @@ const handler = async (req: Request): Promise<Response> => {
         .update({ status: 'completed', response_data: { success: true, messageId: emailResponse.data?.id } })
         .eq('id', idempotencyRecordId);
     }
-
 
     return new Response(JSON.stringify({ 
       success: true, 
@@ -398,6 +421,7 @@ const handler = async (req: Request): Promise<Response> => {
           subject: 'Booking Confirmation',
           message: 'Failed to send',
           status: 'failed',
+          email_type: 'booking_confirmation', // Fix: Set proper email_type even for failures
           error_message: error.message,
           sent_at: new Date().toISOString()
         });
@@ -447,7 +471,6 @@ const handler = async (req: Request): Promise<Response> => {
       } catch (logError) {
         console.error('Failed to log email error:', logError);
       }
-
 
     return new Response(
       JSON.stringify({ error: error.message }),
