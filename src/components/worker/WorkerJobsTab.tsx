@@ -16,14 +16,14 @@ interface WorkerJobsTabProps {
 }
 
 export const WorkerJobsTab = ({ jobs, onStatusUpdate, onJobCancelled }: WorkerJobsTabProps) => {
-  // Active jobs: exclude archived, completed, canceled, and canceled/failed payments
+  // Active jobs: exclude archived, completed/canceled statuses and cancelled/failed/refunded payments
   const activeJobs = useMemo(() => 
     jobs.filter(job => 
       !job.is_archived && 
       job.status !== 'completed' &&
       job.status !== 'cancelled' &&
-      job.payment_status !== 'cancelled' && 
-      job.payment_status !== 'failed' &&
+      job.status !== 'canceled' &&
+      !['cancelled','canceled','failed','refunded'].includes(job.payment_status) &&
       job.worker_id // Only show jobs with assigned workers
     ), [jobs]);
   const archivedJobs = useMemo(() => jobs.filter(job => job.is_archived), [jobs]);
