@@ -60,10 +60,16 @@ const WorkerCalendar = ({ workerId }: WorkerCalendarProps) => {
       }
 
       const calendarEvents = (data || []).map(booking => {
-        // Use the new timezone-aware formatting
-        const eventStart = booking.start_time_utc 
-          ? new Date(booking.start_time_utc)
-          : new Date(`${booking.scheduled_date}T${booking.scheduled_start}`);
+        // Use timezone-aware date handling for America/Chicago
+        let eventStart: Date;
+        
+        if (booking.start_time_utc) {
+          eventStart = new Date(booking.start_time_utc);
+        } else {
+          // For legacy bookings without UTC time, construct from local fields
+          const localDateTime = `${booking.scheduled_date}T${booking.scheduled_start}:00`;
+          eventStart = new Date(localDateTime);
+        }
           
         const eventEnd = new Date(eventStart.getTime() + (booking.service?.duration_minutes || 60) * 60000);
         

@@ -3,6 +3,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
+import { formatBookingTime } from '@/utils/timezoneUtils';
+import { formatTimeTo12Hour } from '@/utils/timeUtils';
 
 import JobActions from './JobActions';
 import { RemoveServicesModal } from './RemoveServicesModal';
@@ -88,22 +90,16 @@ export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onCollaps
     onJobCancelled?.();
   };
 
-  // Format date and time for display
+  // Format date and time for display using America/Chicago timezone
   const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('en-US', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+    return formatBookingTime(date, 'America/Chicago', {
+      showTime: false,
+      dateFormat: 'EEEE, MMMM dd, yyyy'
     });
   };
 
   const formatTime = (time: string) => {
-    const [hours, minutes] = time.split(':');
-    const hour = parseInt(hours);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const displayHour = hour % 12 || 12;
-    return `${displayHour}:${minutes} ${ampm}`;
+    return formatTimeTo12Hour(time);
   };
 
   // Extract special instructions from location_notes or special_instructions field

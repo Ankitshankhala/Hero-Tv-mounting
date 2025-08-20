@@ -6,6 +6,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { CalendarIcon, Clock, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatTimeTo12Hour } from '@/utils/timeUtils';
+import { toZonedTime } from 'date-fns-tz';
 
 interface FormData {
   selectedDate: Date | undefined;
@@ -33,11 +34,11 @@ export const ScheduleStep = ({
   loading,
   hideActionButton = false
 }: ScheduleStepProps) => {
-  // Get current time to filter out past time slots for today
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const currentHour = now.getHours();
-  const currentMinutes = now.getMinutes();
+  // Get current time in America/Chicago timezone to filter out past time slots for today
+  const nowInChicago = toZonedTime(new Date(), 'America/Chicago');
+  const today = new Date(nowInChicago.getFullYear(), nowInChicago.getMonth(), nowInChicago.getDate());
+  const currentHour = nowInChicago.getHours();
+  const currentMinutes = nowInChicago.getMinutes();
   
   // Filter time slots for same day booking - only show slots after current time + 30 minute buffer
   const getAvailableTimeSlots = () => {

@@ -10,6 +10,7 @@ import { useCalendarSync } from '@/hooks/useCalendarSync';
 import { CalendarHeader } from './calendar/CalendarHeader';
 import { WeekGrid } from './calendar/WeekGrid';
 import { CalendarLegend } from './calendar/CalendarLegend';
+import { toZonedTime } from 'date-fns-tz';
 
 interface CalendarViewProps {
   selectedRegion: string;
@@ -126,18 +127,19 @@ export const CalendarView = ({
   };
 
   const isTimeSlotAvailable = (date: Date, time: string) => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    // Get current time in America/Chicago timezone
+    const nowInChicago = toZonedTime(new Date(), 'America/Chicago');
+    const todayInChicago = new Date(nowInChicago.getFullYear(), nowInChicago.getMonth(), nowInChicago.getDate());
     const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
     
     // Don't allow past dates
-    if (dateOnly < today) return false;
+    if (dateOnly < todayInChicago) return false;
     
     // For same-day booking, check if the time slot is at least 30 minutes from now
-    if (dateOnly.getTime() === today.getTime()) {
+    if (dateOnly.getTime() === todayInChicago.getTime()) {
       const [hours] = time.split(':').map(Number);
-      const currentHour = now.getHours();
-      const currentMinutes = now.getMinutes();
+      const currentHour = nowInChicago.getHours();
+      const currentMinutes = nowInChicago.getMinutes();
       const slotMinutes = hours * 60;
       const nowMinutes = currentHour * 60 + currentMinutes;
       

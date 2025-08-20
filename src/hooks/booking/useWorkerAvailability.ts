@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
+import { formatInTimeZone, toZonedTime } from 'date-fns-tz';
 import { supabase } from '@/integrations/supabase/client';
 
 export const useWorkerAvailability = () => {
@@ -18,10 +19,12 @@ export const useWorkerAvailability = () => {
     
     setLoading(true);
     try {
-      const dateStr = format(date, 'yyyy-MM-dd');
-      const now = new Date();
-      const isToday = dateStr === format(now, 'yyyy-MM-dd');
-      const currentHour = now.getHours();
+      // Use America/Chicago timezone for all date operations
+      const dateStr = formatInTimeZone(date, 'America/Chicago', 'yyyy-MM-dd');
+      const nowInChicago = toZonedTime(new Date(), 'America/Chicago');
+      const todayStr = formatInTimeZone(nowInChicago, 'America/Chicago', 'yyyy-MM-dd');
+      const isToday = dateStr === todayStr;
+      const currentHour = nowInChicago.getHours();
       
       // Use the database function to get available time slots
       const { data: availableSlots, error } = await supabase.rpc('get_available_time_slots', {
@@ -49,12 +52,12 @@ export const useWorkerAvailability = () => {
         slot.worker_ids?.forEach(id => totalWorkerIds.add(id));
       });
       
-      // Filter out past time slots for same-day booking
+      // Filter out past time slots for same-day booking using America/Chicago timezone
       const availableTimeSlots = slots.filter(slot => {
         // For same-day booking, only allow slots that are at least 30 minutes from now
         if (isToday) {
           const [hours] = slot.split(':').map(Number);
-          const currentMinutes = now.getMinutes();
+          const currentMinutes = nowInChicago.getMinutes();
           const slotMinutes = hours * 60;
           const nowMinutes = currentHour * 60 + currentMinutes;
           
