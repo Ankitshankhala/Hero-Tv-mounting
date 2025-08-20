@@ -57,16 +57,7 @@ export const WorkerJobsTab = ({ jobs, onStatusUpdate, onJobCancelled }: WorkerJo
 
   const renderJobsList = (filteredJobs: any[], filters: any, updateFilter: any, clearFilters: any, debouncedSearch: any, hasActiveFilters: boolean, filterSummary: any, isArchived = false) => (
     <div className="space-y-6">
-      <JobFiltersBar
-        filters={filters}
-        onFilterChange={updateFilter}
-        onClearFilters={clearFilters}
-        onSearchChange={debouncedSearch}
-        hasActiveFilters={hasActiveFilters}
-        filterSummary={filterSummary}
-        availableStatuses={availableStatuses}
-        availableServices={availableServices}
-      />
+      {/* Filters hidden per request */}
 
       <Card className="bg-worker-card border-worker-border shadow-lg">
         <CardHeader 
