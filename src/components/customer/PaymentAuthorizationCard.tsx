@@ -144,9 +144,9 @@ export const PaymentAuthorizationCard = ({
         <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
           <Shield className="h-6 w-6 text-primary" />
         </div>
-        <CardTitle className="text-xl">Secure Payment Authorization</CardTitle>
+        <CardTitle className="text-xl">Authorize Payment to Confirm Booking</CardTitle>
         <CardDescription>
-          We'll authorize ${amount.toFixed(2)} on your card to secure your booking. The actual charge will only occur when your service is completed by our technician.
+          Authorize ${amount.toFixed(2)} on your card to confirm your booking. The actual charge will only occur when your service is completed by our technician.
         </CardDescription>
       </CardHeader>
       

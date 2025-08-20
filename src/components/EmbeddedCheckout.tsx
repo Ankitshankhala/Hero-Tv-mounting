@@ -215,8 +215,8 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
       
       if (result.status === 'confirmed' || result.status === 'pending') {
         toast({
-          title: "Booking Confirmed",
-          description: result.message,
+          title: "Payment Authorization Required",
+          description: "To confirm your booking, please authorize the payment now.",
         });
 
         setTimeout(() => {

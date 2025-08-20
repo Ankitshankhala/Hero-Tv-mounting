@@ -39,7 +39,7 @@ export const PaymentStatusIndicator = ({ status, amount, className = '' }: Payme
         return {
           icon: Clock,
           text: 'Payment Pending',
-          description: 'Waiting for payment authorization',
+          description: 'To confirm your booking, authorize the payment',
           variant: 'outline' as const,
           className: 'bg-gray-50 text-gray-700 border-gray-200'
         };

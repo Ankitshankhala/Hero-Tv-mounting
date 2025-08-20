@@ -12,7 +12,7 @@ export const PaymentProcessTimeline = ({ currentStep, className = '' }: PaymentP
     {
       icon: CreditCard,
       title: 'Payment Authorized',
-      description: 'Booking confirmed',
+      description: 'Booking confirmed with authorized payment',
       step: 1
     },
     {
