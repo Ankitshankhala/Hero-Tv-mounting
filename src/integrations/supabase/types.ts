@@ -1423,6 +1423,10 @@ export type Database = {
         Args: { p_availability: Json; p_worker_id: string }
         Returns: boolean
       }
+      trigger_email_followups: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       trigger_manual_worker_assignment: {
         Args: { p_booking_id: string }
         Returns: boolean
