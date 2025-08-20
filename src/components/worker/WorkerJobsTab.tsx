@@ -16,22 +16,26 @@ interface WorkerJobsTabProps {
 }
 
 export const WorkerJobsTab = ({ jobs, onStatusUpdate, onJobCancelled }: WorkerJobsTabProps) => {
-  // Separate active and archived jobs, excluding jobs with cancelled/failed payments from active list
+  // Active jobs: exclude archived, completed, canceled, and canceled/failed payments
   const activeJobs = useMemo(() => 
     jobs.filter(job => 
       !job.is_archived && 
+      job.status !== 'completed' &&
+      job.status !== 'cancelled' &&
       job.payment_status !== 'cancelled' && 
       job.payment_status !== 'failed' &&
-      job.status !== 'cancelled'
+      job.worker_id // Only show jobs with assigned workers
     ), [jobs]);
   const archivedJobs = useMemo(() => jobs.filter(job => job.is_archived), [jobs]);
   
-  // Jobs that need payment attention (cancelled/failed payments)
+  // Payment issues: only pending payments that need collection (exclude captured, cancelled, failed)
   const paymentIssueJobs = useMemo(() => 
     jobs.filter(job => 
       !job.is_archived && 
-      (job.payment_status === 'cancelled' || job.payment_status === 'failed') &&
-      job.status !== 'cancelled'
+      job.status !== 'completed' &&
+      job.status !== 'cancelled' &&
+      job.payment_status === 'pending' &&
+      job.worker_id // Only show assigned jobs
     ), [jobs]);
 
   // Use the job filters hook for both active and archived jobs
