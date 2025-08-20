@@ -191,10 +191,11 @@ const WorkerDashboard = () => {
       console.log('Transformed jobs with services:', transformedJobs);
       console.log('First job customer data:', transformedJobs[0]?.customer);
       console.log('First job booking services:', transformedJobs[0]?.booking_services);
-      setJobs(transformedJobs);
+      const visibleJobs = transformedJobs.filter(job => !job.is_archived);
+      setJobs(visibleJobs);
       toast({
         title: "Jobs Loaded",
-        description: `Loaded ${transformedJobs.length} jobs successfully`
+        description: `Loaded ${visibleJobs.length} jobs successfully`
       });
     } catch (error) {
       console.error('Error fetching worker jobs:', error);
