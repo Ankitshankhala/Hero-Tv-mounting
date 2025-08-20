@@ -18,22 +18,21 @@ async function handleScheduledCheck(supabase: any): Promise<Response> {
   const results = {
     processed: 0,
     first_reminders: 0,
-    second_reminders: 0,
     final_reminders: 0,
     errors: 0
   };
 
   try {
     // Find bookings that need payment reminders
-    // Grace period: don't send reminders for very recent bookings (30 minutes)
-    const thirtyMinutesAgo = new Date(now.getTime() - (30 * 60 * 1000));
+    // Grace period: don't send reminders for very recent bookings (2 minutes)
+    const twoMinutesAgo = new Date(now.getTime() - (2 * 60 * 1000));
     
     const { data: pendingBookings, error: bookingsError } = await supabase
       .from('bookings')
       .select('id, created_at, status, payment_status')
       .eq('status', 'payment_pending')
       .in('payment_status', ['pending', 'failed'])
-      .lte('created_at', thirtyMinutesAgo.toISOString());
+      .lte('created_at', twoMinutesAgo.toISOString());
 
     if (bookingsError) {
       throw new Error(`Failed to fetch pending bookings: ${bookingsError.message}`);
@@ -45,7 +44,7 @@ async function handleScheduledCheck(supabase: any): Promise<Response> {
       results.processed++;
       
       const bookingAge = now.getTime() - new Date(booking.created_at).getTime();
-      const hoursOld = bookingAge / (1000 * 60 * 60);
+      const minutesOld = bookingAge / (1000 * 60);
       
       try {
         // Check what reminders have already been sent
@@ -54,26 +53,23 @@ async function handleScheduledCheck(supabase: any): Promise<Response> {
           .select('email_type')
           .eq('booking_id', booking.id)
           .eq('status', 'sent')
-          .in('email_type', ['payment_reminder_first', 'payment_reminder_second', 'payment_reminder_final']);
+          .in('email_type', ['payment_reminder_first', 'payment_reminder_final']);
 
         const sentTypes = new Set(sentEmails?.map(e => e.email_type) || []);
         
         let reminderType: string | null = null;
         
-        // Determine which reminder to send based on age
-        if (hoursOld >= 72 && !sentTypes.has('payment_reminder_final')) {
+        // Determine which reminder to send based on age in minutes
+        if (minutesOld >= 10 && !sentTypes.has('payment_reminder_final')) {
           reminderType = 'final';
           results.final_reminders++;
-        } else if (hoursOld >= 48 && !sentTypes.has('payment_reminder_second')) {
-          reminderType = 'second';
-          results.second_reminders++;
-        } else if (hoursOld >= 24 && !sentTypes.has('payment_reminder_first')) {
+        } else if (minutesOld >= 5 && !sentTypes.has('payment_reminder_first')) {
           reminderType = 'first';
           results.first_reminders++;
         }
         
         if (reminderType) {
-          logStep(`Sending ${reminderType} reminder`, { bookingId: booking.id, hoursOld: Math.round(hoursOld) });
+          logStep(`Sending ${reminderType} reminder`, { bookingId: booking.id, minutesOld: Math.round(minutesOld) });
           
           // Call the payment reminder function
           const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-payment-reminder-email', {
