@@ -79,14 +79,41 @@ export const RemoveServicesModal = ({
         throw error;
       }
 
-      // Normalize data - ensure base_price is a number
-      const normalizedData = (data || []).map(service => ({
-        ...service,
-        base_price: Number(service.base_price) || 0,
-        quantity: Number(service.quantity) || 1
-      }));
+      const rows = data || [];
 
-      console.log('Normalized booking services:', normalizedData); // Debug logging
+      // Fallback: fetch base prices from services table when missing/zero
+      const missingPriceIds = rows
+        .filter((s: any) => !s.base_price || Number(s.base_price) <= 0)
+        .map((s: any) => s.service_id)
+        .filter(Boolean);
+
+      let servicePriceMap = new Map<string, number>();
+      if (missingPriceIds.length > 0) {
+        const { data: svcData, error: svcError } = await supabase
+          .from('services')
+          .select('id, base_price')
+          .in('id', missingPriceIds);
+
+        if (svcError) {
+          console.warn('Failed to fetch fallback service prices:', svcError);
+        } else {
+          (svcData || []).forEach((svc: any) => {
+            servicePriceMap.set(svc.id, Number(svc.base_price) || 0);
+          });
+        }
+      }
+
+      // Normalize data - ensure numeric base_price & quantity, apply fallback when needed
+      const normalizedData = rows.map((service: any) => {
+        const fallback = servicePriceMap.get(service.service_id) ?? 0;
+        return {
+          ...service,
+          base_price: Number(service.base_price) || fallback || 0,
+          quantity: Number(service.quantity) || 1,
+        } as BookingService;
+      });
+
+      console.log('Normalized booking services (with fallbacks):', normalizedData);
 
       setServices(normalizedData);
       setOriginalServices(normalizedData); // Store original services for price comparison
