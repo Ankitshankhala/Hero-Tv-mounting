@@ -108,8 +108,30 @@ serve(async (req) => {
         })
         .eq('id', invoice.id);
 
-      console.log(`[WORKER-REMOVE] Updated invoice ${invoice.id}: $${invoice.amount} -> $${newAmount}`);
+    console.log(`[WORKER-REMOVE] Updated invoice ${invoice.id}: $${invoice.amount} -> $${newAmount}`);
     }
+
+    // Mark booking as having modifications and create modification records
+    await supabaseClient
+      .from('bookings')
+      .update({ has_modifications: true })
+      .eq('id', booking_id);
+
+    // Create service modification records
+    const modificationRecords = servicesToRemove.map(service => ({
+      booking_id: booking_id,
+      worker_id: user.id,
+      service_name: service.service_name,
+      modification_type: 'removed',
+      price_change: -(service.base_price * service.quantity),
+      description: 'Removed by worker'
+    }));
+
+    await supabaseClient
+      .from('booking_service_modifications')
+      .insert(modificationRecords);
+
+    console.log(`[WORKER-REMOVE] Created ${modificationRecords.length} modification records`);
 
     // Handle Stripe refund if payment exists
     let refundResult = null;

@@ -54,6 +54,39 @@ serve(async (req) => {
       throw new Error('Booking not found');
     }
 
+    // Calculate capture amount from current invoice or booking services
+    console.log('Calculating capture amount...');
+    let captureAmount = 0;
+    
+    // First try to get amount from current invoice
+    const { data: invoice } = await supabaseServiceRole
+      .from('invoices')
+      .select('total_amount')
+      .eq('booking_id', bookingId)
+      .maybeSingle();
+    
+    if (invoice && invoice.total_amount > 0) {
+      captureAmount = invoice.total_amount;
+      console.log('Using invoice total amount:', captureAmount);
+    } else {
+      // Fallback: calculate from booking services
+      const { data: bookingServices } = await supabaseServiceRole
+        .from('booking_services')
+        .select('base_price, quantity')
+        .eq('booking_id', bookingId);
+      
+      if (bookingServices?.length) {
+        captureAmount = bookingServices.reduce((total, service) => 
+          total + (service.base_price * service.quantity), 0);
+        console.log('Calculated from booking services:', captureAmount);
+      }
+    }
+    
+    if (captureAmount <= 0) {
+      console.error('No amount to capture - all services may have been removed');
+      throw new Error('Nothing to charge. All services were removed.');
+    }
+
     console.log('Booking details:', { 
       payment_intent_id: booking.payment_intent_id, 
       payment_status: booking.payment_status,
@@ -97,8 +130,26 @@ serve(async (req) => {
       paymentIntent = currentPaymentIntent;
     } else if (currentPaymentIntent.status === 'requires_capture') {
       console.log('Attempting to capture payment intent:', booking.payment_intent_id);
-      // Capture the payment intent
-      paymentIntent = await stripe.paymentIntents.capture(booking.payment_intent_id);
+      
+      const captureAmountCents = Math.round(captureAmount * 100);
+      const authorizedAmountCents = currentPaymentIntent.amount;
+      
+      console.log('Capture details:', {
+        captureAmountCents,
+        authorizedAmountCents,
+        isPartialCapture: captureAmountCents < authorizedAmountCents
+      });
+      
+      // Perform partial or full capture based on remaining services
+      if (captureAmountCents < authorizedAmountCents) {
+        console.log('Performing partial capture for:', captureAmountCents);
+        paymentIntent = await stripe.paymentIntents.capture(booking.payment_intent_id, {
+          amount_to_capture: captureAmountCents
+        });
+      } else {
+        console.log('Performing full capture');
+        paymentIntent = await stripe.paymentIntents.capture(booking.payment_intent_id);
+      }
     } else {
       console.log('PaymentIntent cannot be captured with status:', currentPaymentIntent.status);
       throw new Error(`Payment cannot be captured. Current status: ${currentPaymentIntent.status}`);
@@ -118,12 +169,18 @@ serve(async (req) => {
       console.log('Payment succeeded, updating booking status...');
       console.log('Current booking status:', booking.status, 'payment_status:', booking.payment_status);
       
-      // Calculate total amount captured (original + pending if any)
-      const originalAmount = paymentIntent.amount / 100;
-      const pendingAmount = booking.pending_payment_amount || 0;
-      const totalCapturedAmount = originalAmount + pendingAmount;
+      // Use the calculated capture amount
+      const actualCapturedAmount = captureAmount;
+      const authorizedAmount = currentPaymentIntent.amount / 100;
+      const isPartialCapture = actualCapturedAmount < authorizedAmount;
+      const remainderReleased = authorizedAmount - actualCapturedAmount;
       
-      console.log('Capture amounts:', { originalAmount, pendingAmount, totalCapturedAmount });
+      console.log('Capture amounts:', { 
+        actualCapturedAmount, 
+        authorizedAmount, 
+        isPartialCapture, 
+        remainderReleased 
+      });
       
       // Update existing transaction to capture type to trigger invoice generation
       console.log('Updating transaction to capture type...');
@@ -133,7 +190,7 @@ serve(async (req) => {
           status: 'completed',
           captured_at: new Date().toISOString(),
           transaction_type: 'capture', // This will trigger invoice generation
-          amount: totalCapturedAmount
+          amount: actualCapturedAmount
         })
         .eq('payment_intent_id', booking.payment_intent_id)
         .eq('status', 'authorized');
@@ -141,25 +198,6 @@ serve(async (req) => {
       if (transactionUpdateError) {
         console.error('Failed to update transaction:', transactionUpdateError);
         throw new Error(`Failed to update transaction: ${transactionUpdateError.message}`);
-      }
-      
-      // If there was a pending payment amount, create additional transaction record
-      if (pendingAmount > 0) {
-        console.log('Creating additional transaction for pending amount:', pendingAmount);
-        const { error: pendingTransactionError } = await supabaseServiceRole
-          .from('transactions')
-          .insert({
-            booking_id: bookingId,
-            amount: pendingAmount,
-            status: 'completed',
-            transaction_type: 'additional_service_charge',
-            payment_method: 'existing_payment_method',
-            captured_at: new Date().toISOString()
-          });
-
-        if (pendingTransactionError) {
-          console.error('Failed to create pending transaction:', pendingTransactionError);
-        }
       }
       
 
@@ -205,7 +243,10 @@ serve(async (req) => {
           status: 'success',
           payment_intent_id: booking.payment_intent_id,
           details: {
-            amount: paymentIntent.amount / 100,
+            partial_capture: isPartialCapture,
+            authorized_amount: authorizedAmount,
+            capture_amount: actualCapturedAmount,
+            remainder_released: remainderReleased,
             currency: paymentIntent.currency,
             stripe_status: paymentIntent.status,
             captured_at: new Date().toISOString()
@@ -224,11 +265,12 @@ serve(async (req) => {
         payment_status: 'captured',
         booking_status: 'completed',
         booking_id: bookingId,
-        amount_captured: totalCapturedAmount,
-        original_amount: originalAmount,
-        pending_amount: pendingAmount,
+        amount_captured: actualCapturedAmount,
+        authorized_amount: authorizedAmount,
+        partial_capture: isPartialCapture,
+        remainder_released: remainderReleased,
         currency: paymentIntent.currency,
-        message: 'Payment captured and job marked as completed'
+        message: isPartialCapture ? 'Partial payment captured and job marked as completed' : 'Payment captured and job marked as completed'
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
