@@ -213,7 +213,8 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
                  job.payment_status === 'completed' ? 'Payment Complete' :
                  job.payment_status === 'authorized' ? 'Payment Authorized' :
                  job.payment_status === 'failed' ? 'Payment Failed' :
-                 job.payment_status === 'cancelled' ? 'Payment Cancelled' :
+                 job.payment_status === 'cancelled' || job.payment_status === 'canceled' ? 'Payment Cancelled' :
+                 job.payment_status === 'refunded' ? 'Payment Refunded' :
                  `Payment ${job.payment_status}`}
               </Badge>
             )}
