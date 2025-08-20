@@ -187,15 +187,10 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // Verify booking is ready for confirmation (payment confirmed and worker assigned)
+    // Verify booking payment is authorized (worker assignment no longer required)
     if (!booking.payment_status || !['authorized', 'completed', 'captured'].includes(booking.payment_status)) {
       console.log('Booking payment not confirmed yet:', booking.payment_status);
       throw new Error('Booking payment is not confirmed yet');
-    }
-
-    if (!booking.worker_id) {
-      console.log('Worker not assigned yet for booking:', requestData.bookingId);
-      throw new Error('Worker not assigned yet - confirmation email will be sent automatically when worker is assigned');
     }
 
     // Get booking services separately
@@ -322,34 +317,114 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Worker information (if assigned)
     const workerInfo = workerUser?.name ? 
-      `<p><strong>Assigned Worker:</strong> ${workerUser.name}<br>
-       <strong>Worker Phone:</strong> ${workerUser.phone || 'Not provided'}</p>` : 
-      '<p><strong>Worker:</strong> Will be assigned soon</p>';
+      `<p><strong>Worker:</strong> ${workerUser.name}</p>` : 
+      `<p><strong>Worker:</strong> To be assigned</p>`;
 
+    // Format location notes if available
+    const locationNotes = booking.location_notes ? 
+      `<p><strong>Location Notes:</strong> ${booking.location_notes}</p>` : '';
+
+    // HTML Email Template
     const htmlContent = `
-      <h1>Booking Confirmation - Hero TV Mounting</h1>
-      <p>Dear ${customerName},</p>
-      
-      <p>Thank you for choosing Hero TV Mounting! Your booking has been confirmed.</p>
-      
-      <h3>Booking Details:</h3>
-      <p><strong>Booking ID:</strong> ${requestData.bookingId}</p>
-      <p><strong>Scheduled Date:</strong> ${formattedDate}</p>
-      <p><strong>Scheduled Time:</strong> ${formattedTime}</p>
-      <p><strong>Status:</strong> ${formatStatus(booking.status)}</p>
-      
-      <h3>Services:</h3>
-      <p>${serviceDetails}</p>
-      <p><strong>Total Amount:</strong> $${totalAmount.toFixed(2)}</p>
-      
-      ${workerInfo}
-      
-      <p>If you have any questions, please contact us at:</p>
-      <p>Email: Captain@herotvmounting.com<br>
-      Phone: +1 737-272-9971</p>
-      
-      <p>Thank you for your business!</p>
-      <p>Hero TV Mounting Team</p>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Booking Confirmation - Hero TV Mounting</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 20px; background-color: #f4f4f4; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        .header { text-align: center; background: #1a365d; color: white; padding: 20px; margin: -30px -30px 30px -30px; border-radius: 10px 10px 0 0; }
+        .header h1 { margin: 0; font-size: 24px; }
+        .details-box { background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #1a365d; }
+        .services-box { background: #e8f4fd; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .contact-box { background: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #ffeaa7; }
+        .footer { text-align: center; margin-top: 30px; color: #666; }
+        h2 { color: #1a365d; margin-top: 0; }
+        h3 { color: #2d3748; margin-bottom: 10px; }
+        .total { font-size: 18px; font-weight: bold; color: #1a365d; }
+        strong { color: #2d3748; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Booking Confirmation - Hero TV Mounting</h1>
+        </div>
+        
+        <p>Dear <strong>${customerName}</strong>,</p>
+        
+        <p>Thank you for choosing Hero TV Mounting! Your booking has been confirmed.</p>
+        
+        <div class="details-box">
+            <h3>Booking Details:</h3>
+            <p><strong>Booking ID:</strong> ${requestData.bookingId}</p>
+            <p><strong>Scheduled Date:</strong> ${formattedDate}</p>
+            <p><strong>Scheduled Time:</strong> ${formattedTime}</p>
+            <p><strong>Status:</strong> ${formatStatus(booking.status)}</p>
+        </div>
+        
+        <div class="services-box">
+            <h3>Services:</h3>
+            <p>${serviceDetails}</p>
+            <p class="total"><strong>Total Amount:</strong> $${totalAmount.toFixed(2)}</p>
+        </div>
+        
+        <div class="details-box">
+            ${workerInfo}
+            ${locationNotes}
+        </div>
+        
+        <div class="contact-box">
+            <h3>Contact Information:</h3>
+            <p>If you have any questions, please contact us at:</p>
+            <p><strong>Email:</strong> Captain@herotvmounting.com<br>
+            <strong>Phone:</strong> +1 737-272-9971</p>
+        </div>
+        
+        <div class="footer">
+            <p>Thank you for your business!</p>
+            <p><strong>Hero TV Mounting Team</strong></p>
+        </div>
+    </div>
+</body>
+</html>
+    `;
+
+    // Plain text version for email clients that don't support HTML
+    const plainTextContent = `
+Booking Confirmation - Hero TV Mounting
+
+Dear ${customerName},
+
+Thank you for choosing Hero TV Mounting! Your booking has been confirmed.
+
+Booking Details:
+Booking ID: ${requestData.bookingId}
+Scheduled Date: ${formattedDate}
+Scheduled Time: ${formattedTime}
+Status: ${formatStatus(booking.status)}
+
+Services:
+${bookingServices?.map((service: any) => 
+  `${service.service_name} (Qty: ${service.quantity}) - $${(service.base_price * service.quantity).toFixed(2)}`
+).join('\n') || 'Service details unavailable'}
+
+Total Amount: $${totalAmount.toFixed(2)}
+
+${workerUser?.name ? `Worker: ${workerUser.name}` : 'Worker: To be assigned'}
+
+${booking.location_notes ? `Location Notes: ${booking.location_notes}` : ''}
+
+If you have any questions, please contact us at:
+
+Email: Captain@herotvmounting.com
+Phone: +1 737-272-9971
+
+Thank you for your business!
+
+Hero TV Mounting Team
     `;
 
     // Retry send with basic backoff
