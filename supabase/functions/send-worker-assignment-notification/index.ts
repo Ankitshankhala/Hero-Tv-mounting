@@ -107,86 +107,147 @@ const handler = async (req: Request): Promise<Response> => {
 
     const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
     
-    const emailResponse = await resend.emails.send({
-      from: "Hero TV Mounting <assignments@herotvmounting.com>",
-      to: [worker.email],
-      subject: `NEW JOB ASSIGNMENT - ${formatDate(booking.scheduled_date)}`,
-      html: `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>New Job Assignment</title>
-        </head>
-        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-            <h1 style="color: #2c3e50; margin: 0 0 10px 0; font-size: 24px;">NEW JOB ASSIGNMENT</h1>
-            <h2 style="color: #e74c3c; margin: 0; font-size: 20px;">Hero TV Mounting</h2>
-          </div>
+    const emailSubject = `NEW JOB ASSIGNMENT - ${formatDate(booking.scheduled_date)}`;
+    const emailHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>New Job Assignment</title>
+      </head>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+          <h1 style="color: #2c3e50; margin: 0 0 10px 0; font-size: 24px;">NEW JOB ASSIGNMENT</h1>
+          <h2 style="color: #e74c3c; margin: 0; font-size: 20px;">Hero TV Mounting</h2>
+        </div>
 
-          <div style="margin-bottom: 25px;">
-            <h3 style="background-color: #3498db; color: white; padding: 10px; margin: 0 0 15px 0; border-radius: 5px;">Worker:</h3>
-            <p style="margin: 0; font-size: 18px; font-weight: bold;">${worker.name}</p>
-          </div>
+        <div style="margin-bottom: 25px;">
+          <h3 style="background-color: #3498db; color: white; padding: 10px; margin: 0 0 15px 0; border-radius: 5px;">Worker:</h3>
+          <p style="margin: 0; font-size: 18px; font-weight: bold;">${worker.name}</p>
+        </div>
 
-          <div style="margin-bottom: 25px;">
-            <h3 style="background-color: #3498db; color: white; padding: 10px; margin: 0 0 15px 0; border-radius: 5px;">Service:</h3>
-            <p style="margin: 0;">${servicesList}</p>
-            <p style="margin: 5px 0 0 0;"><strong>Date & Time:</strong><br>
-            ${formatDate(booking.scheduled_date)}, ${formatTime(booking.scheduled_start)}</p>
-          </div>
+        <div style="margin-bottom: 25px;">
+          <h3 style="background-color: #3498db; color: white; padding: 10px; margin: 0 0 15px 0; border-radius: 5px;">Service:</h3>
+          <p style="margin: 0;">${servicesList}</p>
+          <p style="margin: 5px 0 0 0;"><strong>Date & Time:</strong><br>
+          ${formatDate(booking.scheduled_date)}, ${formatTime(booking.scheduled_start)}</p>
+        </div>
 
-          <div style="margin-bottom: 25px;">
-            <h3 style="background-color: #3498db; color: white; padding: 10px; margin: 0 0 15px 0; border-radius: 5px;">Customer Information:</h3>
-            <p style="margin: 0;"><strong>Name:</strong> ${customerInfo?.name || 'Not provided'}</p>
-            <p style="margin: 5px 0;"><strong>Address:</strong> ${address}</p>
-            <p style="margin: 5px 0;"><strong>City:</strong> ${city}, ${zipCode}</p>
-            <p style="margin: 5px 0;"><strong>Phone:</strong> ${customerInfo?.phone || 'Not provided'}</p>
-            <p style="margin: 5px 0;"><strong>Email:</strong> ${customerInfo?.email || 'Not provided'}</p>
-          </div>
+        <div style="margin-bottom: 25px;">
+          <h3 style="background-color: #3498db; color: white; padding: 10px; margin: 0 0 15px 0; border-radius: 5px;">Customer Information:</h3>
+          <p style="margin: 0;"><strong>Name:</strong> ${customerInfo?.name || 'Not provided'}</p>
+          <p style="margin: 5px 0;"><strong>Address:</strong> ${address}</p>
+          <p style="margin: 5px 0;"><strong>City:</strong> ${city}, ${zipCode}</p>
+          <p style="margin: 5px 0;"><strong>Phone:</strong> ${customerInfo?.phone || 'Not provided'}</p>
+          <p style="margin: 5px 0;"><strong>Email:</strong> ${customerInfo?.email || 'Not provided'}</p>
+        </div>
 
-          <div style="margin-bottom: 25px;">
-            <h3 style="background-color: #3498db; color: white; padding: 10px; margin: 0 0 15px 0; border-radius: 5px;">Notes:</h3>
-            <p style="margin: 0; background-color: #f8f9fa; padding: 15px; border-radius: 5px;">${specialInstructions}</p>
-          </div>
+        <div style="margin-bottom: 25px;">
+          <h3 style="background-color: #3498db; color: white; padding: 10px; margin: 0 0 15px 0; border-radius: 5px;">Notes:</h3>
+          <p style="margin: 0; background-color: #f8f9fa; padding: 15px; border-radius: 5px;">${specialInstructions}</p>
+        </div>
 
-          <div style="margin-bottom: 25px;">
-            <h3 style="background-color: #e67e22; color: white; padding: 10px; margin: 0 0 15px 0; border-radius: 5px;">Important Reminders:</h3>
-            <ul style="margin: 0; padding-left: 20px;">
-              <li>Arrive 15 minutes early for setup</li>
-              <li>Bring all necessary tools and equipment</li>
-              <li>Contact customer if running late</li>
-              <li>Complete job documentation after service</li>
-            </ul>
-          </div>
+        <div style="margin-bottom: 25px;">
+          <h3 style="background-color: #e67e22; color: white; padding: 10px; margin: 0 0 15px 0; border-radius: 5px;">Important Reminders:</h3>
+          <ul style="margin: 0; padding-left: 20px;">
+            <li>Arrive 15 minutes early for setup</li>
+            <li>Bring all necessary tools and equipment</li>
+            <li>Contact customer if running late</li>
+            <li>Complete job documentation after service</li>
+          </ul>
+        </div>
 
-          <div style="background-color: #2c3e50; color: white; padding: 20px; border-radius: 5px; text-align: center;">
-            <h3 style="margin: 0 0 10px 0;">Support Contact:</h3>
-            <p style="margin: 5px 0;"><strong>Email:</strong> Captain@herotvmounting.com</p>
-            <p style="margin: 5px 0;"><strong>Phone:</strong> +1 737-272-9971</p>
-            <p style="margin: 15px 0 0 0; font-size: 18px; font-weight: bold;">Good luck with your assignment!</p>
-          </div>
-        </body>
-        </html>
-      `,
-    });
+        <div style="background-color: #2c3e50; color: white; padding: 20px; border-radius: 5px; text-align: center;">
+          <h3 style="margin: 0 0 10px 0;">Support Contact:</h3>
+          <p style="margin: 5px 0;"><strong>Email:</strong> Captain@herotvmounting.com</p>
+          <p style="margin: 5px 0;"><strong>Phone:</strong> +1 737-272-9971</p>
+          <p style="margin: 15px 0 0 0; font-size: 18px; font-weight: bold;">Good luck with your assignment!</p>
+        </div>
+      </body>
+      </html>
+    `;
 
-    // Log with proper email_type
-    await supabase.from('email_logs').insert({
-      booking_id: bookingId,
-      recipient_email: worker.email,
-      subject: `New Assignment - Booking ${bookingId}`,
-      message: 'Worker assignment notification',
-      status: 'sent',
-      email_type: 'worker_assignment',
-      sent_at: new Date().toISOString()
-    });
+    try {
+      const emailResponse = await resend.emails.send({
+        from: 'Hero TV Mounting <bookings@herotvmounting.com>',
+        to: [worker.email],
+        subject: emailSubject,
+        html: emailHtml,
+      });
 
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
-    });
+      console.log('Email sent successfully:', emailResponse);
+
+      // Log the email send in database
+      await supabase.from('email_logs').insert({
+        booking_id: bookingId,
+        recipient_email: worker.email,
+        subject: emailSubject,
+        message: emailHtml,
+        status: 'sent',
+        email_type: 'worker_assignment'
+      });
+
+      return new Response(JSON.stringify({
+        success: true,
+        emailId: emailResponse.data?.id
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+
+    } catch (emailError: any) {
+      console.error('Email send failed:', emailError);
+
+      // Determine error type for watchdog
+      let errorType = 'smtp_error';
+      const errorMessage = emailError?.message?.toLowerCase() || '';
+      
+      if (errorMessage.includes('timeout')) {
+        errorType = 'timeout';
+      } else if (errorMessage.includes('bounce') || errorMessage.includes('invalid')) {
+        errorType = 'hard_bounce';
+      } else if (errorMessage.includes('server') || errorMessage.includes('5')) {
+        errorType = 'server_error';
+      }
+
+      // Log the email failure
+      await supabase.from('email_logs').insert({
+        booking_id: bookingId,
+        recipient_email: worker.email,
+        subject: emailSubject,
+        message: emailHtml,
+        status: 'failed',
+        email_type: 'worker_assignment',
+        error_message: emailError.message
+      });
+
+      // Trigger watchdog for email failure
+      console.log('Triggering email failure watchdog...');
+      try {
+        await supabase.functions.invoke('email-failure-watchdog', {
+          body: {
+            bookingId: bookingId,
+            workerId: workerId,
+            originalError: emailError.message,
+            errorType: errorType
+          }
+        });
+        console.log('Watchdog triggered successfully');
+      } catch (watchdogError) {
+        console.error('Failed to trigger watchdog:', watchdogError);
+      }
+
+      // Return error response
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Email send failed - watchdog activated',
+        errorType: errorType
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
   } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message }), {
