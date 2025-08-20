@@ -80,12 +80,12 @@ export const PaymentCaptureButton = ({
   if (paymentStatus === 'captured' || paymentStatus === 'completed' || bookingStatus === 'completed') {
     return (
       <div className="flex items-center space-x-2">
-        <div className="flex items-center space-x-2 text-green-600">
+        <div className="flex items-center space-x-2 text-success">
           <CheckCircle className="h-4 w-4" />
-          <span className="font-medium">Job Completed</span>
+          <span className="font-medium">Payment Captured</span>
         </div>
-        <Badge variant="secondary" className="bg-green-100 text-green-800">
-          Payment Captured
+        <Badge variant="secondary" className="bg-success/10 text-success">
+          Job Ready for Completion
         </Badge>
       </div>
     );
@@ -113,10 +113,33 @@ export const PaymentCaptureButton = ({
     );
   }
 
+  // Show collect payment button for failed/cancelled payments
+  if (paymentStatus === 'failed' || paymentStatus === 'cancelled') {
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center space-x-2 text-destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <span>Payment {paymentStatus}</span>
+          <Badge variant="destructive">{paymentStatus}</Badge>
+        </div>
+        <button
+          onClick={() => {
+            // This will trigger a payment collection modal
+            console.log('Collect payment for booking:', bookingId);
+          }}
+          className="bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-2 rounded-md text-sm font-medium transition-colors"
+        >
+          <CreditCard className="h-4 w-4 mr-2 inline" />
+          Collect Payment
+        </button>
+      </div>
+    );
+  }
+
   // Show pending status for other payment statuses
   if (paymentStatus !== 'authorized') {
     return (
-      <div className="flex items-center space-x-2 text-gray-500">
+      <div className="flex items-center space-x-2 text-muted-foreground">
         <Clock className="h-4 w-4" />
         <span>Payment {paymentStatus}</span>
         <Badge variant="outline">{paymentStatus}</Badge>

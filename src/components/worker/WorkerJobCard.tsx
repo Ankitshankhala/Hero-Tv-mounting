@@ -7,6 +7,7 @@ import JobActions from './JobActions';
 import { RemoveServicesModal } from './RemoveServicesModal';
 import OnSiteChargeModal from './OnSiteChargeModal';
 import { AddServicesModal } from './AddServicesModal';
+import PaymentCollectionModal from './payment/PaymentCollectionModal';
 
 interface BookingService {
   id: string;
@@ -62,9 +63,18 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
   const [showModifyModal, setShowModifyModal] = useState(false);
   const [showChargeModal, setShowChargeModal] = useState(false);
   const [showAddServicesModal, setShowAddServicesModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   const handleModifyClick = () => setShowModifyModal(true);
-  const handleChargeClick = () => setShowChargeModal(true);
+  const handleChargeClick = () => {
+    // If payment failed/cancelled, show payment collection modal
+    if (job.payment_status === 'failed' || job.payment_status === 'cancelled') {
+      setShowPaymentModal(true);
+    } else {
+      // Otherwise show onsite charge modal
+      setShowChargeModal(true);
+    }
+  };
   const handleAddServicesClick = () => setShowAddServicesModal(true);
 
   const handleModificationCreated = () => {
@@ -83,6 +93,11 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
 
   const handleServicesAdded = () => {
     setShowAddServicesModal(false);
+    onJobCancelled?.();
+  };
+
+  const handlePaymentCollected = () => {
+    setShowPaymentModal(false);
     onJobCancelled?.();
   };
 
@@ -174,14 +189,35 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
       <CardContent className="p-4">
         {/* Header */}
         <div className="mb-4">
-          <h3 className="text-lg font-bold text-blue-600 mb-1">NEW JOB ASSIGNMENT</h3>
-          <p className="text-xs text-gray-600 mb-2">Hero TV Mounting</p>
-          <Badge 
-            variant="secondary" 
-            className="bg-blue-100 text-blue-800 font-normal text-xs"
-          >
-            {job.status.replace('_', ' ').toUpperCase()}
-          </Badge>
+          <h3 className="text-lg font-bold text-primary mb-1">NEW JOB ASSIGNMENT</h3>
+          <p className="text-xs text-muted-foreground mb-2">Hero TV Mounting</p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge 
+              variant="secondary" 
+              className="bg-primary/10 text-primary font-normal text-xs"
+            >
+              {job.status.replace('_', ' ').toUpperCase()}
+            </Badge>
+            {job.payment_status && (
+              <Badge 
+                variant={
+                  job.payment_status === 'captured' || job.payment_status === 'completed' 
+                    ? 'default' 
+                    : job.payment_status === 'failed' || job.payment_status === 'cancelled'
+                    ? 'destructive'
+                    : 'outline'
+                }
+                className="text-xs"
+              >
+                {job.payment_status === 'captured' ? 'Payment Captured' :
+                 job.payment_status === 'completed' ? 'Payment Complete' :
+                 job.payment_status === 'authorized' ? 'Payment Authorized' :
+                 job.payment_status === 'failed' ? 'Payment Failed' :
+                 job.payment_status === 'cancelled' ? 'Payment Cancelled' :
+                 `Payment ${job.payment_status}`}
+              </Badge>
+            )}
+          </div>
         </div>
 
         {/* Three Column Layout */}
@@ -293,6 +329,15 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
           onClose={() => setShowAddServicesModal(false)}
           job={job}
           onServicesAdded={handleServicesAdded}
+        />
+      )}
+
+      {showPaymentModal && (
+        <PaymentCollectionModal
+          isOpen={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          job={job}
+          onPaymentCollected={handlePaymentCollected}
         />
       )}
     </Card>

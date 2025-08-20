@@ -16,9 +16,23 @@ interface WorkerJobsTabProps {
 }
 
 export const WorkerJobsTab = ({ jobs, onStatusUpdate, onJobCancelled }: WorkerJobsTabProps) => {
-  // Separate active and archived jobs
-  const activeJobs = useMemo(() => jobs.filter(job => !job.is_archived), [jobs]);
+  // Separate active and archived jobs, excluding jobs with cancelled/failed payments from active list
+  const activeJobs = useMemo(() => 
+    jobs.filter(job => 
+      !job.is_archived && 
+      job.payment_status !== 'cancelled' && 
+      job.payment_status !== 'failed' &&
+      job.status !== 'cancelled'
+    ), [jobs]);
   const archivedJobs = useMemo(() => jobs.filter(job => job.is_archived), [jobs]);
+  
+  // Jobs that need payment attention (cancelled/failed payments)
+  const paymentIssueJobs = useMemo(() => 
+    jobs.filter(job => 
+      !job.is_archived && 
+      (job.payment_status === 'cancelled' || job.payment_status === 'failed') &&
+      job.status !== 'cancelled'
+    ), [jobs]);
 
   // Use the job filters hook for both active and archived jobs
   const activeFilters = useJobFilters(activeJobs);
@@ -102,6 +116,35 @@ export const WorkerJobsTab = ({ jobs, onStatusUpdate, onJobCancelled }: WorkerJo
 
   return (
     <div className="space-y-6">
+      {/* Payment Issues Section */}
+      {paymentIssueJobs.length > 0 && (
+        <Card className="bg-destructive/5 border-destructive/20 shadow-lg">
+          <CardHeader className="bg-destructive/10 border-b border-destructive/20">
+            <CardTitle className="text-destructive text-xl font-semibold flex items-center gap-2">
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+              Payment Issues ({paymentIssueJobs.length})
+            </CardTitle>
+            <p className="text-destructive/80 text-sm">
+              These jobs require payment collection before work can proceed
+            </p>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="space-y-4">
+              {paymentIssueJobs.map((job) => (
+                <ExpandableJobCardContainer
+                  key={job.id}
+                  job={job}
+                  onStatusUpdate={onStatusUpdate}
+                  onJobCancelled={onJobCancelled}
+                />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      
       <Tabs defaultValue="active" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="active" className="flex items-center space-x-2">

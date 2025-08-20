@@ -34,10 +34,15 @@ const JobActions = ({
     return job.guest_customer_info?.phone || job.customer?.phone || '';
   };
 
-  const canAddCharges = (job.status === 'in_progress' || job.status === 'confirmed') && job.payment_status !== 'authorized';
+  const canAddCharges = (job.status === 'in_progress' || job.status === 'confirmed') && 
+    job.payment_status !== 'authorized' && 
+    job.payment_status !== 'captured' && 
+    job.payment_status !== 'completed';
   const canCapturePayment = job.payment_status === 'authorized' && job.status !== 'completed';
+  const canCollectPayment = job.payment_status === 'failed' || job.payment_status === 'cancelled';
   const canAddServices = job.status === 'confirmed' || job.status === 'in_progress';
   const canModifyServices = job.status === 'confirmed' || job.status === 'in_progress';
+  const isPaymentPaid = job.payment_status === 'captured' || job.payment_status === 'completed';
   const getValidNextStatuses = (currentStatus: string) => {
     switch (currentStatus) {
       case 'pending':
@@ -89,6 +94,27 @@ const JobActions = ({
           </Button>}
         
         {canCapturePayment && <PaymentCaptureButton bookingId={job.id} paymentStatus={job.payment_status} bookingStatus={job.status} onCaptureSuccess={onCaptureSuccess} />}
+        
+        {canCollectPayment && (
+          <Button 
+            size="sm" 
+            variant="default"
+            onClick={onChargeClick}
+            className="bg-primary hover:bg-primary/90 text-primary-foreground transition-all duration-200"
+          >
+            <CreditCard className="h-4 w-4 mr-2" />
+            Collect Payment
+          </Button>
+        )}
+        
+        {/* Prevent completion for jobs with payment issues */}
+        {(job.payment_status === 'failed' || job.payment_status === 'cancelled') && (
+          <div className="w-full mt-2 p-2 bg-destructive/10 border border-destructive/20 rounded-md">
+            <p className="text-sm text-destructive font-medium">
+              ⚠️ Payment required before job completion
+            </p>
+          </div>
+        )}
         
         {canAddServices && <Button size="sm" variant="outline" onClick={onAddServicesClick} className="border-action-warning text-action-warning hover:bg-action-warning hover:text-white transition-all duration-200">
             <Plus className="h-4 w-4 mr-2" />
