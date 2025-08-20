@@ -45,21 +45,21 @@ export const RemoveServicesModal = ({
     return calculateBookingTotal(services);
   }, [services]);
 
-  // Define calculateServicePrice function
+  // Use shared pricing utility with defensive safeguards
   const calculateServicePrice = useCallback((service: BookingService) => {
-    let price = service.base_price;
-    const config = service.configuration || {};
-
-    // TV Mounting specific pricing
-    if (service.service_name === 'TV Mounting') {
-      if (config.over65) price += 50;
-      if (config.frameMount) price += 75;
-      if (config.wallType === 'stone' || config.wallType === 'brick' || config.wallType === 'tile') {
-        price += 100;
-      }
-      if (config.soundbar) price += 30;
-    }
-
+    const price = calculateServiceLinePrice({
+      service_name: service.service_name,
+      base_price: Number(service.base_price) || 0, // Ensure number
+      quantity: Number(service.quantity) || 1,
+      configuration: service.configuration
+    });
+    
+    console.log(`Price for ${service.service_name}:`, {
+      base_price: service.base_price,
+      calculated_price: price,
+      quantity: service.quantity
+    }); // Debug logging
+    
     return price;
   }, []);
 
@@ -79,8 +79,17 @@ export const RemoveServicesModal = ({
         throw error;
       }
 
-      setServices(data || []);
-      setOriginalServices(data || []); // Store original services for price comparison
+      // Normalize data - ensure base_price is a number
+      const normalizedData = (data || []).map(service => ({
+        ...service,
+        base_price: Number(service.base_price) || 0,
+        quantity: Number(service.quantity) || 1
+      }));
+
+      console.log('Normalized booking services:', normalizedData); // Debug logging
+
+      setServices(normalizedData);
+      setOriginalServices(normalizedData); // Store original services for price comparison
     } catch (error) {
       console.error('Error fetching booking services:', error);
       toast({
