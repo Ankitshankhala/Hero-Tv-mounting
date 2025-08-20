@@ -1096,6 +1096,9 @@ export type Database = {
       }
       worker_bookings: {
         Row: {
+          ack_at: string | null
+          ack_deadline: string | null
+          ack_status: string | null
           assigned_at: string | null
           booking_id: string
           created_at: string | null
@@ -1104,6 +1107,9 @@ export type Database = {
           worker_id: string
         }
         Insert: {
+          ack_at?: string | null
+          ack_deadline?: string | null
+          ack_status?: string | null
           assigned_at?: string | null
           booking_id: string
           created_at?: string | null
@@ -1112,6 +1118,9 @@ export type Database = {
           worker_id: string
         }
         Update: {
+          ack_at?: string | null
+          ack_deadline?: string | null
+          ack_status?: string | null
           assigned_at?: string | null
           booking_id?: string
           created_at?: string | null
@@ -1262,6 +1271,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      acknowledge_assignment: {
+        Args: { p_booking_id: string }
+        Returns: boolean
+      }
       auto_assign_workers_to_booking: {
         Args: { p_booking_id: string }
         Returns: {
@@ -1392,6 +1405,10 @@ export type Database = {
       is_sms_enabled: {
         Args: Record<PropertyKey, never>
         Returns: boolean
+      }
+      reassign_expired_acknowledgments: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
       }
       resend_worker_sms: {
         Args: { booking_id_param: string }
