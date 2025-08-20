@@ -130,33 +130,56 @@ serve(async (req) => {
       </tr>
     `).join('');
 
-    // Create payment link (this would be your actual payment processing URL)
-    const paymentLink = `https://herotvmounting.com/complete-payment?booking=${booking.id}`;
+    // Create payment link using APP_BASE_URL from environment
+    const appBaseUrl = Deno.env.get("APP_BASE_URL") || "https://herotvmounting.com";
+    const paymentLink = `${appBaseUrl}/authorize-payment/${booking.id}`;
 
-    // HTML email template for Stage 2
+    // Determine message urgency based on reminder type
+    let subject: string;
+    let urgencyLevel: string;
+    let timeWarning: string;
+
+    switch (reminderType) {
+      case 'first':
+        subject = 'Action Required: Authorize Payment for Your TV Mounting Service';
+        urgencyLevel = 'Time-Sensitive Reservation';
+        timeWarning = 'Please authorize payment within the next few minutes to secure your booking.';
+        break;
+      case 'final':
+        subject = 'URGENT: Your TV Mounting Booking Will Expire in Minutes';
+        urgencyLevel = 'IMMEDIATE ACTION REQUIRED';
+        timeWarning = 'Your booking will be automatically cancelled in the next few minutes without payment authorization.';
+        break;
+      default:
+        subject = 'Action Required: Authorize Payment for Your TV Mounting Service';
+        urgencyLevel = 'Time-Sensitive Reservation';
+        timeWarning = 'Please authorize payment to secure your booking.';
+    }
+
+    // HTML email template
     const htmlContent = `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Complete Your Booking Payment - Hero TV Mounting</title>
+  <title>${subject}</title>
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #ff7b7b 0%, #667eea 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
-    <h1 style="margin: 0; font-size: 28px;">Complete Your Booking</h1>
-    <p style="margin: 10px 0 0; font-size: 16px; opacity: 0.9;">Your TV mounting service is reserved - just one step left!</p>
+  <div style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+    <h1 style="margin: 0; font-size: 28px;">⚠️ Action Required</h1>
+    <p style="margin: 10px 0 0; font-size: 16px; opacity: 0.9;">Your TV mounting service booking needs immediate attention</p>
   </div>
   
   <div style="background: white; padding: 30px; border: 1px solid #ddd; border-top: none; border-radius: 0 0 10px 10px;">
     <div style="text-align: center; margin-bottom: 25px;">
       <p style="font-size: 18px; margin: 0 0 10px;">Hi ${customerName},</p>
-      <p style="font-size: 16px; color: #666; margin: 0;">We're holding your preferred time slot, but we need payment authorization to confirm your booking.</p>
+      <p style="font-size: 16px; color: #666; margin: 0;">${timeWarning}</p>
     </div>
 
-    <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 20px; border-radius: 8px; margin-bottom: 25px; text-align: center;">
-      <h2 style="color: #856404; margin: 0 0 15px; font-size: 18px;">⏰ Time-Sensitive Reservation</h2>
-      <p style="margin: 0; color: #856404; font-size: 14px;">This time slot will be released to other customers if payment isn't completed within 24 hours.</p>
+    <div style="background: ${reminderType === 'final' ? '#fee2e2' : '#fff3cd'}; border: 1px solid ${reminderType === 'final' ? '#fca5a5' : '#ffeaa7'}; padding: 20px; border-radius: 8px; margin-bottom: 25px; text-align: center;">
+      <h2 style="color: ${reminderType === 'final' ? '#dc2626' : '#856404'}; margin: 0 0 15px; font-size: 18px;">⏰ ${urgencyLevel}</h2>
+      <p style="margin: 0; color: ${reminderType === 'final' ? '#dc2626' : '#856404'}; font-size: 14px;">${timeWarning}</p>
     </div>
 
     <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
@@ -220,7 +243,7 @@ serve(async (req) => {
     const emailResponse = await resend.emails.send({
       from: "Hero TV Mounting <bookings@herotvmounting.com>",
       to: [customerEmail],
-      subject: `⏰ Complete Your Booking - ${bookingDate} at ${bookingTime}`,
+      subject: subject,
       html: htmlContent,
     });
 
@@ -230,8 +253,9 @@ serve(async (req) => {
     await supabase.from('email_logs').insert({
       booking_id: bookingId,
       recipient_email: customerEmail,
-      subject: `⏰ Complete Your Booking - ${bookingDate} at ${bookingTime}`,
-      message: 'Payment reminder email for incomplete booking',
+      email_type: `payment_reminder_${reminderType}`,
+      subject: subject,
+      message: `${reminderType} payment reminder email sent`,
       status: 'sent',
       sent_at: new Date().toISOString()
     });
