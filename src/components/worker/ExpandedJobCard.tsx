@@ -3,7 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
-
+import { formatBookingTime } from '@/utils/timezoneUtils';
 import { formatTimeTo12Hour } from '@/utils/timeUtils';
 
 import JobActions from './JobActions';
@@ -95,13 +95,15 @@ export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onCollaps
     if (!date) return 'Invalid date';
     
     try {
-      return new Date(date).toLocaleDateString('en-US', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric',
-        timeZone: 'America/Chicago'
-      });
+      // Use timezone utility to properly handle local service dates
+      return formatBookingTime(
+        `${date}T00:00:00`, 
+        'America/Chicago',
+        {
+          showTime: false,
+          dateFormat: 'EEEE, MMMM dd, yyyy'
+        }
+      );
     } catch (error) {
       console.error('Error formatting date:', { date, error });
       return 'Invalid date';
