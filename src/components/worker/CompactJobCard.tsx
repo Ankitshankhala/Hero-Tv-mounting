@@ -3,7 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ChevronDown, Phone, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { formatBookingTimeForContext } from '@/utils/timezoneUtils';
+
 
 interface CompactJobCardProps {
   job: any;
@@ -16,14 +16,24 @@ interface CompactJobCardProps {
 export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections }: CompactJobCardProps) => {
   // Format date and time for compact display using America/Chicago timezone
   const formatCompactDateTime = (date: string, time: string) => {
-    // Create booking object structure for timezone formatter
-    const booking = {
-      local_service_date: date,
-      local_service_time: time,
-      service_tz: 'America/Chicago'
-    };
+    if (!date || !time) return 'Invalid date';
     
-    return formatBookingTimeForContext(booking, 'worker', 'America/Chicago');
+    try {
+      // Parse the date and time directly for Austin timezone
+      const dateObj = new Date(date);
+      const month = dateObj.toLocaleDateString('en-US', { month: 'short', timeZone: 'America/Chicago' });
+      const day = dateObj.toLocaleDateString('en-US', { day: 'numeric', timeZone: 'America/Chicago' });
+      
+      const [hours, minutes] = time.split(':');
+      const hour = parseInt(hours);
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const displayHour = hour % 12 || 12;
+      
+      return `${month} ${day}, ${displayHour}:${minutes} ${ampm}`;
+    } catch (error) {
+      console.error('Error formatting date:', { date, time, error });
+      return 'Invalid date';
+    }
   };
 
   // Get all service lines with quantities
