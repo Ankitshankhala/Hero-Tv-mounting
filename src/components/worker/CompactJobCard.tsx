@@ -16,20 +16,11 @@ interface CompactJobCardProps {
 
 export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections }: CompactJobCardProps) => {
   // Format date and time for compact display using America/Chicago timezone
-  const formatCompactDateTime = (date: string, time: string) => {
-    if (!date || !time) return 'Invalid date';
-    
+  const formatCompactDateTime = (booking: any) => {
     try {
-      // Create booking object structure for timezone formatter
-      const booking = {
-        local_service_date: date,
-        local_service_time: time,
-        service_tz: 'America/Chicago'
-      };
-      
       return formatBookingTimeForContext(booking, 'worker', 'America/Chicago');
     } catch (error) {
-      console.error('Error formatting date:', { date, time, error });
+      console.error('Error formatting booking date/time:', { booking, error });
       return 'Invalid date';
     }
   };
@@ -139,7 +130,7 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
           {/* Center: Date/Time and Address */}
           <div className="flex-1 min-w-0 hidden sm:block">
             <div className="text-sm font-medium text-foreground">
-              {formatCompactDateTime(job.scheduled_date, job.scheduled_start)}
+              {formatCompactDateTime(job)}
             </div>
             <div className="text-sm text-muted-foreground truncate">
               {getShortAddress()}
@@ -191,7 +182,7 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
         {/* Mobile: Show date/address below on small screens */}
         <div className="sm:hidden mt-2 pt-2 border-t border-border">
           <div className="text-sm text-muted-foreground">
-            {formatCompactDateTime(job.scheduled_date, job.scheduled_start)}
+            {formatCompactDateTime(job)}
           </div>
           <div className="text-sm text-muted-foreground truncate">
             {getShortAddress()}

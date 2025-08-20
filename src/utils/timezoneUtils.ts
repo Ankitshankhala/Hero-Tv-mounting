@@ -89,11 +89,10 @@ export const convertLocalToUTC = (
   localTime: string,
   serviceTimezone: string
 ): Date => {
-  const localDateTime = `${localDate} ${localTime}`;
-  const localTimestamp = new Date(`${localDateTime}T00:00:00`);
+  const localDateTime = `${localDate} ${localTime}:00`;
   
-  // Convert local service time to UTC
-  return fromZonedTime(localTimestamp, serviceTimezone);
+  // Convert local service time (wall time in service timezone) to UTC
+  return fromZonedTime(localDateTime, serviceTimezone);
 };
 
 /**
@@ -150,13 +149,13 @@ export const formatBookingTimeForContext = (
   if (booking.start_time_utc) {
     utcTime = new Date(booking.start_time_utc);
   } else if (booking.local_service_date && booking.local_service_time && booking.service_tz) {
-    // Construct UTC from local fields
-    const localDateTime = `${booking.local_service_date} ${booking.local_service_time}`;
-    utcTime = fromZonedTime(new Date(`${localDateTime}T00:00:00`), booking.service_tz);
+    // Construct UTC from local fields (respecting provided time)
+    const localDateTimeString = `${booking.local_service_date} ${booking.local_service_time}:00`;
+    utcTime = fromZonedTime(localDateTimeString, booking.service_tz);
   } else {
     // Fallback to legacy fields
-    const legacyDateTime = `${booking.scheduled_date} ${booking.scheduled_start}`;
-    utcTime = fromZonedTime(new Date(`${legacyDateTime}T00:00:00`), booking.service_tz || DEFAULT_SERVICE_TIMEZONE);
+    const legacyDateTimeString = `${booking.scheduled_date} ${booking.scheduled_start}:00`;
+    utcTime = fromZonedTime(legacyDateTimeString, booking.service_tz || DEFAULT_SERVICE_TIMEZONE);
   }
 
   const serviceTimezone = booking.service_tz || DEFAULT_SERVICE_TIMEZONE;
