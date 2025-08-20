@@ -25,17 +25,49 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    // Find the most recent booking needing assignment
-    const { data: booking, error: bookingError } = await supabase
-      .from('bookings')
-      .select(
-        `id, worker_id, status, scheduled_date, scheduled_start, customer_id, guest_customer_info, created_at, customer:users!bookings_customer_id_fkey(email, zip_code)`
-      )
-      .eq('status', 'confirmed')
-      .is('worker_id', null)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
+    // Get booking ID from request body or find the most recent booking
+    const body = await req.json().catch(() => ({}));
+    const targetBookingId = body.booking_id;
+
+    let booking;
+    let bookingError;
+
+    if (targetBookingId) {
+      // Process specific booking
+      const result = await supabase
+        .from('bookings')
+        .select(
+          `id, worker_id, status, scheduled_date, scheduled_start, customer_id, guest_customer_info, created_at, customer:users!bookings_customer_id_fkey(email, zip_code)`
+        )
+        .eq('id', targetBookingId)
+        .single();
+      
+      booking = result.data;
+      bookingError = result.error;
+
+      if (booking && booking.worker_id) {
+        logStep('Booking already has worker assigned', { booking_id: booking.id, worker_id: booking.worker_id });
+        return new Response(
+          JSON.stringify({ success: false, message: 'Booking already has a worker assigned' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    } else {
+      // Find the most recent booking needing assignment
+      const result = await supabase
+        .from('bookings')
+        .select(
+          `id, worker_id, status, scheduled_date, scheduled_start, customer_id, guest_customer_info, created_at, customer:users!bookings_customer_id_fkey(email, zip_code)`
+        )
+        .eq('status', 'confirmed')
+        .is('worker_id', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      booking = result.data;
+      bookingError = result.error;
+    }
 
     if (bookingError) {
       throw new Error(`Failed to fetch booking: ${bookingError.message}`);
@@ -53,12 +85,16 @@ serve(async (req) => {
 
     const zipCode = booking.customer_id
       ? booking.customer?.zip_code
-      : booking.guest_customer_info?.zipcode || booking.guest_customer_info?.zip_code;
+      : (booking.guest_customer_info?.zipcode || booking.guest_customer_info?.zip_code);
 
     if (!zipCode) {
-      logStep('Zip code missing for booking', { booking_id: booking.id });
+      logStep('Zip code missing for booking', { 
+        booking_id: booking.id,
+        customer_id: booking.customer_id,
+        guest_info: booking.guest_customer_info
+      });
       return new Response(
-        JSON.stringify({ success: false, message: 'Booking missing zip code' }),
+        JSON.stringify({ success: false, message: 'Booking missing zip code - cannot assign worker' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -76,9 +112,47 @@ serve(async (req) => {
     }
 
     if (!candidates || candidates.length === 0) {
-      logStep('No workers available', { booking_id: booking.id });
+      logStep('No workers available for direct assignment, trying coverage notifications', { 
+        booking_id: booking.id,
+        zipcode: zipCode,
+        scheduled_date: booking.scheduled_date,
+        scheduled_start: booking.scheduled_start
+      });
+
+      // Try coverage notifications as fallback
+      try {
+        const { data: coverageResult, error: coverageError } = await supabase.rpc('auto_assign_workers_with_coverage', {
+          p_booking_id: booking.id
+        });
+
+        if (coverageError) {
+          logStep('Coverage notification failed', { error: coverageError.message });
+        } else if (coverageResult && coverageResult.length > 0) {
+          const result = coverageResult[0];
+          if (result.assignment_status === 'coverage_notifications_sent') {
+            logStep('Coverage notifications sent successfully', { 
+              notifications_sent: result.notifications_sent,
+              booking_id: booking.id
+            });
+            return new Response(
+              JSON.stringify({ 
+                success: true, 
+                booking_id: booking.id,
+                message: `Coverage notifications sent to ${result.notifications_sent} workers`
+              }),
+              { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+        }
+      } catch (coverageErr) {
+        logStep('Coverage notification error', { error: coverageErr });
+      }
+
       return new Response(
-        JSON.stringify({ success: false, message: 'No workers available' }),
+        JSON.stringify({ 
+          success: false, 
+          message: `No workers available in area ${zipCode} for ${booking.scheduled_date} at ${booking.scheduled_start}` 
+        }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

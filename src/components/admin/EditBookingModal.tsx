@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { usePublicServicesData } from '@/hooks/usePublicServicesData';
+import { BookingRetryAssignment } from './BookingRetryAssignment';
 
 interface EditBookingModalProps {
   booking: any;
@@ -230,6 +231,37 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
               placeholder="Service address and special instructions..."
             />
           </div>
+
+          {/* Worker Assignment Section */}
+          {!booking.worker_id && (
+            <div className="bg-muted/50 p-4 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-medium text-sm">Worker Assignment</h4>
+                  <p className="text-sm text-muted-foreground">
+                    No worker assigned. Try automatic assignment or assign manually.
+                  </p>
+                </div>
+                <BookingRetryAssignment 
+                  bookingId={booking.id} 
+                  onRetryComplete={onBookingUpdated}
+                />
+              </div>
+            </div>
+          )}
+
+          {booking.worker_id && (
+            <div className="bg-green-50 p-4 rounded-lg">
+              <div className="flex items-center gap-2">
+                <div className="text-green-600 font-medium text-sm">
+                  ✓ Worker Assigned
+                </div>
+                <span className="text-sm text-muted-foreground">
+                  Worker ID: {booking.worker_id}
+                </span>
+              </div>
+            </div>
+          )}
 
           <div className="flex justify-end space-x-2 pt-4">
             <Button type="button" variant="outline" onClick={onClose}>
