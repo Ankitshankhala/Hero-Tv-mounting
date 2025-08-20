@@ -11,6 +11,111 @@ const logStep = (step: string, details?: any) => {
   console.log(`[EMAIL-ORCHESTRATOR] ${step}${detailsStr}`);
 };
 
+async function handleScheduledCheck(supabase: any): Promise<Response> {
+  logStep("Starting scheduled email check");
+  
+  const now = new Date();
+  const results = {
+    processed: 0,
+    first_reminders: 0,
+    second_reminders: 0,
+    final_reminders: 0,
+    errors: 0
+  };
+
+  try {
+    // Find bookings that need payment reminders
+    // Grace period: don't send reminders for very recent bookings (30 minutes)
+    const thirtyMinutesAgo = new Date(now.getTime() - (30 * 60 * 1000));
+    
+    const { data: pendingBookings, error: bookingsError } = await supabase
+      .from('bookings')
+      .select('id, created_at, status, payment_status')
+      .eq('status', 'payment_pending')
+      .in('payment_status', ['pending', 'failed'])
+      .lte('created_at', thirtyMinutesAgo.toISOString());
+
+    if (bookingsError) {
+      throw new Error(`Failed to fetch pending bookings: ${bookingsError.message}`);
+    }
+
+    logStep("Found pending bookings", { count: pendingBookings?.length || 0 });
+
+    for (const booking of pendingBookings || []) {
+      results.processed++;
+      
+      const bookingAge = now.getTime() - new Date(booking.created_at).getTime();
+      const hoursOld = bookingAge / (1000 * 60 * 60);
+      
+      try {
+        // Check what reminders have already been sent
+        const { data: sentEmails } = await supabase
+          .from('email_logs')
+          .select('email_type')
+          .eq('booking_id', booking.id)
+          .eq('status', 'sent')
+          .in('email_type', ['payment_reminder_first', 'payment_reminder_second', 'payment_reminder_final']);
+
+        const sentTypes = new Set(sentEmails?.map(e => e.email_type) || []);
+        
+        let reminderType: string | null = null;
+        
+        // Determine which reminder to send based on age
+        if (hoursOld >= 72 && !sentTypes.has('payment_reminder_final')) {
+          reminderType = 'final';
+          results.final_reminders++;
+        } else if (hoursOld >= 48 && !sentTypes.has('payment_reminder_second')) {
+          reminderType = 'second';
+          results.second_reminders++;
+        } else if (hoursOld >= 24 && !sentTypes.has('payment_reminder_first')) {
+          reminderType = 'first';
+          results.first_reminders++;
+        }
+        
+        if (reminderType) {
+          logStep(`Sending ${reminderType} reminder`, { bookingId: booking.id, hoursOld: Math.round(hoursOld) });
+          
+          // Call the payment reminder function
+          const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-payment-reminder-email', {
+            body: {
+              bookingId: booking.id,
+              reminderType: reminderType
+            }
+          });
+          
+          if (emailError) {
+            throw new Error(`Failed to send ${reminderType} reminder for booking ${booking.id}: ${emailError.message}`);
+          }
+          
+          logStep(`${reminderType} reminder sent successfully`, { bookingId: booking.id });
+        }
+        
+      } catch (bookingError) {
+        logStep("Error processing booking", { bookingId: booking.id, error: bookingError });
+        results.errors++;
+      }
+    }
+
+    logStep("Scheduled check completed", results);
+    
+    return new Response(
+      JSON.stringify({ 
+        success: true,
+        message: "Scheduled email check completed",
+        results
+      }),
+      { 
+        status: 200, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      }
+    );
+
+  } catch (error: any) {
+    logStep("Scheduled check error", { error: error.message });
+    throw error;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -25,11 +130,16 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    const { bookingId, trigger } = await req.json();
-    logStep("Processing email orchestration", { bookingId, trigger });
+    const { bookingId, trigger, reminderType } = await req.json();
+    logStep("Processing email orchestration", { bookingId, trigger, reminderType });
+
+    // Handle scheduled checks for all eligible bookings
+    if (trigger === 'scheduled_check') {
+      return await handleScheduledCheck(supabase);
+    }
 
     if (!bookingId) {
-      throw new Error("Booking ID is required");
+      throw new Error("Booking ID is required for non-scheduled triggers");
     }
 
     // Validate UUID format

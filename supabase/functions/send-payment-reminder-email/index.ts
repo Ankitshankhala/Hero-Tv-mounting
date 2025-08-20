@@ -28,8 +28,8 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    const { bookingId } = await req.json();
-    logStep("Processing payment reminder email", { bookingId });
+    const { bookingId, reminderType = 'first' } = await req.json();
+    logStep("Processing payment reminder email", { bookingId, reminderType });
 
     if (!bookingId) {
       throw new Error("Booking ID is required");
