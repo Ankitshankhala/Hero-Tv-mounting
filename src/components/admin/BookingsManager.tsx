@@ -9,6 +9,7 @@ import { BookingTable } from './BookingTable';
 import { CreateBookingModal } from './CreateBookingModal';
 import { useBookingManager } from '@/hooks/useBookingManager';
 import { AuthGuard } from '@/components/AuthGuard';
+import { EmailVerificationPanel } from './EmailVerificationPanel';
 
 export const BookingsManager = () => {
   const [filteredBookings, setFilteredBookings] = useState([]);
@@ -140,6 +141,7 @@ export const BookingsManager = () => {
   return (
     <AuthGuard allowedRoles={['admin']}>
       <div className="space-y-6">
+        <EmailVerificationPanel />
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
