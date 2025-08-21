@@ -84,10 +84,31 @@ export const BookingEmailStatus = ({ bookingId, workerId, compact = false }: Boo
     try {
       const success = await resendWorkerEmail(bookingId, { force: true });
       if (success) {
+        toast({
+          title: "Email resent",
+          description: "Worker assignment email has been resent successfully",
+        });
         await fetchEmailLogs(); // Refresh logs
+      } else {
+        toast({
+          title: "Failed to resend email",
+          description: "Email service configuration issue. Please check that RESEND_API_KEY and RESEND_FROM are configured in Supabase Edge Functions secrets.",
+          variant: "destructive",
+        });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to force resend worker email:', error);
+      const errorMessage = error?.message?.includes('RESEND_API_KEY') 
+        ? "Email service not configured. Missing RESEND_API_KEY secret."
+        : error?.message?.includes('500') 
+          ? "Email service error. Please check Edge Function configuration."
+          : "There was an error resending the worker assignment email";
+      
+      toast({
+        title: "Failed to resend email",
+        description: errorMessage,
+        variant: "destructive",
+      });
     } finally {
       setResending(false);
     }
@@ -98,10 +119,31 @@ export const BookingEmailStatus = ({ bookingId, workerId, compact = false }: Boo
     try {
       const success = await resendCustomerEmail(bookingId);
       if (success) {
+        toast({
+          title: "Email resent",
+          description: "Customer confirmation email has been resent successfully",
+        });
         await fetchEmailLogs(); // Refresh logs
+      } else {
+        toast({
+          title: "Failed to resend email",
+          description: "Email service configuration issue. Please check that RESEND_API_KEY and RESEND_FROM are configured in Supabase Edge Functions secrets.",
+          variant: "destructive",
+        });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to force resend customer email:', error);
+      const errorMessage = error?.message?.includes('RESEND_API_KEY') 
+        ? "Email service not configured. Missing RESEND_API_KEY secret."
+        : error?.message?.includes('500') 
+          ? "Email service error. Please check Edge Function configuration."
+          : "There was an error resending the customer confirmation email";
+      
+      toast({
+        title: "Failed to resend email",
+        description: errorMessage,
+        variant: "destructive",
+      });
     } finally {
       setResending(false);
     }
