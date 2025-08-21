@@ -56,8 +56,12 @@ export const BookingsManager = () => {
         !booking.is_archived && 
         (booking.payment_status === 'pending' || !booking.payment_status || booking.payment_status === 'failed')
       );
-      // Sort by oldest first for pending payments
-      filtered = filtered.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      // Sort by newest first for pending payments
+      filtered = filtered.sort((a, b) => {
+        const aTime = new Date(a.created_at).getTime();
+        const bTime = new Date(b.created_at).getTime();
+        return bTime - aTime;
+      });
     } else if (archiveFilter === 'archived') {
       filtered = filtered.filter(booking => booking.is_archived);
     }
