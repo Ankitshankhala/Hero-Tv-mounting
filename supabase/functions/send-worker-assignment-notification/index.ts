@@ -254,16 +254,19 @@ const handler = async (req: Request): Promise<Response> => {
       console.log('=== EMAIL SENT SUCCESSFULLY ===');
       console.log('Resend response:', emailResponse);
 
-      // Log successful email send in database
-      const { error: logError } = await supabase.from('email_logs').insert({
-        booking_id: bookingId,
-        recipient_email: worker.email,
-        subject: emailSubject,
-        message: emailHtml,
-        status: 'sent',
-        email_type: 'worker_assignment',
-        sent_at: new Date().toISOString()
-      });
+      // Log successful email send in database - use upsert to handle duplicates
+      const { error: logError } = await supabase.from('email_logs')
+        .upsert({
+          booking_id: bookingId,
+          recipient_email: worker.email,
+          subject: emailSubject,
+          message: emailHtml,
+          status: 'sent',
+          email_type: 'worker_assignment',
+          sent_at: new Date().toISOString()
+        }, {
+          onConflict: 'booking_id,recipient_email,email_type'
+        });
 
       if (logError) {
         console.error('Failed to log email send:', logError);
