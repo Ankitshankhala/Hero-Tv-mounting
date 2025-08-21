@@ -18,12 +18,27 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { bookingId, workerId }: WorkerAssignmentRequest = await req.json();
+    console.log('Worker assignment notification requested');
     
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    const { bookingId, workerId }: WorkerAssignmentRequest = await req.json();
+    console.log('Request data:', { bookingId, workerId });
+    
+    // Validate environment variables
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const resendKey = Deno.env.get('RESEND_API_KEY');
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing Supabase configuration');
+    }
+    
+    if (!resendKey) {
+      throw new Error('Missing RESEND_API_KEY - email sending not configured');
+    }
+    
+    console.log('Environment check passed');
+    
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Check for existing worker assignment email
     const { data: existingEmail } = await supabase
@@ -59,8 +74,19 @@ const handler = async (req: Request): Promise<Response> => {
     ]);
 
     if (!booking || !worker?.email) {
+      console.error('Missing data:', { 
+        bookingFound: !!booking, 
+        workerFound: !!worker, 
+        workerEmail: worker?.email 
+      });
       throw new Error('Booking or worker details not found');
     }
+    
+    console.log('Booking and worker data found:', {
+      bookingId: booking.id,
+      workerName: worker.name,
+      workerEmail: worker.email
+    });
 
     // Format date and time
     const formatDate = (date: string) => {
@@ -105,7 +131,8 @@ const handler = async (req: Request): Promise<Response> => {
     const city = customerInfo?.city || (booking.guest_customer_info?.city || '');
     const zipCode = customerInfo?.zip_code || (booking.guest_customer_info?.zipcode || '');
 
-    const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
+    console.log('Preparing to send email to:', worker.email);
+    const resend = new Resend(resendKey);
     
     const emailSubject = `NEW JOB ASSIGNMENT - ${formatDate(booking.scheduled_date)}`;
     const emailHtml = `
@@ -169,6 +196,7 @@ const handler = async (req: Request): Promise<Response> => {
     `;
 
     try {
+      console.log('Sending email with Resend...');
       const emailResponse = await resend.emails.send({
         from: 'Hero TV Mounting <bookings@herotvmounting.com>',
         to: [worker.email],
@@ -197,7 +225,12 @@ const handler = async (req: Request): Promise<Response> => {
       });
 
     } catch (emailError: any) {
-      console.error('Email send failed:', emailError);
+      console.error('Email send failed:', {
+        error: emailError,
+        message: emailError?.message,
+        status: emailError?.status,
+        code: emailError?.code
+      });
 
       // Determine error type for watchdog
       let errorType = 'smtp_error';
@@ -250,7 +283,16 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error('Function error:', {
+      error: error,
+      message: error?.message,
+      stack: error?.stack
+    });
+    
+    return new Response(JSON.stringify({ 
+      error: error.message,
+      details: 'Check function logs for more information'
+    }), {
       status: 500,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
