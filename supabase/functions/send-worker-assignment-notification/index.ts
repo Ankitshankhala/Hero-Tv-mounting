@@ -245,6 +245,10 @@ const handler = async (req: Request): Promise<Response> => {
         to: [worker.email],
         subject: emailSubject,
         html: emailHtml,
+        tags: [
+          { name: 'booking_id', value: bookingId },
+          { name: 'email_type', value: 'worker_assignment' }
+        ],
       });
 
       console.log('=== EMAIL SENT SUCCESSFULLY ===');
@@ -257,7 +261,8 @@ const handler = async (req: Request): Promise<Response> => {
         subject: emailSubject,
         message: emailHtml,
         status: 'sent',
-        email_type: 'worker_assignment'
+        email_type: 'worker_assignment',
+        sent_at: new Date().toISOString()
       });
 
       if (logError) {
