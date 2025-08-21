@@ -58,7 +58,7 @@ export const EmailTestPanel = () => {
     }
   };
 
-  const testWorkerEmail = async () => {
+  const testWorkerEmail = async (forceResend = false) => {
     if (!bookingId || !workerId) {
       toast({
         title: "Missing Information",
@@ -70,12 +70,13 @@ export const EmailTestPanel = () => {
 
     setWorkerTesting(true);
     try {
-      console.log('Testing worker email:', { bookingId, workerId });
+      console.log('Testing worker email:', { bookingId, workerId, force: forceResend });
       
       const { data, error } = await supabase.functions.invoke('send-worker-assignment-notification', {
         body: { 
           bookingId: bookingId.trim(), 
-          workerId: workerId.trim() 
+          workerId: workerId.trim(),
+          force: forceResend
         }
       });
 
@@ -142,13 +143,25 @@ export const EmailTestPanel = () => {
             {customerTesting ? 'Sending...' : 'Test Customer Email'}
           </Button>
 
-          <Button
-            onClick={testWorkerEmail}
-            disabled={customerTesting || workerTesting || !bookingId || !workerId}
-            variant="outline"
-          >
-            {workerTesting ? 'Sending...' : 'Test Worker Email'}
-          </Button>
+          <div className="flex space-x-2">
+            <Button
+              onClick={() => testWorkerEmail(false)}
+              disabled={customerTesting || workerTesting || !bookingId || !workerId}
+              variant="outline"
+              className="flex-1"
+            >
+              {workerTesting ? 'Sending...' : 'Test Worker Email'}
+            </Button>
+            
+            <Button
+              onClick={() => testWorkerEmail(true)}
+              disabled={customerTesting || workerTesting || !bookingId || !workerId}
+              variant="destructive"
+              className="flex-1"
+            >
+              {workerTesting ? 'Sending...' : 'Force Resend Worker'}
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>

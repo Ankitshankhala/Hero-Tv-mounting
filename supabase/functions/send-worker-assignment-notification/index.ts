@@ -31,6 +31,7 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const resendKey = Deno.env.get('RESEND_API_KEY');
+    const resendFrom = Deno.env.get('RESEND_FROM') || 'Hero TV Mounting <onboarding@resend.dev>';
     
     if (!supabaseUrl || !supabaseKey) {
       console.error('Missing Supabase configuration');
@@ -236,12 +237,13 @@ const handler = async (req: Request): Promise<Response> => {
 
     try {
       console.log('=== SENDING EMAIL ===');
-      console.log('From: Hero TV Mounting <onboarding@resend.dev>');
+      console.log('From:', resendFrom);
       console.log('To:', worker.email);
       console.log('Subject:', emailSubject);
+      console.log('Force send:', force);
       
       const emailResponse = await resend.emails.send({
-        from: 'Hero TV Mounting <onboarding@resend.dev>',
+        from: resendFrom,
         to: [worker.email],
         subject: emailSubject,
         html: emailHtml,
@@ -263,7 +265,9 @@ const handler = async (req: Request): Promise<Response> => {
           message: emailHtml,
           status: 'sent',
           email_type: 'worker_assignment',
-          sent_at: new Date().toISOString()
+          sent_at: new Date().toISOString(),
+          // Store Resend message ID for tracking
+          external_id: emailResponse.data?.id
         }, {
           onConflict: 'booking_id,recipient_email,email_type'
         });
