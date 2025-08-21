@@ -64,23 +64,18 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // Get comprehensive booking, worker, and service details
+    // Get comprehensive booking, worker, and service details with separate queries
     console.log('Fetching booking and worker data...');
     const [{ data: booking, error: bookingError }, { data: worker, error: workerError }] = await Promise.all([
       supabase.from('bookings')
-        .select(`
-          *,
-          booking_services (
-            id,
-            service_name,
-            quantity,
-            base_price
-          )
-        `)
+        .select('*')
         .eq('id', bookingId)
-        .single(),
-      supabase.from('users').select('name, email, phone').eq('id', workerId).single()
+        .maybeSingle(),
+      supabase.from('users').select('name, email, phone').eq('id', workerId).maybeSingle()
     ]);
+
+    console.log('Booking query result:', { booking, bookingError });
+    console.log('Worker query result:', { worker, workerError });
 
     if (bookingError) {
       console.error('Error fetching booking:', bookingError);
@@ -104,12 +99,25 @@ const handler = async (req: Request): Promise<Response> => {
       });
       throw new Error('Worker not found or missing email address');
     }
+
+    // Get booking services separately to avoid join issues
+    console.log('Fetching booking services...');
+    const { data: bookingServices, error: servicesError } = await supabase
+      .from('booking_services')
+      .select('id, service_name, quantity, base_price')
+      .eq('booking_id', bookingId);
+
+    if (servicesError) {
+      console.error('Error fetching booking services:', servicesError);
+      // Don't fail completely - continue with empty services
+      console.log('Continuing without services data');
+    }
     
     console.log('Data fetched successfully:', {
       bookingId: booking.id,
       workerName: worker.name,
       workerEmail: worker.email,
-      servicesCount: booking.booking_services?.length || 0
+      servicesCount: bookingServices?.length || 0
     });
 
     // Format date and time
@@ -138,16 +146,16 @@ const handler = async (req: Request): Promise<Response> => {
         .from('users')
         .select('name, email, phone, city, zip_code')
         .eq('id', booking.customer_id)
-        .single();
+        .maybeSingle();
       customerInfo = customer;
     } else {
       customerInfo = booking.guest_customer_info;
     }
 
-    // Build services list
-    const servicesList = booking.booking_services
-      .map((service: any) => `${service.service_name} x${service.quantity}`)
-      .join('<br>');
+    // Build services list from separate query
+    const servicesList = bookingServices && bookingServices.length > 0
+      ? bookingServices.map((service: any) => `${service.service_name} x${service.quantity}`).join('<br>')
+      : 'Service details not available';
 
     // Extract special instructions and address from location_notes or guest info
     const specialInstructions = booking.location_notes || 'None specified';
