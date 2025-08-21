@@ -6,7 +6,8 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
 export const EmailTestPanel = () => {
-  const [testing, setTesting] = useState(false);
+  const [customerTesting, setCustomerTesting] = useState(false);
+  const [workerTesting, setWorkerTesting] = useState(false);
   const [bookingId, setBookingId] = useState('');
   const [workerId, setWorkerId] = useState('');
   const { toast } = useToast();
@@ -21,65 +22,90 @@ export const EmailTestPanel = () => {
       return;
     }
 
-    setTesting(true);
+    setCustomerTesting(true);
     try {
+      console.log('Testing customer email:', { bookingId });
+      
       const { data, error } = await supabase.functions.invoke('send-customer-booking-confirmation', {
-        body: { bookingId }
+        body: { bookingId: bookingId.trim() }
       });
+
+      console.log('Customer email test response:', { data, error });
 
       if (error) {
-        throw error;
+        console.error('Customer email test error:', error);
+        toast({
+          title: "Customer Email Test Failed",
+          description: `Error: ${error.message || 'Unknown error occurred'}`,
+          variant: "destructive",
+        });
+      } else {
+        console.log('Customer email test success:', data);
+        toast({
+          title: "Customer Email Test Successful",
+          description: data?.success ? "Email sent successfully" : `Unexpected response: ${JSON.stringify(data)}`,
+        });
       }
-
-      toast({
-        title: "Success",
-        description: "Customer confirmation email sent successfully",
-      });
     } catch (error: any) {
-      console.error('Email test error:', error);
+      console.error('Customer email test exception:', error);
       toast({
-        title: "Email Test Failed",
-        description: error.message || "Failed to send test email",
+        title: "Customer Email Test Error",
+        description: `Exception: ${error.message || 'Network or parsing error'}`,
         variant: "destructive",
       });
     } finally {
-      setTesting(false);
+      setCustomerTesting(false);
     }
   };
 
   const testWorkerEmail = async () => {
     if (!bookingId || !workerId) {
       toast({
-        title: "Error",
-        description: "Please enter both booking ID and worker ID",
+        title: "Missing Information",
+        description: "Please provide both booking ID and worker ID",
         variant: "destructive",
       });
       return;
     }
 
-    setTesting(true);
+    setWorkerTesting(true);
     try {
+      console.log('Testing worker email:', { bookingId, workerId });
+      
       const { data, error } = await supabase.functions.invoke('send-worker-assignment-notification', {
-        body: { bookingId, workerId }
+        body: { 
+          bookingId: bookingId.trim(), 
+          workerId: workerId.trim() 
+        }
       });
+
+      console.log('Worker email test response:', { data, error });
 
       if (error) {
-        throw error;
+        console.error('Worker email test error:', error);
+        toast({
+          title: "Worker Email Test Failed",
+          description: `Error: ${error.message || 'Unknown error occurred'}`,
+          variant: "destructive",
+        });
+      } else {
+        console.log('Worker email test success:', data);
+        toast({
+          title: "Worker Email Test Successful",
+          description: data?.success ? 
+            (data.cached ? "Email was already sent (cached)" : "Email sent successfully") :
+            `Unexpected response: ${JSON.stringify(data)}`,
+        });
       }
-
+    } catch (err: any) {
+      console.error('Worker email test exception:', err);
       toast({
-        title: "Success",
-        description: "Worker assignment email sent successfully",
-      });
-    } catch (error: any) {
-      console.error('Email test error:', error);
-      toast({
-        title: "Email Test Failed",
-        description: error.message || "Failed to send test email",
+        title: "Worker Email Test Error", 
+        description: `Exception: ${err.message || 'Network or parsing error'}`,
         variant: "destructive",
       });
     } finally {
-      setTesting(false);
+      setWorkerTesting(false);
     }
   };
 
@@ -110,18 +136,18 @@ export const EmailTestPanel = () => {
         <div className="flex flex-col space-y-2">
           <Button
             onClick={testCustomerEmail}
-            disabled={testing || !bookingId}
+            disabled={customerTesting || workerTesting || !bookingId}
             variant="outline"
           >
-            {testing ? 'Sending...' : 'Test Customer Email'}
+            {customerTesting ? 'Sending...' : 'Test Customer Email'}
           </Button>
 
           <Button
             onClick={testWorkerEmail}
-            disabled={testing || !bookingId || !workerId}
+            disabled={customerTesting || workerTesting || !bookingId || !workerId}
             variant="outline"
           >
-            {testing ? 'Sending...' : 'Test Worker Email'}
+            {workerTesting ? 'Sending...' : 'Test Worker Email'}
           </Button>
         </div>
       </CardContent>
