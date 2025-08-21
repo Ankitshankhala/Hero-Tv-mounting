@@ -33,8 +33,11 @@ const handler = async (req: Request): Promise<Response> => {
     }
     
     if (!resendKey) {
+      console.error('RESEND_API_KEY not found. Available env vars:', Object.keys(Deno.env.toObject()));
       throw new Error('Missing RESEND_API_KEY - email sending not configured');
     }
+    
+    console.log('RESEND_API_KEY found, length:', resendKey.length, 'starts with:', resendKey.substring(0, 5));
     
     console.log('Environment check passed');
     
@@ -198,7 +201,7 @@ const handler = async (req: Request): Promise<Response> => {
     try {
       console.log('Sending email with Resend...');
       const emailResponse = await resend.emails.send({
-        from: 'Hero TV Mounting <onboarding@resend.dev>',
+        from: 'Hero TV Mounting <bookings@herotvmounting.com>',
         to: [worker.email],
         subject: emailSubject,
         html: emailHtml,
