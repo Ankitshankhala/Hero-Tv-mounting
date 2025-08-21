@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.0";
 import { Resend } from "npm:resend@2.0.0";
@@ -18,10 +19,12 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    console.log('Worker assignment notification requested');
+    console.log('=== Worker assignment notification START ===');
+    console.log('Request method:', req.method);
+    console.log('Request headers:', Object.fromEntries(req.headers.entries()));
     
     const { bookingId, workerId }: WorkerAssignmentRequest = await req.json();
-    console.log('Request data:', { bookingId, workerId });
+    console.log('Request payload:', { bookingId, workerId });
     
     // Validate environment variables
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -29,6 +32,7 @@ const handler = async (req: Request): Promise<Response> => {
     const resendKey = Deno.env.get('RESEND_API_KEY');
     
     if (!supabaseUrl || !supabaseKey) {
+      console.error('Missing Supabase configuration');
       throw new Error('Missing Supabase configuration');
     }
     
@@ -38,12 +42,12 @@ const handler = async (req: Request): Promise<Response> => {
     }
     
     console.log('RESEND_API_KEY found, length:', resendKey.length, 'starts with:', resendKey.substring(0, 5));
-    
-    console.log('Environment check passed');
+    console.log('Environment validation passed');
     
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Check for existing worker assignment email
+    // Check for existing worker assignment email to prevent duplicates
+    console.log('Checking for existing email logs...');
     const { data: existingEmail } = await supabase
       .from('email_logs')
       .select('id')
@@ -53,6 +57,7 @@ const handler = async (req: Request): Promise<Response> => {
       .maybeSingle();
 
     if (existingEmail) {
+      console.log('Worker assignment email already sent for this booking, returning cached response');
       return new Response(JSON.stringify({ success: true, cached: true }), {
         status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -60,7 +65,8 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Get comprehensive booking, worker, and service details
-    const [{ data: booking }, { data: worker }] = await Promise.all([
+    console.log('Fetching booking and worker data...');
+    const [{ data: booking, error: bookingError }, { data: worker, error: workerError }] = await Promise.all([
       supabase.from('bookings')
         .select(`
           *,
@@ -76,19 +82,34 @@ const handler = async (req: Request): Promise<Response> => {
       supabase.from('users').select('name, email, phone').eq('id', workerId).single()
     ]);
 
-    if (!booking || !worker?.email) {
-      console.error('Missing data:', { 
-        bookingFound: !!booking, 
+    if (bookingError) {
+      console.error('Error fetching booking:', bookingError);
+      throw new Error(`Failed to fetch booking: ${bookingError.message}`);
+    }
+
+    if (workerError) {
+      console.error('Error fetching worker:', workerError);
+      throw new Error(`Failed to fetch worker: ${workerError.message}`);
+    }
+
+    if (!booking) {
+      console.error('Booking not found');
+      throw new Error('Booking not found');
+    }
+
+    if (!worker?.email) {
+      console.error('Worker not found or missing email:', { 
         workerFound: !!worker, 
         workerEmail: worker?.email 
       });
-      throw new Error('Booking or worker details not found');
+      throw new Error('Worker not found or missing email address');
     }
     
-    console.log('Booking and worker data found:', {
+    console.log('Data fetched successfully:', {
       bookingId: booking.id,
       workerName: worker.name,
-      workerEmail: worker.email
+      workerEmail: worker.email,
+      servicesCount: booking.booking_services?.length || 0
     });
 
     // Format date and time
@@ -134,7 +155,9 @@ const handler = async (req: Request): Promise<Response> => {
     const city = customerInfo?.city || (booking.guest_customer_info?.city || '');
     const zipCode = customerInfo?.zip_code || (booking.guest_customer_info?.zipcode || '');
 
-    console.log('Preparing to send email to:', worker.email);
+    console.log('Preparing email with Resend API...');
+    console.log('Recipient:', worker.email);
+    
     const resend = new Resend(resendKey);
     
     const emailSubject = `NEW JOB ASSIGNMENT - ${formatDate(booking.scheduled_date)}`;
@@ -199,18 +222,23 @@ const handler = async (req: Request): Promise<Response> => {
     `;
 
     try {
-      console.log('Sending email with Resend...');
+      console.log('=== SENDING EMAIL ===');
+      console.log('From: Hero TV Mounting <onboarding@resend.dev>');
+      console.log('To:', worker.email);
+      console.log('Subject:', emailSubject);
+      
       const emailResponse = await resend.emails.send({
-        from: 'Hero TV Mounting <bookings@herotvmounting.com>',
+        from: 'Hero TV Mounting <onboarding@resend.dev>',
         to: [worker.email],
         subject: emailSubject,
         html: emailHtml,
       });
 
-      console.log('Email sent successfully:', emailResponse);
+      console.log('=== EMAIL SENT SUCCESSFULLY ===');
+      console.log('Resend response:', emailResponse);
 
-      // Log the email send in database
-      await supabase.from('email_logs').insert({
+      // Log successful email send in database
+      const { error: logError } = await supabase.from('email_logs').insert({
         booking_id: bookingId,
         recipient_email: worker.email,
         subject: emailSubject,
@@ -219,6 +247,13 @@ const handler = async (req: Request): Promise<Response> => {
         email_type: 'worker_assignment'
       });
 
+      if (logError) {
+        console.error('Failed to log email send:', logError);
+      } else {
+        console.log('Email send logged to database');
+      }
+
+      console.log('=== Worker assignment notification COMPLETE ===');
       return new Response(JSON.stringify({
         success: true,
         emailId: emailResponse.data?.id
@@ -228,7 +263,8 @@ const handler = async (req: Request): Promise<Response> => {
       });
 
     } catch (emailError: any) {
-      console.error('Email send failed:', {
+      console.error('=== EMAIL SEND FAILED ===');
+      console.error('Error details:', {
         error: emailError,
         message: emailError?.message,
         status: emailError?.status,
@@ -247,8 +283,8 @@ const handler = async (req: Request): Promise<Response> => {
         errorType = 'server_error';
       }
 
-      // Log the email failure
-      await supabase.from('email_logs').insert({
+      // Log the email failure in database
+      const { error: logError } = await supabase.from('email_logs').insert({
         booking_id: bookingId,
         recipient_email: worker.email,
         subject: emailSubject,
@@ -257,6 +293,10 @@ const handler = async (req: Request): Promise<Response> => {
         email_type: 'worker_assignment',
         error_message: emailError.message
       });
+
+      if (logError) {
+        console.error('Failed to log email error:', logError);
+      }
 
       // Trigger watchdog for email failure
       console.log('Triggering email failure watchdog...');
@@ -286,7 +326,8 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
   } catch (error: any) {
-    console.error('Function error:', {
+    console.error('=== FUNCTION ERROR ===');
+    console.error('Error details:', {
       error: error,
       message: error?.message,
       stack: error?.stack
