@@ -1,0 +1,101 @@
+name: Code Clone Detection
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'src/**/*.ts'
+      - 'src/**/*.tsx'
+      - 'src/**/*.js'
+      - 'src/**/*.jsx'
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/**/*.ts'
+      - 'src/**/*.tsx'
+      - 'src/**/*.js'
+      - 'src/**/*.jsx'
+
+jobs:
+  clone-detection:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Install jscpd
+      run: npm install -g jscpd
+      
+    - name: Create reports directory
+      run: mkdir -p reports/jscpd
+      
+    - name: Run clone detection
+      run: jscpd src/ --config .jscpd.json
+      
+    - name: Run clone prevention tests
+      run: npm run test -- src/utils/__tests__/clone-prevention.test.ts
+      
+    - name: Upload clone detection report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: clone-detection-report
+        path: reports/jscpd/
+        retention-days: 30
+        
+    - name: Comment PR with results
+      if: github.event_name == 'pull_request' && failure()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+          
+          try {
+            const reportPath = 'reports/jscpd/jscpd-report.json';
+            if (fs.existsSync(reportPath)) {
+              const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+              const duplicates = report.duplicates || [];
+              
+              if (duplicates.length > 0) {
+                const comment = `## 🔍 Code Clone Detection Results
+                
+**⚠️ ${duplicates.length} code duplicates detected!**
+
+Please refactor the following duplicated code:
+
+${duplicates.slice(0, 5).map((dup, i) => `
+### Clone ${i + 1}
+- **Lines**: ${dup.firstFile.start}-${dup.firstFile.end} and ${dup.secondFile.start}-${dup.secondFile.end}
+- **Files**: 
+  - \`${dup.firstFile.name}\`
+  - \`${dup.secondFile.name}\`
+- **Similarity**: ${(dup.percentage || 0).toFixed(1)}%
+`).join('')}
+
+${duplicates.length > 5 ? `\n*... and ${duplicates.length - 5} more. See the full report in the CI artifacts.*` : ''}
+
+**Action Required**: Refactor duplicated code to use canonical implementations from \`src/utils/performanceOptimizer.ts\`.
+                `;
+                
+                github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: comment
+                });
+              }
+            }
+          } catch (error) {
+            console.log('No clone report found or error reading report:', error.message);
+          }

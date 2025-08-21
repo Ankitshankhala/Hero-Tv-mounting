@@ -1,0 +1,38 @@
+{
+  "threshold": 3,
+  "reporters": ["html", "console", "json"],
+  "ignore": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/*.test.{ts,tsx,js,jsx}",
+    "**/__tests__/**",
+    "**/coverage/**",
+    "**/*.d.ts",
+    "**/migrations/**"
+  ],
+  "minLines": 5,
+  "maxLines": 1000,
+  "minTokens": 50,
+  "output": "reports/jscpd",
+  "format": [
+    "typescript",
+    "javascript"
+  ],
+  "mode": "mild",
+  "absolute": true,
+  "gitignore": true,
+  "blame": false,
+  "silent": false,
+  "verbose": false,
+  "debug": false,
+  "languages": [
+    "typescript",
+    "javascript"
+  ],
+  "formatsExts": {
+    "typescript": ["ts", "tsx"],
+    "javascript": ["js", "jsx"]
+  },
+  "exitCode": 1
+}

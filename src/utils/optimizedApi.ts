@@ -1,55 +1,14 @@
 // Optimized API utilities for better performance
+import { 
+  deduplicateRequest as canonicalDedup, 
+  measurePerformance,
+  optimizedTimeout as canonicalTimeout 
+} from './performanceOptimizer';
 
-// Simple request deduplication without complex typing
-const activeRequests = new Map<string, Promise<any>>();
-
-export const deduplicateRequest = async <T>(
-  key: string,
-  requestFn: () => Promise<T>
-): Promise<T> => {
-  if (activeRequests.has(key)) {
-    return activeRequests.get(key);
-  }
-
-  const promise = requestFn().finally(() => {
-    activeRequests.delete(key);
-  });
-
-  activeRequests.set(key, promise);
-  return promise;
-};
-
-// Performance measurement
-export const measureApiCall = async <T>(
-  name: string,
-  fn: () => Promise<T>
-): Promise<T> => {
-  const start = performance.now();
-  try {
-    const result = await fn();
-    const duration = performance.now() - start;
-    
-    if (process.env.NODE_ENV === 'development' && duration > 1000) {
-      console.warn(`Slow API call: ${name} took ${duration.toFixed(2)}ms`);
-    }
-    
-    return result;
-  } catch (error) {
-    const duration = performance.now() - start;
-    console.error(`Failed API call: ${name} took ${duration.toFixed(2)}ms`, error);
-    throw error;
-  }
-};
-
-// Optimized timeout utility
-export const optimizedTimeout = (
-  callback: () => void, 
-  delay: number = 100
-): NodeJS.Timeout => {
-  // Cap delays at reasonable maximums for better UX
-  const optimizedDelay = Math.min(delay, 300);
-  return setTimeout(callback, optimizedDelay);
-};
+// Re-export canonical functions with API-specific naming
+export const deduplicateRequest = canonicalDedup;
+export const measureApiCall = measurePerformance;
+export const optimizedTimeout = canonicalTimeout;
 
 // Cache with TTL
 interface CacheEntry<T> {
@@ -100,9 +59,10 @@ export const optimizedSupabaseCall = async <T>(
     if (cached) return cached;
   }
 
-  const result = await deduplicateRequest(
+  const result = await canonicalDedup(
     key,
-    () => measureApiCall(key, supabaseCall)
+    () => measurePerformance(key, supabaseCall),
+    0 // No TTL for immediate cleanup after request
   );
 
   if (useCache) {
