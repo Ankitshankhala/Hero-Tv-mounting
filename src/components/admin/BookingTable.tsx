@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { format } from 'date-fns';
-import { Edit, Trash2, Eye, UserPlus, Calendar, DollarSign, CreditCard, Send, X } from 'lucide-react';
+import { Edit, Trash2, Eye, UserPlus, Calendar, DollarSign, CreditCard, Send, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatBookingTimeForContext, US_TIMEZONES, DEFAULT_SERVICE_TIMEZONE } from '@/utils/timezoneUtils';
+import { BookingEmailStatus } from './BookingEmailStatus';
 
 interface Customer {
   id: string;
@@ -117,6 +118,7 @@ export const BookingTable = ({
   onCancelBooking
 }: BookingTableProps) => {
   const [displayTimezone, setDisplayTimezone] = useState(DEFAULT_SERVICE_TIMEZONE);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
   const formatServices = (booking: Booking) => {
     // If we have booking_services data, use that directly
@@ -144,6 +146,16 @@ export const BookingTable = ({
         {service.service_name}
       </div>
     ));
+  };
+
+  const toggleRowExpansion = (bookingId: string) => {
+    const newExpanded = new Set(expandedRows);
+    if (newExpanded.has(bookingId)) {
+      newExpanded.delete(bookingId);
+    } else {
+      newExpanded.add(bookingId);
+    }
+    setExpandedRows(newExpanded);
   };
 
   if (bookings.length === 0) {
@@ -198,13 +210,26 @@ export const BookingTable = ({
                   displayTimezone
                 );
                 
+                const isExpanded = expandedRows.has(booking.id);
+                
                 return (
-                  <tr key={booking.id} className="border-b hover:bg-muted/25">
-                    <td className="p-3">
-                      <div className="font-mono text-sm">
-                        {booking.id.slice(0, 8)}
-                      </div>
-                    </td>
+                  <React.Fragment key={booking.id}>
+                    <tr className="border-b hover:bg-muted/25">
+                      <td className="p-3">
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => toggleRowExpansion(booking.id)}
+                            className="h-6 w-6 p-0"
+                          >
+                            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                          </Button>
+                          <div className="font-mono text-sm">
+                            {booking.id.slice(0, 8)}
+                          </div>
+                        </div>
+                      </td>
                     <td className="p-3">
                       <div className="space-y-1">
                         <div className="font-medium">
@@ -340,6 +365,20 @@ export const BookingTable = ({
                       </div>
                     </td>
                   </tr>
+                  
+                  {/* Expanded row for email status */}
+                  {isExpanded && (
+                    <tr className="border-b bg-muted/10">
+                      <td colSpan={9} className="p-4">
+                        <BookingEmailStatus 
+                          bookingId={booking.id} 
+                          workerId={booking.worker_id || undefined}
+                          compact={false}
+                        />
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
                 );
               })}
             </tbody>

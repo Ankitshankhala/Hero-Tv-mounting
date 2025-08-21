@@ -63,7 +63,7 @@ export const useSmsNotifications = () => {
     }
   };
 
-  const resendWorkerEmail = async (bookingId: string) => {
+  const resendWorkerEmail = async (bookingId: string, options?: { force?: boolean }) => {
     try {
       console.log('Resending email notification for booking:', bookingId);
 
@@ -85,7 +85,11 @@ export const useSmsNotifications = () => {
       }
 
       const { data, error } = await supabase.functions.invoke('send-worker-assignment-notification', {
-        body: { bookingId, workerId: booking.worker_id }
+        body: { 
+          bookingId, 
+          workerId: booking.worker_id,
+          force: options?.force || false
+        }
       });
 
       if (error) {
@@ -101,7 +105,7 @@ export const useSmsNotifications = () => {
       console.log('Email resend triggered:', data);
       toast({
         title: 'Email Sent',
-        description: 'Email notification resent to worker',
+        description: options?.force ? 'Worker email force resent successfully' : 'Email notification resent to worker',
       });
       return true;
     } catch (error) {
