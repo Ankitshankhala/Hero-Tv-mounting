@@ -11,6 +11,7 @@ const corsHeaders = {
 interface WorkerAssignmentRequest {
   bookingId: string;
   workerId: string;
+  force?: boolean;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -23,8 +24,8 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('Request method:', req.method);
     console.log('Request headers:', Object.fromEntries(req.headers.entries()));
     
-    const { bookingId, workerId }: WorkerAssignmentRequest = await req.json();
-    console.log('Request payload:', { bookingId, workerId });
+    const { bookingId, workerId, force = false }: WorkerAssignmentRequest = await req.json();
+    console.log('Request payload:', { bookingId, workerId, force });
     
     // Validate environment variables
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -46,22 +47,26 @@ const handler = async (req: Request): Promise<Response> => {
     
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Check for existing worker assignment email to prevent duplicates
-    console.log('Checking for existing email logs...');
-    const { data: existingEmail } = await supabase
-      .from('email_logs')
-      .select('id')
-      .eq('booking_id', bookingId)
-      .eq('email_type', 'worker_assignment')
-      .eq('status', 'sent')
-      .maybeSingle();
+    if (!force) {
+      // Check for existing worker assignment email to prevent duplicates
+      console.log('Checking for existing email logs...');
+      const { data: existingEmail } = await supabase
+        .from('email_logs')
+        .select('id')
+        .eq('booking_id', bookingId)
+        .eq('email_type', 'worker_assignment')
+        .eq('status', 'sent')
+        .maybeSingle();
 
-    if (existingEmail) {
-      console.log('Worker assignment email already sent for this booking, returning cached response');
-      return new Response(JSON.stringify({ success: true, cached: true }), {
-        status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      if (existingEmail) {
+        console.log('Worker assignment email already sent for this booking, returning cached response');
+        return new Response(JSON.stringify({ success: true, cached: true }), {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+    } else {
+      console.log('Force resend enabled - skipping duplicate email check');
     }
 
     // Get comprehensive booking, worker, and service details with separate queries
