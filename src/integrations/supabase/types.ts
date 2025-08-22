@@ -1426,6 +1426,10 @@ export type Database = {
         Args: { p_booking_id: string }
         Returns: Json
       }
+      retry_unsent_notifications_v2: {
+        Args: { p_grace_minutes?: number; p_lookback_minutes?: number }
+        Returns: Json
+      }
       run_automated_watchdog: {
         Args:
           | Record<PropertyKey, never>
