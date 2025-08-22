@@ -48,27 +48,38 @@ const handler = async (req: Request): Promise<Response> => {
     
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    if (!force) {
-      // Check for existing worker assignment email to prevent duplicates
-      console.log('Checking for existing email logs...');
-      const { data: existingEmail } = await supabase
-        .from('email_logs')
-        .select('id')
-        .eq('booking_id', bookingId)
-        .eq('email_type', 'worker_assignment')
-        .eq('status', 'sent')
-        .maybeSingle();
-
-      if (existingEmail) {
-        console.log('Worker assignment email already sent for this booking, returning cached response');
-        return new Response(JSON.stringify({ success: true, cached: true }), {
-          status: 200,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
+    // Use centralized deduplication service
+    console.log('Checking email deduplication...');
+    const { data: deduplicationResult, error: dedupError } = await supabase.functions.invoke(
+      'email-deduplication-service',
+      {
+        body: {
+          bookingId,
+          workerId,
+          emailType: 'worker_assignment',
+          force,
+          source: 'direct_call'
+        }
       }
-    } else {
-      console.log('Force resend enabled - skipping duplicate email check');
+    );
+
+    if (dedupError) {
+      console.error('Deduplication service error:', dedupError);
+      // Continue with send if deduplication service fails
+    } else if (deduplicationResult && !deduplicationResult.shouldSend) {
+      console.log('Deduplication service blocked email:', deduplicationResult.reason);
+      return new Response(JSON.stringify({ 
+        success: true, 
+        cached: true, 
+        reason: deduplicationResult.reason,
+        existingEmailId: deduplicationResult.existingEmailId
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
     }
+    
+    console.log('Deduplication check passed, proceeding with email send');
 
     // Get comprehensive booking, worker, and service details with separate queries
     console.log('Fetching booking and worker data...');

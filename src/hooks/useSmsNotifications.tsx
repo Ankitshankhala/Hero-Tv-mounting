@@ -84,10 +84,12 @@ export const useSmsNotifications = () => {
         return false;
       }
 
-      const { data, error } = await supabase.functions.invoke('send-worker-assignment-notification', {
+      const { data, error } = await supabase.functions.invoke('smart-email-dispatcher', {
         body: { 
           bookingId, 
           workerId: booking.worker_id,
+          emailType: 'worker_assignment',
+          source: 'manual',
           force: options?.force || false
         }
       });
@@ -123,8 +125,12 @@ export const useSmsNotifications = () => {
     try {
       console.log('Resending customer confirmation email for booking:', bookingId);
       
-      const { data, error } = await supabase.functions.invoke('send-customer-booking-confirmation', {
-        body: { bookingId }
+      const { data, error } = await supabase.functions.invoke('smart-email-dispatcher', {
+        body: { 
+          bookingId,
+          emailType: 'customer_confirmation',
+          source: 'manual'
+        }
       });
 
       if (error) {

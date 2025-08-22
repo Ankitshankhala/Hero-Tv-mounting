@@ -82,6 +82,12 @@ verify_jwt = false
 [functions.send-customer-booking-confirmation-email]
 verify_jwt = false
 
+[functions.email-deduplication-service]
+verify_jwt = false
+
+[functions.smart-email-dispatcher]
+verify_jwt = false
+
 [functions.send-worker-assignment-email]
 verify_jwt = false
 

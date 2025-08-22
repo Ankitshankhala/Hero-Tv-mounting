@@ -35,7 +35,15 @@ export const WorkerAssignmentManager = ({
         throw new Error(`Failed to assign worker: ${assignmentError.message}`);
       }
 
-      // Notifications are handled by database triggers to avoid duplicates
+      // Use smart email dispatcher to ensure no duplicates
+      await supabase.functions.invoke('smart-email-dispatcher', {
+        body: {
+          bookingId,
+          workerId,
+          emailType: 'worker_assignment',
+          source: 'manual'
+        }
+      });
       toast({
         title: "Worker Assigned Successfully",
         description: "Worker has been assigned. Email and SMS notifications will be sent automatically.",
