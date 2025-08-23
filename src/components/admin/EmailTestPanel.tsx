@@ -72,10 +72,12 @@ export const EmailTestPanel = () => {
     try {
       console.log('Testing worker email:', { bookingId, workerId, force: forceResend });
       
-      const { data, error } = await supabase.functions.invoke('send-worker-assignment-notification', {
+      const { data, error } = await supabase.functions.invoke('smart-email-dispatcher', {
         body: { 
           bookingId: bookingId.trim(), 
           workerId: workerId.trim(),
+          emailType: 'worker_assignment',
+          source: 'manual',
           force: forceResend
         }
       });

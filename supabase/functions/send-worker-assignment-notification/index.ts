@@ -48,7 +48,53 @@ const handler = async (req: Request): Promise<Response> => {
     
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Use centralized deduplication service
+    // Idempotency lock to prevent duplicate sends in race conditions
+    const idempotencyKey = `worker_assignment:${bookingId}:${workerId}`;
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // 30 minutes TTL
+    let idempotencyRecordId: string | null = null;
+
+    // Try to create an idempotency record. If it already exists, treat as cached/in-progress
+    try {
+      const { data: idemInsert } = await supabase
+        .from('idempotency_records')
+        .insert({
+          idempotency_key: idempotencyKey,
+          operation_type: 'email_send_worker_assignment',
+          request_hash: btoa(JSON.stringify({ bookingId, workerId })),
+          user_id: workerId,
+          status: 'pending',
+          expires_at: expiresAt
+        })
+        .select('id')
+        .single();
+
+      idempotencyRecordId = idemInsert?.id ?? null;
+      console.log('Idempotency record created:', { idempotencyRecordId });
+    } catch (idemErr) {
+      console.log('Idempotency insert error (likely duplicate/in-flight):', idemErr);
+      const { data: existing } = await supabase
+        .from('idempotency_records')
+        .select('id, status, response_data')
+        .eq('idempotency_key', idempotencyKey)
+        .eq('operation_type', 'email_send_worker_assignment')
+        .maybeSingle();
+
+      if (existing?.status === 'completed') {
+        return new Response(JSON.stringify({
+          success: true,
+          cached: true,
+          reason: 'Already sent (idempotent)'
+        }), { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+      }
+
+      return new Response(JSON.stringify({
+        success: true,
+        cached: true,
+        reason: 'Send already in progress (idempotent lock)'
+      }), { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+    }
+
+    // Use centralized deduplication service (secondary guard)
     console.log('Checking email deduplication...');
     const { data: deduplicationResult, error: dedupError } = await supabase.functions.invoke(
       'email-deduplication-service',
@@ -289,6 +335,17 @@ const handler = async (req: Request): Promise<Response> => {
         console.log('Email send logged to database');
       }
 
+      // Mark idempotency record as completed
+      if (idempotencyRecordId) {
+        const { error: idemUpdateErr } = await supabase
+          .from('idempotency_records')
+          .update({ status: 'completed', response_data: { emailId: emailResponse.data?.id } })
+          .eq('id', idempotencyRecordId);
+        if (idemUpdateErr) {
+          console.log('Failed to update idempotency record to completed:', idemUpdateErr);
+        }
+      }
+
       console.log('=== Worker assignment notification COMPLETE ===');
       return new Response(JSON.stringify({
         success: true,
@@ -332,6 +389,17 @@ const handler = async (req: Request): Promise<Response> => {
 
       if (logError) {
         console.error('Failed to log email error:', logError);
+      }
+
+      // Update idempotency record to failed
+      if (idempotencyRecordId) {
+        const { error: idemFailErr } = await supabase
+          .from('idempotency_records')
+          .update({ status: 'failed', response_data: { error: emailError.message } })
+          .eq('id', idempotencyRecordId);
+        if (idemFailErr) {
+          console.log('Failed to update idempotency record to failed:', idemFailErr);
+        }
       }
 
       // Trigger watchdog for email failure
