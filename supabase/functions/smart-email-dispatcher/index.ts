@@ -90,34 +90,28 @@ async function handleWorkerAssignmentEmail(
     workerId = booking.worker_id;
   }
 
-  // Check deduplication
-  const { data: dedupResult, error: dedupError } = await supabase.functions.invoke(
-    'email-deduplication-service',
-    {
-      body: {
-        bookingId,
-        workerId,
-        emailType: 'worker_assignment',
-        force,
-        source
-      }
-    }
-  );
+  // OPTIMIZED: Direct database deduplication check instead of function call
+  if (!force) {
+    const { data: existingEmail } = await supabase
+      .from('email_logs')
+      .select('id')
+      .eq('booking_id', bookingId)
+      .eq('email_type', 'worker_assignment')
+      .eq('status', 'sent')
+      .maybeSingle();
 
-  if (dedupError) {
-    console.error('Deduplication service error:', dedupError);
-    // Continue with send if deduplication service fails
-  } else if (dedupResult && !dedupResult.shouldSend) {
-    console.log('Email blocked by deduplication:', dedupResult.reason);
-    return {
-      success: true,
-      cached: true,
-      reason: dedupResult.reason,
-      source: 'deduplication_service'
-    };
+    if (existingEmail) {
+      console.log('Worker assignment email already sent');
+      return {
+        success: true,
+        cached: true,
+        reason: 'Worker email already sent',
+        existingEmailId: existingEmail.id
+      };
+    }
   }
 
-  // Send email via existing function
+  // OPTIMIZED: Direct email sending with consolidated logic
   const { data: emailResult, error: emailError } = await supabase.functions.invoke(
     'send-worker-assignment-notification',
     {
