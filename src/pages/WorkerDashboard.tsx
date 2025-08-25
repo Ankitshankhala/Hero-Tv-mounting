@@ -16,6 +16,7 @@ import WorkerDashboardLoading from '@/components/worker/WorkerDashboardLoading';
 import { WorkerCreateBookingModal } from '@/components/worker/WorkerCreateBookingModal';
 import TestBookingCreator from '@/components/worker/TestBookingCreator';
 import CoverageNotifications from '@/components/worker/CoverageNotifications';
+import ServiceAreaMap from '@/components/worker/service-area/ServiceAreaMap';
 import type { Database } from '@/integrations/supabase/types';
 import { SEO } from '@/components/SEO';
 type BookingStatus = Database['public']['Enums']['booking_status'];
@@ -346,10 +347,11 @@ const WorkerDashboard = () => {
         <WorkerDashboardStats todaysJobs={todaysJobs.length} upcomingJobs={upcomingJobs.length} completedJobs={completedJobs.length} todaysEarnings={todaysEarnings} />
 
         <Tabs defaultValue="jobs" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-slate-800 border-slate-700">
+          <TabsList className="grid w-full grid-cols-4 bg-slate-800 border-slate-700">
             <TabsTrigger value="jobs" className="text-white data-[state=active]:bg-slate-700">My Jobs</TabsTrigger>
             <TabsTrigger value="calendar" className="text-white data-[state=active]:bg-slate-700">Calendar</TabsTrigger>
             <TabsTrigger value="schedule" className="text-white data-[state=active]:bg-slate-700">Set Schedule</TabsTrigger>
+            <TabsTrigger value="service-area" className="text-white data-[state=active]:bg-slate-700">Service Area</TabsTrigger>
           </TabsList>
           
           <TabsContent value="jobs" className="mt-6">
@@ -362,6 +364,10 @@ const WorkerDashboard = () => {
           
           <TabsContent value="schedule" className="mt-6">
             <WorkerScheduleManager onScheduleUpdate={fetchWorkerJobs} />
+          </TabsContent>
+          
+          <TabsContent value="service-area" className="mt-6">
+            <ServiceAreaMap workerId={user?.id} onServiceAreaUpdate={fetchWorkerJobs} />
           </TabsContent>
         </Tabs>
       </div>

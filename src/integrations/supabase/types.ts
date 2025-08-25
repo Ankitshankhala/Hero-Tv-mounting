@@ -1266,6 +1266,60 @@ export type Database = {
           },
         ]
       }
+      worker_service_areas: {
+        Row: {
+          area_name: string
+          created_at: string
+          id: string
+          is_active: boolean
+          polygon_coordinates: Json
+          updated_at: string
+          worker_id: string
+        }
+        Insert: {
+          area_name?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          polygon_coordinates: Json
+          updated_at?: string
+          worker_id: string
+        }
+        Update: {
+          area_name?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          polygon_coordinates?: Json
+          updated_at?: string
+          worker_id?: string
+        }
+        Relationships: []
+      }
+      worker_service_zipcodes: {
+        Row: {
+          created_at: string
+          id: string
+          service_area_id: string
+          worker_id: string
+          zipcode: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          service_area_id: string
+          worker_id: string
+          zipcode: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          service_area_id?: string
+          worker_id?: string
+          zipcode?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -1346,6 +1400,20 @@ export type Database = {
           worker_id: string
           worker_name: string
           worker_phone: string
+        }[]
+      }
+      find_available_workers_polygon: {
+        Args: {
+          customer_zipcode: string
+          service_date: string
+          service_duration_minutes?: number
+          service_start_time: string
+        }
+        Returns: {
+          distance_priority: number
+          worker_email: string
+          worker_id: string
+          worker_name: string
         }[]
       }
       find_existing_pending_booking: {
