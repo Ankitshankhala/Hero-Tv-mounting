@@ -1344,6 +1344,14 @@ export type Database = {
           notifications_sent: number
         }[]
       }
+      auto_assign_workers_with_polygon_coverage: {
+        Args: { p_booking_id: string }
+        Returns: {
+          assigned_worker_id: string
+          assignment_status: string
+          notifications_sent: number
+        }[]
+      }
       calculate_cancellation_deadline: {
         Args: { scheduled_date: string; scheduled_start: string }
         Returns: string
