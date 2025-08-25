@@ -24,6 +24,7 @@ const WorkerDashboard = () => {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateBooking, setShowCreateBooking] = useState(false);
+  const [activeTab, setActiveTab] = useState('jobs');
   const {
     user,
     profile,
@@ -346,7 +347,7 @@ const WorkerDashboard = () => {
 
         <WorkerDashboardStats todaysJobs={todaysJobs.length} upcomingJobs={upcomingJobs.length} completedJobs={completedJobs.length} todaysEarnings={todaysEarnings} />
 
-        <Tabs defaultValue="jobs" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-4 bg-slate-800 border-slate-700">
             <TabsTrigger value="jobs" className="text-white data-[state=active]:bg-slate-700">My Jobs</TabsTrigger>
             <TabsTrigger value="calendar" className="text-white data-[state=active]:bg-slate-700">Calendar</TabsTrigger>
@@ -367,7 +368,7 @@ const WorkerDashboard = () => {
           </TabsContent>
           
           <TabsContent value="service-area" className="mt-6">
-            <ServiceAreaMap workerId={user?.id} onServiceAreaUpdate={fetchWorkerJobs} />
+            <ServiceAreaMap workerId={user?.id} onServiceAreaUpdate={fetchWorkerJobs} isActive={activeTab === 'service-area'} />
           </TabsContent>
         </Tabs>
       </div>

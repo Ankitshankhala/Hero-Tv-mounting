@@ -30,9 +30,10 @@ interface ServiceArea {
 interface ServiceAreaMapProps {
   workerId: string;
   onServiceAreaUpdate?: () => void;
+  isActive?: boolean;
 }
 
-const ServiceAreaMap = ({ workerId, onServiceAreaUpdate }: ServiceAreaMapProps) => {
+const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, isActive }: ServiceAreaMapProps) => {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const drawnItemsRef = useRef<L.FeatureGroup | null>(null);
@@ -142,6 +143,15 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate }: ServiceAreaMapProps) 
       }
     };
   }, []);
+
+  // Ensure map resizes correctly when tab becomes active
+  useEffect(() => {
+    if (isActive && mapRef.current) {
+      setTimeout(() => {
+        mapRef.current?.invalidateSize();
+      }, 0);
+    }
+  }, [isActive]);
 
   // Load existing service areas
   useEffect(() => {
