@@ -48,6 +48,7 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, isActive }: ServiceArea
 
   // Initialize map
   useEffect(() => {
+    if (!isActive) return;
     if (!mapContainerRef.current || mapRef.current) return;
 
     // Create map centered on Dallas, TX
@@ -136,13 +137,20 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, isActive }: ServiceArea
       setEditingArea(null);
     });
 
+    // Resize observer to keep map sized correctly
+    const ro = new ResizeObserver(() => {
+      requestAnimationFrame(() => map.invalidateSize());
+    });
+    if (mapContainerRef.current) ro.observe(mapContainerRef.current);
+
     return () => {
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
       }
+      if (ro && mapContainerRef.current) ro.unobserve(mapContainerRef.current);
     };
-  }, []);
+  }, [isActive]);
 
   // Ensure map resizes correctly when tab becomes active
   useEffect(() => {
@@ -321,17 +329,6 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, isActive }: ServiceArea
     setAreaName('Service Area');
   };
 
-  if (loading) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-center h-32">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -345,11 +342,18 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, isActive }: ServiceArea
         <CardContent>
           <div className="space-y-4">
             {/* Map container */}
-            <div 
-              ref={mapContainerRef}
-              className="w-full h-96 rounded-lg border"
-              style={{ minHeight: '400px' }}
-            />
+            <div className="relative">
+              <div 
+                ref={mapContainerRef}
+                className="w-full h-96 rounded-lg border"
+                style={{ minHeight: '400px' }}
+              />
+              {loading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm rounded-lg">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+                </div>
+              )}
+            </div>
 
             {/* Controls */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
