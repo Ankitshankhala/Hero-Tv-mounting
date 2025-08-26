@@ -97,8 +97,8 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
         <div className="flex items-center justify-between gap-4">
           {/* Left: Status and Service */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-3 mb-1">
-              <div className="flex items-center gap-2">
+            <div className="flex items-start gap-3 mb-1 sm:items-center">
+              <div className="flex items-center gap-2 flex-shrink-0">
                 <Badge 
                   variant="outline" 
                   className={`text-xs font-medium ${getStatusColor(job.status)}`}
@@ -114,7 +114,7 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
                   </Badge>
                 )}
               </div>
-              <span className="text-sm font-medium text-foreground truncate">
+              <span className="text-sm font-medium text-foreground sm:truncate">
                 {getCustomerName()}
               </span>
             </div>
