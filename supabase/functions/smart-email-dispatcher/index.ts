@@ -36,11 +36,23 @@ const handler = async (req: Request): Promise<Response> => {
       // Handle worker assignment email
       console.log('Processing worker assignment email');
       
-      // Check if email already sent
+      // Get worker email first to check for existing sends
+      const { data: worker, error: workerError } = await supabase
+        .from('users')
+        .select('name, email, phone')
+        .eq('id', requestData.workerId)
+        .single();
+
+      if (workerError || !worker) {
+        throw new Error(`Failed to fetch worker: ${workerError?.message}`);
+      }
+
+      // Check if email already sent using unique constraint fields
       const { data: existingEmail } = await supabase
         .from('email_logs')
         .select('id')
         .eq('booking_id', requestData.bookingId)
+        .eq('recipient_email', worker.email)
         .eq('email_type', 'worker_assignment')
         .eq('status', 'sent')
         .maybeSingle();
@@ -68,15 +80,7 @@ const handler = async (req: Request): Promise<Response> => {
         throw new Error(`Failed to fetch booking: ${bookingError?.message}`);
       }
 
-      const { data: worker, error: workerError } = await supabase
-        .from('users')
-        .select('name, email, phone')
-        .eq('id', requestData.workerId)
-        .single();
-
-      if (workerError || !worker) {
-        throw new Error(`Failed to fetch worker: ${workerError?.message}`);
-      }
+      // Worker already fetched above for duplicate check
 
       // Get customer info
       let customerEmail = '';
@@ -221,18 +225,25 @@ const handler = async (req: Request): Promise<Response> => {
 
       console.log('Worker assignment email sent:', emailResponse);
 
-      // Log email
-      await supabase
+      // Log email with upsert to prevent duplicates
+      const { error: logError } = await supabase
         .from('email_logs')
-        .insert({
+        .upsert({
           booking_id: requestData.bookingId,
           recipient_email: worker.email,
           subject: `New Booking Assignment - ${formattedDate} at ${formattedTime}`,
           message: htmlContent,
           status: 'sent',
           email_type: 'worker_assignment',
+          external_id: emailResponse.data?.id,
           sent_at: new Date().toISOString()
+        }, {
+          onConflict: 'booking_id,recipient_email,email_type'
         });
+
+      if (logError) {
+        console.error('Failed to log email send:', logError);
+      }
 
       return new Response(JSON.stringify({ 
         success: true, 

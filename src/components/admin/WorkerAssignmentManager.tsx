@@ -35,7 +35,7 @@ export const WorkerAssignmentManager = ({
         throw new Error(`Failed to assign worker: ${assignmentError.message}`);
       }
 
-      // Use smart email dispatcher to ensure no duplicates
+      // Use smart email dispatcher (no force option to prevent duplicates)
       await supabase.functions.invoke('smart-email-dispatcher', {
         body: {
           bookingId,
