@@ -3,9 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { MapPin, Save, Trash2, Edit3 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { MapPin, Save, Trash2, Edit3, Search, MapPinCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useWorkerServiceAreas } from '@/hooks/useWorkerServiceAreas';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
@@ -44,7 +46,11 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, isActive }: ServiceArea
   const [areaName, setAreaName] = useState('Service Area');
   const [currentPolygon, setCurrentPolygon] = useState<Array<{ lat: number; lng: number }> | null>(null);
   const [editingArea, setEditingArea] = useState<ServiceArea | null>(null);
+  const [testZipcode, setTestZipcode] = useState('');
+  const [zipcodeTesting, setZipcodeTesting] = useState(false);
+  const [zipcodeTestResult, setZipcodeTestResult] = useState<{ found: boolean; message: string } | null>(null);
   const { toast } = useToast();
+  const { serviceZipcodes, getActiveZipcodes, fetchServiceAreas } = useWorkerServiceAreas(workerId);
 
   // Initialize map
   useEffect(() => {
@@ -164,7 +170,8 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, isActive }: ServiceArea
   // Load existing service areas
   useEffect(() => {
     loadServiceAreas();
-  }, [workerId]);
+    fetchServiceAreas();
+  }, [workerId, fetchServiceAreas]);
 
   const loadServiceAreas = async () => {
     if (!workerId) return;
@@ -266,6 +273,7 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, isActive }: ServiceArea
 
       // Reload service areas
       await loadServiceAreas();
+      await fetchServiceAreas();
       
       if (onServiceAreaUpdate) {
         onServiceAreaUpdate();
@@ -298,6 +306,7 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, isActive }: ServiceArea
       });
 
       await loadServiceAreas();
+      await fetchServiceAreas();
       
       // Clear map
       if (drawnItemsRef.current) {
@@ -327,6 +336,35 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, isActive }: ServiceArea
     setCurrentPolygon(null);
     setEditingArea(null);
     setAreaName('Service Area');
+  };
+
+  const testZipcodeInServiceArea = async () => {
+    if (!testZipcode.trim()) {
+      setZipcodeTestResult({ found: false, message: 'Please enter a ZIP code' });
+      return;
+    }
+
+    setZipcodeTesting(true);
+    setZipcodeTestResult(null);
+
+    try {
+      const activeZipcodes = getActiveZipcodes();
+      const found = activeZipcodes.includes(testZipcode.trim());
+      
+      setZipcodeTestResult({
+        found,
+        message: found 
+          ? `✅ ZIP code ${testZipcode} is covered by your service area`
+          : `❌ ZIP code ${testZipcode} is not in your service area`
+      });
+    } catch (error) {
+      setZipcodeTestResult({
+        found: false,
+        message: 'Error testing ZIP code'
+      });
+    } finally {
+      setZipcodeTesting(false);
+    }
   };
 
 
@@ -396,6 +434,41 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, isActive }: ServiceArea
               </div>
             </div>
 
+            {/* ZIP Code Tester */}
+            <Card className="bg-muted/50">
+              <CardContent className="pt-4">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Search className="h-4 w-4" />
+                    <Label className="font-medium">Test ZIP Code Coverage</Label>
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Enter ZIP code (e.g., 75201)"
+                      value={testZipcode}
+                      onChange={(e) => setTestZipcode(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && testZipcodeInServiceArea()}
+                      className="flex-1"
+                    />
+                    <Button
+                      onClick={testZipcodeInServiceArea}
+                      disabled={zipcodeTesting || !getActiveZipcodes().length}
+                      variant="outline"
+                    >
+                      {zipcodeTesting ? 'Testing...' : 'Test'}
+                    </Button>
+                  </div>
+                  {zipcodeTestResult && (
+                    <div className={`text-sm p-2 rounded ${
+                      zipcodeTestResult.found ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                    }`}>
+                      {zipcodeTestResult.message}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Instructions */}
             <div className="text-sm text-muted-foreground bg-muted p-3 rounded-lg">
               <p className="font-medium mb-1">How to use:</p>
@@ -436,6 +509,14 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, isActive }: ServiceArea
                         Created {new Date(area.created_at).toLocaleDateString()}
                         {area.is_active && ' • Active'}
                       </p>
+                      {area.is_active && (
+                        <div className="flex items-center gap-2 mt-1">
+                          <MapPinCheck className="h-3 w-3 text-primary" />
+                          <Badge variant="secondary" className="text-xs">
+                            {getActiveZipcodes().length} ZIP codes covered
+                          </Badge>
+                        </div>
+                      )}
                     </div>
                   </div>
                   
