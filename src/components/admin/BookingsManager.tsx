@@ -7,12 +7,8 @@ import { useRealtimeBookings } from '@/hooks/useRealtimeBookings';
 import { BookingFilters } from './BookingFilters';
 import { BookingTable } from './BookingTable';
 import { CreateBookingModal } from './CreateBookingModal';
-import { EditBookingModal } from './EditBookingModal';
-import { AssignWorkerModal } from './AssignWorkerModal';
 import { useBookingManager } from '@/hooks/useBookingManager';
 import { AuthGuard } from '@/components/AuthGuard';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 
 
 export const BookingsManager = () => {
@@ -22,11 +18,7 @@ export const BookingsManager = () => {
   const [archiveFilter, setArchiveFilter] = useState('active');
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showAssignModal, setShowAssignModal] = useState(false);
-  const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const { user } = useAuth();
-  const { toast } = useToast();
 
   // Use our enhanced booking manager hook
   const {
@@ -102,51 +94,25 @@ export const BookingsManager = () => {
     fetchBookings();
   };
 
-  // Handler implementations for BookingTable
+  // Placeholder handlers for BookingTable - these would need proper implementation
   const handleEditBooking = (booking: any) => {
     console.log('Edit booking:', booking);
-    setSelectedBooking(booking);
-    setShowEditModal(true);
+    // TODO: Implement edit booking modal
   };
 
-  const handleDeleteBooking = async (booking: any) => {
+  const handleDeleteBooking = (booking: any) => {
     console.log('Delete booking:', booking);
-    if (window.confirm('Are you sure you want to delete this booking? This action cannot be undone.')) {
-      try {
-        const { error } = await supabase
-          .from('bookings')
-          .delete()
-          .eq('id', booking.id);
-        
-        if (error) throw error;
-        
-        toast({
-          title: "Booking Deleted",
-          description: "The booking has been successfully deleted.",
-        });
-        
-        fetchBookings(); // Refresh the list
-      } catch (error) {
-        console.error('Failed to delete booking:', error);
-        toast({
-          title: "Delete Failed",
-          description: "Failed to delete the booking. Please try again.",
-          variant: "destructive",
-        });
-      }
-    }
+    // TODO: Implement delete booking functionality
   };
 
   const handleViewBooking = (booking: any) => {
     console.log('View booking:', booking);
-    setSelectedBooking(booking);
-    setShowEditModal(true); // For now, use edit modal for viewing
+    // TODO: Implement view booking modal
   };
 
   const handleAssignWorker = (booking: any) => {
     console.log('Assign worker to booking:', booking);
-    setSelectedBooking(booking);
-    setShowAssignModal(true);
+    // TODO: Implement assign worker modal
   };
 
   const handleSendReminder = async (booking: any) => {
@@ -223,43 +189,11 @@ export const BookingsManager = () => {
           </CardContent>
         </Card>
 
-        {/* Modals */}
+        {/* Create Booking Modal */}
         {showCreateModal && (
           <CreateBookingModal 
             onClose={() => setShowCreateModal(false)} 
             onBookingCreated={handleBookingCreated} 
-          />
-        )}
-        
-        {showEditModal && selectedBooking && (
-          <EditBookingModal
-            booking={selectedBooking}
-            isOpen={showEditModal}
-            onClose={() => {
-              setShowEditModal(false);
-              setSelectedBooking(null);
-            }}
-            onBookingUpdated={() => {
-              handleBookingUpdated();
-              setShowEditModal(false);
-              setSelectedBooking(null);
-            }}
-          />
-        )}
-        
-        {showAssignModal && selectedBooking && (
-          <AssignWorkerModal
-            onClose={() => {
-              setShowAssignModal(false);
-              setSelectedBooking(null);
-            }}
-            onAssignmentComplete={() => {
-              handleBookingUpdated();
-              setShowAssignModal(false);
-              setSelectedBooking(null);
-            }}
-            selectedBookingId={selectedBooking.id}
-            isOpen={showAssignModal}
           />
         )}
       </div>
