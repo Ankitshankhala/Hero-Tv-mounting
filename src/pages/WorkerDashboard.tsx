@@ -348,11 +348,11 @@ const WorkerDashboard = () => {
         <WorkerDashboardStats todaysJobs={todaysJobs.length} upcomingJobs={upcomingJobs.length} completedJobs={completedJobs.length} todaysEarnings={todaysEarnings} />
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 bg-slate-800 border-slate-700">
-            <TabsTrigger value="jobs" className="text-white data-[state=active]:bg-slate-700">My Jobs</TabsTrigger>
-            <TabsTrigger value="calendar" className="text-white data-[state=active]:bg-slate-700">Calendar</TabsTrigger>
-            <TabsTrigger value="schedule" className="text-white data-[state=active]:bg-slate-700">Set Schedule</TabsTrigger>
-            <TabsTrigger value="service-area" className="text-white data-[state=active]:bg-slate-700">Service Area</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 h-auto bg-slate-800 border border-slate-700 p-1 rounded-lg">
+            <TabsTrigger value="jobs" className="w-full justify-center text-white data-[state=active]:bg-slate-700">My Jobs</TabsTrigger>
+            <TabsTrigger value="calendar" className="w-full justify-center text-white data-[state=active]:bg-slate-700">Calendar</TabsTrigger>
+            <TabsTrigger value="schedule" className="w-full justify-center text-white data-[state=active]:bg-slate-700">Set Schedule</TabsTrigger>
+            <TabsTrigger value="service-area" className="w-full justify-center text-white data-[state=active]:bg-slate-700">Service Area</TabsTrigger>
           </TabsList>
           
           <TabsContent value="jobs" className="mt-6">
