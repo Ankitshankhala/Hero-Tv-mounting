@@ -96,8 +96,32 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
       <CardContent className="p-4">
         <div className="flex items-center justify-between gap-4">
           {/* Left: Status and Service */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start gap-3 mb-1 sm:items-center">
+          <div className="flex-1 min-w-0 pr-4">
+            {/* Mobile: Stack badges and name */}
+            <div className="sm:hidden">
+              <div className="flex items-center gap-2 mb-2">
+                <Badge 
+                  variant="outline" 
+                  className={`text-xs font-medium ${getStatusColor(job.status)}`}
+                >
+                  {job.status.replace('_', ' ').toUpperCase()}
+                </Badge>
+                {isNewJob() && (
+                  <Badge 
+                    variant="outline" 
+                    className="text-xs font-medium bg-action-info text-white border-action-info"
+                  >
+                    NEW
+                  </Badge>
+                )}
+              </div>
+              <div className="text-sm font-medium text-foreground">
+                {getCustomerName()}
+              </div>
+            </div>
+            
+            {/* Desktop: Horizontal layout */}
+            <div className="hidden sm:flex items-center gap-3 mb-1">
               <div className="flex items-center gap-2 flex-shrink-0">
                 <Badge 
                   variant="outline" 
@@ -114,7 +138,7 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
                   </Badge>
                 )}
               </div>
-              <span className="text-sm font-medium text-foreground sm:truncate">
+              <span className="text-sm font-medium text-foreground truncate">
                 {getCustomerName()}
               </span>
             </div>
