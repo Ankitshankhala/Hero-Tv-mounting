@@ -8,6 +8,8 @@ import { BookingFilters } from './BookingFilters';
 import { BookingTable } from './BookingTable';
 import { CreateBookingModal } from './CreateBookingModal';
 import { AssignWorkerModal } from './AssignWorkerModal';
+import { EditBookingModal } from './EditBookingModal';
+import { BookingDetailsModal } from './BookingDetailsModal';
 import { useBookingManager } from '@/hooks/useBookingManager';
 import { AuthGuard } from '@/components/AuthGuard';
 
@@ -20,7 +22,9 @@ export const BookingsManager = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
-  const [selectedBookingId, setSelectedBookingId] = useState<string | undefined>();
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const { user } = useAuth();
 
   // Use our enhanced booking manager hook
@@ -97,10 +101,9 @@ export const BookingsManager = () => {
     fetchBookings();
   };
 
-  // Placeholder handlers for BookingTable - these would need proper implementation
   const handleEditBooking = (booking: any) => {
-    console.log('Edit booking:', booking);
-    // TODO: Implement edit booking modal
+    setSelectedBooking(booking);
+    setShowEditModal(true);
   };
 
   const handleDeleteBooking = (booking: any) => {
@@ -109,13 +112,12 @@ export const BookingsManager = () => {
   };
 
   const handleViewBooking = (booking: any) => {
-    console.log('View booking:', booking);
-    // TODO: Implement view booking modal
+    setSelectedBooking(booking);
+    setShowDetailsModal(true);
   };
 
   const handleAssignWorker = (booking: any) => {
-    console.log('Assign worker to booking:', booking);
-    setSelectedBookingId(booking.id);
+    setSelectedBooking(booking);
     setShowAssignModal(true);
   };
 
@@ -202,19 +204,40 @@ export const BookingsManager = () => {
         )}
 
         {/* Assign Worker Modal */}
-        {showAssignModal && (
+        {showAssignModal && selectedBooking && (
           <AssignWorkerModal 
             isOpen={showAssignModal}
-            selectedBookingId={selectedBookingId}
+            selectedBookingId={selectedBooking.id}
             onClose={() => {
               setShowAssignModal(false);
-              setSelectedBookingId(undefined);
+              setSelectedBooking(null);
             }} 
-            onAssignmentComplete={() => {
-              fetchBookings();
-              setShowAssignModal(false);
-              setSelectedBookingId(undefined);
-            }} 
+            onAssignmentComplete={fetchBookings}
+          />
+        )}
+
+        {/* Edit Booking Modal */}
+        {showEditModal && selectedBooking && (
+          <EditBookingModal
+            booking={selectedBooking}
+            isOpen={showEditModal}
+            onClose={() => {
+              setShowEditModal(false);
+              setSelectedBooking(null);
+            }}
+            onBookingUpdated={fetchBookings}
+          />
+        )}
+
+        {/* Booking Details Modal */}
+        {showDetailsModal && selectedBooking && (
+          <BookingDetailsModal
+            booking={selectedBooking}
+            isOpen={showDetailsModal}
+            onClose={() => {
+              setShowDetailsModal(false);
+              setSelectedBooking(null);
+            }}
           />
         )}
       </div>
