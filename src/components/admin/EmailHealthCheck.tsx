@@ -19,7 +19,7 @@ export const EmailHealthCheck = () => {
   const [healthResults, setHealthResults] = useState<HealthCheckResult[]>([]);
   const [checking, setChecking] = useState(false);
   const { toast } = useToast();
-  const { resendCustomerEmail } = useSmsNotifications();
+  const { resendCustomerEmail, resendWorkerEmail } = useSmsNotifications();
 
   const runHealthCheck = async () => {
     setChecking(true);
@@ -104,7 +104,7 @@ export const EmailHealthCheck = () => {
       
       const { data: recentLogs, error } = await supabase
         .from('email_logs')
-        .select('status, created_at')
+        .select('status, created_at, external_id')
         .order('created_at', { ascending: false })
         .limit(10);
 
@@ -118,12 +118,13 @@ export const EmailHealthCheck = () => {
       } else {
         const successCount = recentLogs?.filter(log => log.status === 'sent').length || 0;
         const totalCount = recentLogs?.length || 0;
+        const hasExternalIds = recentLogs?.some(log => log.external_id) || false;
         
         results[results.length - 1] = {
           service: 'Email Logs',
           status: totalCount > 0 ? 'healthy' : 'error',
           message: totalCount > 0 ? 'Recent activity found' : 'No recent email activity',
-          details: `${successCount}/${totalCount} emails sent successfully in last 10 attempts`
+          details: `${successCount}/${totalCount} emails sent successfully. External tracking: ${hasExternalIds ? 'enabled' : 'disabled'}`
         };
       }
     } catch (error) {
@@ -131,6 +132,47 @@ export const EmailHealthCheck = () => {
         service: 'Email Logs',
         status: 'error',
         message: 'Log check failed',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+
+    // Check 4: Worker email functionality
+    try {
+      results.push({ service: 'Worker Email', status: 'checking', message: 'Testing worker email function...' });
+      
+      const { error } = await supabase.functions.invoke('send-worker-assignment-notification', {
+        body: { bookingId: 'test-health-check', workerId: 'test-worker' }
+      });
+
+      if (error) {
+        if (error.message.includes('Booking not found') || error.message.includes('Worker not found')) {
+          results[results.length - 1] = {
+            service: 'Worker Email',
+            status: 'healthy',
+            message: 'Function accessible',
+            details: 'Function responded correctly to test request'
+          };
+        } else {
+          results[results.length - 1] = {
+            service: 'Worker Email',
+            status: 'error',
+            message: 'Function error',
+            details: error.message
+          };
+        }
+      } else {
+        results[results.length - 1] = {
+          service: 'Worker Email',
+          status: 'healthy',
+          message: 'Function accessible',
+          details: 'Function responded successfully'
+        };
+      }
+    } catch (error) {
+      results[results.length - 1] = {
+        service: 'Worker Email',
+        status: 'error',
+        message: 'Function unreachable',
         details: error instanceof Error ? error.message : 'Unknown error'
       };
     }
@@ -157,7 +199,7 @@ export const EmailHealthCheck = () => {
     try {
       const { data: recentBooking, error } = await supabase
         .from('bookings')
-        .select('id')
+        .select('id, worker_id')
         .order('created_at', { ascending: false })
         .limit(1)
         .single();
@@ -172,6 +214,19 @@ export const EmailHealthCheck = () => {
       }
 
       await resendCustomerEmail(recentBooking.id);
+      
+      if (recentBooking.worker_id) {
+        await resendWorkerEmail(recentBooking.id);
+        toast({
+          title: "Test Emails Sent",
+          description: "Both customer and worker test emails initiated",
+        });
+      } else {
+        toast({
+          title: "Customer Email Sent",
+          description: "Customer test email initiated (no worker assigned)",
+        });
+      }
     } catch (error) {
       toast({
         title: "Test Failed",
