@@ -40,11 +40,15 @@ export const PaymentCaptureButton = ({ transaction, onCaptureSuccess }: PaymentC
       });
 
       if (error) {
-        throw new Error(error.message);
+        console.error('Supabase function error:', error);
+        const err: any = error as any;
+        const errorMsg = err?.context?.error || err?.message || 'Failed to invoke capture function';
+        throw new Error(errorMsg);
       }
 
       if (!data?.success) {
-        throw new Error(data?.error || 'Payment capture failed');
+        const errorMsg = data?.error || 'Payment capture failed';
+        throw new Error(errorMsg);
       }
 
       toast({
