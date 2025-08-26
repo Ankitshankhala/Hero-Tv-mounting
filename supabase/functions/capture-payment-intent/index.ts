@@ -54,6 +54,35 @@ serve(async (req) => {
       throw new Error('Booking not found');
     }
 
+    if (!booking.payment_intent_id) {
+      console.error('No payment intent found for booking');
+      throw new Error('No payment intent found for this booking');
+    }
+
+    // Initialize Stripe
+    console.log('Initializing Stripe...');
+    const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
+    if (!stripeKey) {
+      console.error('No Stripe secret key found');
+      throw new Error('Stripe secret key not configured');
+    }
+
+    const stripe = new Stripe(stripeKey, {
+      apiVersion: '2023-10-16',
+    });
+
+    console.log('Checking PaymentIntent status before capture:', booking.payment_intent_id);
+    
+    // First, retrieve the current PaymentIntent to check its status
+    const currentPaymentIntent = await stripe.paymentIntents.retrieve(booking.payment_intent_id);
+    
+    console.log('Current PaymentIntent status:', {
+      id: currentPaymentIntent.id,
+      status: currentPaymentIntent.status,
+      amount: currentPaymentIntent.amount,
+      amount_capturable: currentPaymentIntent.amount_capturable
+    });
+
     // Calculate capture amount from current invoice or booking services
     console.log('Calculating capture amount...');
     let captureAmount = 0;
@@ -82,45 +111,20 @@ serve(async (req) => {
       }
     }
     
+    // If still no amount, use the authorized amount from PaymentIntent
     if (captureAmount <= 0) {
-      console.error('No amount to capture - all services may have been removed');
-      throw new Error('Nothing to charge. All services were removed.');
+      if (currentPaymentIntent.status === 'requires_capture' && currentPaymentIntent.amount_capturable > 0) {
+        captureAmount = currentPaymentIntent.amount_capturable / 100; // Convert from cents
+        console.log('Using PaymentIntent authorized amount:', captureAmount);
+      } else if (currentPaymentIntent.status === 'succeeded') {
+        // Already captured - treat as success
+        captureAmount = currentPaymentIntent.amount / 100;
+        console.log('PaymentIntent already succeeded with amount:', captureAmount);
+      } else {
+        console.error('No amount to capture - insufficient authorized amount');
+        throw new Error('No valid amount to charge. Payment may need to be re-authorized.');
+      }
     }
-
-    console.log('Booking details:', { 
-      payment_intent_id: booking.payment_intent_id, 
-      payment_status: booking.payment_status,
-      pending_payment_amount: booking.pending_payment_amount,
-      has_modifications: booking.has_modifications
-    });
-
-    if (!booking.payment_intent_id) {
-      console.error('No payment intent found for booking');
-      throw new Error('No payment intent found for this booking');
-    }
-
-    // Initialize Stripe
-    console.log('Initializing Stripe...');
-    const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
-    if (!stripeKey) {
-      console.error('No Stripe secret key found');
-      throw new Error('Stripe secret key not configured');
-    }
-
-    const stripe = new Stripe(stripeKey, {
-      apiVersion: '2023-10-16',
-    });
-
-    console.log('Checking PaymentIntent status before capture:', booking.payment_intent_id);
-    
-    // First, retrieve the current PaymentIntent to check its status
-    const currentPaymentIntent = await stripe.paymentIntents.retrieve(booking.payment_intent_id);
-    
-    console.log('Current PaymentIntent status:', {
-      id: currentPaymentIntent.id,
-      status: currentPaymentIntent.status,
-      amount: currentPaymentIntent.amount
-    });
 
     let paymentIntent;
     

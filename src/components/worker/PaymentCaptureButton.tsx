@@ -38,7 +38,8 @@ export const PaymentCaptureButton = ({
 
       if (error) {
         console.error('Supabase function error:', error);
-        throw new Error(error.message || 'Failed to invoke capture function');
+        const errorMsg = error.message || 'Failed to invoke capture function';
+        throw new Error(errorMsg);
       }
 
       if (!data?.success) {
