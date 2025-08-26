@@ -7,6 +7,7 @@ import { useRealtimeBookings } from '@/hooks/useRealtimeBookings';
 import { BookingFilters } from './BookingFilters';
 import { BookingTable } from './BookingTable';
 import { CreateBookingModal } from './CreateBookingModal';
+import { AssignWorkerModal } from './AssignWorkerModal';
 import { useBookingManager } from '@/hooks/useBookingManager';
 import { AuthGuard } from '@/components/AuthGuard';
 
@@ -18,6 +19,8 @@ export const BookingsManager = () => {
   const [archiveFilter, setArchiveFilter] = useState('active');
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [selectedBookingId, setSelectedBookingId] = useState<string | undefined>();
   const { user } = useAuth();
 
   // Use our enhanced booking manager hook
@@ -112,7 +115,8 @@ export const BookingsManager = () => {
 
   const handleAssignWorker = (booking: any) => {
     console.log('Assign worker to booking:', booking);
-    // TODO: Implement assign worker modal
+    setSelectedBookingId(booking.id);
+    setShowAssignModal(true);
   };
 
   const handleSendReminder = async (booking: any) => {
@@ -194,6 +198,23 @@ export const BookingsManager = () => {
           <CreateBookingModal 
             onClose={() => setShowCreateModal(false)} 
             onBookingCreated={handleBookingCreated} 
+          />
+        )}
+
+        {/* Assign Worker Modal */}
+        {showAssignModal && (
+          <AssignWorkerModal 
+            isOpen={showAssignModal}
+            selectedBookingId={selectedBookingId}
+            onClose={() => {
+              setShowAssignModal(false);
+              setSelectedBookingId(undefined);
+            }} 
+            onAssignmentComplete={() => {
+              fetchBookings();
+              setShowAssignModal(false);
+              setSelectedBookingId(undefined);
+            }} 
           />
         )}
       </div>

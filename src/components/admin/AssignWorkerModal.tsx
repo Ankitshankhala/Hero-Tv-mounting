@@ -19,12 +19,13 @@ interface UnassignedBooking {
   customer: {
     name: string;
     city?: string;
-  };
+  } | null;
   service: {
     name: string;
   };
   scheduled_date: string;
   scheduled_start: string;
+  guest_customer_info?: any;
 }
 
 interface AvailableWorker {
@@ -59,7 +60,7 @@ export const AssignWorkerModal = ({ onClose, onAssignmentComplete, isOpen, selec
     try {
       setLoading(true);
       
-      // Fetch unassigned bookings
+      // Fetch unassigned bookings (including pending and payment_authorized)
       const { data: bookingsData, error: bookingsError } = await supabase
         .from('bookings')
         .select(`
@@ -67,10 +68,11 @@ export const AssignWorkerModal = ({ onClose, onAssignmentComplete, isOpen, selec
           scheduled_date,
           scheduled_start,
           customer:users!customer_id(name, city),
-          service:services(name)
+          service:services(name),
+          guest_customer_info
         `)
         .is('worker_id', null)
-        .eq('status', 'pending')
+        .in('status', ['pending', 'payment_authorized'])
         .order('scheduled_date', { ascending: true });
 
       if (bookingsError) {
@@ -140,11 +142,25 @@ export const AssignWorkerModal = ({ onClose, onAssignmentComplete, isOpen, selec
         // Don't throw here as the main assignment was successful
       }
 
-      // Email functionality removed - worker assigned without email notification
+      // Send notifications via smart email dispatcher
+      try {
+        await supabase.functions.invoke('smart-email-dispatcher', {
+          body: {
+            bookingId: selectedBooking,
+            workerId: selectedWorker,
+            emailType: 'worker_assignment',
+            source: 'manual'
+          }
+        });
+        console.log('Worker assignment notifications triggered');
+      } catch (notificationError) {
+        console.error('Failed to send notifications:', notificationError);
+        // Don't fail the assignment if notifications fail
+      }
 
       toast({
         title: "Success",
-        description: "Worker assigned successfully",
+        description: "Worker assigned successfully. Notifications will be sent automatically.",
       });
 
       if (onAssignmentComplete) {
@@ -227,8 +243,14 @@ export const AssignWorkerModal = ({ onClose, onAssignmentComplete, isOpen, selec
                       <CardContent className="p-4">
                         <div className="flex justify-between items-start">
                           <div>
-                            <p className="font-medium">{booking.customer?.name || 'Unknown Customer'}</p>
-                            <p className="text-sm text-gray-600">{booking.service?.name || 'Unknown Service'}</p>
+                           <p className="font-medium">
+                             {booking.customer?.name || 
+                              (booking.guest_customer_info && typeof booking.guest_customer_info === 'object' 
+                                ? booking.guest_customer_info.name 
+                                : null) || 
+                              'Unknown Customer'}
+                           </p>
+                           <p className="text-sm text-gray-600">{booking.service?.name || 'Unknown Service'}</p>
                             <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
                               <div className="flex items-center space-x-1">
                                 <Clock className="h-3 w-3" />
