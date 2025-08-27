@@ -68,7 +68,7 @@ export const useBookingFormState = (selectedServices: ServiceItem[] = []) => {
   };
 
   const isStep1Valid = services.length > 0 && isMinimumCartMet();
-  const isStep2Valid = formData.customerName && formData.customerEmail && formData.customerPhone && formData.address && formData.zipcode;
+  const isStep2Valid = formData.customerName && formData.customerEmail && formData.customerPhone && formData.address && formData.zipcode && formData.houseNumber;
   const isStep3Valid = formData.selectedDate && formData.selectedTime;
 
   return {

@@ -115,6 +115,10 @@ export const useBookingOperations = () => {
         throw new Error('Street address is required');
       }
 
+      if (!formData.houseNumber || formData.houseNumber.trim().length === 0) {
+        throw new Error('Unit number is required');
+      }
+
       // Validate scheduling information
       if (!formData.selectedDate) {
         throw new Error('Service date must be selected');
