@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { X, Copy, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -218,6 +218,9 @@ export const AddWorkerModal = ({ onClose, onSuccess }: AddWorkerModalProps) => {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Technician Account Created</DialogTitle>
+            <DialogDescription>
+              The technician account has been successfully created with login credentials.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">

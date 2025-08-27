@@ -1040,7 +1040,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
-          day_of_week: Database["public"]["Enums"]["day_of_week"]
+          day_of_week?: Database["public"]["Enums"]["day_of_week"]
           end_time: string
           id?: string
           start_time: string
@@ -1490,8 +1490,8 @@ export type Database = {
         Returns: Json
       }
       import_application_availability: {
-        Args: { p_worker_id: string }
-        Returns: boolean
+        Args: { worker_uuid: string }
+        Returns: string
       }
       is_sms_enabled: {
         Args: Record<PropertyKey, never>

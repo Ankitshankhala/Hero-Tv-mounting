@@ -127,9 +127,11 @@ export async function verifyAndSendInvoicesForBookings() {
   return results;
 }
 
-// Auto-execute when this file is imported
-verifyAndSendInvoicesForBookings().then(() => {
-  console.log('All email verification and invoice sending attempts completed');
-}).catch(error => {
-  console.error('Error in batch email verification and invoice sending:', error);
-});
+// Helper function to validate UUID format
+function isValidUUID(uuid: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(uuid);
+}
+
+// Export helper function for validation
+export { isValidUUID };
