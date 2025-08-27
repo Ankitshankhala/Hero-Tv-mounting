@@ -225,6 +225,10 @@ const handler = async (req: Request): Promise<Response> => {
     const address = customerInfo?.address || (booking.guest_customer_info?.address || 'Address not provided');
     const city = customerInfo?.city || (booking.guest_customer_info?.city || '');
     const zipCode = customerInfo?.zip_code || (booking.guest_customer_info?.zipcode || '');
+    
+    // Extract unit and apartment info
+    const unit = customerInfo?.unit || booking.guest_customer_info?.unit || '';
+    const apartmentName = customerInfo?.apartment_name || booking.guest_customer_info?.apartment_name || '';
 
     console.log('Preparing email with Resend API...');
     console.log('Recipient:', worker.email);
@@ -262,6 +266,8 @@ const handler = async (req: Request): Promise<Response> => {
           <h3 style="background-color: #3498db; color: white; padding: 10px; margin: 0 0 15px 0; border-radius: 5px;">Customer Information:</h3>
           <p style="margin: 0;"><strong>Name:</strong> ${customerInfo?.name || 'Not provided'}</p>
           <p style="margin: 5px 0;"><strong>Address:</strong> ${address}</p>
+          ${unit ? `<p style="margin: 5px 0;"><strong>Unit:</strong> ${unit}</p>` : ''}
+          ${apartmentName ? `<p style="margin: 5px 0;"><strong>Apartment:</strong> ${apartmentName}</p>` : ''}
           <p style="margin: 5px 0;"><strong>City:</strong> ${city}, ${zipCode}</p>
           <p style="margin: 5px 0;"><strong>Phone:</strong> ${customerInfo?.phone || 'Not provided'}</p>
           <p style="margin: 5px 0;"><strong>Email:</strong> ${customerInfo?.email || 'Not provided'}</p>

@@ -86,11 +86,14 @@ const handler = async (req: Request): Promise<Response> => {
       let customerEmail = '';
       let customerName = '';
       let customerPhone = '';
+      let customerAddress = '';
+      let customerUnit = '';
+      let customerApartment = '';
 
       if (booking.customer_id) {
         const { data: customer } = await supabase
           .from('users')
-          .select('name, email, phone')
+          .select('name, email, phone, address, unit, apartment_name')
           .eq('id', booking.customer_id)
           .single();
         
@@ -98,11 +101,17 @@ const handler = async (req: Request): Promise<Response> => {
           customerEmail = customer.email;
           customerName = customer.name || 'Customer';
           customerPhone = customer.phone || '';
+          customerAddress = customer.address || '';
+          customerUnit = customer.unit || '';
+          customerApartment = customer.apartment_name || '';
         }
       } else if (booking.guest_customer_info) {
         customerEmail = booking.guest_customer_info.email || '';
         customerName = booking.guest_customer_info.name || 'Customer';
         customerPhone = booking.guest_customer_info.phone || '';
+        customerAddress = booking.guest_customer_info.address || '';
+        customerUnit = booking.guest_customer_info.unit || '';
+        customerApartment = booking.guest_customer_info.apartment_name || '';
       }
 
       // Get booking services
@@ -187,6 +196,9 @@ const handler = async (req: Request): Promise<Response> => {
             <p><strong>Name:</strong> ${customerName}</p>
             <p><strong>Email:</strong> ${customerEmail}</p>
             <p><strong>Phone:</strong> ${customerPhone || 'Not provided'}</p>
+            ${customerAddress ? `<p><strong>Address:</strong> ${customerAddress}</p>` : ''}
+            ${customerUnit ? `<p><strong>Unit:</strong> ${customerUnit}</p>` : ''}
+            ${customerApartment ? `<p><strong>Apartment:</strong> ${customerApartment}</p>` : ''}
         </div>
         
         <div class="services-box">
