@@ -1419,16 +1419,14 @@ export type Database = {
       }
       find_available_workers_polygon: {
         Args: {
+          booking_date: string
+          booking_time: string
           customer_zipcode: string
-          service_date: string
-          service_duration_minutes?: number
-          service_start_time: string
+          duration_minutes?: number
         }
         Returns: {
           distance_priority: number
-          worker_email: string
           worker_id: string
-          worker_name: string
         }[]
       }
       find_existing_pending_booking: {
