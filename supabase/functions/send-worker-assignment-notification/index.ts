@@ -53,7 +53,34 @@ const handler = async (req: Request): Promise<Response> => {
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // 30 minutes TTL
     let idempotencyRecordId: string | null = null;
 
-    // Try to create an idempotency record. If it already exists, treat as cached/in-progress
+    // Check for existing non-expired records to prevent duplicates, but allow retries for failed/expired
+    const { data: existing } = await supabase
+      .from('idempotency_records')
+      .select('id, status, response_data, expires_at')
+      .eq('idempotency_key', idempotencyKey)
+      .eq('operation_type', 'email_send_worker_assignment')
+      .gt('expires_at', new Date().toISOString()) // Only consider non-expired
+      .maybeSingle();
+
+    if (existing) {
+      if (existing.status === 'completed') {
+        console.log('Email already sent successfully (idempotent)');
+        return new Response(JSON.stringify({
+          success: true,
+          cached: true,
+          reason: 'Already sent (idempotent)'
+        }), { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+      } else if (existing.status === 'pending') {
+        console.log('Email send already in progress (idempotent lock)');
+        return new Response(JSON.stringify({
+          success: true,
+          cached: true,
+          reason: 'Send already in progress (idempotent lock)'
+        }), { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+      }
+    }
+
+    // Create new idempotency record for this attempt
     try {
       const { data: idemInsert } = await supabase
         .from('idempotency_records')
@@ -69,29 +96,10 @@ const handler = async (req: Request): Promise<Response> => {
         .single();
 
       idempotencyRecordId = idemInsert?.id ?? null;
-      console.log('Idempotency record created:', { idempotencyRecordId });
+      console.log('New idempotency record created:', { idempotencyRecordId });
     } catch (idemErr) {
-      console.log('Idempotency insert error (likely duplicate/in-flight):', idemErr);
-      const { data: existing } = await supabase
-        .from('idempotency_records')
-        .select('id, status, response_data')
-        .eq('idempotency_key', idempotencyKey)
-        .eq('operation_type', 'email_send_worker_assignment')
-        .maybeSingle();
-
-      if (existing?.status === 'completed') {
-        return new Response(JSON.stringify({
-          success: true,
-          cached: true,
-          reason: 'Already sent (idempotent)'
-        }), { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
-      }
-
-      return new Response(JSON.stringify({
-        success: true,
-        cached: true,
-        reason: 'Send already in progress (idempotent lock)'
-      }), { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+      console.error('Failed to create idempotency record:', idemErr);
+      // Continue without idempotency record for this attempt
     }
 
     // Use centralized deduplication service (secondary guard)

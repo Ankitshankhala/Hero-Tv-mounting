@@ -159,7 +159,7 @@ async function checkDeduplication(
   }
 
   // Rule 3: Check for recent failed attempts (cooldown period)
-  const cooldownMinutes = 15; // Wait 15 minutes before retry after failure
+  const cooldownMinutes = 5; // Wait 5 minutes before retry after failure (reduced from 15)
   const cooldownTime = new Date(Date.now() - cooldownMinutes * 60 * 1000);
 
   const { data: recentFailures } = await supabase
