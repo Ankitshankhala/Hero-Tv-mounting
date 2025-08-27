@@ -6,21 +6,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ZipcodeInput } from '@/components/ui/ZipcodeInput';
 import { User, Mail, Phone, MapPin } from 'lucide-react';
-
-interface FormData {
-  customerName: string;
-  customerEmail: string;
-  customerPhone: string;
-  zipcode: string;
-  houseNumber: string;
-  address: string;
-  city: string;
-  specialInstructions: string;
-}
+import { FormData as BookingFormData } from '@/hooks/booking/types';
 
 interface ContactLocationStepProps {
-  formData: FormData;
-  setFormData: React.Dispatch<React.SetStateAction<FormData>>;
+  formData: BookingFormData;
+  setFormData: React.Dispatch<React.SetStateAction<BookingFormData>>;
   handleZipcodeChange: (zipcode: string, cityState?: string) => void;
 }
 
@@ -124,15 +114,29 @@ export const ContactLocationStep = ({
         </div>
 
         <div className="space-y-3">
-          <Label htmlFor="city" className="text-base font-medium text-white">City</Label>
+          <Label htmlFor="apartmentName" className="text-base font-medium text-white">Apartment Name</Label>
           <Input
-            id="city"
-            value={formData.city}
-            onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
-            placeholder="Your city"
+            id="apartmentName"
+            value={formData.apartmentName || ''}
+            onChange={(e) => setFormData(prev => ({ ...prev, apartmentName: e.target.value }))}
+            placeholder="e.g., The Commons, Sunset Plaza"
             className="h-12 bg-slate-700/50 border-slate-600 text-white placeholder-slate-400 focus:border-blue-400"
           />
         </div>
+      </div>
+
+      <div className="space-y-3">
+        <Label htmlFor="city" className="text-base font-medium text-white">City</Label>
+        <Input
+          id="city"
+          value={formData.city}
+          onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+          placeholder="Your city"
+          className="h-12 bg-slate-700/50 border-slate-600 text-white placeholder-slate-400 focus:border-blue-400"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
       </div>
 
       <div className="space-y-3">
