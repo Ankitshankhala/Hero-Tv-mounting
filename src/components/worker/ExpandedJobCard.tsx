@@ -42,6 +42,7 @@ interface ExpandedJobCardProps {
       phone: string;
       address: string;
       unit?: string;
+      apartment_name?: string;
       city: string;
       state: string;
       zipcode: string;
@@ -285,6 +286,7 @@ export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onCollaps
                 const customerPhone = job.guest_customer_info?.phone || job.customer?.phone;
                 const customerAddress = job.guest_customer_info?.address;
                 const customerUnit = job.guest_customer_info?.unit;
+                const customerApartmentName = job.guest_customer_info?.apartment_name;
                 const customerCity = job.guest_customer_info?.city;
                 const customerState = job.guest_customer_info?.state;
                 const customerZipcode = job.guest_customer_info?.zipcode;
@@ -299,6 +301,9 @@ export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onCollaps
                     )}
                     {customerUnit && (
                       <div><span className="font-medium">Unit:</span> <span className="text-muted-foreground">{customerUnit}</span></div>
+                    )}
+                    {customerApartmentName && (
+                      <div><span className="font-medium">Apartment:</span> <span className="text-muted-foreground">{customerApartmentName}</span></div>
                     )}
                     {(customerCity || customerState || customerZipcode) && (
                       <div>

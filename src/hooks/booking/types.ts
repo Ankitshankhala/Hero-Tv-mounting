@@ -13,6 +13,7 @@ export interface FormData {
   customerPhone: string;
   zipcode: string;
   houseNumber: string;
+  apartmentName: string;
   address: string;
   city: string;
   selectedDate: Date | undefined;

@@ -15,6 +15,9 @@ export interface UnauthenticatedBookingData {
   customer_name: string;
   customer_email: string;
   customer_phone: string;
+  customer_address?: string;
+  customer_unit?: string;
+  customer_apartment_name?: string;
   customer_zipcode: string;
   service_id: string;
   scheduled_date: string;
@@ -184,7 +187,7 @@ export const useBookingOperations = () => {
         service_id: primaryServiceId,
         scheduled_date: format(formData.selectedDate!, 'yyyy-MM-dd'),
         scheduled_start: formData.selectedTime,
-        location_notes: `${formData.houseNumber} ${formData.address}, ${formData.city}\nContact: ${formData.customerName}\nPhone: ${formData.customerPhone}\nEmail: ${formData.customerEmail}\nZIP: ${formData.zipcode}\nSpecial Instructions: ${formData.specialInstructions}`,
+        location_notes: `${formData.address}${formData.houseNumber ? `\nUnit: ${formData.houseNumber}` : ''}${formData.apartmentName ? `\nApartment: ${formData.apartmentName}` : ''}\nContact: ${formData.customerName}\nPhone: ${formData.customerPhone}\nEmail: ${formData.customerEmail}\nZIP: ${formData.zipcode}\nSpecial Instructions: ${formData.specialInstructions}`,
         status: 'payment_pending' as const,
         payment_status: 'pending',
         requires_manual_payment: false,
@@ -193,6 +196,8 @@ export const useBookingOperations = () => {
           name: formData.customerName,
           phone: formData.customerPhone,
           address: formData.address,
+          unit: formData.houseNumber,
+          apartment_name: formData.apartmentName,
           city: formData.city,
           zipcode: formData.zipcode,
         } : null
@@ -351,6 +356,9 @@ export const useBookingOperations = () => {
         name: bookingData.customer_name,
         email: bookingData.customer_email,
         phone: bookingData.customer_phone,
+        address: bookingData.customer_address,
+        unit: bookingData.customer_unit,
+        apartment_name: bookingData.customer_apartment_name,
         zipcode: bookingData.customer_zipcode,
         city: zipcodeValidation.city
       };

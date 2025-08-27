@@ -27,6 +27,8 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
     email: '',
     phone: '',
     address: '',
+    houseNumber: '',
+    apartmentName: '',
     zipcode: '',
     date: '',
     time: '',
@@ -52,6 +54,7 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
     email: { required: true, type: 'email' as const },
     phone: { required: true, type: 'phone' as const },
     address: { required: true, type: 'address' as const, minLength: 10, maxLength: 100 },
+    houseNumber: { required: true, type: 'address' as const, minLength: 1, maxLength: 20 },
     zipcode: { required: true, type: 'zipcode' as const },
     date: { required: true },
     time: { required: true }
@@ -202,11 +205,14 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
         customer_name: formData.name,
         customer_email: formData.email,
         customer_phone: formData.phone,
+        customer_address: formData.address,
+        customer_unit: formData.houseNumber,
+        customer_apartment_name: formData.apartmentName,
         customer_zipcode: formData.zipcode,
         service_id: cart[0].id,
         scheduled_date: formData.date,
         scheduled_start: formData.time,
-        location_notes: `${formData.address}\n\nServices: ${cart.map(item => `${item.name} (${item.quantity}x)`).join(', ')}\n\nSpecial Instructions: ${formData.specialInstructions}`,
+        location_notes: `${formData.address}${formData.houseNumber ? `\nUnit: ${formData.houseNumber}` : ''}${formData.apartmentName ? `\nApartment: ${formData.apartmentName}` : ''}\n\nServices: ${cart.map(item => `${item.name} (${item.quantity}x)`).join(', ')}\n\nSpecial Instructions: ${formData.specialInstructions}`,
         total_price: total,
         duration_minutes: calculateTotalDuration()
       };

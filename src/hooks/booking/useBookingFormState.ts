@@ -15,6 +15,7 @@ export const useBookingFormState = (selectedServices: ServiceItem[] = []) => {
     customerPhone: '',
     zipcode: '',
     houseNumber: '',
+    apartmentName: '',
     address: '',
     city: '',
     selectedDate: undefined,
