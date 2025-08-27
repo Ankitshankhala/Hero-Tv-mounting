@@ -125,8 +125,8 @@ export const InvoicesManager = () => {
 
   const filteredInvoices = invoices.filter(invoice =>
     invoice.invoice_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    invoice.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    invoice.customer.email.toLowerCase().includes(searchTerm.toLowerCase())
+    (invoice.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (invoice.customer?.email?.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const getStatusBadge = (status: string) => {
@@ -192,13 +192,13 @@ export const InvoicesManager = () => {
                     <TableCell className="font-medium">
                       {invoice.invoice_number}
                     </TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{invoice.customer.name}</div>
-                        <div className="text-sm text-gray-500">{invoice.customer.email}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{invoice.booking.service.name}</TableCell>
+                     <TableCell>
+                       <div>
+                         <div className="font-medium">{invoice.customer?.name || 'N/A'}</div>
+                         <div className="text-sm text-gray-500">{invoice.customer?.email || 'N/A'}</div>
+                       </div>
+                     </TableCell>
+                     <TableCell>{invoice.booking?.service?.name || 'N/A'}</TableCell>
                     <TableCell>
                       {new Date(invoice.invoice_date).toLocaleDateString()}
                     </TableCell>
