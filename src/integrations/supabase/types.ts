@@ -1355,6 +1355,10 @@ export type Database = {
           notifications_sent: number
         }[]
       }
+      backfill_worker_availability_from_applications: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       calculate_cancellation_deadline: {
         Args: { scheduled_date: string; scheduled_start: string }
         Returns: string
@@ -1480,6 +1484,14 @@ export type Database = {
       get_tax_rate_by_state: {
         Args: { state_abbreviation: string }
         Returns: number
+      }
+      get_worker_weekly_availability: {
+        Args: { p_worker_id: string }
+        Returns: Json
+      }
+      import_application_availability: {
+        Args: { p_worker_id: string }
+        Returns: boolean
       }
       is_sms_enabled: {
         Args: Record<PropertyKey, never>

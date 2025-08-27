@@ -240,29 +240,17 @@ export const useWorkerScheduleOperations = (workerId?: string) => {
 
       console.log('Fetching weekly availability for worker:', targetWorkerId);
 
-      const { data, error } = await supabase
-        .from('worker_availability')
-        .select('*')
-        .eq('worker_id', targetWorkerId);
+      const { data, error } = await supabase.rpc('get_worker_weekly_availability', {
+        p_worker_id: targetWorkerId
+      });
 
       if (error) {
-        console.error('Weekly availability fetch error:', error);
+        console.error('Weekly availability RPC error:', error);
         throw new Error(error.message || 'Failed to load weekly availability');
       }
 
-      // Transform data to the expected format
-      const weeklyData: any = {};
-      data?.forEach(item => {
-        const dayName = item.day_of_week.charAt(0).toUpperCase() + item.day_of_week.slice(1).toLowerCase();
-        weeklyData[dayName] = {
-          enabled: true,
-          start_time: item.start_time,
-          end_time: item.end_time
-        };
-      });
-
-      console.log('Weekly availability loaded successfully:', weeklyData);
-      return { data: weeklyData, error: null };
+      console.log('Weekly availability loaded successfully:', data);
+      return { data: data || {}, error: null };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
       console.error('Fetch weekly availability failed:', error);

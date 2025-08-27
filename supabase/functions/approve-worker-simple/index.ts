@@ -146,6 +146,22 @@ serve(async (req) => {
 
     console.log('Application approved successfully');
 
+    // Import worker availability from application
+    console.log('Importing worker availability from application...');
+    try {
+      const { data: importResult, error: importError } = await supabaseAdmin.rpc('import_application_availability', {
+        p_worker_id: workerId
+      });
+
+      if (importError) {
+        console.error('Failed to import availability:', importError);
+      } else {
+        console.log('Availability imported successfully:', importResult);
+      }
+    } catch (availabilityError) {
+      console.error('Error importing availability:', availabilityError);
+    }
+
     // Send welcome email if temporary password was generated
     let emailSent = false;
     if (temporaryPassword) {

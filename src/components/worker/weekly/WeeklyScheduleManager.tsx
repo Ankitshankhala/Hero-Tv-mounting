@@ -56,8 +56,8 @@ const WeeklyScheduleManager = ({ onScheduleUpdate, workerId }: WeeklyScheduleMan
     setLoading(true);
     try {
       const result = await fetchWeeklyAvailability();
-      if (result.data) {
-        setWeeklyAvailability(result.data);
+      if (result.data && typeof result.data === 'object') {
+        setWeeklyAvailability(result.data as WeeklyAvailability);
       }
     } catch (error) {
       console.error('Error loading weekly availability:', error);
