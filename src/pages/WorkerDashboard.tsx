@@ -14,7 +14,7 @@ import WorkerScheduleManager from '@/components/worker/WorkerScheduleManager';
 import WorkerLoginForm from '@/components/worker/WorkerLoginForm';
 import WorkerDashboardLoading from '@/components/worker/WorkerDashboardLoading';
 import { WorkerCreateBookingModal } from '@/components/worker/WorkerCreateBookingModal';
-import TestBookingCreator from '@/components/worker/TestBookingCreator';
+
 import CoverageNotifications from '@/components/worker/CoverageNotifications';
 import ServiceAreaMap from '@/components/worker/service-area/ServiceAreaMap';
 import type { Database } from '@/integrations/supabase/types';
@@ -342,8 +342,6 @@ const WorkerDashboard = () => {
           <CoverageNotifications />
         </div>
 
-        {/* Test booking creator for development */}
-        {process.env.NODE_ENV === 'development' && <TestBookingCreator />}
 
         <WorkerDashboardStats todaysJobs={todaysJobs.length} upcomingJobs={upcomingJobs.length} completedJobs={completedJobs.length} todaysEarnings={todaysEarnings} />
 
