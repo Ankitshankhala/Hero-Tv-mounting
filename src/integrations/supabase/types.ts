@@ -1455,6 +1455,10 @@ export type Database = {
           worker_phone: string
         }[]
       }
+      fix_booking_payment_status: {
+        Args: { p_booking_id: string; p_payment_intent_id: string }
+        Returns: Json
+      }
       generate_invoice_number: {
         Args: Record<PropertyKey, never>
         Returns: string
