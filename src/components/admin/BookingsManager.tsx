@@ -10,6 +10,7 @@ import { CreateBookingModal } from './CreateBookingModal';
 import { AssignWorkerModal } from './AssignWorkerModal';
 import { EditBookingModal } from './EditBookingModal';
 import { BookingDetailsModal } from './BookingDetailsModal';
+import { DeleteBookingModal } from './DeleteBookingModal';
 import { useBookingManager } from '@/hooks/useBookingManager';
 import { AuthGuard } from '@/components/AuthGuard';
 
@@ -24,6 +25,7 @@ export const BookingsManager = () => {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const { user } = useAuth();
 
@@ -107,8 +109,8 @@ export const BookingsManager = () => {
   };
 
   const handleDeleteBooking = (booking: any) => {
-    console.log('Delete booking:', booking);
-    // TODO: Implement delete booking functionality
+    setSelectedBooking(booking);
+    setShowDeleteModal(true);
   };
 
   const handleViewBooking = (booking: any) => {
@@ -238,6 +240,19 @@ export const BookingsManager = () => {
               setShowDetailsModal(false);
               setSelectedBooking(null);
             }}
+          />
+        )}
+
+        {/* Delete Booking Modal */}
+        {showDeleteModal && selectedBooking && (
+          <DeleteBookingModal
+            booking={selectedBooking}
+            isOpen={showDeleteModal}
+            onClose={() => {
+              setShowDeleteModal(false);
+              setSelectedBooking(null);
+            }}
+            onBookingDeleted={fetchBookings}
           />
         )}
       </div>
