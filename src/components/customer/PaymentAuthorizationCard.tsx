@@ -87,7 +87,12 @@ export const PaymentAuthorizationCard = ({
           currency: 'usd',
           booking_id: bookingId,
           idempotency_key: crypto.randomUUID(),
-          user_id: null, // This is for customer dashboard use
+          user_id: null, // This is for guest customer use
+          guest_customer_info: {
+            name: customerName,
+            email: customerEmail
+          },
+          testing_mode: process.env.NODE_ENV === 'development',
         }
       });
 
@@ -117,11 +122,34 @@ export const PaymentAuthorizationCard = ({
       }
 
       if (paymentIntent?.status === 'requires_capture') {
-      toast({
-        title: "Payment Authorized Successfully",
-        description: `Your booking is confirmed! $${amount.toFixed(2)} is authorized and will be charged when service is completed.`,
-      });
-        onAuthorizationSuccess(paymentIntentId);
+        // Update transaction status to 'authorized' after successful payment
+        try {
+          const { data: updateData, error: updateError } = await supabase.functions.invoke(
+            'update-transaction-status',
+            {
+              body: {
+                payment_intent_id: paymentIntentId,
+                status: 'authorized'
+              }
+            }
+          );
+          
+          if (updateError || !updateData?.success) {
+            console.error('Failed to update transaction status:', updateError);
+            throw new Error(updateError?.message || updateData?.error || 'Failed to update transaction status');
+          }
+          
+          console.log('Transaction status updated to authorized via edge function');
+          
+          toast({
+            title: "Payment Authorized Successfully",
+            description: `Your booking is confirmed! $${amount.toFixed(2)} is authorized and will be charged when service is completed.`,
+          });
+          onAuthorizationSuccess(paymentIntentId);
+        } catch (error) {
+          console.error('Error updating transaction status:', error);
+          throw new Error('Payment authorized but failed to update transaction status');
+        }
       } else {
         throw new Error(`Unexpected payment status: ${paymentIntent?.status}`);
       }

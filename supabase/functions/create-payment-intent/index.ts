@@ -359,9 +359,9 @@ serve(async (req) => {
       logStep("Updating booking with payment intent", { booking_id, payment_intent_id: paymentIntent.id });
       
       // For authorization workflow, set booking status based on payment status
-      // Use 'payment_authorized' status properly when payment is authorized
+      // Map statuses to comply with database constraints
       const bookingStatus = safeStatus === 'authorized' ? 'payment_authorized' : 'payment_pending';
-      const bookingPaymentStatus = safeStatus === 'pending' ? 'payment_pending' : safeStatus;
+      const bookingPaymentStatus = safeStatus === 'pending' ? 'pending' : safeStatus; // Fix: 'pending' not 'payment_pending'
       
       const { error: bookingUpdateError } = await supabaseServiceRole
         .from('bookings')

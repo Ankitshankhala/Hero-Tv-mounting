@@ -111,7 +111,11 @@ export const SimplePaymentAuthorizationForm = ({
             idempotency_key: idempotencyKey,
             user_id: user?.id,
             booking_id: bookingId,
-            customer_email: customerEmail,
+            guest_customer_info: !user ? {
+              name: customerName,
+              email: customerEmail
+            } : undefined,
+            testing_mode: process.env.NODE_ENV === 'development',
           },
         }
       );
@@ -195,21 +199,24 @@ export const SimplePaymentAuthorizationForm = ({
       if (paymentIntent?.status === 'requires_capture' || paymentIntent?.status === 'succeeded') {
         console.log('✅ Payment authorized successfully!');
         
-        // Update transaction status to 'authorized' after successful payment
+        // Update transaction status to 'authorized' after successful payment using edge function
         try {
-          const { TransactionManager } = await import('@/utils/transactionManager');
-          const transactionManager = new TransactionManager();
-          const updateResult = await transactionManager.updateTransactionByPaymentIntent(
-            intentData.payment_intent_id,
-            { status: 'authorized' }
+          const { data: updateData, error: updateError } = await supabase.functions.invoke(
+            'update-transaction-status',
+            {
+              body: {
+                payment_intent_id: intentData.payment_intent_id,
+                status: 'authorized'
+              }
+            }
           );
           
-          if (!updateResult.success) {
-            console.error('Failed to update transaction status:', updateResult.error);
-            throw new Error(updateResult.error || 'Failed to update transaction status');
+          if (updateError || !updateData?.success) {
+            console.error('Failed to update transaction status:', updateError);
+            throw new Error(updateError?.message || updateData?.error || 'Failed to update transaction status');
           }
           
-          console.log('Transaction status updated to authorized');
+          console.log('Transaction status updated to authorized via edge function');
           onAuthorizationSuccess(intentData.payment_intent_id);
         } catch (error) {
           console.error('Error updating transaction status:', error);

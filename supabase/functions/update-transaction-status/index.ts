@@ -104,6 +104,26 @@ serve(async (req) => {
 
       if (bookingUpdateError) {
         logStep("Warning: Failed to update booking status", { error: bookingUpdateError.message });
+      } else {
+        logStep("Booking status updated successfully to payment_authorized", { booking_id: transaction.booking_id });
+      }
+    }
+
+    // Also update booking status when transaction becomes completed/captured
+    if ((status === 'completed' || status === 'captured') && transaction.booking_id) {
+      logStep("Updating booking status to confirmed", { booking_id: transaction.booking_id });
+      const { error: bookingUpdateError } = await supabaseClient
+        .from('bookings')
+        .update({
+          status: 'confirmed',
+          payment_status: status
+        })
+        .eq('id', transaction.booking_id);
+
+      if (bookingUpdateError) {
+        logStep("Warning: Failed to update booking status", { error: bookingUpdateError.message });
+      } else {
+        logStep("Booking status updated successfully to confirmed", { booking_id: transaction.booking_id });
       }
     }
 
