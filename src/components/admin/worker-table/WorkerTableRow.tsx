@@ -1,10 +1,11 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Phone, MapPin, Calendar } from 'lucide-react';
+import { Phone, MapPin, Calendar, Clock } from 'lucide-react';
 import { WorkerActionsDropdown } from './WorkerActionsDropdown';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Worker {
   id: string;
@@ -26,6 +27,7 @@ interface WorkerTableRowProps {
   onRemoveWorker: (workerId: string) => void;
   onReactivateWorker: (workerId: string) => void;
   onPermanentlyDeleteWorker: (workerId: string) => void;
+  onSetWeeklyAvailability: (worker: Worker) => void;
   removingWorkerId: string | null;
   reactivatingWorkerId: string | null;
   deletingWorkerId: string | null;
@@ -39,14 +41,65 @@ export const WorkerTableRow = ({
   onRemoveWorker,
   onReactivateWorker,
   onPermanentlyDeleteWorker,
+  onSetWeeklyAvailability,
   removingWorkerId,
   reactivatingWorkerId,
   deletingWorkerId
 }: WorkerTableRowProps) => {
+  const [specificScheduleCount, setSpecificScheduleCount] = useState<number>(0);
+
+  useEffect(() => {
+    const fetchSpecificSchedules = async () => {
+      const { data, error } = await supabase
+        .from('worker_schedule')
+        .select('*')
+        .eq('worker_id', worker.id);
+      
+      if (!error && data) {
+        setSpecificScheduleCount(data.length);
+      }
+    };
+
+    fetchSpecificSchedules();
+  }, [worker.id]);
+
   const getAvailabilityBadge = (workerAvailability: any[]) => {
-    if (!workerAvailability || workerAvailability.length === 0) {
-      return <Badge variant="secondary">Not Set</Badge>;
+    const hasWeeklyAvailability = workerAvailability && workerAvailability.length > 0;
+    
+    if (!hasWeeklyAvailability && specificScheduleCount === 0) {
+      return (
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary">Not Set</Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onSetWeeklyAvailability(worker)}
+            className="h-6 px-2 text-xs"
+          >
+            <Clock className="h-3 w-3 mr-1" />
+            Set
+          </Button>
+        </div>
+      );
     }
+    
+    if (!hasWeeklyAvailability && specificScheduleCount > 0) {
+      return (
+        <div className="flex items-center gap-2">
+          <Badge variant="outline">{specificScheduleCount} specific dates</Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onSetWeeklyAvailability(worker)}
+            className="h-6 px-2 text-xs"
+          >
+            <Clock className="h-3 w-3 mr-1" />
+            Set Weekly
+          </Button>
+        </div>
+      );
+    }
+    
     return <Badge variant="default">Available</Badge>;
   };
 

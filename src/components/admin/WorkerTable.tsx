@@ -7,6 +7,7 @@ import { WorkerTableRow } from './worker-table/WorkerTableRow';
 import { WorkerDetailsModal } from './worker-table/WorkerDetailsModal';
 import { WorkerCalendarModal } from './worker-table/WorkerCalendarModal';
 import { WorkerPasswordManager } from './WorkerPasswordManager';
+import { WorkerWeeklyAvailabilityModal } from './WorkerWeeklyAvailabilityModal';
 
 interface Worker {
   id: string;
@@ -30,6 +31,7 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
   const [showCalendar, setShowCalendar] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPasswordManager, setShowPasswordManager] = useState(false);
+  const [showWeeklyAvailability, setShowWeeklyAvailability] = useState(false);
   const [removingWorkerId, setRemovingWorkerId] = useState<string | null>(null);
   const [reactivatingWorkerId, setReactivatingWorkerId] = useState<string | null>(null);
   const [deletingWorkerId, setDeletingWorkerId] = useState<string | null>(null);
@@ -48,6 +50,11 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
   const handleManagePassword = (worker: Worker) => {
     setSelectedWorker(worker);
     setShowPasswordManager(true);
+  };
+
+  const handleSetWeeklyAvailability = (worker: Worker) => {
+    setSelectedWorker(worker);
+    setShowWeeklyAvailability(true);
   };
 
   const handleRemoveWorker = async (workerId: string) => {
@@ -160,6 +167,7 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
     setShowCalendar(false);
     setShowEditModal(false);
     setShowPasswordManager(false);
+    setShowWeeklyAvailability(false);
     setSelectedWorker(null);
   };
 
@@ -187,6 +195,7 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
                 onViewCalendar={handleViewCalendar}
                 onEditWorker={handleEditWorker}
                 onManagePassword={handleManagePassword}
+                onSetWeeklyAvailability={handleSetWeeklyAvailability}
                 onRemoveWorker={handleRemoveWorker}
                 onReactivateWorker={handleReactivateWorker}
                 onPermanentlyDeleteWorker={handlePermanentlyDeleteWorker}
@@ -222,6 +231,13 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
           onClose={closeModals}
         />
       )}
+
+      <WorkerWeeklyAvailabilityModal
+        worker={selectedWorker}
+        isOpen={showWeeklyAvailability}
+        onClose={closeModals}
+        onWorkerUpdate={onWorkerUpdate}
+      />
     </>
   );
 };
