@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
+import { useTestingMode, getEffectiveMinimumAmount } from '@/contexts/TestingModeContext';
 
 interface CheckoutActionsProps {
   isProcessing: boolean;
@@ -23,6 +24,9 @@ export const CheckoutActions = ({
   onSubmit,
   onClose
 }: CheckoutActionsProps) => {
+  const { isTestingMode } = useTestingMode();
+  const minimumAmount = getEffectiveMinimumAmount(isTestingMode);
+  
   const handleClose = () => {
     if (!isProcessing) {
       onClose();
@@ -32,11 +36,11 @@ export const CheckoutActions = ({
   return (
     <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t-2 border-gray-200">
 {
-  total < 75 &&       <p className='text-black'>Your cart total is ${total.toFixed(2)}. Please add ${75 - total } more to reach the $75 minimum order amount.</p>
+  total < minimumAmount && <p className='text-black'>Your cart total is ${total.toFixed(2)}. Please add ${(minimumAmount - total).toFixed(2)} more to reach the ${minimumAmount} minimum order amount.</p>
 
 }      <Button
         type="submit"
-        disabled={isProcessing || !zipcodeValid || !selectedDate || !formData.time || total < 75}
+        disabled={isProcessing || !zipcodeValid || !selectedDate || !formData.time || total < minimumAmount}
         onClick={onSubmit}
         className="flex-1 h-14 text-lg font-bold bg-gradient-to-r from-indigo-600 via-blue-600 to-purple-600 hover:from-indigo-700 hover:via-blue-700 hover:to-purple-700 text-white rounded-xl shadow-xl hover:shadow-2xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] disabled:transform-none"
       >
