@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { StripeCardElement } from '@/components/StripeCardElement';
 import { supabase } from '@/integrations/supabase/client';
+import { useTestingMode } from '@/contexts/TestingModeContext';
 
 interface PaymentAuthorizationFormProps {
   amount: number;
@@ -37,6 +38,7 @@ export const PaymentAuthorizationForm = ({
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
+  const { isTestingMode } = useTestingMode();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleStripeReady = (stripeInstance: any, elementsInstance: any, cardElementInstance: any) => {
@@ -109,6 +111,7 @@ export const PaymentAuthorizationForm = ({
             booking_id: bookingId,
             idempotency_key: crypto.randomUUID(),
             user_id: user?.id || null,
+            testing_mode: isTestingMode, // Pass testing mode flag
             guest_customer_info: !user ? {
               email: customerEmail,
               name: customerName,

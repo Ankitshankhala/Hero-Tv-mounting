@@ -80,8 +80,57 @@ serve(async (req) => {
       id: currentPaymentIntent.id,
       status: currentPaymentIntent.status,
       amount: currentPaymentIntent.amount,
-      amount_capturable: currentPaymentIntent.amount_capturable
+      amount_capturable: currentPaymentIntent.amount_capturable,
+      metadata: currentPaymentIntent.metadata
     });
+
+    // SAFETY GUARD: Check if this is a test mode payment
+    if (currentPaymentIntent.metadata?.test_mode === 'true') {
+      console.log('🚨 TEST MODE DETECTED - Simulating capture without real charge');
+      
+      // Update booking to reflect simulated success
+      const { error: updateError } = await supabaseServiceRole
+        .from('bookings')
+        .update({
+          payment_status: 'captured',
+          status: 'completed',
+          pending_payment_amount: null,
+          has_modifications: false
+        })
+        .eq('id', bookingId);
+
+      if (updateError) {
+        console.error('Failed to update booking in test mode:', updateError);
+        throw new Error(`Failed to update booking: ${updateError.message}`);
+      }
+
+      // Update transaction to completed for test mode
+      await supabaseServiceRole
+        .from('transactions')
+        .update({
+          status: 'completed',
+          captured_at: new Date().toISOString(),
+          transaction_type: 'capture',
+          amount: 1 // Test mode amount
+        })
+        .eq('payment_intent_id', booking.payment_intent_id)
+        .eq('status', 'authorized');
+
+      console.log('✅ TEST MODE: Payment capture simulated successfully');
+
+      return new Response(JSON.stringify({
+        success: true,
+        payment_status: 'captured',
+        booking_status: 'completed',
+        booking_id: bookingId,
+        amount_captured: 1,
+        test_mode: true,
+        message: 'TEST MODE: Payment capture simulated (no real charge made)'
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
+    }
 
     // Calculate capture amount from current invoice or booking services
     console.log('Calculating capture amount...');

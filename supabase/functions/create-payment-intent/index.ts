@@ -135,7 +135,8 @@ serve(async (req) => {
       idempotency_key,
       user_id,
       guest_customer_info,
-      booking_id
+      booking_id,
+      testing_mode
     } = body;
 
     logStep("Processing payment intent request", {
@@ -144,7 +145,8 @@ serve(async (req) => {
       idempotency_key,
       user_id,
       guest_customer_info: !!guest_customer_info,
-      booking_id
+      booking_id,
+      testing_mode: !!testing_mode
     });
 
     // Input validation
@@ -241,6 +243,12 @@ serve(async (req) => {
     // Add booking_id to metadata if provided
     if (booking_id) {
       metadata.booking_id = booking_id;
+    }
+    
+    // Add testing mode flag to prevent accidental real charges
+    if (testing_mode) {
+      metadata.test_mode = 'true';
+      logStep("Testing mode enabled - payment intent marked as test", { test_mode: true });
     }
 
     // Create Stripe payment intent with manual capture for authorization
@@ -351,15 +359,16 @@ serve(async (req) => {
       logStep("Updating booking with payment intent", { booking_id, payment_intent_id: paymentIntent.id });
       
       // For authorization workflow, set booking status based on payment status
-      // Use 'confirmed' instead of 'payment_authorized' to match database trigger expectations
-      const bookingStatus = safeStatus === 'authorized' ? 'confirmed' : 'payment_pending';
+      // Use 'payment_authorized' status properly when payment is authorized
+      const bookingStatus = safeStatus === 'authorized' ? 'payment_authorized' : 'payment_pending';
+      const bookingPaymentStatus = safeStatus === 'pending' ? 'payment_pending' : safeStatus;
       
       const { error: bookingUpdateError } = await supabaseServiceRole
         .from('bookings')
         .update({
           payment_intent_id: paymentIntent.id,
           status: bookingStatus,
-          payment_status: safeStatus // Use safe status here too
+          payment_status: bookingPaymentStatus // Fix payment_status mapping
         })
         .eq('id', booking_id);
 
