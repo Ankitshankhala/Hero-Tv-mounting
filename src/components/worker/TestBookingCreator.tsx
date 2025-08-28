@@ -29,9 +29,21 @@ const TestBookingCreator = () => {
       setLoading(false);
     }
   };
-  return <Card className="bg-slate-800 border-slate-700 mb-6">
-      
-      
-    </Card>;
+  return (
+    <Card className="bg-slate-800 border-slate-700 mb-6">
+      <CardHeader>
+        <CardTitle className="text-white">Test Booking Creator</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Button 
+          onClick={handleCreateTestBooking} 
+          disabled={loading}
+          className="w-full"
+        >
+          {loading ? 'Creating Test Booking...' : 'Create Test Booking'}
+        </Button>
+      </CardContent>
+    </Card>
+  );
 };
 export default TestBookingCreator;
