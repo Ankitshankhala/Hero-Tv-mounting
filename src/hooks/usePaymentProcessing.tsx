@@ -18,7 +18,7 @@ export const usePaymentProcessing = () => {
     
     try {
       const { data, error } = await supabase.functions.invoke('verify-payment-session', {
-        body: { session_id: sessionId }
+        body: { sessionId }
       });
 
       if (error) {

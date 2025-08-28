@@ -4,6 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { TrendingUp, Calendar, DollarSign, Users, Star, Clock, UserCheck } from 'lucide-react';
 import { useAdminMetrics } from '@/hooks/useAdminMetrics';
 import { Badge } from '@/components/ui/badge';
+import { StripeConfigStatus } from './StripeConfigStatus';
+import { BookingSmokeTest } from './BookingSmokeTest';
 
 export const DashboardStats = () => {
   const { metrics, loading } = useAdminMetrics();
@@ -147,6 +149,12 @@ export const DashboardStats = () => {
             </Card>
           );
         })}
+      </div>
+
+      {/* System Configuration and Testing */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <StripeConfigStatus />
+        <BookingSmokeTest />
       </div>
 
       {/* Quick Status Overview */}
