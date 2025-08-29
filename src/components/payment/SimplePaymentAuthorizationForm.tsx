@@ -220,25 +220,25 @@ export const SimplePaymentAuthorizationForm = ({
             console.log('Transaction status updated successfully:', updateData);
           }
 
-          // CRITICAL FIX: Always call consistency check after authorization
+          // CRITICAL FIX: Always verify payment intent after authorization to ensure consistency
           try {
-            const { data: consistencyData, error: consistencyError } = await supabase.functions.invoke(
-              'booking-status-consistency-check',
+            const { data: verifyData, error: verifyError } = await supabase.functions.invoke(
+              'verify-payment-intent',
               {
                 body: {
-                  booking_id: bookingId,
-                  payment_intent_id: intentData.payment_intent_id
+                  payment_intent_id: intentData.payment_intent_id,
+                  booking_id: bookingId
                 }
               }
             );
 
-            if (consistencyError) {
-              console.error('Consistency check failed:', consistencyError);
+            if (verifyError) {
+              console.error('Payment verification failed:', verifyError);
             } else {
-              console.log('Booking status consistency verified:', consistencyData);
+              console.log('Payment verification completed:', verifyData);
             }
-          } catch (consistencyErr) {
-            console.error('Consistency check error:', consistencyErr);
+          } catch (verifyErr) {
+            console.error('Payment verification error:', verifyErr);
           }
           
           console.log('Payment authorization flow completed successfully');
