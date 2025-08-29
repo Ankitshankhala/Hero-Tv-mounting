@@ -200,7 +200,7 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
             {/* Mobile: Status and payment dots with name */}
             <div className="sm:hidden">
               <div className="flex items-center gap-2 mb-2">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 flex-shrink-0">
                   <div 
                     className={`h-2.5 w-2.5 rounded-full ${getStatusDotClass(job.status, isArchived)}`}
                     title={getDisplayStatus(job.status, isArchived)}
@@ -214,7 +214,7 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
                     <span className="sr-only">{paymentStatus.text}</span>
                   </div>
                 </div>
-                <div className="text-sm font-medium text-foreground truncate">
+                <div className="text-sm font-medium text-foreground min-w-0 flex-1">
                   {getCustomerName()}
                 </div>
               </div>
@@ -250,7 +250,7 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
             </div>
             <div className="text-sm text-muted-foreground space-y-1">
               {getServiceLines().map((serviceLine, index) => (
-                <div key={index} className="truncate">
+                <div key={index} className="break-words sm:truncate">
                   {serviceLine}
                 </div>
               ))}
