@@ -51,7 +51,12 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
   };
 
   // Get status color using design system
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string, isArchived: boolean = false) => {
+    // For archived jobs, always show as completed
+    if (isArchived) {
+      return 'bg-status-completed text-white border-status-completed';
+    }
+    
     switch (status.toLowerCase()) {
       case 'scheduled':
         return 'bg-status-confirmed text-white border-status-confirmed';
@@ -63,6 +68,54 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
         return 'bg-status-cancelled text-white border-status-cancelled';
       default:
         return 'bg-status-pending text-white border-status-pending';
+    }
+  };
+
+  // Get display status text
+  const getDisplayStatus = (status: string, isArchived: boolean = false) => {
+    if (isArchived) {
+      return 'COMPLETED';
+    }
+    return status.replace('_', ' ').toUpperCase();
+  };
+
+  // Get payment status display
+  const getPaymentStatusDisplay = (paymentStatus: string, isArchived: boolean = false) => {
+    if (isArchived) {
+      return {
+        text: 'PAYMENT ACCEPTED',
+        color: 'bg-action-success text-white border-action-success'
+      };
+    }
+    
+    switch (paymentStatus?.toLowerCase()) {
+      case 'authorized':
+        return {
+          text: 'AUTHORIZED',
+          color: 'bg-action-warning text-white border-action-warning'
+        };
+      case 'captured':
+      case 'completed':
+        return {
+          text: 'PAYMENT CAPTURED',
+          color: 'bg-action-success text-white border-action-success'
+        };
+      case 'pending':
+        return {
+          text: 'PAYMENT PENDING',
+          color: 'bg-action-info text-white border-action-info'
+        };
+      case 'failed':
+      case 'cancelled':
+        return {
+          text: 'PAYMENT FAILED',
+          color: 'bg-destructive text-white border-destructive'
+        };
+      default:
+        return {
+          text: paymentStatus?.toUpperCase() || 'UNKNOWN',
+          color: 'bg-muted text-muted-foreground border-muted'
+        };
     }
   };
 
@@ -86,6 +139,9 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
     return jobTime.toLocaleDateString();
   };
 
+  const isArchived = job.is_archived;
+  const paymentStatus = getPaymentStatusDisplay(job.payment_status, isArchived);
+
   return (
     <Card className={`
       transition-all duration-200 ease-in-out cursor-pointer
@@ -99,14 +155,20 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
           <div className="flex-1 min-w-0 pr-4">
             {/* Mobile: Stack badges and name */}
             <div className="sm:hidden">
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex flex-wrap items-center gap-2 mb-2">
                 <Badge 
                   variant="outline" 
-                  className={`text-xs font-medium ${getStatusColor(job.status)}`}
+                  className={`text-xs font-medium ${getStatusColor(job.status, isArchived)}`}
                 >
-                  {job.status.replace('_', ' ').toUpperCase()}
+                  {getDisplayStatus(job.status, isArchived)}
                 </Badge>
-                {isNewJob() && (
+                <Badge 
+                  variant="outline" 
+                  className={`text-xs font-medium ${paymentStatus.color}`}
+                >
+                  {paymentStatus.text}
+                </Badge>
+                {isNewJob() && !isArchived && (
                   <Badge 
                     variant="outline" 
                     className="text-xs font-medium bg-action-info text-white border-action-info"
@@ -125,11 +187,17 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
               <div className="flex items-center gap-2 flex-shrink-0">
                 <Badge 
                   variant="outline" 
-                  className={`text-xs font-medium ${getStatusColor(job.status)}`}
+                  className={`text-xs font-medium ${getStatusColor(job.status, isArchived)}`}
                 >
-                  {job.status.replace('_', ' ').toUpperCase()}
+                  {getDisplayStatus(job.status, isArchived)}
                 </Badge>
-                {isNewJob() && (
+                <Badge 
+                  variant="outline" 
+                  className={`text-xs font-medium ${paymentStatus.color}`}
+                >
+                  {paymentStatus.text}
+                </Badge>
+                {isNewJob() && !isArchived && (
                   <Badge 
                     variant="outline" 
                     className="text-xs font-medium bg-action-info text-white border-action-info"
@@ -160,7 +228,7 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
               {getShortAddress()}
             </div>
             <div className="text-xs text-muted-foreground mt-1">
-              Received {getTimeSinceCreation()}
+              {isArchived ? `Completed ${new Date(job.archived_at).toLocaleDateString()}` : `Received ${getTimeSinceCreation()}`}
             </div>
           </div>
 
@@ -210,6 +278,9 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
           </div>
           <div className="text-sm text-muted-foreground truncate">
             {getShortAddress()}
+          </div>
+          <div className="text-xs text-muted-foreground mt-1">
+            {isArchived ? `Completed ${new Date(job.archived_at).toLocaleDateString()}` : `Received ${getTimeSinceCreation()}`}
           </div>
         </div>
       </CardContent>
