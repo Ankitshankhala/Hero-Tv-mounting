@@ -16,7 +16,7 @@ import WorkerDashboardLoading from '@/components/worker/WorkerDashboardLoading';
 import { WorkerCreateBookingModal } from '@/components/worker/WorkerCreateBookingModal';
 
 import CoverageNotifications from '@/components/worker/CoverageNotifications';
-import ServiceAreaMap from '@/components/worker/service-area/ServiceAreaMap';
+import { ServiceAreaSettings } from '@/components/worker/service-area/ServiceAreaSettings';
 import type { Database } from '@/integrations/supabase/types';
 import { SEO } from '@/components/SEO';
 type BookingStatus = Database['public']['Enums']['booking_status'];
@@ -366,7 +366,7 @@ const WorkerDashboard = () => {
           </TabsContent>
           
           <TabsContent value="service-area" className="mt-6">
-            <ServiceAreaMap workerId={user?.id} onServiceAreaUpdate={fetchWorkerJobs} isActive={activeTab === 'service-area'} />
+            <ServiceAreaSettings />
           </TabsContent>
         </Tabs>
       </div>

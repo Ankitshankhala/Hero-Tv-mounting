@@ -99,11 +99,11 @@ serve(async (req) => {
       );
     }
 
-    // Find available workers for that zip code and time
-    const { data: candidates, error: workerError } = await supabase.rpc('find_available_workers', {
-      p_zipcode: zipCode,
-      p_scheduled_date: booking.scheduled_date,
-      p_scheduled_start: booking.scheduled_start,
+    // Use strict ZIP-based assignment only - no fallback assignments
+    const { data: candidates, error: workerError } = await supabase.rpc('find_available_workers_by_zip', {
+      p_customer_zipcode: zipCode,
+      p_date: booking.scheduled_date,
+      p_time: booking.scheduled_start,
       p_duration_minutes: 60,
     });
 
@@ -112,50 +112,39 @@ serve(async (req) => {
     }
 
     if (!candidates || candidates.length === 0) {
-      logStep('No workers available for direct assignment, trying coverage notifications', { 
+      logStep('No workers with ZIP coverage available', { 
         booking_id: booking.id,
         zipcode: zipCode,
         scheduled_date: booking.scheduled_date,
-        scheduled_start: booking.scheduled_start
+        scheduled_start: booking.scheduled_start,
+        message: 'Strict ZIP enforcement - no fallback assignment'
       });
 
-      // Try coverage notifications as fallback
-      try {
-        const { data: coverageResult, error: coverageError } = await supabase.rpc('auto_assign_workers_with_coverage', {
-          p_booking_id: booking.id
-        });
+      // Update booking to pending status for manual assignment
+      const { error: statusUpdateError } = await supabase
+        .from('bookings')
+        .update({ status: 'pending' })
+        .eq('id', booking.id);
 
-        if (coverageError) {
-          logStep('Coverage notification failed', { error: coverageError.message });
-        } else if (coverageResult && coverageResult.length > 0) {
-          const result = coverageResult[0];
-          if (result.assignment_status === 'coverage_notifications_sent') {
-            logStep('Coverage notifications sent successfully', { 
-              notifications_sent: result.notifications_sent,
-              booking_id: booking.id
-            });
-            return new Response(
-              JSON.stringify({ 
-                success: true, 
-                booking_id: booking.id,
-                message: `Coverage notifications sent to ${result.notifications_sent} workers`
-              }),
-              { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
-          }
-        }
-      } catch (coverageErr) {
-        logStep('Coverage notification error', { error: coverageErr });
+      if (statusUpdateError) {
+        logStep('Failed to update booking status', { error: statusUpdateError.message });
       }
 
       return new Response(
         JSON.stringify({ 
           success: false, 
-          message: `No workers available in area ${zipCode} for ${booking.scheduled_date} at ${booking.scheduled_start}` 
+          message: `No workers available in ZIP code ${zipCode}. Booking requires manual assignment.`,
+          booking_id: booking.id,
+          status: 'pending'
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    logStep('Found workers with ZIP coverage', { 
+      count: candidates.length,
+      zipcode: zipCode
+    });
 
     let chosenWorker = candidates[0];
     let minBookings = Infinity;

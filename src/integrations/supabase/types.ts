@@ -1355,6 +1355,14 @@ export type Database = {
           notifications_sent: number
         }[]
       }
+      auto_assign_workers_with_strict_zip_coverage: {
+        Args: { p_booking_id: string }
+        Returns: {
+          assigned_worker_id: string
+          assignment_status: string
+          notifications_sent: number
+        }[]
+      }
       backfill_worker_availability_from_applications: {
         Args: Record<PropertyKey, never>
         Returns: Json
@@ -1415,6 +1423,19 @@ export type Database = {
           worker_id: string
           worker_name: string
           worker_phone: string
+        }[]
+      }
+      find_available_workers_by_zip: {
+        Args: {
+          p_customer_zipcode: string
+          p_date: string
+          p_duration_minutes?: number
+          p_time: string
+        }
+        Returns: {
+          available_slots: number
+          distance_priority: number
+          worker_id: string
         }[]
       }
       find_available_workers_polygon: {
@@ -1487,6 +1508,10 @@ export type Database = {
         Args: { state_abbreviation: string }
         Returns: number
       }
+      get_worker_active_zipcodes: {
+        Args: { p_worker_id: string }
+        Returns: string[]
+      }
       get_worker_weekly_availability: {
         Args: { p_worker_id: string }
         Returns: Json
@@ -1535,6 +1560,10 @@ export type Database = {
       }
       set_worker_weekly_availability: {
         Args: { p_availability: Json; p_worker_id: string }
+        Returns: boolean
+      }
+      toggle_service_area_status: {
+        Args: { p_area_id: string; p_is_active: boolean }
         Returns: boolean
       }
       trigger_email_followups: {

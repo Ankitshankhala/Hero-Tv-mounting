@@ -127,18 +127,46 @@ export const useWorkerServiceAreas = (workerId?: string) => {
     }
   }, [toast, fetchServiceAreas]);
 
-  const getActiveServiceArea = useCallback(() => {
-    return serviceAreas.find(area => area.is_active) || null;
+  const getActiveServiceAreas = useCallback(() => {
+    return serviceAreas.filter(area => area.is_active);
   }, [serviceAreas]);
 
   const getActiveZipcodes = useCallback(() => {
-    const activeArea = getActiveServiceArea();
-    if (!activeArea) return [];
+    const activeAreas = getActiveServiceAreas();
+    if (!activeAreas.length) return [];
 
     return serviceZipcodes
-      .filter(zip => zip.service_area_id === activeArea.id)
+      .filter(zip => activeAreas.some(area => area.id === zip.service_area_id))
       .map(zip => zip.zipcode);
-  }, [serviceAreas, serviceZipcodes, getActiveServiceArea]);
+  }, [serviceAreas, serviceZipcodes, getActiveServiceAreas]);
+
+  const toggleServiceAreaStatus = useCallback(async (areaId: string, isActive: boolean) => {
+    try {
+      const { error } = await supabase.rpc('toggle_service_area_status', {
+        p_area_id: areaId,
+        p_is_active: isActive
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: `Service area ${isActive ? 'activated' : 'deactivated'}`,
+      });
+
+      await fetchServiceAreas();
+      return true;
+
+    } catch (error) {
+      console.error('Error toggling service area:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update service area status",
+        variant: "destructive",
+      });
+      return false;
+    }
+  }, [toast, fetchServiceAreas]);
 
   return {
     serviceAreas,
@@ -147,7 +175,8 @@ export const useWorkerServiceAreas = (workerId?: string) => {
     fetchServiceAreas,
     createServiceArea,
     deleteServiceArea,
-    getActiveServiceArea,
-    getActiveZipcodes
+    getActiveServiceAreas,
+    getActiveZipcodes,
+    toggleServiceAreaStatus
   };
 };

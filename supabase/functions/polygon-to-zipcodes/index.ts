@@ -113,9 +113,10 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { polygon, workerId, areaName = 'Service Area' } = await req.json();
+    const { polygon, workerId, areaName = 'Service Area', zipcodesOnly } = await req.json();
 
-    if (!polygon || !Array.isArray(polygon) || polygon.length < 3) {
+    // Allow either polygon or zipcodesOnly
+    if (!zipcodesOnly && (!polygon || !Array.isArray(polygon) || polygon.length < 3)) {
       throw new Error('Invalid polygon: must have at least 3 points');
     }
 
@@ -125,8 +126,15 @@ serve(async (req) => {
 
     console.log(`Processing polygon for worker ${workerId} with ${polygon.length} points`);
 
-    // Find zipcodes within the polygon
-    const zipcodes = await findZipcodesInPolygon(polygon);
+    // Find zipcodes within the polygon or use provided ZIP codes
+    let zipcodes: string[];
+    if (zipcodesOnly && Array.isArray(zipcodesOnly)) {
+      zipcodes = zipcodesOnly.filter((zip: string) => /^\d{5}$/.test(zip));
+      console.log(`Using provided ZIP codes: ${zipcodes.length} valid ZIPs`);
+    } else {
+      zipcodes = await findZipcodesInPolygon(polygon);
+      console.log(`Found ${zipcodes.length} zipcodes in polygon`);
+    }
     
     if (zipcodes.length === 0) {
       throw new Error('No zipcodes found within the specified area');
@@ -134,14 +142,16 @@ serve(async (req) => {
 
     console.log(`Found ${zipcodes.length} zipcodes:`, zipcodes);
 
-    // Start transaction - deactivate existing areas
-    const { error: deactivateError } = await supabase
-      .from('worker_service_areas')
-      .update({ is_active: false })
-      .eq('worker_id', workerId);
+    // For polygon areas, deactivate existing areas. For ZIP-only areas, keep existing areas active
+    if (!zipcodesOnly) {
+      const { error: deactivateError } = await supabase
+        .from('worker_service_areas')
+        .update({ is_active: false })
+        .eq('worker_id', workerId);
 
-    if (deactivateError) {
-      throw new Error(`Failed to deactivate existing areas: ${deactivateError.message}`);
+      if (deactivateError) {
+        throw new Error(`Failed to deactivate existing areas: ${deactivateError.message}`);
+      }
     }
 
     // Create new service area
@@ -150,7 +160,7 @@ serve(async (req) => {
       .insert({
         worker_id: workerId,
         area_name: areaName,
-        polygon_coordinates: polygon,
+        polygon_coordinates: zipcodesOnly ? null : polygon,
         is_active: true
       })
       .select()
@@ -160,14 +170,16 @@ serve(async (req) => {
       throw new Error(`Failed to create service area: ${areaError.message}`);
     }
 
-    // Delete existing zipcode mappings for this worker
-    const { error: deleteZipError } = await supabase
-      .from('worker_service_zipcodes')
-      .delete()
-      .eq('worker_id', workerId);
+    // For polygon areas, delete all existing zipcode mappings. For ZIP-only areas, keep existing mappings
+    if (!zipcodesOnly) {
+      const { error: deleteZipError } = await supabase
+        .from('worker_service_zipcodes')
+        .delete()
+        .eq('worker_id', workerId);
 
-    if (deleteZipError) {
-      console.warn('Failed to delete existing zipcodes:', deleteZipError.message);
+      if (deleteZipError) {
+        console.warn('Failed to delete existing zipcodes:', deleteZipError.message);
+      }
     }
 
     // Insert new zipcode mappings
