@@ -22,8 +22,12 @@ serve(async (req) => {
     
     const { bookingId, amount, customerEmail, customerName, paymentMethodId } = await req.json();
     
-    if (!bookingId || !amount || !customerEmail) {
-      throw new Error('Booking ID, amount, and customer email are required');
+    if (!bookingId || !amount || !customerEmail || !customerName) {
+      throw new Error('Booking ID, amount, customer email, and customer name are required');
+    }
+
+    if (!paymentMethodId) {
+      throw new Error('Payment method ID is required');
     }
 
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
@@ -66,6 +70,27 @@ serve(async (req) => {
     }
     
     logStep('Converting amount', { originalAmount: amount, amountInCents });
+
+    // Verify and attach payment method to customer
+    try {
+      const paymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
+      logStep('Retrieved payment method', { 
+        paymentMethodId, 
+        customer: paymentMethod.customer,
+        type: paymentMethod.type 
+      });
+
+      // Attach payment method to customer if not already attached
+      if (paymentMethod.customer !== customerId) {
+        await stripe.paymentMethods.attach(paymentMethodId, {
+          customer: customerId,
+        });
+        logStep('Attached payment method to customer', { paymentMethodId, customerId });
+      }
+    } catch (attachError) {
+      logStep('Failed to attach payment method', { error: attachError.message });
+      throw new Error(`Payment method setup failed: ${attachError.message}`);
+    }
 
     // Create payment intent
     const paymentIntent = await stripe.paymentIntents.create({
@@ -117,9 +142,27 @@ serve(async (req) => {
 
   } catch (error) {
     logStep('Error processing online payment', { error: error.message });
+    
+    // Enhanced error handling for Stripe errors
+    let errorMessage = error.message;
+    let errorCode = 'payment_processing_failed';
+    
+    if (error.type === 'StripeCardError') {
+      errorCode = error.code || 'card_error';
+      errorMessage = error.message;
+    } else if (error.type === 'StripeInvalidRequestError') {
+      errorCode = 'invalid_request';
+      errorMessage = error.message;
+    } else if (error.type === 'StripeAuthenticationError') {
+      errorCode = 'authentication_error';
+      errorMessage = 'Payment authentication failed';
+    }
+    
     return new Response(JSON.stringify({
       success: false,
-      error: error.message
+      error: errorMessage,
+      errorCode,
+      details: error.type || 'unknown_error'
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

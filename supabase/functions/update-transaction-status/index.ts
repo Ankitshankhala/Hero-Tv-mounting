@@ -8,7 +8,7 @@ const corsHeaders = {
 
 interface UpdateTransactionRequest {
   payment_intent_id: string;
-  status: 'authorized' | 'paid' | 'failed';
+  status: 'authorized' | 'paid' | 'failed' | 'requires_capture' | 'succeeded' | 'completed';
 }
 
 const logStep = (step: string, details?: Record<string, unknown>) => {
@@ -45,7 +45,21 @@ serve(async (req) => {
       );
     }
 
-    logStep("Updating transaction status", { payment_intent_id, status });
+    // Normalize status from Stripe to our system
+    let normalizedStatus = status;
+    if (status === 'requires_capture') {
+      normalizedStatus = 'authorized';
+    } else if (status === 'succeeded') {
+      normalizedStatus = 'completed';
+    } else if (status === 'paid') {
+      normalizedStatus = 'completed';
+    }
+
+    logStep("Updating transaction status", { 
+      payment_intent_id, 
+      original_status: status, 
+      normalized_status: normalizedStatus 
+    });
 
     // Find the transaction
     const { data: transaction, error: findError } = await supabaseClient
@@ -72,15 +86,15 @@ serve(async (req) => {
       let bookingStatus: string | undefined;
       let paymentStatus: string;
 
-      if (status === 'authorized') {
+      if (normalizedStatus === 'authorized') {
         bookingStatus = 'payment_authorized';
         paymentStatus = 'authorized';
-      } else if (status === 'completed' || status === 'captured') {
+      } else if (normalizedStatus === 'completed' || normalizedStatus === 'captured') {
         bookingStatus = 'confirmed';
-        paymentStatus = status;
-      } else if (status === 'paid') {
-        bookingStatus = 'confirmed';
-        paymentStatus = 'completed';
+        paymentStatus = normalizedStatus === 'completed' ? 'completed' : 'captured';
+      } else if (normalizedStatus === 'failed') {
+        bookingStatus = 'failed';
+        paymentStatus = 'failed';
       }
 
       if (bookingStatus) {
@@ -119,17 +133,17 @@ serve(async (req) => {
       }
     }
 
-    // Step 2: Update transaction status
+    // Step 2: Update transaction status with normalized status
     const { error: updateError } = await supabaseClient
       .from('transactions')
-      .update({ status })
+      .update({ status: normalizedStatus })
       .eq('payment_intent_id', payment_intent_id);
 
     if (updateError) {
       logStep("Failed to update transaction", { error: updateError.message });
       
       // For authorization flows, try a fallback approach
-      if (status === 'authorized') {
+      if (normalizedStatus === 'authorized') {
         logStep("Attempting fallback for authorization flow");
         
         // Wait a moment for database consistency
@@ -137,7 +151,7 @@ serve(async (req) => {
         
         const { error: retryError } = await supabaseClient
           .from('transactions')
-          .update({ status })
+          .update({ status: normalizedStatus })
           .eq('payment_intent_id', payment_intent_id);
           
         if (retryError) {
@@ -147,7 +161,7 @@ serve(async (req) => {
               error: 'Failed to update transaction status',
               details: retryError.message,
               success: false,
-              requires_capture: status === 'authorized' // Indicate payment needs capture
+              requires_capture: normalizedStatus === 'authorized' // Indicate payment needs capture
             }),
             {
               status: 500,
@@ -171,7 +185,8 @@ serve(async (req) => {
     logStep("Transaction status updated successfully", {
       transaction_id: transaction.id,
       old_status: transaction.status,
-      new_status: status,
+      new_status: normalizedStatus,
+      original_status: status,
       booking_id: transaction.booking_id
     });
 
@@ -180,7 +195,7 @@ serve(async (req) => {
         success: true, 
         transaction_id: transaction.id,
         old_status: transaction.status,
-        new_status: status
+        new_status: normalizedStatus
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

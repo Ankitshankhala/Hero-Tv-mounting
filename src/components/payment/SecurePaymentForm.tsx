@@ -94,6 +94,12 @@ export const SecurePaymentForm = ({
         let paymentMethodId = '';
   
         if (paymentMethod === 'card') {
+          // Validate required data for card payments
+          if (!stripe || !cardElement) {
+            onPaymentFailure('Payment form not ready. Please try again.');
+            return;
+          }
+
           // Create payment method with Stripe
           const { error, paymentMethod: stripePaymentMethod } = await stripe.createPaymentMethod({
             type: 'card',
@@ -107,13 +113,21 @@ export const SecurePaymentForm = ({
   
           paymentMethodId = stripePaymentMethod.id;
         }
+
+        // Validate we have payment method ID for card payments
+        if (paymentMethod === 'card' && !paymentMethodId) {
+          onPaymentFailure('No payment method selected. Please select a payment method.');
+          return;
+        }
   
-        // Process the payment
+        // Process the payment with required customer information
         const paymentFunction = () => processOnlinePayment({
           bookingId,
           customerId,
           amount,
           paymentMethodId,
+          customerEmail, // Pass customer email
+          customerName,  // Pass customer name
           description: `Booking payment - $${amount.toFixed(2)}`
         });
   
