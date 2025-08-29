@@ -214,7 +214,7 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
                     <span className="sr-only">{paymentStatus.text}</span>
                   </div>
                 </div>
-                <div className="text-sm font-medium text-foreground min-w-0 flex-1">
+                <div className="text-sm font-medium text-foreground min-w-0 flex-1 truncate whitespace-nowrap">
                   {getCustomerName()}
                 </div>
               </div>
@@ -272,29 +272,31 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
 
           {/* Right: Quick Actions and Expand */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onCall();
-              }}
-              className="h-8 w-8 p-0"
-            >
-              <Phone className="h-4 w-4" />
-            </Button>
-            
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDirections();
-              }}
-              className="h-8 w-8 p-0"
-            >
-              <MapPin className="h-4 w-4" />
-            </Button>
+            <div className="flex flex-col gap-1 sm:flex-row sm:gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCall();
+                }}
+                className="h-8 w-8 p-0"
+              >
+                <Phone className="h-4 w-4" />
+              </Button>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDirections();
+                }}
+                className="h-8 w-8 p-0"
+              >
+                <MapPin className="h-4 w-4" />
+              </Button>
+            </div>
             
             <Button
               variant="ghost"
