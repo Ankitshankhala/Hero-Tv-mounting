@@ -41,6 +41,7 @@ export const ServiceAreaSettings: React.FC = () => {
   const [zipSearchTerm, setZipSearchTerm] = useState('');
   const [savingZips, setSavingZips] = useState(false);
   const [savingSingle, setSavingSingle] = useState(false);
+  const [activeTab, setActiveTab] = useState('areas');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -176,7 +177,7 @@ export const ServiceAreaSettings: React.FC = () => {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="areas" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="areas" className="flex items-center gap-2">
               <MapPin className="h-4 w-4" />
@@ -199,7 +200,11 @@ export const ServiceAreaSettings: React.FC = () => {
               </div>
               
               {/* Map Component */}
-              <ServiceAreaMap workerId={user?.id} onServiceAreaUpdate={fetchServiceAreas} />
+              <ServiceAreaMap 
+                workerId={user?.id} 
+                onServiceAreaUpdate={fetchServiceAreas} 
+                isActive={activeTab === 'areas'}
+              />
               
               {/* Service Areas List */}
               {serviceAreas.length > 0 && (

@@ -188,22 +188,34 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, isActive }: ServiceArea
 
       setServiceAreas(data || []);
       
-      // Display active area on map when a polygon exists
-      if (data && data.length > 0) {
-        const activeArea = data.find(area => area.is_active);
-        if (activeArea && mapRef.current && drawnItemsRef.current) {
-          const coords = activeArea.polygon_coordinates as Array<{ lat: number; lng: number }> | null;
+      // Display all active area polygons on map
+      if (data && data.length > 0 && mapRef.current && drawnItemsRef.current) {
+        drawnItemsRef.current.clearLayers();
+        
+        const activeAreas = data.filter(area => area.is_active);
+        let hasPolygons = false;
+        
+        activeAreas.forEach(area => {
+          const coords = area.polygon_coordinates as Array<{ lat: number; lng: number }> | null;
           if (Array.isArray(coords) && coords.length >= 3) {
-            displayPolygonOnMap(coords, activeArea);
-          } else {
-            // Gracefully handle ZIP-only areas without polygons
-            drawnItemsRef.current.clearLayers();
-            setCurrentPolygon(null);
-            setEditingArea(activeArea);
-            setAreaName(activeArea.area_name);
-            // Keep map visible with default view
-            mapRef.current.setView([32.7767, -96.7970], 10);
+            hasPolygons = true;
+            const latLngs = coords.map(coord => [coord.lat, coord.lng] as [number, number]);
+            const polygon = L.polygon(latLngs, {
+              color: '#3b82f6',
+              fillColor: '#3b82f6',
+              fillOpacity: 0.3
+            });
+            drawnItemsRef.current!.addLayer(polygon);
           }
+        });
+        
+        // Fit map to show all polygons or keep default view
+        if (hasPolygons && drawnItemsRef.current.getLayers().length > 0) {
+          const group = L.featureGroup(drawnItemsRef.current.getLayers());
+          mapRef.current.fitBounds(group.getBounds());
+        } else {
+          // Handle ZIP-only areas or no areas - keep default view
+          mapRef.current.setView([32.7767, -96.7970], 10);
         }
       }
     } catch (error) {
