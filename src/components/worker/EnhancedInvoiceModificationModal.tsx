@@ -381,15 +381,68 @@ export const EnhancedInvoiceModificationModal = ({
 
       if (logError) console.error('Error logging modification:', logError);
 
-      toast({
-        title: "Success",
-        description: `Invoice modified successfully. ${difference >= 0 ? 'Additional' : 'Refund'} amount: $${Math.abs(difference).toFixed(2)}`,
-      });
-
-      // If there's a positive difference (additional charges), show payment modal
+      // If there's a positive difference (additional charges), try card-on-file first
       if (difference > 0) {
+        // Check if customer has saved payment method
+        const hasCardOnFile = job.customer?.has_saved_card && job.customer?.stripe_default_payment_method_id;
+        
+        if (hasCardOnFile) {
+          console.log('Customer has card on file, attempting automatic charge...');
+          try {
+            // Attempt automatic charge with card-on-file
+            const { data: paymentData, error: paymentError } = await supabase.functions.invoke('process-invoice-modification-payment', {
+              body: {
+                bookingId: job.id,
+                useCardOnFile: true
+              }
+            });
+
+            if (paymentError) throw paymentError;
+
+            if (paymentData?.success && paymentData?.used_card_on_file) {
+              // Successful card-on-file payment
+              toast({
+                title: "Payment Successful",
+                description: `Successfully charged $${difference.toFixed(2)} using saved payment method`,
+              });
+
+              // Trigger invoice update
+              try {
+                await supabase.functions.invoke('update-invoice', {
+                  body: {
+                    booking_id: job.id,
+                    send_email: true
+                  }
+                });
+              } catch (invoiceError) {
+                console.error('Invoice update failed:', invoiceError);
+              }
+
+              onModificationCreated();
+              onClose();
+              return;
+            } else {
+              // Card-on-file failed, fall back to payment modal
+              console.log('Card-on-file payment failed, showing payment modal...');
+            }
+          } catch (cofError) {
+            console.error('Card-on-file payment error:', cofError);
+            // Continue to payment modal as fallback
+          }
+        }
+
+        // Show payment modal as fallback or if no card-on-file
+        toast({
+          title: "Success", 
+          description: `Invoice modified successfully. Additional amount: $${difference.toFixed(2)}`,
+        });
         setShowPaymentModal(true);
       } else {
+        // No additional payment needed
+        toast({
+          title: "Success",
+          description: difference < 0 ? `Invoice modified successfully. Refund amount: $${Math.abs(difference).toFixed(2)}` : "Invoice modified successfully",
+        });
         onModificationCreated();
         onClose();
       }

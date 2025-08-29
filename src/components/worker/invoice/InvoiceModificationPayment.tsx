@@ -30,13 +30,13 @@ export const InvoiceModificationPayment = ({
   const handleExistingPaymentMethod = async () => {
     setProcessing(true);
     try {
-      console.log('Attempting to charge existing payment method for booking:', job.id);
+      console.log('Attempting to charge with card-on-file for booking:', job.id);
       
-      // Try to process payment with existing payment method
+      // Try to process payment with card-on-file
       const { data, error } = await supabase.functions.invoke('process-invoice-modification-payment', {
         body: {
           bookingId: job.id,
-          paymentMethodId: job.stripe_payment_method_id
+          useCardOnFile: true
         }
       });
 
@@ -49,10 +49,17 @@ export const InvoiceModificationPayment = ({
         throw new Error(data?.error || 'Payment processing failed');
       }
 
-      toast({
-        title: "Payment Successful",
-        description: `Successfully charged $${pendingAmount.toFixed(2)} for additional services`,
-      });
+      if (data.used_card_on_file) {
+        toast({
+          title: "Payment Successful",
+          description: `Successfully charged $${pendingAmount.toFixed(2)} using saved payment method`,
+        });
+      } else {
+        toast({
+          title: "Payment Successful", 
+          description: `Successfully charged $${pendingAmount.toFixed(2)} for additional services`,
+        });
+      }
 
       // Trigger invoice update after successful payment
       try {
@@ -81,7 +88,7 @@ export const InvoiceModificationPayment = ({
       console.error('Error processing payment:', error);
       toast({
         title: "Payment Failed",
-        description: error instanceof Error ? error.message : 'Failed to process payment with existing method',
+        description: error instanceof Error ? error.message : 'Failed to process payment with saved method',
         variant: "destructive",
       });
       
@@ -137,7 +144,7 @@ export const InvoiceModificationPayment = ({
     }
   };
 
-  const hasExistingPaymentMethod = job.stripe_payment_method_id && job.stripe_customer_id;
+  const hasExistingPaymentMethod = job.customer?.has_saved_card && job.customer?.stripe_default_payment_method_id;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -189,7 +196,7 @@ export const InvoiceModificationPayment = ({
                       ) : (
                         <>
                           <CreditCard className="mr-2 h-4 w-4" />
-                          Charge Existing Card
+                          Charge Saved Card
                         </>
                       )}
                     </Button>

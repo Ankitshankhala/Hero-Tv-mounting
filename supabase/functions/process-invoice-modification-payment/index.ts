@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { bookingId, paymentMethodId } = await req.json();
+    const { bookingId, paymentMethodId, useCardOnFile = true } = await req.json();
 
     if (!bookingId) {
       throw new Error("Booking ID is required");
@@ -31,12 +31,12 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    // Get booking details
+    // Get booking details including customer payment info
     const { data: booking, error: bookingError } = await supabaseAdmin
       .from('bookings')
       .select(`
         *,
-        customer:users!bookings_customer_id_fkey(name, email)
+        customer:users!bookings_customer_id_fkey(name, email, stripe_customer_id, stripe_default_payment_method_id, has_saved_card)
       `)
       .eq('id', bookingId)
       .single();
@@ -52,38 +52,70 @@ serve(async (req) => {
     }
 
     let paymentIntent;
+    let usedCardOnFile = false;
 
-    if (paymentMethodId) {
-      // Process immediate charge with provided payment method
-      paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(pendingAmount * 100), // Convert to cents
-        currency: "usd",
-        payment_method: paymentMethodId,
-        confirm: true,
-        automatic_payment_methods: {
-          enabled: true,
-          allow_redirects: "never",
-        },
-        metadata: {
-          booking_id: bookingId,
-          type: "invoice_modification",
-        },
-        description: `Invoice modification for booking ${bookingId.slice(0, 8)}`,
-      });
-    } else {
-      // Create payment intent for later confirmation
-      paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(pendingAmount * 100), // Convert to cents
-        currency: "usd",
-        automatic_payment_methods: {
-          enabled: true,
-        },
-        metadata: {
-          booking_id: bookingId,
-          type: "invoice_modification",
-        },
-        description: `Invoice modification for booking ${bookingId.slice(0, 8)}`,
-      });
+    // Try to use card-on-file first if available and requested
+    if (useCardOnFile && booking.customer?.has_saved_card && booking.customer?.stripe_default_payment_method_id) {
+      console.log(`Attempting card-on-file payment for booking ${bookingId}`);
+      try {
+        // Process off-session charge with saved payment method
+        paymentIntent = await stripe.paymentIntents.create({
+          amount: Math.round(pendingAmount * 100), // Convert to cents
+          currency: "usd",
+          customer: booking.customer.stripe_customer_id,
+          payment_method: booking.customer.stripe_default_payment_method_id,
+          confirm: true,
+          off_session: true, // For off-session payments
+          metadata: {
+            booking_id: bookingId,
+            type: "invoice_modification_cof",
+          },
+          description: `Invoice modification for booking ${bookingId.slice(0, 8)} (Card on File)`,
+        });
+        
+        usedCardOnFile = true;
+        console.log(`Card-on-file payment successful for booking ${bookingId}`);
+      } catch (cofError) {
+        console.log(`Card-on-file payment failed for booking ${bookingId}:`, cofError.message);
+        // Fall back to payment intent creation for manual processing
+        paymentIntent = null;
+      }
+    }
+
+    // If card-on-file failed or wasn't available, handle accordingly
+    if (!paymentIntent) {
+      if (paymentMethodId) {
+        // Process immediate charge with provided payment method
+        paymentIntent = await stripe.paymentIntents.create({
+          amount: Math.round(pendingAmount * 100), // Convert to cents
+          currency: "usd",
+          payment_method: paymentMethodId,
+          confirm: true,
+          automatic_payment_methods: {
+            enabled: true,
+            allow_redirects: "never",
+          },
+          metadata: {
+            booking_id: bookingId,
+            type: "invoice_modification",
+          },
+          description: `Invoice modification for booking ${bookingId.slice(0, 8)}`,
+        });
+      } else {
+        // Create payment intent for later confirmation (payment link scenario)
+        paymentIntent = await stripe.paymentIntents.create({
+          amount: Math.round(pendingAmount * 100), // Convert to cents
+          currency: "usd",
+          automatic_payment_methods: {
+            enabled: true,
+          },
+          metadata: {
+            booking_id: bookingId,
+            type: "invoice_modification",
+          },
+          description: `Invoice modification for booking ${bookingId.slice(0, 8)}`,
+        });
+      }
     }
 
     // Update booking with payment intent
@@ -122,6 +154,8 @@ serve(async (req) => {
           status: paymentIntent.status,
         },
         amount: pendingAmount,
+        used_card_on_file: usedCardOnFile,
+        requires_action: paymentIntent.status === 'requires_action',
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
