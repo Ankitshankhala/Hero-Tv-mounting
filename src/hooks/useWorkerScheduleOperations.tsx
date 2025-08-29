@@ -44,7 +44,8 @@ export const useWorkerScheduleOperations = (workerId?: string) => {
         result = await supabase
           .from('worker_schedule')
           .update({
-            end_time: scheduleData.endTime
+            end_time: scheduleData.endTime,
+            is_available: scheduleData.isAvailable
           })
           .eq('id', existingSchedule.id)
           .select();
@@ -56,7 +57,8 @@ export const useWorkerScheduleOperations = (workerId?: string) => {
             worker_id: targetWorkerId,
             work_date: scheduleData.date,
             start_time: scheduleData.startTime,
-            end_time: scheduleData.endTime
+            end_time: scheduleData.endTime,
+            is_available: scheduleData.isAvailable
           })
           .select();
       }

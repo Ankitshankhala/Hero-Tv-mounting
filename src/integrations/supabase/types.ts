@@ -1239,6 +1239,7 @@ export type Database = {
           created_at: string | null
           end_time: string
           id: string
+          is_available: boolean
           start_time: string
           work_date: string
           worker_id: string
@@ -1247,6 +1248,7 @@ export type Database = {
           created_at?: string | null
           end_time: string
           id?: string
+          is_available?: boolean
           start_time: string
           work_date: string
           worker_id: string
@@ -1255,6 +1257,7 @@ export type Database = {
           created_at?: string | null
           end_time?: string
           id?: string
+          is_available?: boolean
           start_time?: string
           work_date?: string
           worker_id?: string
