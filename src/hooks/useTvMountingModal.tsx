@@ -79,8 +79,13 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
 
   const totalPrice = useMemo(() => {
     if (isTestingMode) {
-      console.log('TV Mounting - Testing mode active, returning $1 total');
-      return 1;
+      // In test mode, calculate total based on number of selected configurations
+      const selectedConfigs = tvConfigurations.filter(config => 
+        config.over65 || config.frameMount || config.wallType !== 'standard' || config.soundbar
+      );
+      const totalItems = 1 + selectedConfigs.length; // Base service + addons
+      console.log(`TV Mounting - Testing mode active, ${totalItems} items, returning $${totalItems} total`);
+      return totalItems;
     }
 
     let price = calculateTvMountingPrice(numberOfTvs);
@@ -115,7 +120,8 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
       return selectedServices;
     }
     
-    const basePrice = isTestingMode ? 1 : calculateTvMountingPrice(numberOfTvs);
+    let serviceIndex = 0;
+    const basePrice = isTestingMode ? (serviceIndex + 1) : calculateTvMountingPrice(numberOfTvs);
     console.log(`TV Mounting buildServicesList - Testing mode: ${isTestingMode}, Base price: $${basePrice}`);
     
     selectedServices.push({
@@ -124,22 +130,24 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
       price: basePrice,
       quantity: 1
     });
+    serviceIndex++;
 
-    // Skip add-ons in testing mode since everything is $1 total
+    // In testing mode, include add-ons with incremental pricing
     if (isTestingMode) {
-      console.log('TV Mounting - Testing mode: Skipping add-on services');
-      return selectedServices;
+      console.log('TV Mounting - Testing mode: Including add-ons with incremental pricing');
     }
 
     const over65Count = tvConfigurations.filter(config => config.over65).length;
     if (over65Count > 0) {
       if (over65Service?.id) {
+        const price = isTestingMode ? (serviceIndex + 1) : (over65Service.base_price * over65Count);
         selectedServices.push({
           id: over65Service.id,
           name: `Over 65" TV Add-on${over65Count > 1 ? ` (${over65Count} TVs)` : ''}`,
-          price: over65Service.base_price * over65Count,
+          price: price,
           quantity: 1
         });
+        serviceIndex++;
       } else {
         console.warn('Over 65" TV Add-on service not found in database, skipping');
       }
@@ -148,12 +156,14 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
     const frameMountCount = tvConfigurations.filter(config => config.frameMount).length;
     if (frameMountCount > 0) {
       if (frameMountService?.id) {
+        const price = isTestingMode ? (serviceIndex + 1) : (frameMountService.base_price * frameMountCount);
         selectedServices.push({
           id: frameMountService.id,
           name: `Frame Mount Add-on${frameMountCount > 1 ? ` (${frameMountCount} TVs)` : ''}`,
-          price: frameMountService.base_price * frameMountCount,
+          price: price,
           quantity: 1
         });
+        serviceIndex++;
       } else {
         console.warn('Frame Mount Add-on service not found in database, skipping');
       }
@@ -163,12 +173,14 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
     if (specialWallCount > 0) {
       if (stoneWallService?.id) {
         const wallTypes = [...new Set(tvConfigurations.filter(config => config.wallType !== 'standard').map(config => config.wallType))];
+        const price = isTestingMode ? (serviceIndex + 1) : (stoneWallService.base_price * specialWallCount);
         selectedServices.push({
           id: stoneWallService.id,
           name: `Special Wall Service (${wallTypes.join(', ')})${specialWallCount > 1 ? ` (${specialWallCount} TVs)` : ''}`,
-          price: stoneWallService.base_price * specialWallCount,
+          price: price,
           quantity: 1
         });
+        serviceIndex++;
       } else {
         console.warn('Stone/Brick/Tile Wall service not found in database, skipping');
       }
@@ -179,12 +191,14 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
       // Find the specific Mount Soundbar service
       const soundbarService = allServices.find(s => s.name === 'Mount Soundbar');
       if (soundbarService?.id) {
+        const price = isTestingMode ? (serviceIndex + 1) : (soundbarService.base_price * soundbarCount);
         selectedServices.push({
           id: soundbarService.id,
           name: `Soundbar Mount${soundbarCount > 1 ? ` (${soundbarCount} soundbars)` : ''}`,
-          price: soundbarService.base_price * soundbarCount,
+          price: price,
           quantity: 1
         });
+        serviceIndex++;
       } else {
         console.warn('⚠️ Mount Soundbar service not found in database, skipping');
       }

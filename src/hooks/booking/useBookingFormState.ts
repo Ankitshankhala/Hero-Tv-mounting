@@ -41,8 +41,8 @@ export const useBookingFormState = (selectedServices: ServiceItem[] = []) => {
   };
 
   const getTotalPrice = () => {
-    return services.reduce((total, service) => {
-      const effectivePrice = getEffectiveServicePrice(service.price, isTestingMode);
+    return services.reduce((total, service, index) => {
+      const effectivePrice = getEffectiveServicePrice(service.price, isTestingMode, index);
       console.log(`Testing mode: ${isTestingMode}, Service: ${service.name}, Original: $${service.price}, Effective: $${effectivePrice}`);
       return total + (effectivePrice * service.quantity);
     }, 0);

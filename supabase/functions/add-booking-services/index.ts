@@ -80,9 +80,9 @@ serve(async (req) => {
       servicesMap.set(svc.id, svc);
     }
 
-    const bookingServices = services.map((svc) => {
+    const bookingServices = services.map((svc, index) => {
       const details = servicesMap.get(svc.service_id);
-      const effectivePrice = testing_mode ? 1 : (details?.base_price || 0);
+      const effectivePrice = testing_mode ? (index + 1) : (details?.base_price || 0);
       return {
         booking_id,
         service_id: svc.service_id,

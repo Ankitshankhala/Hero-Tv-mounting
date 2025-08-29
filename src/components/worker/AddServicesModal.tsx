@@ -59,7 +59,7 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
       // For other services, just add to cart
       const service = services.find(s => s.id === serviceId);
       if (service) {
-        const effectivePrice = getEffectiveServicePrice(service.base_price, isTestingMode);
+        const effectivePrice = getEffectiveServicePrice(service.base_price, isTestingMode, cart.length);
         const serviceItem = {
           id: serviceId,
           name: serviceName,
@@ -322,11 +322,11 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {services.map((service) => (
-                  <ServiceCard 
+                   <ServiceCard 
                     key={service.id}
                     id={service.id}
                     name={service.name}
-                    price={getEffectiveServicePrice(service.base_price, isTestingMode)}
+                    price={getEffectiveServicePrice(service.base_price, isTestingMode, cart.length)}
                     image={service.image_url || getServiceImage(service.name)}
                     description={service.description || `Professional ${service.name.toLowerCase()} service`}
                     onAddToCart={() => handleServiceClick(service.id, service.name)}
