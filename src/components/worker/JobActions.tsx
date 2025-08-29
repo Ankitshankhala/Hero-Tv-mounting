@@ -1,10 +1,12 @@
-import React from 'react';
-import { Trash2, Phone, MapPin, CreditCard, DollarSign, Plus } from 'lucide-react';
+import React, { useState } from 'react';
+import { Trash2, Phone, MapPin, CreditCard, DollarSign, Plus, Users, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PaymentCaptureButton } from './PaymentCaptureButton';
 import { initiatePhoneCall } from '@/utils/phoneUtils';
 import { MapAppSelector } from './MapAppSelector';
+import { ReassignJobModal } from './ReassignJobModal';
+import { RescheduleJobModal } from './RescheduleJobModal';
 interface JobActionsProps {
   job: any;
   onStatusUpdate: (jobId: string, newStatus: string) => void;
@@ -13,6 +15,7 @@ interface JobActionsProps {
   onCaptureSuccess?: () => void;
   onAddServicesClick?: () => void;
   onModifyServicesClick?: () => void;
+  onJobUpdated?: () => void;
 }
 const JobActions = ({
   job,
@@ -21,8 +24,11 @@ const JobActions = ({
   onChargeClick,
   onCaptureSuccess,
   onAddServicesClick,
-  onModifyServicesClick
+  onModifyServicesClick,
+  onJobUpdated
 }: JobActionsProps) => {
+  const [showReassignModal, setShowReassignModal] = useState(false);
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const callCustomer = (phone: string) => {
     initiatePhoneCall(phone);
   };
@@ -43,6 +49,7 @@ const JobActions = ({
   const canAddServices = job.status === 'confirmed' || job.status === 'in_progress';
   const canModifyServices = job.status === 'confirmed' || job.status === 'in_progress';
   const isPaymentPaid = job.payment_status === 'captured' || job.payment_status === 'completed';
+  const canReassignOrReschedule = job.status !== 'completed' && job.status !== 'cancelled';
   const getValidNextStatuses = (currentStatus: string) => {
     switch (currentStatus) {
       case 'pending':
@@ -125,12 +132,66 @@ const JobActions = ({
             <Trash2 className="h-4 w-4 mr-2" />
             Remove Services
           </Button>}
+
+        {/* Worker Management Actions */}
+        {canReassignOrReschedule && (
+          <>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={() => setShowReassignModal(true)}
+              className="border-action-warning text-action-warning hover:bg-action-warning hover:text-white transition-all duration-200"
+            >
+              <Users className="h-4 w-4 mr-2" />
+              Reassign Job
+            </Button>
+            
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={() => setShowRescheduleModal(true)}
+              className="border-action-info text-action-info hover:bg-action-info hover:text-white transition-all duration-200"
+            >
+              <Clock className="h-4 w-4 mr-2" />
+              Change Time
+            </Button>
+          </>
+        )}
       </div>
       
       {/* Status Update Section */}
       <div className="mt-4 pt-4 border-t border-worker-border/50">
-        
+        {canReassignOrReschedule && (
+          <div className="bg-muted/50 p-3 rounded-md">
+            <p className="text-sm text-muted-foreground">
+              💡 <strong>Tip:</strong> If you're not able to complete this job at the scheduled time, you can change the time or reassign it to another technician using the buttons above.
+            </p>
+          </div>
+        )}
       </div>
+
+      {/* Modals */}
+      <ReassignJobModal
+        isOpen={showReassignModal}
+        onClose={() => setShowReassignModal(false)}
+        bookingId={job.id}
+        onSuccess={() => {
+          onJobUpdated?.();
+          setShowReassignModal(false);
+        }}
+      />
+      
+      <RescheduleJobModal
+        isOpen={showRescheduleModal}
+        onClose={() => setShowRescheduleModal(false)}
+        bookingId={job.id}
+        currentDate={job.scheduled_date}
+        currentTime={job.scheduled_start}
+        onSuccess={() => {
+          onJobUpdated?.();
+          setShowRescheduleModal(false);
+        }}
+      />
     </div>;
 };
 export default JobActions;

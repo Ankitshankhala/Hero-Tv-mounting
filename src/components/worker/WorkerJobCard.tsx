@@ -301,6 +301,7 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
             onCaptureSuccess={handleCaptureSuccess}
             onAddServicesClick={handleAddServicesClick}
             onModifyServicesClick={handleModifyClick}
+            onJobUpdated={onJobCancelled}
           />
         </div>
       </CardContent>
