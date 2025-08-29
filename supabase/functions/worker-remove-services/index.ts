@@ -18,6 +18,12 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_ANON_KEY") ?? ""
     );
 
+    // Create service role client for privileged operations
+    const supabaseService = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+
     const authHeader = req.headers.get("Authorization")!;
     const token = authHeader.replace("Bearer ", "");
     const { data } = await supabaseClient.auth.getUser(token);
@@ -33,20 +39,19 @@ serve(async (req) => {
       throw new Error("Booking ID and service IDs are required");
     }
 
-    // Verify worker has access to this booking
-    const { data: booking, error: bookingError } = await supabaseClient
+    // Verify worker has access to this booking using service role
+    const { data: booking, error: bookingError } = await supabaseService
       .from('bookings')
       .select('*')
       .eq('id', booking_id)
-      .eq('worker_id', user.id)
       .single();
 
-    if (bookingError || !booking) {
+    if (bookingError || !booking || booking.worker_id !== user.id) {
       throw new Error("Booking not found or access denied");
     }
 
     // Get services to be removed with their details
-    const { data: servicesToRemove, error: servicesError } = await supabaseClient
+    const { data: servicesToRemove, error: servicesError } = await supabaseService
       .from('booking_services')
       .select('*')
       .eq('booking_id', booking_id)
@@ -63,8 +68,8 @@ serve(async (req) => {
 
     console.log(`[WORKER-REMOVE] Removing services worth $${refundAmount} from booking ${booking_id}`);
 
-    // Remove booking services
-    const { error: removeError } = await supabaseClient
+    // Remove booking services using service role
+    const { error: removeError } = await supabaseService
       .from('booking_services')
       .delete()
       .in('id', service_ids);
@@ -74,7 +79,7 @@ serve(async (req) => {
     }
 
     // Update invoice if it exists
-    const { data: invoice } = await supabaseClient
+    const { data: invoice } = await supabaseService
       .from('invoices')
       .select('*')
       .eq('booking_id', booking_id)
@@ -82,14 +87,14 @@ serve(async (req) => {
 
     if (invoice) {
       // Remove invoice items for deleted services
-      await supabaseClient
+      await supabaseService
         .from('invoice_items')
         .delete()
         .eq('invoice_id', invoice.id)
         .in('service_name', servicesToRemove.map(s => s.service_name));
 
       // Recalculate invoice totals
-      const { data: remainingItems } = await supabaseClient
+      const { data: remainingItems } = await supabaseService
         .from('invoice_items')
         .select('total_price')
         .eq('invoice_id', invoice.id);
@@ -98,7 +103,7 @@ serve(async (req) => {
       const newTaxAmount = newAmount * (invoice.tax_rate || 0);
       const newTotal = newAmount + newTaxAmount;
 
-      await supabaseClient
+      await supabaseService
         .from('invoices')
         .update({
           amount: newAmount,
@@ -108,11 +113,31 @@ serve(async (req) => {
         })
         .eq('id', invoice.id);
 
-    console.log(`[WORKER-REMOVE] Updated invoice ${invoice.id}: $${invoice.amount} -> $${newAmount}`);
+      console.log(`[WORKER-REMOVE] Updated invoice ${invoice.id}: $${invoice.amount} -> $${newAmount}`);
+    } else {
+      // No invoice exists yet, calculate totals from remaining services
+      const { data: remainingServices } = await supabaseService
+        .from('booking_services')
+        .select('base_price, quantity')
+        .eq('booking_id', booking_id);
+
+      if (remainingServices && remainingServices.length > 0) {
+        const subtotal = remainingServices.reduce((sum, service) => 
+          sum + (service.base_price * service.quantity), 0);
+        
+        // Get tax rate (assuming 4.875% for now, should be from booking location)
+        const taxRate = 0.04875;
+        const taxAmount = subtotal * taxRate;
+        const total = subtotal + taxAmount;
+
+        console.log(`[WORKER-REMOVE] No invoice found, calculated remaining total: $${total}`);
+      } else {
+        console.log(`[WORKER-REMOVE] No services remaining after removal`);
+      }
     }
 
     // Mark booking as having modifications and create modification records
-    await supabaseClient
+    await supabaseService
       .from('bookings')
       .update({ has_modifications: true })
       .eq('id', booking_id);
@@ -127,7 +152,7 @@ serve(async (req) => {
       description: 'Removed by worker'
     }));
 
-    await supabaseClient
+    await supabaseService
       .from('booking_service_modifications')
       .insert(modificationRecords);
 
@@ -144,6 +169,7 @@ serve(async (req) => {
         const paymentIntent = await stripe.paymentIntents.retrieve(booking.payment_intent_id);
         
         if (paymentIntent.status === 'succeeded') {
+          // Payment already captured - create partial refund
           const refundAmountCents = Math.round(refundAmount * 100);
           
           refundResult = await stripe.refunds.create({
@@ -159,12 +185,6 @@ serve(async (req) => {
 
           console.log(`[WORKER-REMOVE] Partial refund created: ${refundResult.id} for $${refundAmount}`);
 
-          // Create refund transaction record
-          const supabaseService = createClient(
-            Deno.env.get("SUPABASE_URL") ?? "",
-            Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-          );
-
           await supabaseService.from('transactions').insert({
             booking_id: booking_id,
             payment_intent_id: booking.payment_intent_id,
@@ -174,6 +194,9 @@ serve(async (req) => {
             stripe_refund_id: refundResult.id,
             cancellation_reason: 'Services removed by worker'
           });
+        } else if (paymentIntent.status === 'requires_capture') {
+          // Payment not captured yet - let capture function handle reduced amount
+          console.log(`[WORKER-REMOVE] Payment pending capture, reduced amount will be captured later`);
         }
       } catch (stripeError) {
         console.error(`[WORKER-REMOVE] Stripe refund failed:`, stripeError);
@@ -182,7 +205,7 @@ serve(async (req) => {
     }
 
     // Log the removal
-    await supabaseClient.from('sms_logs').insert({
+    await supabaseService.from('sms_logs').insert({
       booking_id: booking_id,
       recipient_number: 'system',
       message: `Services removed by worker: ${servicesToRemove.map(s => s.service_name).join(', ')}`,

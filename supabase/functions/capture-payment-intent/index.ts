@@ -144,7 +144,7 @@ serve(async (req) => {
       .from('invoices')
       .select('total_amount')
       .eq('booking_id', booking_id)
-      .single();
+      .maybeSingle();
 
     if (invoice?.total_amount) {
       const invoiceAmountCents = Math.round(invoice.total_amount * 100);
@@ -155,6 +155,34 @@ serve(async (req) => {
         capturable_amount: paymentIntent.amount_capturable,
         final_capture_amount: captureAmount
       });
+    } else {
+      // No invoice exists, calculate from remaining booking services
+      const { data: bookingServices } = await supabase
+        .from('booking_services')
+        .select('base_price, quantity')
+        .eq('booking_id', booking_id);
+
+      if (bookingServices && bookingServices.length > 0) {
+        const subtotal = bookingServices.reduce((sum, service) => 
+          sum + (service.base_price * service.quantity), 0);
+        
+        // Get tax rate (default 4.875%, should match booking location)
+        const taxRate = 0.04875;
+        const taxAmount = subtotal * taxRate;
+        const total = subtotal + taxAmount;
+        
+        const totalAmountCents = Math.round(total * 100);
+        captureAmount = Math.min(totalAmountCents, paymentIntent.amount_capturable);
+        
+        logStep('Calculated amount from booking services', {
+          subtotal,
+          tax_amount: taxAmount,
+          total,
+          total_amount_cents: totalAmountCents,
+          capturable_amount: paymentIntent.amount_capturable,
+          final_capture_amount: captureAmount
+        });
+      }
     }
 
     // Capture the payment
