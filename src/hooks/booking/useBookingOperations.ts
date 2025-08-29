@@ -182,7 +182,7 @@ export const useBookingOperations = () => {
         return existingBooking.booking_id;
       }
 
-      // Create booking with payment_pending status
+      // Create booking with payment_pending status to ensure proper state for payment
       const bookingData = {
         customer_id: customerId,
         service_id: primaryServiceId,
@@ -203,6 +203,8 @@ export const useBookingOperations = () => {
           zipcode: formData.zipcode,
         } : null
       };
+
+      console.log('Creating booking with status:', bookingData.status, 'payment_status:', bookingData.payment_status);
 
       let newBooking;
       
@@ -278,7 +280,9 @@ export const useBookingOperations = () => {
 
   const confirmBookingAfterPayment = async (bookingId: string, paymentIntentId: string) => {
     try {
+      console.log('Confirming booking after payment:', { bookingId, paymentIntentId });
 
+      // First ensure the booking status is compatible, then update to confirmed
       const { data: updatedBooking, error: updateError } = await supabase
         .from('bookings')
         .update({

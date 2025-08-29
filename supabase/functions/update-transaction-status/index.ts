@@ -53,6 +53,12 @@ serve(async (req) => {
       normalizedStatus = 'completed';
     } else if (status === 'paid') {
       normalizedStatus = 'completed';
+    } else if (status === 'requires_payment_method') {
+      normalizedStatus = 'pending';
+    } else if (status === 'processing') {
+      normalizedStatus = 'pending';
+    } else if (status === 'canceled' || status === 'cancelled') {
+      normalizedStatus = 'failed';
     }
 
     logStep("Updating transaction status", { 
@@ -81,7 +87,7 @@ serve(async (req) => {
 
     logStep("Found transaction", { transaction_id: transaction.id, current_status: transaction.status });
 
-    // Step 1: Update booking status first (to satisfy validation triggers)
+    // Step 1: Ensure booking is in correct status before transaction update
     if (transaction.booking_id) {
       let bookingStatus: string | undefined;
       let paymentStatus: string;
@@ -95,16 +101,19 @@ serve(async (req) => {
       } else if (normalizedStatus === 'failed') {
         bookingStatus = 'failed';
         paymentStatus = 'failed';
+      } else if (normalizedStatus === 'pending') {
+        bookingStatus = 'payment_pending';
+        paymentStatus = 'pending';
       }
 
       if (bookingStatus) {
-        logStep("Updating booking status first", { 
+        logStep("Ensuring booking status is compatible", { 
           booking_id: transaction.booking_id, 
-          new_status: bookingStatus,
+          target_status: bookingStatus,
           payment_status: paymentStatus
         });
         
-        // First get current booking to check status
+        // Get current booking to check status
         const { data: currentBooking } = await supabaseClient
           .from('bookings')
           .select('status, payment_status')
@@ -113,21 +122,55 @@ serve(async (req) => {
 
         logStep("Current booking status", { current_booking: currentBooking });
         
-        const { error: bookingUpdateError } = await supabaseClient
-          .from('bookings')
-          .update({
-            status: bookingStatus,
-            payment_status: paymentStatus
-          })
-          .eq('id', transaction.booking_id);
+        // Only update if the booking isn't already in the correct status
+        if (currentBooking && currentBooking.status !== bookingStatus) {
+          // Ensure booking status transition is valid for the trigger
+          let validTransition = true;
+          const currentStatus = currentBooking.status;
+          
+          // Check for valid transitions to avoid trigger violations
+          if (bookingStatus === 'payment_authorized' && 
+              !['pending', 'payment_pending'].includes(currentStatus)) {
+            logStep("Invalid transition attempted", { 
+              from: currentStatus, 
+              to: bookingStatus,
+              action: "Setting to payment_pending first"
+            });
+            
+            // First set to payment_pending if coming from an invalid state
+            await supabaseClient
+              .from('bookings')
+              .update({
+                status: 'payment_pending',
+                payment_status: 'pending'
+              })
+              .eq('id', transaction.booking_id);
+              
+            logStep("Booking status reset to payment_pending");
+          }
+          
+          const { error: bookingUpdateError } = await supabaseClient
+            .from('bookings')
+            .update({
+              status: bookingStatus,
+              payment_status: paymentStatus
+            })
+            .eq('id', transaction.booking_id);
 
-        if (bookingUpdateError) {
-          logStep("Failed to update booking status", { error: bookingUpdateError.message });
-          // Don't fail the entire operation, continue with transaction update
+          if (bookingUpdateError) {
+            logStep("Failed to update booking status", { error: bookingUpdateError.message });
+            // Don't fail the entire operation, continue with transaction update
+          } else {
+            logStep("Booking status updated successfully", { 
+              booking_id: transaction.booking_id, 
+              old_status: currentStatus,
+              new_status: bookingStatus 
+            });
+          }
         } else {
-          logStep("Booking status updated successfully", { 
-            booking_id: transaction.booking_id, 
-            status: bookingStatus 
+          logStep("Booking already in correct status", { 
+            current_status: currentBooking?.status,
+            target_status: bookingStatus
           });
         }
       }

@@ -6,6 +6,7 @@ import { PaymentAuthorizationForm } from '@/components/payment/PaymentAuthorizat
 import { SimplePaymentAuthorizationForm } from '@/components/payment/SimplePaymentAuthorizationForm';
 import { useToast } from '@/hooks/use-toast';
 import { useBookingOperations } from '@/hooks/booking/useBookingOperations';
+import { supabase } from '@/integrations/supabase/client';
 
 interface PaymentStepProps {
   bookingId: string;
@@ -65,12 +66,30 @@ export const PaymentStep = ({
 
   const handleAuthorizationSuccess = async (paymentIntentIdOrBookingId?: string) => {
     console.log('✅ Payment authorization successful, payment intent or booking ID:', paymentIntentIdOrBookingId);
+    
+    // Run consistency check to ensure booking and transaction states are aligned
+    try {
+      const { data, error } = await supabase.functions.invoke('booking-status-consistency-check', {
+        body: {
+          booking_id: bookingId,
+          payment_intent_id: paymentIntentIdOrBookingId
+        }
+      });
+      
+      if (error) {
+        console.warn('Consistency check failed:', error);
+      } else {
+        console.log('Booking consistency check result:', data);
+      }
+    } catch (error) {
+      console.warn('Consistency check error:', error);
+    }
+    
     toast({
       title: "Payment Authorized! 🎉",
       description: "Your payment method has been authorized successfully. You will be charged after service completion.",
     });
-    // For the new flow, we need to extract the payment intent ID and pass it
-    // The PaymentAuthorizationForm should now return the payment intent ID
+    
     onPaymentAuthorized(paymentIntentIdOrBookingId);
   };
 
