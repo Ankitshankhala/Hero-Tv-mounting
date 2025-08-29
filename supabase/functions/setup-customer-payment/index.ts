@@ -76,6 +76,21 @@ serve(async (req) => {
       throw updateError
     }
 
+    // Also update user's saved card information if this is a logged-in user
+    const { error: userUpdateError } = await supabaseClient
+      .from('users')
+      .update({
+        stripe_customer_id: customer.id,
+        stripe_default_payment_method_id: paymentMethodId,
+        has_saved_card: true
+      })
+      .eq('email', customerEmail)
+
+    if (userUpdateError) {
+      console.log('Warning: Failed to update user card info:', userUpdateError)
+      // Don't throw error as this is not critical for the booking flow
+    }
+
     console.log('Successfully set up payment method for booking')
 
     return new Response(

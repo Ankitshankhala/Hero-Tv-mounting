@@ -929,6 +929,7 @@ export type Database = {
           city: string | null
           created_at: string | null
           email: string
+          has_saved_card: boolean
           id: string
           is_active: boolean | null
           latitude: number | null
@@ -937,6 +938,8 @@ export type Database = {
           phone: string | null
           reason: string | null
           role: Database["public"]["Enums"]["user_role"]
+          stripe_customer_id: string | null
+          stripe_default_payment_method_id: string | null
           updated_at: string | null
           zip_code: string | null
         }
@@ -944,6 +947,7 @@ export type Database = {
           city?: string | null
           created_at?: string | null
           email: string
+          has_saved_card?: boolean
           id?: string
           is_active?: boolean | null
           latitude?: number | null
@@ -952,6 +956,8 @@ export type Database = {
           phone?: string | null
           reason?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          stripe_customer_id?: string | null
+          stripe_default_payment_method_id?: string | null
           updated_at?: string | null
           zip_code?: string | null
         }
@@ -959,6 +965,7 @@ export type Database = {
           city?: string | null
           created_at?: string | null
           email?: string
+          has_saved_card?: boolean
           id?: string
           is_active?: boolean | null
           latitude?: number | null
@@ -967,6 +974,8 @@ export type Database = {
           phone?: string | null
           reason?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          stripe_customer_id?: string | null
+          stripe_default_payment_method_id?: string | null
           updated_at?: string | null
           zip_code?: string | null
         }

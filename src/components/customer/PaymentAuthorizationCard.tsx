@@ -140,6 +140,38 @@ export const PaymentAuthorizationCard = ({
           }
           
           console.log('Transaction status updated to authorized via edge function');
+
+          // Save card for future use after successful authorization
+          try {
+            // Get current user to save card to their profile
+            const { data: { user } } = await supabase.auth.getUser();
+            
+            if (user?.id) {
+              const { data: saveCardData, error: saveCardError } = await supabase.functions.invoke(
+                'save-card-from-intent',
+                {
+                  body: {
+                    paymentIntentId: paymentIntentId,
+                    userId: user.id
+                  }
+                }
+              );
+              
+              if (saveCardError) {
+                console.warn('Failed to save card for future use:', saveCardError);
+                // Don't throw error as card saving is non-critical for the current flow
+              } else if (saveCardData?.success && !saveCardData?.alreadySaved) {
+                console.log('Card saved for future use:', saveCardData);
+                toast({
+                  title: "Card Saved",
+                  description: "Your payment method has been securely saved for future bookings.",
+                });
+              }
+            }
+          } catch (saveCardError) {
+            console.warn('Error saving card for future use:', saveCardError);
+            // Don't throw error as card saving is non-critical for the current flow
+          }
           
           toast({
             title: "Payment Authorized Successfully",

@@ -483,6 +483,21 @@ serve(async (req) => {
           original_status: paymentIntent.status 
         });
 
+        // Check if user has saved payment method for off-session charges
+        let userWithSavedCard = null;
+        if (booking.customer_id) {
+          const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('stripe_customer_id, stripe_default_payment_method_id, has_saved_card')
+            .eq('id', booking.customer_id)
+            .single();
+
+          if (!userError && userData?.has_saved_card && userData?.stripe_default_payment_method_id) {
+            userWithSavedCard = userData;
+            logStep('Found user with saved card for off-session payment');
+          }
+        }
+
         // Get customer info for new PaymentIntent
         const { data: fullBooking } = await supabase
           .from('bookings')
@@ -496,8 +511,8 @@ serve(async (req) => {
 
         const customerEmail = fullBooking?.customer?.email || fullBooking?.guest_customer_info?.email;
 
-        // Create new PaymentIntent for additional services
-        const newPaymentIntent = await stripe.paymentIntents.create({
+        // Create new PaymentIntent for additional services with card-on-file support
+        const paymentIntentParams = {
           amount: additionalAmountCents,
           currency: 'usd',
           receipt_email: customerEmail,
@@ -507,7 +522,19 @@ serve(async (req) => {
             booking_id: booking_id,
             type: 'additional_services'
           }
-        });
+        };
+
+        // Use saved payment method for off-session payment if available
+        if (userWithSavedCard) {
+          paymentIntentParams.customer = userWithSavedCard.stripe_customer_id;
+          paymentIntentParams.payment_method = userWithSavedCard.stripe_default_payment_method_id;
+          paymentIntentParams.confirmation_method = 'automatic';
+          paymentIntentParams.confirm = true;
+          paymentIntentParams.off_session = true;
+          logStep('Creating off-session payment with saved card for additional services');
+        }
+
+        const newPaymentIntent = await stripe.paymentIntents.create(paymentIntentParams);
 
         logStep('New PaymentIntent created', { 
           payment_intent_id: newPaymentIntent.id,

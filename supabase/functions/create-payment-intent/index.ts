@@ -221,6 +221,24 @@ serve(async (req) => {
       });
     }
 
+    // Check if user has saved payment method for off-session charges
+    let userWithSavedCard = null;
+    if (user_id) {
+      const { data: userData, error: userError } = await supabaseServiceRole
+        .from('users')
+        .select('stripe_customer_id, stripe_default_payment_method_id, has_saved_card')
+        .eq('id', user_id)
+        .single();
+
+      if (!userError && userData?.has_saved_card && userData?.stripe_default_payment_method_id) {
+        userWithSavedCard = userData;
+        logStep('Found user with saved card', { 
+          customerId: userData.stripe_customer_id,
+          hasPaymentMethod: !!userData.stripe_default_payment_method_id
+        });
+      }
+    }
+
     // Initialize Stripe
     logStep('Initializing Stripe client');
     const stripe = new Stripe(stripeSecret, {
@@ -265,20 +283,36 @@ serve(async (req) => {
       amountInCents: amountInCents, 
       currency, 
       is_guest: !user_id,
-      guest_email: guest_customer_info?.email 
+      guest_email: guest_customer_info?.email,
+      offSession: !!userWithSavedCard
     });
     
     let paymentIntent;
     try {
-      paymentIntent = await stripe.paymentIntents.create({
+      const paymentIntentParams: any = {
         amount: amountInCents, // Correctly converted to cents
         currency: currency.toLowerCase(),
-        capture_method: 'manual', // Manual capture - authorize now, charge later
         metadata: {
           ...metadata,
           original_amount_dollars: amount.toString() // Track original amount for debugging
         },
-      }, {
+      };
+
+      // Use saved payment method for off-session payment if available
+      if (userWithSavedCard) {
+        paymentIntentParams.customer = userWithSavedCard.stripe_customer_id;
+        paymentIntentParams.payment_method = userWithSavedCard.stripe_default_payment_method_id;
+        paymentIntentParams.confirmation_method = 'automatic';
+        paymentIntentParams.confirm = true;
+        paymentIntentParams.off_session = true;
+        paymentIntentParams.capture_method = 'manual'; // Still manual capture for consistency
+        logStep('Creating off-session payment with saved card');
+      } else {
+        paymentIntentParams.capture_method = 'manual'; // Manual capture - authorize now, charge later
+        logStep('Creating on-session payment intent for card collection');
+      }
+
+      paymentIntent = await stripe.paymentIntents.create(paymentIntentParams, {
         // Stripe requires idempotencyKey to be passed as an option (second parameter)
         // rather than as a parameter in the PaymentIntent object to prevent duplicate requests
         idempotencyKey: idempotency_key,
