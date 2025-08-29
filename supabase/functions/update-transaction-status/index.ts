@@ -78,6 +78,9 @@ serve(async (req) => {
       } else if (status === 'completed' || status === 'captured') {
         bookingStatus = 'confirmed';
         paymentStatus = status;
+      } else if (status === 'paid') {
+        bookingStatus = 'confirmed';
+        paymentStatus = 'completed';
       }
 
       if (bookingStatus) {
@@ -86,6 +89,15 @@ serve(async (req) => {
           new_status: bookingStatus,
           payment_status: paymentStatus
         });
+        
+        // First get current booking to check status
+        const { data: currentBooking } = await supabaseClient
+          .from('bookings')
+          .select('status, payment_status')
+          .eq('id', transaction.booking_id)
+          .single();
+
+        logStep("Current booking status", { current_booking: currentBooking });
         
         const { error: bookingUpdateError } = await supabaseClient
           .from('bookings')
