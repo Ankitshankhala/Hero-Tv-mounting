@@ -118,9 +118,10 @@ export const useBookingOperations = () => {
         throw new Error('Street address is required');
       }
 
-      if (!formData.houseNumber || formData.houseNumber.trim().length === 0) {
-        throw new Error('Unit number is required');
-      }
+      // Unit number is now optional
+      // if (!formData.houseNumber || formData.houseNumber.trim().length === 0) {
+      //   throw new Error('Unit number is required');
+      // }
 
       // Validate scheduling information
       if (!formData.selectedDate) {
@@ -236,6 +237,11 @@ export const useBookingOperations = () => {
           .single();
 
         if (bookingError) {
+          console.error('Authenticated booking creation error:', bookingError);
+          // More specific error messages for common RLS issues
+          if (bookingError.message.includes('new row violates row-level security')) {
+            throw new Error('Authentication error. Please try refreshing the page and logging in again.');
+          }
           throw new Error(`Failed to create booking: ${bookingError.message}`);
         }
 

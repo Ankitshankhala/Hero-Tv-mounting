@@ -54,7 +54,7 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
     email: { required: true, type: 'email' as const },
     phone: { required: true, type: 'phone' as const },
     address: { required: true, type: 'address' as const, minLength: 10, maxLength: 100 },
-    houseNumber: { required: true, type: 'address' as const, minLength: 1, maxLength: 20 },
+    houseNumber: { required: false, type: 'address' as const, minLength: 1, maxLength: 20 },
     zipcode: { required: true, type: 'zipcode' as const },
     date: { required: true },
     time: { required: true }

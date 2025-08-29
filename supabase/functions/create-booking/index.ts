@@ -31,10 +31,11 @@ serve(async (req) => {
       has_user: !!user_id
     });
 
-    // Reject authenticated bookings (guest only)
-    if (user_id) {
-      throw new Error('Authenticated bookings are not allowed');
-    }
+    // Allow both authenticated and guest bookings
+    logStep("Processing booking", { 
+      is_authenticated: !!user_id,
+      booking_type: user_id ? 'authenticated' : 'guest'
+    });
 
     // Input validation
     if (!payment_intent_id || typeof payment_intent_id !== 'string') {
