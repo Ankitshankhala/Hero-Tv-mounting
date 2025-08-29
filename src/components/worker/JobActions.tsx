@@ -41,7 +41,6 @@ const JobActions = ({
   };
 
   const canAddCharges = (job.status === 'in_progress' || job.status === 'confirmed') && 
-    job.payment_status !== 'authorized' && 
     job.payment_status !== 'captured' && 
     job.payment_status !== 'completed';
   const canCapturePayment = (
