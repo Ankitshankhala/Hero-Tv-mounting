@@ -49,7 +49,7 @@ const JobActions = ({
     job.payment_status === 'capture_failed'
   ) && job.status !== 'completed';
   const canCollectPayment = job.payment_status === 'failed' || job.payment_status === 'cancelled';
-  const canAddServices = job.status === 'confirmed' || job.status === 'in_progress';
+  const canAddServices = job.status === 'confirmed' || job.status === 'in_progress' || job.status === 'payment_authorized';
   const canModifyServices = job.status === 'confirmed' || job.status === 'in_progress';
   const isPaymentPaid = job.payment_status === 'captured' || job.payment_status === 'completed';
   const canReassignOrReschedule = job.status !== 'completed' && job.status !== 'cancelled';

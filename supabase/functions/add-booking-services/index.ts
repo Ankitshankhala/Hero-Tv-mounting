@@ -57,12 +57,8 @@ serve(async (req) => {
       );
     }
 
-    if (!booking.payment_intent_id) {
-      return new Response(
-        JSON.stringify({ error: 'Booking has no payment intent for authorization updates' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // If no payment intent exists, we'll create a new one later in the process
+    const needsNewPaymentIntent = !booking.payment_intent_id;
 
     // Fetch service details for pricing
     const serviceIds = services.map((s) => s.service_id);
