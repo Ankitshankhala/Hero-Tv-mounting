@@ -139,6 +139,50 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
     return jobTime.toLocaleDateString();
   };
 
+  // Get status dot color
+  const getStatusDotClass = (status: string, isArchived: boolean = false) => {
+    if (isArchived) {
+      return 'bg-status-completed';
+    }
+    
+    switch (status.toLowerCase()) {
+      case 'confirmed':
+      case 'scheduled':
+      case 'in_progress':
+        return 'bg-status-confirmed';
+      case 'completed':
+        return 'bg-status-completed';
+      case 'cancelled':
+        return 'bg-status-cancelled';
+      default:
+        return 'bg-status-pending';
+    }
+  };
+
+  // Get payment dot color
+  const getPaymentDotClass = (paymentStatus: string, booking: any, isArchived: boolean = false) => {
+    if (isArchived) {
+      return 'bg-action-success';
+    }
+    
+    if (paymentStatus === 'authorized' || booking.status === 'payment_authorized') {
+      return 'bg-action-warning';
+    }
+    
+    switch (paymentStatus?.toLowerCase()) {
+      case 'captured':
+      case 'completed':
+        return 'bg-action-success';
+      case 'pending':
+        return 'bg-action-info';
+      case 'failed':
+      case 'cancelled':
+        return 'bg-destructive';
+      default:
+        return 'bg-muted';
+    }
+  };
+
   const isArchived = job.is_archived;
   const paymentStatus = getPaymentStatusDisplay(job.payment_status, isArchived);
 
@@ -153,32 +197,26 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
         <div className="flex items-center justify-between gap-4">
           {/* Left: Status and Service */}
           <div className="flex-1 min-w-0 pr-4">
-            {/* Mobile: Stack badges and name */}
+            {/* Mobile: Status and payment dots with name */}
             <div className="sm:hidden">
-              <div className="flex flex-wrap items-center gap-2 mb-2">
-                <Badge 
-                  variant="outline" 
-                  className={`text-xs font-medium ${getStatusColor(job.status, isArchived)}`}
-                >
-                  {getDisplayStatus(job.status, isArchived)}
-                </Badge>
-                <Badge 
-                  variant="outline" 
-                  className={`text-xs font-medium ${paymentStatus.color}`}
-                >
-                  {paymentStatus.text}
-                </Badge>
-                {isNewJob() && !isArchived && (
-                  <Badge 
-                    variant="outline" 
-                    className="text-xs font-medium bg-action-info text-white border-action-info"
+              <div className="flex items-center gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <div 
+                    className={`h-2.5 w-2.5 rounded-full ${getStatusDotClass(job.status, isArchived)}`}
+                    title={getDisplayStatus(job.status, isArchived)}
                   >
-                    NEW
-                  </Badge>
-                )}
-              </div>
-              <div className="text-sm font-medium text-foreground">
-                {getCustomerName()}
+                    <span className="sr-only">{getDisplayStatus(job.status, isArchived)}</span>
+                  </div>
+                  <div 
+                    className={`h-2.5 w-2.5 rounded-full ${getPaymentDotClass(job.payment_status, job, isArchived)}`}
+                    title={paymentStatus.text}
+                  >
+                    <span className="sr-only">{paymentStatus.text}</span>
+                  </div>
+                </div>
+                <div className="text-sm font-medium text-foreground truncate">
+                  {getCustomerName()}
+                </div>
               </div>
             </div>
             
