@@ -112,8 +112,8 @@ serve(async (req) => {
       status: paymentIntent.status 
     });
 
-    // Record transaction
-    const { error: transactionError } = await supabase
+    // Record transaction and ensure status synchronization
+    const { data: transactionData, error: transactionError } = await supabase
       .from('transactions')
       .insert({
         booking_id: bookingId,
@@ -123,12 +123,36 @@ serve(async (req) => {
         transaction_type: 'charge',
         payment_method: 'card',
         currency: 'USD'
-      });
+      })
+      .select('id')
+      .single();
 
     if (transactionError) {
       logStep('Failed to record transaction', { error: transactionError });
-    } else {
-      logStep('Transaction recorded successfully');
+      throw new Error(`Transaction recording failed: ${transactionError.message}`);
+    }
+
+    logStep('Transaction recorded successfully', { transactionId: transactionData.id });
+
+    // CRITICAL FIX: Call update-transaction-status to ensure booking status sync
+    try {
+      const { data: statusUpdateData, error: statusUpdateError } = await supabase.functions.invoke(
+        'update-transaction-status',
+        {
+          body: {
+            payment_intent_id: paymentIntent.id,
+            status: paymentIntent.status
+          }
+        }
+      );
+
+      if (statusUpdateError) {
+        logStep('Status update failed but continuing', { error: statusUpdateError });
+      } else {
+        logStep('Status synchronized successfully', statusUpdateData);
+      }
+    } catch (statusError) {
+      logStep('Status sync error but continuing', { error: statusError });
     }
 
     return new Response(JSON.stringify({

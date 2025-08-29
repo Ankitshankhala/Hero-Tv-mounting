@@ -199,9 +199,9 @@ export const SimplePaymentAuthorizationForm = ({
       if (paymentIntent?.status === 'requires_capture' || paymentIntent?.status === 'succeeded') {
         console.log('✅ Payment authorized successfully!');
         
-        // Update transaction status to 'authorized' after successful payment using edge function
+        // Update transaction status and ensure booking consistency
         try {
-          console.log('Updating transaction status to authorized for payment intent:', intentData.payment_intent_id);
+          console.log('Updating transaction status for payment intent:', intentData.payment_intent_id);
           
           const { data: updateData, error: updateError } = await supabase.functions.invoke(
             'update-transaction-status',
@@ -214,12 +214,31 @@ export const SimplePaymentAuthorizationForm = ({
           );
           
           if (updateError || !updateData?.success) {
-            console.error('Failed to update transaction status:', updateError);
-            console.log('Update data response:', updateData);
-            
-            // If edge function fails, still proceed since payment is authorized
-            // The payment has succeeded from Stripe's perspective
-            console.warn('Transaction status update failed but payment is authorized. Proceeding with success.');
+            console.error('Transaction status update failed:', updateError);
+            console.warn('Payment was authorized but status sync failed - will be fixed by consistency check');
+          } else {
+            console.log('Transaction status updated successfully:', updateData);
+          }
+
+          // CRITICAL FIX: Always call consistency check after authorization
+          try {
+            const { data: consistencyData, error: consistencyError } = await supabase.functions.invoke(
+              'booking-status-consistency-check',
+              {
+                body: {
+                  booking_id: bookingId,
+                  payment_intent_id: intentData.payment_intent_id
+                }
+              }
+            );
+
+            if (consistencyError) {
+              console.error('Consistency check failed:', consistencyError);
+            } else {
+              console.log('Booking status consistency verified:', consistencyData);
+            }
+          } catch (consistencyErr) {
+            console.error('Consistency check error:', consistencyErr);
           }
           
           console.log('Payment authorization flow completed successfully');

@@ -45,21 +45,51 @@ serve(async (req) => {
       );
     }
 
-    // Normalize status from Stripe to our system
-    let normalizedStatus = status;
-    if (status === 'requires_capture') {
-      normalizedStatus = 'authorized';
-    } else if (status === 'succeeded') {
-      normalizedStatus = 'completed';
-    } else if (status === 'paid') {
-      normalizedStatus = 'completed';
-    } else if (status === 'requires_payment_method') {
-      normalizedStatus = 'pending';
-    } else if (status === 'processing') {
-      normalizedStatus = 'pending';
-    } else if (status === 'canceled' || status === 'cancelled') {
-      normalizedStatus = 'failed';
+    // Enhanced status normalization to handle all Stripe statuses
+    let normalizedStatus: string;
+    const lowerStatus = status.toLowerCase().trim();
+    
+    logStep('Normalizing status', { originalStatus: status, lowerStatus });
+    
+    switch (lowerStatus) {
+      case 'requires_capture':
+      case 'authorized':
+        normalizedStatus = 'authorized';
+        break;
+      case 'succeeded':
+      case 'completed':
+      case 'paid':
+        normalizedStatus = 'completed';
+        break;
+      case 'captured':
+        normalizedStatus = 'captured';
+        break;
+      case 'canceled':
+      case 'cancelled':
+      case 'failed':
+      case 'payment_failed':
+        normalizedStatus = 'failed';
+        break;
+      case 'processing':
+      case 'requires_action':
+      case 'requires_payment_method':
+      case 'requires_confirmation':
+      case 'pending':
+        normalizedStatus = 'pending';
+        break;
+      default:
+        // For unknown statuses, attempt to keep them if they're valid enum values
+        const validStatuses = ['pending', 'authorized', 'completed', 'failed', 'captured'];
+        if (validStatuses.includes(lowerStatus)) {
+          normalizedStatus = lowerStatus;
+        } else {
+          logStep('Unknown status, defaulting to failed', { unknownStatus: status });
+          normalizedStatus = 'failed';
+        }
+        break;
     }
+    
+    logStep('Status normalized', { originalStatus: status, normalizedStatus });
 
     logStep("Updating transaction status", { 
       payment_intent_id, 
