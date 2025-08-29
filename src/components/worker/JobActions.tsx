@@ -44,7 +44,11 @@ const JobActions = ({
     job.payment_status !== 'authorized' && 
     job.payment_status !== 'captured' && 
     job.payment_status !== 'completed';
-  const canCapturePayment = job.payment_status === 'authorized' && job.status !== 'completed';
+  const canCapturePayment = (
+    job.payment_status === 'authorized' || 
+    job.status === 'payment_authorized' ||
+    job.payment_status === 'capture_failed'
+  ) && job.status !== 'completed';
   const canCollectPayment = job.payment_status === 'failed' || job.payment_status === 'cancelled';
   const canAddServices = job.status === 'confirmed' || job.status === 'in_progress';
   const canModifyServices = job.status === 'confirmed' || job.status === 'in_progress';
