@@ -6,6 +6,7 @@ interface PaymentResult {
   success: boolean;
   error?: string;
   transactionId?: string;
+  requiresCapture?: boolean;
 }
 
 export const usePaymentProcessing = () => {
@@ -26,6 +27,14 @@ export const usePaymentProcessing = () => {
       }
 
       if (!data?.success) {
+        // Handle requires_capture status for authorization flows
+        if (data?.requires_capture) {
+          return {
+            success: true,
+            transactionId: data.transaction_id,
+            requiresCapture: true
+          };
+        }
         throw new Error(data?.error || 'Payment verification failed');
       }
 

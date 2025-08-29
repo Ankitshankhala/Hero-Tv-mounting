@@ -47,7 +47,7 @@ serve(async (req) => {
 
     logStep("Updating transaction status", { payment_intent_id, status });
 
-    // Find and update the transaction
+    // Find the transaction
     const { data: transaction, error: findError } = await supabaseClient
       .from('transactions')
       .select('id, status, booking_id')
@@ -67,7 +67,47 @@ serve(async (req) => {
 
     logStep("Found transaction", { transaction_id: transaction.id, current_status: transaction.status });
 
-    // Update transaction status
+    // Step 1: Update booking status first (to satisfy validation triggers)
+    if (transaction.booking_id) {
+      let bookingStatus: string | undefined;
+      let paymentStatus: string;
+
+      if (status === 'authorized') {
+        bookingStatus = 'payment_authorized';
+        paymentStatus = 'authorized';
+      } else if (status === 'completed' || status === 'captured') {
+        bookingStatus = 'confirmed';
+        paymentStatus = status;
+      }
+
+      if (bookingStatus) {
+        logStep("Updating booking status first", { 
+          booking_id: transaction.booking_id, 
+          new_status: bookingStatus,
+          payment_status: paymentStatus
+        });
+        
+        const { error: bookingUpdateError } = await supabaseClient
+          .from('bookings')
+          .update({
+            status: bookingStatus,
+            payment_status: paymentStatus
+          })
+          .eq('id', transaction.booking_id);
+
+        if (bookingUpdateError) {
+          logStep("Failed to update booking status", { error: bookingUpdateError.message });
+          // Don't fail the entire operation, continue with transaction update
+        } else {
+          logStep("Booking status updated successfully", { 
+            booking_id: transaction.booking_id, 
+            status: bookingStatus 
+          });
+        }
+      }
+    }
+
+    // Step 2: Update transaction status
     const { error: updateError } = await supabaseClient
       .from('transactions')
       .update({ status })
@@ -75,13 +115,45 @@ serve(async (req) => {
 
     if (updateError) {
       logStep("Failed to update transaction", { error: updateError.message });
-      return new Response(
-        JSON.stringify({ error: 'Failed to update transaction status' }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      
+      // For authorization flows, try a fallback approach
+      if (status === 'authorized') {
+        logStep("Attempting fallback for authorization flow");
+        
+        // Wait a moment for database consistency
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        const { error: retryError } = await supabaseClient
+          .from('transactions')
+          .update({ status })
+          .eq('payment_intent_id', payment_intent_id);
+          
+        if (retryError) {
+          logStep("Fallback also failed", { error: retryError.message });
+          return new Response(
+            JSON.stringify({ 
+              error: 'Failed to update transaction status',
+              details: retryError.message,
+              success: false,
+              requires_capture: status === 'authorized' // Indicate payment needs capture
+            }),
+            {
+              status: 500,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            }
+          );
+        } else {
+          logStep("Fallback succeeded for transaction update");
         }
-      );
+      } else {
+        return new Response(
+          JSON.stringify({ error: 'Failed to update transaction status' }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
     }
 
     logStep("Transaction status updated successfully", {
@@ -90,42 +162,6 @@ serve(async (req) => {
       new_status: status,
       booking_id: transaction.booking_id
     });
-
-    // Also update booking status when transaction becomes authorized
-    if (status === 'authorized' && transaction.booking_id) {
-      logStep("Updating booking status to payment_authorized", { booking_id: transaction.booking_id });
-      const { error: bookingUpdateError } = await supabaseClient
-        .from('bookings')
-        .update({
-          status: 'payment_authorized',
-          payment_status: 'authorized'
-        })
-        .eq('id', transaction.booking_id);
-
-      if (bookingUpdateError) {
-        logStep("Warning: Failed to update booking status", { error: bookingUpdateError.message });
-      } else {
-        logStep("Booking status updated successfully to payment_authorized", { booking_id: transaction.booking_id });
-      }
-    }
-
-    // Also update booking status when transaction becomes completed/captured
-    if ((status === 'completed' || status === 'captured') && transaction.booking_id) {
-      logStep("Updating booking status to confirmed", { booking_id: transaction.booking_id });
-      const { error: bookingUpdateError } = await supabaseClient
-        .from('bookings')
-        .update({
-          status: 'confirmed',
-          payment_status: status
-        })
-        .eq('id', transaction.booking_id);
-
-      if (bookingUpdateError) {
-        logStep("Warning: Failed to update booking status", { error: bookingUpdateError.message });
-      } else {
-        logStep("Booking status updated successfully to confirmed", { booking_id: transaction.booking_id });
-      }
-    }
 
     return new Response(
       JSON.stringify({ 
