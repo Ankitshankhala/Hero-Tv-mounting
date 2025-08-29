@@ -37,8 +37,10 @@ export const ServiceAreaSettings: React.FC = () => {
   } = useWorkerServiceAreas(user?.id);
   
   const [newZipcodes, setNewZipcodes] = useState<string>('');
+  const [singleZipcode, setSingleZipcode] = useState('');
   const [zipSearchTerm, setZipSearchTerm] = useState('');
   const [savingZips, setSavingZips] = useState(false);
+  const [savingSingle, setSavingSingle] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -106,6 +108,51 @@ export const ServiceAreaSettings: React.FC = () => {
       });
     } finally {
       setSavingZips(false);
+    }
+  };
+
+  const handleAddSingleZip = async () => {
+    if (!singleZipcode.trim() || !/^\d{5}$/.test(singleZipcode) || !user?.id) {
+      toast({
+        title: 'Invalid ZIP Code',
+        description: 'Please enter a valid 5-digit ZIP code',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSavingSingle(true);
+    try {
+      const zip = singleZipcode.trim();
+      const { data, error } = await supabase.functions.invoke('polygon-to-zipcodes', {
+        body: {
+          zipcodesOnly: [zip],
+          workerId: user.id,
+          areaName: `ZIP Code ${zip}`,
+        },
+      });
+
+      if (error) throw error;
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to add ZIP code');
+      }
+
+      toast({
+        title: 'Success',
+        description: `Added ZIP ${zip} to your coverage`,
+      });
+
+      setSingleZipcode('');
+      await fetchServiceAreas();
+    } catch (error) {
+      console.error('Error adding ZIP code:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to add ZIP code',
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingSingle(false);
     }
   };
 
@@ -213,7 +260,28 @@ export const ServiceAreaSettings: React.FC = () => {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="zipcode-input">ZIP Codes</Label>
+                    <Label htmlFor="single-zip">Quick add by ZIP</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="single-zip"
+                        placeholder="e.g. 10001"
+                        value={singleZipcode}
+                        onChange={(e) => setSingleZipcode(e.target.value)}
+                        maxLength={5}
+                        pattern="\d{5}"
+                      />
+                      <Button
+                        onClick={handleAddSingleZip}
+                        disabled={!/^\d{5}$/.test(singleZipcode) || savingSingle}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        {savingSingle ? 'Adding...' : 'Add ZIP'}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="zipcode-input">Add multiple ZIPs</Label>
                     <Textarea
                       id="zipcode-input"
                       placeholder="e.g. 75201, 75202, 75203"

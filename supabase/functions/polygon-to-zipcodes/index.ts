@@ -124,7 +124,10 @@ serve(async (req) => {
       throw new Error('Worker ID is required');
     }
 
-    console.log(`Processing polygon for worker ${workerId} with ${polygon.length} points`);
+    console.log(
+      `Processing request for worker ${workerId}`,
+      { mode: zipcodesOnly ? 'zip-only' : 'polygon', points: Array.isArray(polygon) ? polygon.length : 0 }
+    );
 
     // Find zipcodes within the polygon or use provided ZIP codes
     let zipcodes: string[];
@@ -160,7 +163,7 @@ serve(async (req) => {
       .insert({
         worker_id: workerId,
         area_name: areaName,
-        polygon_coordinates: zipcodesOnly ? null : polygon,
+        polygon_coordinates: zipcodesOnly ? [] : polygon,
         is_active: true
       })
       .select()

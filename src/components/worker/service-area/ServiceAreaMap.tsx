@@ -188,11 +188,22 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, isActive }: ServiceArea
 
       setServiceAreas(data || []);
       
-      // Display active area on map
+      // Display active area on map when a polygon exists
       if (data && data.length > 0) {
         const activeArea = data.find(area => area.is_active);
         if (activeArea && mapRef.current && drawnItemsRef.current) {
-          displayPolygonOnMap(activeArea.polygon_coordinates as Array<{ lat: number; lng: number }>, activeArea);
+          const coords = activeArea.polygon_coordinates as Array<{ lat: number; lng: number }> | null;
+          if (Array.isArray(coords) && coords.length >= 3) {
+            displayPolygonOnMap(coords, activeArea);
+          } else {
+            // Gracefully handle ZIP-only areas without polygons
+            drawnItemsRef.current.clearLayers();
+            setCurrentPolygon(null);
+            setEditingArea(activeArea);
+            setAreaName(activeArea.area_name);
+            // Keep map visible with default view
+            mapRef.current.setView([32.7767, -96.7970], 10);
+          }
         }
       }
     } catch (error) {
