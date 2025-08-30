@@ -54,11 +54,37 @@ export const ServicesSection = ({ onAddToCart }: ServicesSectionProps) => {
   };
 
   if (loading) {
-    return (
-      <section className="py-20 bg-gradient-to-b from-slate-900 to-slate-800">
-        <div className="container mx-auto px-4">
-          <div className="text-center">
-            <p className="text-white">Loading services...</p>
+  return (
+    <section className="py-20 bg-gradient-to-b from-slate-900 to-slate-800 min-h-[800px]">
+      <div className="container mx-auto px-4">
+        <div className="text-center mb-16">
+          <h2 className="text-4xl font-bold text-white mb-4">
+            Our Services
+          </h2>
+        </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
+            {[...Array(6)].map((_, index) => (
+              <div 
+                key={`skeleton-${index}`}
+                className="bg-slate-900/80 backdrop-blur-sm rounded-xl overflow-hidden border border-slate-700 min-h-[400px]"
+              >
+                <div className="relative h-48 overflow-hidden">
+                  <div className="w-full h-full bg-slate-700 animate-pulse" />
+                </div>
+                <div className="p-6">
+                  <div className="h-6 bg-slate-700 rounded animate-pulse mb-3" />
+                  <div className="space-y-2 mb-4">
+                    <div className="h-4 bg-slate-700 rounded animate-pulse" />
+                    <div className="h-4 bg-slate-700 rounded animate-pulse w-3/4" />
+                  </div>
+                  <div className="flex justify-between items-center mb-4">
+                    <div className="h-6 bg-slate-700 rounded animate-pulse w-20" />
+                  </div>
+                  <div className="h-10 bg-slate-700 rounded animate-pulse" />
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -66,7 +92,7 @@ export const ServicesSection = ({ onAddToCart }: ServicesSectionProps) => {
   }
 
   return (
-    <section className="py-20 bg-gradient-to-b from-slate-900 to-slate-800">
+    <section className="py-20 bg-gradient-to-b from-slate-900 to-slate-800 min-h-[800px]">
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
           <h2 className="text-4xl font-bold text-white mb-4">
