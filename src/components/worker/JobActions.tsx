@@ -98,10 +98,6 @@ const JobActions = ({
         
         <MapAppSelector address={getCustomerAddress()} />
         
-        {canAddCharges && <Button size="sm" variant="outline" onClick={onChargeClick} className="border-action-success text-action-success hover:bg-action-success hover:text-white transition-all duration-200">
-            <CreditCard className="h-4 w-4 mr-2" />
-            Add Charge
-          </Button>}
         
         {canCapturePayment && <PaymentCaptureButton bookingId={job.id} paymentStatus={job.payment_status} bookingStatus={job.status} onCaptureSuccess={onCaptureSuccess} />}
         
