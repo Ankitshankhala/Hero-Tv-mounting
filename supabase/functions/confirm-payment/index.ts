@@ -140,8 +140,21 @@ serve(async (req) => {
         .eq('id', booking_id);
 
       if (bookingError) {
-        logStep("Failed to update booking", { error: bookingError });
-        throw new Error(`Failed to update booking: ${bookingError.message}`);
+        logStep("Failed to update booking - trying RPC fallback", { error: bookingError });
+        
+        // Try the RPC fallback for payment status fixes
+        const { data: rpcResult, error: rpcError } = await supabaseServiceRole
+          .rpc('fix_booking_payment_status', {
+            p_booking_id: booking_id,
+            p_payment_intent_id: payment_intent_id
+          });
+        
+        if (rpcError || !rpcResult?.success) {
+          logStep("RPC fallback also failed", { rpcError, rpcResult });
+          throw new Error(`Failed to update booking: ${bookingError.message}`);
+        }
+        
+        logStep("RPC fallback succeeded", { rpcResult });
       }
 
       logStep("Booking updated successfully", { booking_id });
