@@ -406,6 +406,9 @@ serve(async (req) => {
           }
           await Promise.all(ops);
           logStep("Rollback completed - invalid booking");
+        } catch (rollbackError) {
+          logStep("Failed to rollback after booking validation error", { rollbackError });
+        }
         
         return new Response(JSON.stringify({
           error: 'Booking validation failed',
@@ -426,6 +429,9 @@ serve(async (req) => {
           }
           await Promise.all(ops);
           logStep("Rollback completed - booking not found");
+        } catch (rollbackError) {
+          logStep("Failed to rollback after booking not found", { rollbackError });
+        }
         
         return new Response(JSON.stringify({
           error: 'Booking not found',
@@ -475,6 +481,9 @@ serve(async (req) => {
           }
           await Promise.all(ops);
           logStep("Rollback completed - booking update failed");
+        } catch (rollbackError) {
+          logStep("Failed to rollback after booking update failure", { rollbackError });
+        }
         
         return new Response(JSON.stringify({
           error: 'Failed to update booking with payment information',
