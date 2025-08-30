@@ -373,21 +373,17 @@ serve(async (req) => {
       .single();
 
     if (transactionError) {
-      logStep("Transaction creation failed - rolling back payment intent", { error: transactionError });
-      
-      // Rollback: Cancel the payment intent if transaction creation fails
-      try {
-        await stripe.paymentIntents.cancel(paymentIntent.id);
-        logStep("Payment intent cancelled successfully");
-      } catch (cancelError) {
-        logStep("Failed to cancel payment intent", { cancelError });
-      }
-      
-      throw new Error(`Database transaction failed: ${transactionError.message}`);
+      logStep("Transaction creation failed - proceeding without DB transaction record", { error: transactionError });
+      // Do NOT cancel the payment intent; allow front-end to collect payment method
+      // We'll backfill the DB via verify-payment later
     }
 
-    const transactionId = transactionData.id;
-    logStep("Transaction record created successfully", { transactionId });
+    const transactionId = transactionData?.id || null;
+    if (transactionId) {
+      logStep("Transaction record created successfully", { transactionId });
+    } else {
+      logStep("No transaction record created, continuing with payment intent only");
+    }
 
     // CRITICAL VALIDATION: Verify booking exists and can be updated BEFORE processing payment
     if (booking_id) {
@@ -404,14 +400,12 @@ serve(async (req) => {
         logStep("Booking validation query failed", { error: bookingCheckError, booking_id });
         // Rollback payment intent and transaction
         try {
-          await Promise.all([
-            supabaseServiceRole.from('transactions').delete().eq('id', transactionId),
-            stripe.paymentIntents.cancel(paymentIntent.id)
-          ]);
+          const ops: Promise<any>[] = [stripe.paymentIntents.cancel(paymentIntent.id)];
+          if (transactionId) {
+            ops.unshift(supabaseServiceRole.from('transactions').delete().eq('id', transactionId));
+          }
+          await Promise.all(ops);
           logStep("Rollback completed - invalid booking");
-        } catch (rollbackError) {
-          logStep("Failed to rollback after booking validation error", { rollbackError });
-        }
         
         return new Response(JSON.stringify({
           error: 'Booking validation failed',
@@ -426,14 +420,12 @@ serve(async (req) => {
         logStep("Booking not found", { booking_id });
         // Rollback payment intent and transaction
         try {
-          await Promise.all([
-            supabaseServiceRole.from('transactions').delete().eq('id', transactionId),
-            stripe.paymentIntents.cancel(paymentIntent.id)
-          ]);
+          const ops: Promise<any>[] = [stripe.paymentIntents.cancel(paymentIntent.id)];
+          if (transactionId) {
+            ops.unshift(supabaseServiceRole.from('transactions').delete().eq('id', transactionId));
+          }
+          await Promise.all(ops);
           logStep("Rollback completed - booking not found");
-        } catch (rollbackError) {
-          logStep("Failed to rollback after booking not found", { rollbackError });
-        }
         
         return new Response(JSON.stringify({
           error: 'Booking not found',
@@ -477,14 +469,12 @@ serve(async (req) => {
         
         // This is critical - rollback both transaction and payment intent
         try {
-          await Promise.all([
-            supabaseServiceRole.from('transactions').delete().eq('id', transactionId),
-            stripe.paymentIntents.cancel(paymentIntent.id)
-          ]);
+          const ops: Promise<any>[] = [stripe.paymentIntents.cancel(paymentIntent.id)];
+          if (transactionId) {
+            ops.unshift(supabaseServiceRole.from('transactions').delete().eq('id', transactionId));
+          }
+          await Promise.all(ops);
           logStep("Rollback completed - booking update failed");
-        } catch (rollbackError) {
-          logStep("Failed to rollback after booking update failure", { rollbackError });
-        }
         
         return new Response(JSON.stringify({
           error: 'Failed to update booking with payment information',
