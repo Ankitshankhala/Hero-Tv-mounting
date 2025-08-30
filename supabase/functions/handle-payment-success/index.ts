@@ -109,37 +109,25 @@ serve(async (req) => {
       .single();
 
     if (transactionError || !transaction) {
-      // Create missing transaction record
-      logStep("Transaction not found, creating one", { payment_intent_id: finalPaymentIntentId });
+      // No transaction found - to avoid enum mismatch issues, skip creating a new transaction.
+      logStep("Transaction not found, skipping creation and syncing booking only", { payment_intent_id: finalPaymentIntentId });
       
-      const { data: newTransaction, error: createError } = await supabase
-        .from('transactions')
-        .insert({
-          payment_intent_id: finalPaymentIntentId,
-          booking_id: booking_id || null,
-          amount: paymentIntent.amount / 100, // Convert from cents
-          currency: paymentIntent.currency.toUpperCase(),
-          status: transactionStatus,
-          payment_method: 'card',
-          transaction_type: 'authorization',
-          created_at: new Date().toISOString(),
-          idempotency_key: crypto.randomUUID()
-        })
-        .select('id, booking_id')
-        .single();
+      let bookingIdToUpdate = booking_id || null;
 
-      if (createError) {
-        logStep("Failed to create transaction", { error: createError });
-        throw new Error(`Failed to create transaction: ${createError.message}`);
+      if (!bookingIdToUpdate) {
+        const { data: bookingLookup } = await supabase
+          .from('bookings')
+          .select('id')
+          .eq('payment_intent_id', finalPaymentIntentId)
+          .maybeSingle();
+        bookingIdToUpdate = bookingLookup?.id || null;
       }
 
-      logStep("Transaction created", { transaction_id: newTransaction.id });
-      
-      // Update booking if we have a booking_id
-      if (newTransaction.booking_id) {
-        await updateBookingStatus(supabase, newTransaction.booking_id, bookingStatus, paymentStatus);
+      if (bookingIdToUpdate) {
+        await updateBookingStatus(supabase, bookingIdToUpdate, bookingStatus, paymentStatus);
       }
-    } else {
+    }
+    else {
       // Update existing transaction
       if (transaction.status !== transactionStatus) {
         logStep("Updating transaction status", { 
