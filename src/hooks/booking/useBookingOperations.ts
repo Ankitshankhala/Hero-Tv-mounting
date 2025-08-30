@@ -210,6 +210,7 @@ export const useBookingOperations = () => {
       
       if (!user) {
         // For guest users, use the edge function to bypass RLS issues
+        console.log('📞 Calling create-guest-booking edge function with data:', { bookingData });
         
         const { data: edgeResult, error: edgeError } = await supabase.functions.invoke('create-guest-booking', {
           body: { 
@@ -220,14 +221,19 @@ export const useBookingOperations = () => {
           }
         });
 
+        console.log('📥 Edge function response:', { edgeResult, edgeError });
+
         if (edgeError) {
+          console.error('❌ Edge function error:', edgeError);
           throw new Error(`Failed to create guest booking: ${edgeError.message}`);
         }
 
         if (!edgeResult?.success) {
+          console.error('❌ Edge function returned failure:', edgeResult);
           throw new Error(`Failed to create guest booking: ${edgeResult?.error || 'Unknown error'}`);
         }
 
+        console.log('✅ Guest booking created successfully:', edgeResult.booking_id);
         newBooking = { id: edgeResult.booking_id };
         
       } else {
