@@ -1344,6 +1344,10 @@ export type Database = {
         Args: { p_booking_id: string }
         Returns: boolean
       }
+      acquire_worker_assignment_lock: {
+        Args: { p_booking_id: string; p_worker_id: string }
+        Returns: undefined
+      }
       assign_worker_idempotent: {
         Args: { p_booking_id: string; p_worker_id: string }
         Returns: boolean
@@ -1591,6 +1595,15 @@ export type Database = {
       }
       trigger_manual_worker_assignment: {
         Args: { p_booking_id: string }
+        Returns: boolean
+      }
+      try_insert_worker_assignment_email_log: {
+        Args: {
+          p_booking_id: string
+          p_message: string
+          p_recipient_email: string
+          p_subject: string
+        }
         Returns: boolean
       }
     }

@@ -31,7 +31,7 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const resendKey = Deno.env.get('RESEND_API_KEY');
-    const resendFrom = Deno.env.get('RESEND_FROM') || 'Hero TV Mounting <onboarding@resend.dev>';
+    const resendFrom = Deno.env.get('RESEND_FROM') || 'Hero TV Mounting <assignments@herotvmounting.com>';
     
     if (!supabaseUrl || !supabaseKey) {
       console.error('Missing Supabase configuration');
@@ -48,12 +48,12 @@ const handler = async (req: Request): Promise<Response> => {
     
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Idempotency lock to prevent duplicate sends in race conditions
+    // Idempotency key for this specific booking-worker assignment
     const idempotencyKey = `worker_assignment:${bookingId}:${workerId}`;
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // 30 minutes TTL
     let idempotencyRecordId: string | null = null;
 
-    // Check for existing non-expired records to prevent duplicates, but allow retries for failed/expired
+    // Check for existing non-expired idempotency records to prevent duplicates
     const { data: existing } = await supabase
       .from('idempotency_records')
       .select('id, status, response_data, expires_at')
@@ -62,7 +62,7 @@ const handler = async (req: Request): Promise<Response> => {
       .gt('expires_at', new Date().toISOString()) // Only consider non-expired
       .maybeSingle();
 
-    if (existing) {
+    if (existing && !force) {
       if (existing.status === 'completed') {
         console.log('Email already sent successfully (idempotent)');
         return new Response(JSON.stringify({
@@ -102,40 +102,20 @@ const handler = async (req: Request): Promise<Response> => {
       // Continue without idempotency record for this attempt
     }
 
-    // Use centralized deduplication service (secondary guard)
-    console.log('Checking email deduplication...');
-    const { data: deduplicationResult, error: dedupError } = await supabase.functions.invoke(
-      'email-deduplication-service',
-      {
-        body: {
-          bookingId,
-          workerId,
-          emailType: 'worker_assignment',
-          force,
-          source: 'direct_call'
-        }
-      }
-    );
-
-    if (dedupError) {
-      console.error('Deduplication service error:', dedupError);
-      // Continue with send if deduplication service fails
-    } else if (deduplicationResult && !deduplicationResult.shouldSend) {
-      console.log('Deduplication service blocked email:', deduplicationResult.reason);
-      return new Response(JSON.stringify({ 
-        success: true, 
-        cached: true, 
-        reason: deduplicationResult.reason,
-        existingEmailId: deduplicationResult.existingEmailId
-      }), {
-        status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
+    // Optional: Acquire advisory lock to serialize concurrent requests
+    console.log('Acquiring advisory lock for booking-worker pair...');
+    try {
+      await supabase.rpc('acquire_worker_assignment_lock', { 
+        p_booking_id: bookingId, 
+        p_worker_id: workerId 
       });
+      console.log('Advisory lock acquired');
+    } catch (lockErr) {
+      console.warn('Failed to acquire advisory lock:', lockErr);
+      // Continue without lock - the unique constraints will still prevent duplicates
     }
-    
-    console.log('Deduplication check passed, proceeding with email send');
 
-    // Get comprehensive booking, worker, and service details with separate queries
+    // Get comprehensive booking, worker, and service details
     console.log('Fetching booking and worker data...');
     const [{ data: booking, error: bookingError }, { data: worker, error: workerError }] = await Promise.all([
       supabase.from('bookings')
@@ -238,11 +218,7 @@ const handler = async (req: Request): Promise<Response> => {
     const unit = customerInfo?.unit || booking.guest_customer_info?.unit || '';
     const apartmentName = customerInfo?.apartment_name || booking.guest_customer_info?.apartment_name || '';
 
-    console.log('Preparing email with Resend API...');
-    console.log('Recipient:', worker.email);
-    
-    const resend = new Resend(resendKey);
-    
+    // Prepare email content
     const emailSubject = `NEW JOB ASSIGNMENT - ${formatDate(booking.scheduled_date)}`;
     const emailHtml = `
       <!DOCTYPE html>
@@ -306,13 +282,65 @@ const handler = async (req: Request): Promise<Response> => {
       </html>
     `;
 
-    try {
-      console.log('=== SENDING EMAIL ===');
-      console.log('From:', resendFrom);
-      console.log('To:', worker.email);
-      console.log('Subject:', emailSubject);
-      console.log('Force send:', force);
+    // Atomic email log insertion with UPSERT - this prevents duplicates at the database level
+    console.log('Creating atomic email log entry...');
+    const { data: emailLogResult, error: emailLogError } = await supabase
+      .from('email_logs')
+      .upsert({
+        booking_id: bookingId,
+        recipient_email: worker.email,
+        subject: emailSubject,
+        message: emailHtml,
+        status: 'pending',
+        email_type: 'worker_assignment'
+      }, {
+        onConflict: 'booking_id,recipient_email,email_type',
+        ignoreDuplicates: false // We want to know if it was a duplicate
+      })
+      .select('id, created_at')
+      .single();
+
+    if (emailLogError) {
+      console.error('Failed to create email log entry:', emailLogError);
+      throw new Error(`Failed to create email log: ${emailLogError.message}`);
+    }
+
+    // Check if this was a new insertion by comparing timestamps
+    const emailLogCreated = new Date(emailLogResult.created_at);
+    const isNewEmailLog = (Date.now() - emailLogCreated.getTime()) < 5000; // Within 5 seconds
+
+    if (!isNewEmailLog && !force) {
+      console.log('Email log already exists - email was previously sent');
       
+      // Mark idempotency record as completed (duplicate case)
+      if (idempotencyRecordId) {
+        await supabase
+          .from('idempotency_records')
+          .update({ status: 'completed', response_data: { cached: true, reason: 'Email already logged' } })
+          .eq('id', idempotencyRecordId);
+      }
+
+      return new Response(JSON.stringify({
+        success: true,
+        cached: true,
+        reason: 'Email already sent previously',
+        emailLogId: emailLogResult.id
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Send the email since we confirmed this is a new log entry
+    console.log('=== SENDING EMAIL ===');
+    console.log('From:', resendFrom);
+    console.log('To:', worker.email);
+    console.log('Subject:', emailSubject);
+    console.log('Force send:', force);
+    
+    const resend = new Resend(resendKey);
+    
+    try {
       const emailResponse = await resend.emails.send({
         from: resendFrom,
         to: [worker.email],
@@ -327,43 +355,30 @@ const handler = async (req: Request): Promise<Response> => {
       console.log('=== EMAIL SENT SUCCESSFULLY ===');
       console.log('Resend response:', emailResponse);
 
-      // Log successful email send in database - use upsert to handle duplicates
-      const { error: logError } = await supabase.from('email_logs')
-        .upsert({
-          booking_id: bookingId,
-          recipient_email: worker.email,
-          subject: emailSubject,
-          message: emailHtml,
+      // Update email log with success status
+      await supabase.from('email_logs')
+        .update({
           status: 'sent',
-          email_type: 'worker_assignment',
           sent_at: new Date().toISOString(),
-          // Store Resend message ID for tracking
           external_id: emailResponse.data?.id
-        }, {
-          onConflict: 'booking_id,recipient_email,email_type'
-        });
+        })
+        .eq('id', emailLogResult.id);
 
-      if (logError) {
-        console.error('Failed to log email send:', logError);
-      } else {
-        console.log('Email send logged to database');
-      }
+      console.log('Email log updated with success status');
 
       // Mark idempotency record as completed
       if (idempotencyRecordId) {
-        const { error: idemUpdateErr } = await supabase
+        await supabase
           .from('idempotency_records')
           .update({ status: 'completed', response_data: { emailId: emailResponse.data?.id } })
           .eq('id', idempotencyRecordId);
-        if (idemUpdateErr) {
-          console.log('Failed to update idempotency record to completed:', idemUpdateErr);
-        }
       }
 
       console.log('=== Worker assignment notification COMPLETE ===');
       return new Response(JSON.stringify({
         success: true,
-        emailId: emailResponse.data?.id
+        emailId: emailResponse.data?.id,
+        emailLogId: emailLogResult.id
       }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -378,7 +393,23 @@ const handler = async (req: Request): Promise<Response> => {
         code: emailError?.code
       });
 
-      // Determine error type for watchdog
+      // Update email log with failure status
+      await supabase.from('email_logs')
+        .update({
+          status: 'failed',
+          error_message: emailError.message
+        })
+        .eq('id', emailLogResult.id);
+
+      // Update idempotency record to failed
+      if (idempotencyRecordId) {
+        await supabase
+          .from('idempotency_records')
+          .update({ status: 'failed', response_data: { error: emailError.message } })
+          .eq('id', idempotencyRecordId);
+      }
+
+      // Determine error type for potential watchdog action
       let errorType = 'smtp_error';
       const errorMessage = emailError?.message?.toLowerCase() || '';
       
@@ -388,32 +419,6 @@ const handler = async (req: Request): Promise<Response> => {
         errorType = 'hard_bounce';
       } else if (errorMessage.includes('server') || errorMessage.includes('5')) {
         errorType = 'server_error';
-      }
-
-      // Log the email failure in database
-      const { error: logError } = await supabase.from('email_logs').insert({
-        booking_id: bookingId,
-        recipient_email: worker.email,
-        subject: emailSubject,
-        message: emailHtml,
-        status: 'failed',
-        email_type: 'worker_assignment',
-        error_message: emailError.message
-      });
-
-      if (logError) {
-        console.error('Failed to log email error:', logError);
-      }
-
-      // Update idempotency record to failed
-      if (idempotencyRecordId) {
-        const { error: idemFailErr } = await supabase
-          .from('idempotency_records')
-          .update({ status: 'failed', response_data: { error: emailError.message } })
-          .eq('id', idempotencyRecordId);
-        if (idemFailErr) {
-          console.log('Failed to update idempotency record to failed:', idemFailErr);
-        }
       }
 
       // Trigger watchdog for email failure
@@ -436,7 +441,8 @@ const handler = async (req: Request): Promise<Response> => {
       return new Response(JSON.stringify({
         success: false,
         error: 'Email send failed - watchdog activated',
-        errorType: errorType
+        errorType: errorType,
+        emailLogId: emailLogResult.id
       }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -36,7 +37,7 @@ export const WorkerAssignmentManager = ({
       }
 
       // Use smart email dispatcher (no force option to prevent duplicates)
-      await supabase.functions.invoke('smart-email-dispatcher', {
+      const { data: emailResult, error: emailError } = await supabase.functions.invoke('smart-email-dispatcher', {
         body: {
           bookingId,
           workerId,
@@ -44,10 +45,25 @@ export const WorkerAssignmentManager = ({
           source: 'manual'
         }
       });
-      toast({
-        title: "Worker Assigned Successfully",
-        description: "Worker has been assigned. Email and SMS notifications will be sent automatically.",
-      });
+
+      if (emailError) {
+        console.warn('Email notification failed:', emailError);
+        toast({
+          title: "Worker Assigned",
+          description: "Worker has been assigned but email notification failed. Check logs for details.",
+          variant: "destructive",
+        });
+      } else if (emailResult?.cached) {
+        toast({
+          title: "Worker Already Assigned",
+          description: "Worker was already assigned to this booking. No duplicate email sent.",
+        });
+      } else {
+        toast({
+          title: "Worker Assigned Successfully",
+          description: "Worker has been assigned and notification email sent.",
+        });
+      }
 
       onAssignmentComplete?.();
 
