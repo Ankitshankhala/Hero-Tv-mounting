@@ -11,6 +11,32 @@
     <meta name="theme-color" content="#1a1a1a" />
     <link rel="icon" href="/lovable-uploads/fe916134-126d-4cff-aefa-608f842b536a.png" type="image/png">
     <link rel="canonical" href="https://www.herotvmounting.com" />
+    
+    <!-- Critical CSS inlined to prevent render-blocking -->
+    <style>
+      /* Critical above-the-fold styles */
+      :root {
+        --background: 222.2 84% 4.9%;
+        --foreground: 210 40% 98%;
+        --primary: 210 40% 98%;
+        --primary-foreground: 222.2 47.4% 11.2%;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { 
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: hsl(var(--background));
+        color: hsl(var(--foreground));
+        line-height: 1.5;
+      }
+      #root { min-height: 100vh; }
+      /* Prevent layout shift during load */
+      .hero-section { min-height: 100vh; }
+      .services-section { min-height: 800px; }
+    </style>
+    
+    <!-- Preload main CSS for faster loading -->
+    <link rel="preload" href="/src/index.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="/src/index.css"></noscript>
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
