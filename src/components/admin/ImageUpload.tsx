@@ -30,10 +30,12 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       const fileExt = file.name.split('.').pop();
       const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
       
-      // Upload the file to Supabase Storage
+      // Upload the file to Supabase Storage with 1-year cache control
       const { data, error } = await supabase.storage
         .from('service-images')
-        .upload(fileName, file);
+        .upload(fileName, file, {
+          cacheControl: '31536000' // 1 year in seconds
+        });
 
       if (error) throw error;
 

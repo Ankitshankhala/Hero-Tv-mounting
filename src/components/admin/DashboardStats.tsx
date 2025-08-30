@@ -5,6 +5,7 @@ import { useAdminMetrics } from '@/hooks/useAdminMetrics';
 import { Badge } from '@/components/ui/badge';
 import { StripeConfigStatus } from './StripeConfigStatus';
 import { BookingSmokeTest } from './BookingSmokeTest';
+import { StorageCacheOptimizer } from './StorageCacheOptimizer';
 export const DashboardStats = () => {
   const {
     metrics,
@@ -128,7 +129,12 @@ export const DashboardStats = () => {
       </div>
 
       {/* System Configuration and Testing */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <StripeConfigStatus />
+        <StorageCacheOptimizer />
+      </div>
       
+      <BookingSmokeTest />
 
       {/* Quick Status Overview */}
       <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
