@@ -506,7 +506,7 @@ serve(async (req) => {
       client_secret: paymentIntent.client_secret,
       transaction_id: transactionId,
       payment_intent_id: paymentIntent.id,
-      status: transactionData.status,
+      status: transactionData?.status || safeStatus,
     };
 
     logStep("Payment intent creation completed successfully", { 
