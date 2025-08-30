@@ -70,8 +70,8 @@ export const PaymentCaptureButton = ({
       }
 
       const captureRequest = { 
-        booking_id: bookingId,
-        payment_intent_id: bookingDetails.payment_intent_id
+        bookingId: bookingId, // Use consistent naming
+        capturedBy: 'worker'
       };
       
       console.log('Capture request:', captureRequest);
@@ -99,7 +99,7 @@ export const PaymentCaptureButton = ({
 
       toast({
         title: "Payment Captured Successfully",
-        description: `Payment of $${data.amount_captured || bookingDetails.pending_payment_amount} captured successfully.`,
+        description: `Payment captured successfully. Job marked as completed and will be archived.`,
       });
 
       setLastError(null);
