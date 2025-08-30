@@ -21,11 +21,14 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Validate required fields for guest booking
+    // Enhanced validation for guest booking
     if (!bookingData.guest_customer_info?.email || 
         !bookingData.guest_customer_info?.name || 
-        !bookingData.guest_customer_info?.phone) {
-      throw new Error('Missing required guest customer information');
+        !bookingData.guest_customer_info?.phone ||
+        !bookingData.service_id ||
+        !bookingData.scheduled_date ||
+        !bookingData.scheduled_start) {
+      throw new Error('Missing required guest customer information or booking details');
     }
 
     console.log('Checking for existing pending booking for guest user:', {
@@ -81,11 +84,13 @@ serve(async (req) => {
         service_id: bookingData.service_id,
         scheduled_date: bookingData.scheduled_date,
         scheduled_start: bookingData.scheduled_start,
-        location_notes: bookingData.location_notes,
+        location_notes: bookingData.location_notes || '',
         status: 'payment_pending',
         payment_status: 'pending',
         requires_manual_payment: false,
-        guest_customer_info: bookingData.guest_customer_info
+        guest_customer_info: bookingData.guest_customer_info,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       })
       .select('id')
       .single();
@@ -101,8 +106,10 @@ serve(async (req) => {
         service_id: service.id,
         service_name: service.name,
         quantity: service.quantity || 1,
-        base_price: service.base_price || 0,
-        configuration: service.configuration || {}
+        base_price: service.price || service.base_price || 0,
+        configuration: service.options || service.configuration || {},
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       }));
 
       const { error: servicesError } = await supabase
@@ -110,8 +117,12 @@ serve(async (req) => {
         .insert(bookingServices);
 
       if (servicesError) {
-        console.warn('Failed to create booking services:', servicesError);
-        // Don't fail the whole operation
+        console.error('Failed to create booking services:', servicesError);
+        // Rollback booking creation
+        await supabase.from('bookings').delete().eq('id', newBooking.id);
+        throw new Error(`Failed to create booking services: ${servicesError.message}`);
+      } else {
+        console.log('Successfully created booking services for booking:', newBooking.id);
       }
     }
 

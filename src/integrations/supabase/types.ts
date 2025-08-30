@@ -1439,13 +1439,12 @@ export type Database = {
       }
       find_available_workers_by_zip: {
         Args: {
-          p_customer_zipcode: string
           p_date: string
           p_duration_minutes?: number
           p_time: string
+          p_zipcode: string
         }
         Returns: {
-          available_slots: number
           distance_priority: number
           worker_id: string
         }[]

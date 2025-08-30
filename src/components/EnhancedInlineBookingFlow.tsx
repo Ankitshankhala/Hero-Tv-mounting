@@ -63,6 +63,7 @@ export const EnhancedInlineBookingFlow = ({
     isStep1Valid,
     isStep2Valid,
     isStep3Valid,
+    validateMinimumCart,
     user
   } = useBookingFlowState(selectedServices);
 
@@ -141,27 +142,44 @@ export const EnhancedInlineBookingFlow = ({
     try {
       // Create booking with payment_pending status
       optimizedLog('🚀 Creating booking and proceeding to payment...');
+      
+      // Validate minimum cart before booking creation
+      if (!validateMinimumCart(services)) {
+        console.warn('Minimum cart validation failed - stopping booking creation');
+        return;
+      }
+      
       const createdBookingId = await createInitialBooking(services, formData);
       
-      if (createdBookingId) {
-        setBookingId(createdBookingId);
-        setHasCreatedBooking(true);
-        
-        // Show success message
-        toast({
-          title: "Your booking is created!",
-          description: "To confirm it, please complete the payment now.",
-        });
-        
-        // Move to payment step
-        setCurrentStep(4);
-        optimizedLog('✅ Booking created successfully with ID:', createdBookingId);
+      if (!createdBookingId) {
+        throw new Error('No booking ID returned from booking creation');
       }
+      
+      setBookingId(createdBookingId);
+      setHasCreatedBooking(true);
+      
+      // Show success message
+      toast({
+        title: "Your booking is created!",
+        description: "To confirm it, please complete the payment now.",
+      });
+      
+      // Move to payment step
+      setCurrentStep(4);
+      optimizedLog('✅ Booking created successfully with ID:', createdBookingId);
     } catch (error) {
       console.error('❌ Failed to create booking:', error);
+      
+      // Clear any stored pending booking data on failure
+      sessionStorage.removeItem('pendingBookingId');
+      sessionStorage.removeItem('pendingBookingTimestamp');
+      
+      // Show specific error if available
+      const errorMessage = error instanceof Error ? error.message : "Failed to create booking. Please try again.";
+      
       toast({
-        title: "Error",
-        description: "Failed to create booking. Please try again.",
+        title: "Booking Creation Failed",
+        description: errorMessage,
         variant: "destructive",
       });
     }
