@@ -142,9 +142,9 @@ export const BookingFlow = ({ onClose, initialServices = [] }: BookingFlowProps)
               />
             )}
             
-            {currentStep === 4 && canProceedToPayment && (
+            {currentStep === 4 && canProceedToPayment && bookingId && (
               <PaymentStep 
-                bookingId={bookingId!}
+                bookingId={bookingId}
                 totalPrice={totalPrice}
                 customerEmail={formData.customerEmail}
                 customerName={formData.customerName}
@@ -153,10 +153,13 @@ export const BookingFlow = ({ onClose, initialServices = [] }: BookingFlowProps)
               />
             )}
 
-            {currentStep === 4 && !canProceedToPayment && (
+            {currentStep === 4 && (!canProceedToPayment || !bookingId) && (
               <div className="text-center py-8">
                 <p className="text-red-600 mb-4">
-                  Unable to proceed to payment. Missing required information.
+                  {!bookingId 
+                    ? "No booking found. Please create a booking before payment."
+                    : "Unable to proceed to payment. Missing required information."
+                  }
                 </p>
                 <button 
                   onClick={() => setCurrentStep(3)}

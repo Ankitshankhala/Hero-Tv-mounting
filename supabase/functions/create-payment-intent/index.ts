@@ -388,26 +388,91 @@ serve(async (req) => {
     const transactionId = transactionData.id;
     logStep("Transaction record created successfully", { transactionId });
 
-    // Update booking with payment_intent_id and appropriate status for direct capture
+    // CRITICAL VALIDATION: Verify booking exists and can be updated BEFORE processing payment
     if (booking_id) {
+      logStep("Validating booking exists before payment processing", { booking_id });
+      
+      // First, check if booking exists and is in valid state for payment
+      const { data: bookingValidation, error: bookingCheckError } = await supabaseServiceRole
+        .from('bookings')
+        .select('id, status, payment_status, total_amount')
+        .eq('id', booking_id)
+        .maybeSingle();
+
+      if (bookingCheckError) {
+        logStep("Booking validation query failed", { error: bookingCheckError, booking_id });
+        // Rollback payment intent and transaction
+        try {
+          await Promise.all([
+            supabaseServiceRole.from('transactions').delete().eq('id', transactionId),
+            stripe.paymentIntents.cancel(paymentIntent.id)
+          ]);
+          logStep("Rollback completed - invalid booking");
+        } catch (rollbackError) {
+          logStep("Failed to rollback after booking validation error", { rollbackError });
+        }
+        
+        return new Response(JSON.stringify({
+          error: 'Booking validation failed',
+          details: bookingCheckError.message
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        });
+      }
+
+      if (!bookingValidation) {
+        logStep("Booking not found", { booking_id });
+        // Rollback payment intent and transaction
+        try {
+          await Promise.all([
+            supabaseServiceRole.from('transactions').delete().eq('id', transactionId),
+            stripe.paymentIntents.cancel(paymentIntent.id)
+          ]);
+          logStep("Rollback completed - booking not found");
+        } catch (rollbackError) {
+          logStep("Failed to rollback after booking not found", { rollbackError });
+        }
+        
+        return new Response(JSON.stringify({
+          error: 'Booking not found',
+          details: `No booking found with ID: ${booking_id}`
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        });
+      }
+
+      logStep("Booking validation passed", { 
+        booking_id, 
+        current_status: bookingValidation.status,
+        current_payment_status: bookingValidation.payment_status 
+      });
+
+      // Now update booking with payment_intent_id and appropriate status
       logStep("Updating booking with payment intent", { booking_id, payment_intent_id: paymentIntent.id });
       
       // For authorization workflow, set booking status based on payment status
-      // Map statuses to comply with database constraints
       const bookingStatus = safeStatus === 'authorized' ? 'payment_authorized' : 'payment_pending';
-      const bookingPaymentStatus = safeStatus === 'pending' ? 'pending' : safeStatus; // Fix: 'pending' not 'payment_pending'
+      const bookingPaymentStatus = safeStatus === 'pending' ? 'pending' : safeStatus;
       
-      const { error: bookingUpdateError } = await supabaseServiceRole
+      const { data: updatedBooking, error: bookingUpdateError } = await supabaseServiceRole
         .from('bookings')
         .update({
           payment_intent_id: paymentIntent.id,
           status: bookingStatus,
-          payment_status: bookingPaymentStatus // Fix payment_status mapping
+          payment_status: bookingPaymentStatus
         })
-        .eq('id', booking_id);
+        .eq('id', booking_id)
+        .select('id')
+        .maybeSingle();
 
-      if (bookingUpdateError) {
-        logStep("Booking update failed", { error: bookingUpdateError, booking_id });
+      if (bookingUpdateError || !updatedBooking) {
+        logStep("Booking update failed - critical error", { 
+          error: bookingUpdateError, 
+          booking_id,
+          updated_booking: updatedBooking 
+        });
         
         // This is critical - rollback both transaction and payment intent
         try {
@@ -415,15 +480,25 @@ serve(async (req) => {
             supabaseServiceRole.from('transactions').delete().eq('id', transactionId),
             stripe.paymentIntents.cancel(paymentIntent.id)
           ]);
-          logStep("Rollback completed - transaction and payment intent cancelled");
+          logStep("Rollback completed - booking update failed");
         } catch (rollbackError) {
-          logStep("Failed to rollback", { rollbackError });
+          logStep("Failed to rollback after booking update failure", { rollbackError });
         }
         
-        throw new Error(`Failed to update booking: ${bookingUpdateError.message}`);
+        return new Response(JSON.stringify({
+          error: 'Failed to update booking with payment information',
+          details: bookingUpdateError?.message || 'No booking was updated'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        });
       }
       
-      logStep("Booking updated successfully", { booking_id, status: bookingStatus });
+      logStep("Booking updated successfully", { 
+        booking_id, 
+        status: bookingStatus,
+        payment_intent_id: paymentIntent.id 
+      });
     }
 
     const duration = performance.now() - startTime;
