@@ -96,42 +96,63 @@ serve(async (req) => {
       transactionStatus: transaction?.status 
     });
 
-    // Step 2: Determine target status
+    // Step 2: Determine target status using enum-safe normalization
     let targetTransactionStatus = transaction_status || transaction?.status;
     let targetBookingStatus = null;
     let targetPaymentStatus = null;
 
+    // Normalize transaction status to enum-safe values
+    const ensureSafeTransactionStatus = (status: string): string => {
+      const normalizedStatus = String(status).toLowerCase().trim();
+      
+      switch (normalizedStatus) {
+        case 'requires_payment_method':
+        case 'requires_confirmation':
+        case 'requires_action':
+        case 'processing':
+        case 'pending':
+          return 'pending';
+        case 'requires_capture':
+        case 'authorized':
+        case 'payment_authorized':
+          return 'authorized';
+        case 'succeeded':
+        case 'completed':
+          return 'completed';
+        case 'captured':
+          return 'completed'; // Normalize captured to completed for transaction status
+        case 'canceled':
+        case 'cancelled':
+        case 'failed':
+        case 'payment_failed':
+        default:
+          return 'failed';
+      }
+    };
+
     if (targetTransactionStatus) {
-      // Map transaction status to booking status
+      // Normalize transaction status first
+      targetTransactionStatus = ensureSafeTransactionStatus(targetTransactionStatus);
+      
+      // Map normalized transaction status to booking status
       switch (targetTransactionStatus) {
         case 'authorized':
-        case 'requires_capture':
           targetBookingStatus = 'payment_authorized';
           targetPaymentStatus = 'authorized';
           break;
         case 'completed':
-        case 'succeeded':
           targetBookingStatus = 'confirmed';
           targetPaymentStatus = 'completed';
           break;
-        case 'captured':
-          targetBookingStatus = 'confirmed';
-          targetPaymentStatus = 'captured';
-          break;
         case 'failed':
-        case 'canceled':
           targetBookingStatus = 'failed';
           targetPaymentStatus = 'failed';
           break;
         case 'pending':
-        case 'processing':
+        default:
           targetBookingStatus = 'payment_pending';
           targetPaymentStatus = 'pending';
           break;
-        default:
-          logStep('Unknown status, using fallback', { unknownStatus: targetTransactionStatus });
-          targetBookingStatus = 'payment_pending';
-          targetPaymentStatus = 'pending';
       }
     }
 
