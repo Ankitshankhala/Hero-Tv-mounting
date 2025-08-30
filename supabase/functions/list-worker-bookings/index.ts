@@ -29,7 +29,7 @@ serve(async (req) => {
     const url = new URL(req.url);
     const includeHidden = url.searchParams.get('include_hidden') === 'true';
 
-    // Get all bookings for this worker
+    // Get all bookings for this worker - only confirmed, completed, and payment_authorized
     let query = supabaseClient
       .from('bookings')
       .select(`
@@ -39,6 +39,7 @@ serve(async (req) => {
         worker_booking_preferences!left(is_hidden, hidden_at)
       `)
       .eq('worker_id', user.id)
+      .in('status', ['confirmed', 'completed', 'payment_authorized'])
       .order('created_at', { ascending: false });
 
     const { data: bookings, error: bookingsError } = await query;

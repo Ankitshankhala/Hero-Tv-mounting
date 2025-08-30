@@ -136,12 +136,14 @@ const WorkerDashboard = () => {
       setLoading(true);
       console.log('Fetching jobs for worker:', user.id);
       
-      // Fetch bookings without booking_services to avoid FK error
+      // Fetch bookings without booking_services to avoid FK error - only confirmed, completed, and payment_authorized
       const { data: bookingsData, error: bookingsError } = await supabase.from('bookings').select(`
           *,
           customer:users!customer_id(name, phone),
           service:services!service_id(name, description, base_price, duration_minutes)
-        `).eq('worker_id', user.id).order('updated_at', {
+        `).eq('worker_id', user.id)
+        .in('status', ['confirmed', 'completed', 'payment_authorized'])
+        .order('updated_at', {
         ascending: false
       }).order('scheduled_date', {
         ascending: true
