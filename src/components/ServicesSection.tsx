@@ -69,7 +69,7 @@ export const ServicesSection = ({ onAddToCart }: ServicesSectionProps) => {
                 key={`skeleton-${index}`}
                 className="bg-slate-900/80 backdrop-blur-sm rounded-xl overflow-hidden border border-slate-700 min-h-[400px]"
               >
-                <div className="relative h-48 overflow-hidden">
+                <div className="relative w-full overflow-hidden aspect-[4/3]">
                   <div className="w-full h-full bg-slate-700 animate-pulse" />
                 </div>
                 <div className="p-6">

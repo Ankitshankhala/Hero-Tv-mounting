@@ -32,7 +32,7 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ id, name, price, image
       className={`bg-slate-900/80 backdrop-blur-sm rounded-xl overflow-hidden border ${cardBorderClass} transition-all duration-300 cursor-pointer group hover:scale-105 hover:shadow-xl`}
       onClick={handleClick}
     >
-      <div className="relative h-48 overflow-hidden aspect-[4/3]">
+      <div className="relative w-full overflow-hidden aspect-[4/3]">
         <img 
           src={image} 
           alt={name}
