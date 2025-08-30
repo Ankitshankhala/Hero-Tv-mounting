@@ -454,7 +454,7 @@ serve(async (req) => {
       
       // For authorization workflow, set booking status based on payment status
       const bookingStatus = safeStatus === 'authorized' ? 'payment_authorized' : 'payment_pending';
-      const bookingPaymentStatus = safeStatus === 'pending' ? 'pending' : safeStatus;
+      const bookingPaymentStatus = ensureSafeStatus(safeStatus, 'booking payment status update');
       
       const { data: updatedBooking, error: bookingUpdateError } = await supabaseServiceRole
         .from('bookings')
