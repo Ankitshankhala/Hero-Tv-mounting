@@ -129,10 +129,7 @@ export const DashboardStats = () => {
       </div>
 
       {/* System Configuration and Testing */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <StripeConfigStatus />
-        <StorageCacheOptimizer />
-      </div>
+      
       
       <BookingSmokeTest />
 
