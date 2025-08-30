@@ -395,7 +395,7 @@ serve(async (req) => {
       // First, check if booking exists and is in valid state for payment
       const { data: bookingValidation, error: bookingCheckError } = await supabaseServiceRole
         .from('bookings')
-        .select('id, status, payment_status, total_amount')
+        .select('id, status, payment_status')
         .eq('id', booking_id)
         .maybeSingle();
 
