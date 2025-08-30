@@ -1543,6 +1543,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
+      repair_payment_inconsistencies: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       resend_worker_sms: {
         Args: { booking_id_param: string }
         Returns: boolean

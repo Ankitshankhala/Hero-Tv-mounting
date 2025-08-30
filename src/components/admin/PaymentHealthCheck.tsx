@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CheckCircle, AlertTriangle, RefreshCw, XCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { PaymentRepairButton } from './PaymentRepairButton';
 
 interface HealthCheckResult {
   bookingsWithoutTransactions: number;
@@ -281,6 +282,19 @@ export const PaymentHealthCheck = () => {
                 </AlertDescription>
               </Alert>
             )}
+
+            {/* Advanced Repair Controls */}
+            <div className="border-t pt-4">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-sm font-medium text-gray-700">Advanced Payment Repair</h4>
+              </div>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-gray-500">
+                  Comprehensive repair for booking status promotion, payment intent backfilling, and status standardization
+                </p>
+                <PaymentRepairButton />
+              </div>
+            </div>
           </div>
         ) : (
           <div className="text-center py-4 text-gray-500">

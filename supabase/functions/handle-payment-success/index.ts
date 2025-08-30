@@ -9,7 +9,8 @@ const corsHeaders = {
 
 const logStep = (step: string, details?: Record<string, unknown>) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
-  console.log(`[HANDLE-PAYMENT-SUCCESS] ${step}${detailsStr}`);
+  const timestamp = new Date().toISOString();
+  console.log(`[HANDLE-PAYMENT-SUCCESS] ${timestamp} - ${step}${detailsStr}`);
 };
 
 serve(async (req) => {
