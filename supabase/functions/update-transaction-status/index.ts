@@ -162,7 +162,14 @@ serve(async (req) => {
 
     if (updateError || !updatedTransaction) {
       logStep("Transaction update failed", { error: updateError });
-      throw new Error(`Failed to update transaction: ${updateError?.message}`);
+      return new Response(JSON.stringify({
+        success: false,
+        error: `Failed to update transaction: ${updateError?.message}`,
+        step: 'transaction_update'
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
+      });
     }
 
     logStep("Transaction updated successfully", {
@@ -172,6 +179,8 @@ serve(async (req) => {
 
     // Update booking payment_status and potentially status
     if (transactionData.booking_id) {
+      logStep("Starting booking update", { booking_id: transactionData.booking_id });
+      
       const bookingUpdate: any = {
         payment_status: safeStatus,
         updated_at: new Date().toISOString()
@@ -179,11 +188,29 @@ serve(async (req) => {
 
       // If payment is authorized, update booking status to confirmed (if it's currently pending)
       if (safeStatus === 'authorized') {
-        const { data: currentBooking } = await supabaseServiceRole
+        logStep("Checking current booking status before update");
+        const { data: currentBooking, error: currentBookingError } = await supabaseServiceRole
           .from('bookings')
-          .select('status')
+          .select('status, payment_status')
           .eq('id', transactionData.booking_id)
           .single();
+
+        if (currentBookingError) {
+          logStep("Error fetching current booking", { error: currentBookingError });
+          return new Response(JSON.stringify({
+            success: false,
+            error: `Failed to fetch current booking: ${currentBookingError.message}`,
+            step: 'booking_fetch'
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 500,
+          });
+        }
+
+        logStep("Current booking status", { 
+          status: currentBooking?.status, 
+          payment_status: currentBooking?.payment_status 
+        });
 
         if (currentBooking?.status === 'pending' || currentBooking?.status === 'payment_pending') {
           bookingUpdate.status = 'confirmed';
@@ -191,6 +218,7 @@ serve(async (req) => {
         }
       }
 
+      logStep("Updating booking with", bookingUpdate);
       const { data: updatedBooking, error: bookingUpdateError } = await supabaseServiceRole
         .from('bookings')
         .update(bookingUpdate)
@@ -200,8 +228,16 @@ serve(async (req) => {
 
       if (bookingUpdateError) {
         logStep("Booking update failed", { error: bookingUpdateError });
-        // Don't fail the entire operation for booking update issues
-        console.warn('Failed to update booking status:', bookingUpdateError);
+        return new Response(JSON.stringify({
+          success: false,
+          error: `Failed to update booking: ${bookingUpdateError.message}`,
+          step: 'booking_update',
+          transaction_updated: true,
+          transaction_id: updatedTransaction.id
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500,
+        });
       } else {
         logStep("Booking updated successfully", {
           booking_id: updatedBooking.id,
