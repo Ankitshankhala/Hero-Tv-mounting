@@ -1344,6 +1344,10 @@ export type Database = {
         Args: { p_booking_id: string }
         Returns: boolean
       }
+      assign_worker_idempotent: {
+        Args: { p_booking_id: string; p_worker_id: string }
+        Returns: boolean
+      }
       auto_assign_workers_to_booking: {
         Args: { p_booking_id: string }
         Returns: {
