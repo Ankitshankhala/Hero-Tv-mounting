@@ -31,7 +31,7 @@ export const ReviewsSection = () => {
                 >
                   <div className="grid grid-cols-2 h-80">
                     {/* Image Section */}
-                    <div className="relative">
+                    <div className="relative aspect-[5/4] overflow-hidden">
                       {review ? (
                         <img 
                           src={review.image} 
@@ -41,9 +41,10 @@ export const ReviewsSection = () => {
                           height="320"
                           loading="lazy"
                           decoding="async"
+                          style={{ aspectRatio: '5/4' }}
                         />
                       ) : (
-                        <div className="w-full h-full bg-slate-700 animate-pulse" />
+                        <div className="w-full h-full bg-slate-700 animate-pulse" style={{ aspectRatio: '5/4' }} />
                       )}
                       <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent" />
                     </div>
@@ -58,11 +59,11 @@ export const ReviewsSection = () => {
                             ))}
                           </div>
                           
-                          <ScrollArea className="flex-1 mb-6">
-                            <blockquote className="text-lg text-white leading-relaxed pr-4">
+                          <div className="flex-1 mb-6 min-h-[120px]">
+                            <blockquote className="text-lg text-white leading-relaxed">
                               "{review.quote}"
                             </blockquote>
-                          </ScrollArea>
+                          </div>
                           
                           <div className="text-slate-300">
                             <div className="font-semibold text-white text-lg">{review.name}</div>
@@ -77,11 +78,12 @@ export const ReviewsSection = () => {
                             ))}
                           </div>
                           
-                          <div className="flex-1 mb-6">
+                          <div className="flex-1 mb-6 min-h-[120px]">
                             <div className="space-y-2">
                               <div className="h-4 bg-slate-600 rounded animate-pulse" />
                               <div className="h-4 bg-slate-600 rounded animate-pulse w-3/4" />
                               <div className="h-4 bg-slate-600 rounded animate-pulse w-1/2" />
+                              <div className="h-4 bg-slate-600 rounded animate-pulse w-2/3" />
                             </div>
                           </div>
                           
@@ -107,7 +109,7 @@ export const ReviewsSection = () => {
                 <CarouselItem key={review?.id || `mobile-placeholder-${index}`}>
                   <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl overflow-hidden border border-slate-700">
                     {/* Mobile: Stack image on top, text below */}
-                    <div className="relative h-64">
+                    <div className="relative h-64 aspect-[3/2] overflow-hidden">
                       {review ? (
                         <img 
                           src={review.image} 
@@ -117,9 +119,10 @@ export const ReviewsSection = () => {
                           height="256"
                           loading="lazy"
                           decoding="async"
+                          style={{ aspectRatio: '3/2' }}
                         />
                       ) : (
-                        <div className="w-full h-full bg-slate-700 animate-pulse" />
+                        <div className="w-full h-full bg-slate-700 animate-pulse" style={{ aspectRatio: '3/2' }} />
                       )}
                       <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent" />
                     </div>
@@ -133,11 +136,11 @@ export const ReviewsSection = () => {
                             ))}
                           </div>
                           
-                          <ScrollArea className="h-32 mb-6">
-                            <blockquote className="text-base text-white leading-relaxed pr-4">
+                          <div className="h-32 mb-6 min-h-[128px]">
+                            <blockquote className="text-base text-white leading-relaxed">
                               "{review.quote}"
                             </blockquote>
-                          </ScrollArea>
+                          </div>
                           
                           <div className="text-slate-300">
                             <div className="font-semibold text-white text-lg">{review.name}</div>
@@ -152,11 +155,12 @@ export const ReviewsSection = () => {
                             ))}
                           </div>
                           
-                          <div className="h-32 mb-6">
+                          <div className="h-32 mb-6 min-h-[128px]">
                             <div className="space-y-2">
                               <div className="h-4 bg-slate-600 rounded animate-pulse" />
                               <div className="h-4 bg-slate-600 rounded animate-pulse w-3/4" />
                               <div className="h-4 bg-slate-600 rounded animate-pulse w-1/2" />
+                              <div className="h-4 bg-slate-600 rounded animate-pulse w-2/3" />
                             </div>
                           </div>
                           
