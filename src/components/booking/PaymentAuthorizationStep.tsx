@@ -50,14 +50,20 @@ export const PaymentAuthorizationStep = ({
         </div>
       </div>
 
-      <PaymentAuthorizationCard
-        bookingId={bookingData.id || ''}
-        amount={bookingData.totalPrice}
-        customerName={bookingData.customerName}
-        customerEmail={bookingData.customerEmail}
-        onAuthorizationSuccess={onAuthorizationSuccess}
-        onCancel={onBack}
-      />
+      {bookingData.id ? (
+        <PaymentAuthorizationCard
+          bookingId={bookingData.id}
+          amount={bookingData.totalPrice}
+          customerName={bookingData.customerName}
+          customerEmail={bookingData.customerEmail}
+          onAuthorizationSuccess={onAuthorizationSuccess}
+          onCancel={onBack}
+        />
+      ) : (
+        <div className="text-center p-6">
+          <p className="text-muted-foreground">Creating your booking...</p>
+        </div>
+      )}
     </div>
   );
 };

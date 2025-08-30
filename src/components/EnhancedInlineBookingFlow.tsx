@@ -379,10 +379,10 @@ export const EnhancedInlineBookingFlow = ({
                     </div>
                   )}
 
-                  {isMinimumCartMet ? (
+                  {isMinimumCartMet && bookingId ? (
                     <PaymentAuthorizationForm
                       amount={getTotalPrice() + formData.tipAmount}
-                      bookingId={bookingId!}
+                      bookingId={bookingId}
                       customerEmail={formData.customerEmail || user?.email || ''}
                       customerName={formData.customerName}
                       onAuthorizationSuccess={handlePaymentAuthorizationSuccess}
@@ -391,7 +391,17 @@ export const EnhancedInlineBookingFlow = ({
                   ) : (
                     <div className="text-center py-8">
                       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-                      <p className="text-slate-300">Preparing payment form...</p>
+                      <p className="text-slate-300">
+                        {!bookingId ? "Creating your booking..." : "Preparing payment form..."}
+                      </p>
+                      {!bookingId && (
+                        <button
+                          onClick={() => setCurrentStep(3)}
+                          className="mt-4 text-blue-400 hover:text-blue-300 underline"
+                        >
+                          Go back to schedule
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
