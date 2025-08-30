@@ -47,7 +47,7 @@ export const Footer = () => {
         
         {/* Developer Credit */}
         <div className="mt-6 pt-4 border-t border-slate-700 text-center">
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-300">
             Developed by{' '}
             <a 
               href="https://www.charusolutions.com/" 
@@ -56,18 +56,18 @@ export const Footer = () => {
               className="transition-all duration-300 inline-block hover:scale-110 hover:transform-gpu"
             >
               <span 
-                style={{ color: '#4285F4' }}
+                style={{ color: '#5B9BF5' }}
                 className="hover:brightness-125 transition-all duration-200"
               >
                 Cha
               </span>
               <span 
-                style={{ color: '#EA4335' }}
+                style={{ color: '#F56565' }}
                 className="hover:brightness-125 transition-all duration-200"
               >
                 ru
               </span>
-              <span className="text-slate-500"> </span>
+              <span className="text-slate-300"> </span>
               <span 
                 style={{ color: '#FBBC05' }}
                 className="hover:brightness-125 transition-all duration-200"
@@ -75,13 +75,13 @@ export const Footer = () => {
                 Sol
               </span>
               <span 
-                style={{ color: '#34A853' }}
+                style={{ color: '#48BB78' }}
                 className="hover:brightness-125 transition-all duration-200"
               >
                 uti
               </span>
               <span 
-                style={{ color: '#4285F4' }}
+                style={{ color: '#5B9BF5' }}
                 className="hover:brightness-125 transition-all duration-200"
               >
                 ons
