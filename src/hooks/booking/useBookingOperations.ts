@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { ServiceItem, FormData } from './types';
 
-import { useTestingMode, getEffectiveMinimumAmount } from '@/contexts/TestingModeContext';
+import { useTestingMode, getEffectiveMinimumAmount, getEffectiveServicePrice } from '@/contexts/TestingModeContext';
 import { validateUSZipcode } from '@/utils/zipcodeValidation';
 import { optimizedLog, optimizedError, measurePerformance } from '@/utils/performanceOptimizer';
 
@@ -273,10 +273,12 @@ export const useBookingOperations = () => {
 
       return newBooking.id;
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to create booking. Please try again.';
+      console.error('Booking creation failed:', error);
       toast({
-        title: "Error",
-        description: "Failed to create booking. Please try again.",
-        variant: "destructive",
+        title: 'Error creating booking',
+        description: message,
+        variant: 'destructive',
       });
       throw error;
     } finally {
