@@ -190,5 +190,87 @@ export const BookingSmokeTest = () => {
     }
   };
   const overallStatus = results.length === 0 ? 'idle' : results.some(r => r.status === 'error') ? 'error' : results.some(r => r.status === 'running') ? 'running' : results.every(r => r.status === 'success' || r.status === 'skipped') ? 'success' : 'partial';
-  return;
+  
+  return (
+    <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
+      <CardHeader>
+        <CardTitle className="text-white flex items-center gap-2">
+          <Play className="h-5 w-5" />
+          Booking System Smoke Test
+        </CardTitle>
+        <CardDescription className="text-slate-400">
+          End-to-end test of the booking workflow from service selection to cleanup
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-center gap-3">
+          <Button 
+            onClick={runSmokeTest} 
+            disabled={isRunning}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            {isRunning ? (
+              <>
+                <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                Running Tests...
+              </>
+            ) : (
+              <>
+                <Play className="h-4 w-4 mr-2" />
+                Run Smoke Test
+              </>
+            )}
+          </Button>
+          
+          {overallStatus !== 'idle' && (
+            <Badge 
+              variant={overallStatus === 'success' ? 'default' : overallStatus === 'error' ? 'destructive' : 'secondary'}
+              className={
+                overallStatus === 'success' 
+                  ? 'bg-green-600/20 text-green-400 border-green-500/30' 
+                  : overallStatus === 'error' 
+                  ? 'bg-red-600/20 text-red-400 border-red-500/30' 
+                  : 'bg-yellow-600/20 text-yellow-400 border-yellow-500/30'
+              }
+            >
+              {overallStatus === 'success' && 'All Tests Passed'}
+              {overallStatus === 'error' && 'Tests Failed'}
+              {overallStatus === 'running' && 'Tests Running'}
+              {overallStatus === 'partial' && 'Partial Success'}
+            </Badge>
+          )}
+        </div>
+
+        {results.length > 0 && (
+          <div className="space-y-2">
+            {results.map((result, index) => (
+              <div key={index} className="flex items-center gap-3 p-3 bg-slate-900/50 rounded-lg border border-slate-700">
+                {getStatusIcon(result.status)}
+                <div className="flex-1">
+                  <div className={`font-medium ${getStatusColor(result.status)}`}>
+                    {result.step}
+                  </div>
+                  {result.message && (
+                    <div className="text-sm text-slate-400 mt-1">
+                      {result.message}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {results.length === 0 && (
+          <Alert className="bg-slate-900/50 border-slate-700">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription className="text-slate-300">
+              Click "Run Smoke Test" to verify the booking system is working correctly. 
+              This will test service selection, guest booking creation, payment processing, and cleanup.
+            </AlertDescription>
+          </Alert>
+        )}
+      </CardContent>
+    </Card>
+  );
 };
