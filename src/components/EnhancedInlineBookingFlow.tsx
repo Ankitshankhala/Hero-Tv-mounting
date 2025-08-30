@@ -262,6 +262,41 @@ export const EnhancedInlineBookingFlow = ({
     });
   };
 
+  // Ensure a booking exists before entering payment step
+  const ensureBookingBeforePayment = async () => {
+    if (bookingId) {
+      setCurrentStep(5);
+      return;
+    }
+    try {
+      const createdId = await createInitialBooking(services, formData);
+      if (createdId) {
+        setBookingId(createdId);
+        setHasCreatedBooking(true);
+        setCurrentStep(5);
+      } else {
+        toast({
+          title: "Booking Not Ready",
+          description: "Please go back and try creating the booking again.",
+          variant: "destructive",
+        });
+      }
+    } catch (e) {
+      toast({
+        title: "Booking Creation Failed",
+        description: e instanceof Error ? e.message : "Unable to create booking",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Auto-attempt booking creation if user reaches payment without an ID
+  React.useEffect(() => {
+    if (currentStep === 5 && !bookingId && !loading) {
+      ensureBookingBeforePayment();
+    }
+  }, [currentStep, bookingId, loading]);
+
   if (!isOpen) return null;
 
   return (
@@ -472,7 +507,7 @@ export const EnhancedInlineBookingFlow = ({
 
                   {currentStep === 4 && (
                     <Button
-                      onClick={() => setCurrentStep(5)}
+                      onClick={ensureBookingBeforePayment}
                       className="flex-1 sm:flex-none bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 text-white border-0"
                     >
                       Continue to Payment
