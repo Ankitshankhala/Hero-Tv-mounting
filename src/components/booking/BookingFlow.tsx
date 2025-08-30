@@ -26,7 +26,8 @@ export const BookingFlow = ({ onClose, initialServices = [] }: BookingFlowProps)
     zipcode: '',
     selectedDate: null,
     selectedTime: '',
-    specialInstructions: ''
+    specialInstructions: '',
+    tipAmount: 0
   });
 
   const {

@@ -188,7 +188,7 @@ export const useBookingOperations = () => {
         service_id: primaryServiceId,
         scheduled_date: format(formData.selectedDate!, 'yyyy-MM-dd'),
         scheduled_start: formData.selectedTime,
-        location_notes: `${formData.address}${formData.houseNumber ? `\nUnit: ${formData.houseNumber}` : ''}${formData.apartmentName ? `\nApartment: ${formData.apartmentName}` : ''}\nContact: ${formData.customerName}\nPhone: ${formData.customerPhone}\nEmail: ${formData.customerEmail}\nZIP: ${formData.zipcode}\nSpecial Instructions: ${formData.specialInstructions}`,
+        location_notes: `${formData.address}${formData.houseNumber ? `\nUnit: ${formData.houseNumber}` : ''}${formData.apartmentName ? `\nApartment: ${formData.apartmentName}` : ''}\nContact: ${formData.customerName}\nPhone: ${formData.customerPhone}\nEmail: ${formData.customerEmail}\nZIP: ${formData.zipcode}${formData.tipAmount > 0 ? `\nTip: $${formData.tipAmount.toFixed(2)}` : ''}\nSpecial Instructions: ${formData.specialInstructions}`,
         status: 'payment_pending' as const,
         payment_status: 'pending',
         requires_manual_payment: false,
@@ -201,6 +201,7 @@ export const useBookingOperations = () => {
           apartment_name: formData.apartmentName,
           city: formData.city,
           zipcode: formData.zipcode,
+          tip_amount: formData.tipAmount || 0,
         } : null
       };
 

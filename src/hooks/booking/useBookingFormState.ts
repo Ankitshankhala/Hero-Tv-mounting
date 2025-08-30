@@ -20,7 +20,8 @@ export const useBookingFormState = (selectedServices: ServiceItem[] = []) => {
     city: '',
     selectedDate: undefined,
     selectedTime: '',
-    specialInstructions: ''
+    specialInstructions: '',
+    tipAmount: 0
   });
 
   // Update services when props change
@@ -41,11 +42,17 @@ export const useBookingFormState = (selectedServices: ServiceItem[] = []) => {
   };
 
   const getTotalPrice = () => {
-    return services.reduce((total, service, index) => {
+    const serviceTotal = services.reduce((total, service, index) => {
       const effectivePrice = getEffectiveServicePrice(service.price, isTestingMode, index);
       console.log(`Testing mode: ${isTestingMode}, Service: ${service.name}, Original: $${service.price}, Effective: $${effectivePrice}`);
       return total + (effectivePrice * service.quantity);
     }, 0);
+    
+    return serviceTotal; // Return service total only - tip is added separately in payment
+  };
+
+  const getTotalWithTip = () => {
+    return getTotalPrice() + (formData.tipAmount || 0);
   };
 
   const isMinimumCartMet = () => {
@@ -82,6 +89,7 @@ export const useBookingFormState = (selectedServices: ServiceItem[] = []) => {
     updateServiceQuantity,
     removeService,
     getTotalPrice,
+    getTotalWithTip,
     isMinimumCartMet,
     getAmountNeeded,
     handleZipcodeChange,

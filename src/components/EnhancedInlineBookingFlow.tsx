@@ -5,6 +5,7 @@ import { X, ArrowRight, Shield, AlertCircle } from 'lucide-react';
 import { CalendarIcon } from 'lucide-react';
 import { useTestingMode, getEffectiveMinimumAmount } from '@/contexts/TestingModeContext';
 import { PaymentAuthorizationForm } from '@/components/payment/PaymentAuthorizationForm';
+import { TipStep } from '@/components/booking/TipStep';
 import { useBookingFlowState } from '@/hooks/booking/useBookingFlowState';
 import { BookingProgressSteps } from '@/components/booking/BookingProgressSteps';
 import { ServiceConfigurationStep } from '@/components/booking/ServiceConfigurationStep';
@@ -107,7 +108,7 @@ export const EnhancedInlineBookingFlow = ({
       return;
     }
     
-    if (currentStep < 4) {
+    if (currentStep < 5) {
       setCurrentStep(currentStep + 1);
     }
   };
@@ -177,7 +178,7 @@ export const EnhancedInlineBookingFlow = ({
         description: "To confirm it, please complete the payment now.",
       });
       
-      // Move to payment step
+      // Move to tip step first
       setCurrentStep(4);
       optimizedLog('✅ Booking created successfully with ID:', createdBookingId);
     } catch (error) {
@@ -292,7 +293,7 @@ export const EnhancedInlineBookingFlow = ({
                 </div>
                 <div>
                   <h2 className="text-xl sm:text-2xl font-bold mb-1">Book Your Service</h2>
-                  <p className="text-slate-300 text-xs sm:text-sm">Step {currentStep} of 4</p>
+                  <p className="text-slate-300 text-xs sm:text-sm">Step {currentStep} of 5</p>
                 </div>
               </div>
             </div>
@@ -349,8 +350,17 @@ export const EnhancedInlineBookingFlow = ({
                 />
               )}
 
-              {/* Step 4: Payment Authorization */}
+              {/* Step 4: Tip */}
               {currentStep === 4 && (
+                <TipStep
+                  formData={formData}
+                  setFormData={setFormData}
+                  serviceTotal={getTotalPrice()}
+                />
+              )}
+
+              {/* Step 5: Payment Authorization */}
+              {currentStep === 5 && (
                 <div className="space-y-6">
                   <div className="text-center">
                     <h3 className="text-2xl font-bold text-white mb-2">Payment Authorization</h3>
@@ -371,7 +381,7 @@ export const EnhancedInlineBookingFlow = ({
 
                   {isMinimumCartMet ? (
                     <PaymentAuthorizationForm
-                      amount={getTotalPrice()}
+                      amount={getTotalPrice() + formData.tipAmount}
                       bookingId={bookingId!}
                       customerEmail={formData.customerEmail || user?.email || ''}
                       customerName={formData.customerName}
@@ -406,7 +416,7 @@ export const EnhancedInlineBookingFlow = ({
                     </Button>
                   )}
                   
-                  {currentStep < 3 && (
+                  {currentStep < 4 && (
                     <Button
                       onClick={handleNextStep}
                       disabled={
@@ -443,10 +453,20 @@ export const EnhancedInlineBookingFlow = ({
                         </>
                       ) : (
                         <>
-                          Continue to Payment
+                          Continue to Tip
                           <ArrowRight className="h-4 w-4 ml-2" />
                         </>
                       )}
+                    </Button>
+                  )}
+
+                  {currentStep === 4 && (
+                    <Button
+                      onClick={() => setCurrentStep(5)}
+                      className="flex-1 sm:flex-none bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 text-white border-0"
+                    >
+                      Continue to Payment
+                      <ArrowRight className="h-4 w-4 ml-2" />
                     </Button>
                   )}
                 </div>
