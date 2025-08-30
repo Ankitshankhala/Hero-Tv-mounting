@@ -189,18 +189,44 @@ serve(async (req) => {
 
       if (createError || !createdTransaction) {
         logStep("Failed to create missing transaction", { error: createError });
-        return new Response(JSON.stringify({
-          success: false,
-          error: `Failed to create missing transaction: ${createError?.message}`,
-          step: 'transaction_creation'
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 500,
-        });
-      }
+        const msg = createError?.message || '';
+        // Defensive retry: sanitize any bad enum values like 'payment_authorized'
+        if (msg.includes('invalid input value for enum payment_status') || msg.includes('payment_authorized')) {
+          logStep("Retrying transaction insert with sanitized status 'authorized'");
+          const { data: retryTx, error: retryErr } = await supabaseServiceRole
+            .from('transactions')
+            .insert({ ...newTransactionData, status: 'authorized' })
+            .select('id, booking_id, status')
+            .single();
 
-      transactionData = createdTransaction;
-      logStep("Missing transaction created successfully", { transaction_id: transactionData.id });
+          if (!retryErr && retryTx) {
+            transactionData = retryTx;
+            logStep("Transaction created successfully on retry with sanitized status", { transaction_id: transactionData.id });
+          } else {
+            logStep("Retry insert failed", { error: retryErr });
+            return new Response(JSON.stringify({
+              success: false,
+              error: `Failed to create missing transaction after retry: ${retryErr?.message || msg}`,
+              step: 'transaction_creation_retry'
+            }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 500,
+            });
+          }
+        } else {
+          return new Response(JSON.stringify({
+            success: false,
+            error: `Failed to create missing transaction: ${msg}`,
+            step: 'transaction_creation'
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 500,
+          });
+        }
+      } else {
+        transactionData = createdTransaction;
+        logStep("Missing transaction created successfully", { transaction_id: transactionData.id });
+      }
     }
 
     // Update transaction status
@@ -267,8 +293,8 @@ serve(async (req) => {
         });
 
         if (currentBooking?.status === 'pending' || currentBooking?.status === 'payment_pending') {
-          bookingUpdate.status = 'confirmed';
-          logStep("Setting booking status to confirmed due to authorized payment");
+          bookingUpdate.status = 'payment_authorized';
+          logStep("Setting booking status to payment_authorized due to authorized payment");
         }
       }
 
