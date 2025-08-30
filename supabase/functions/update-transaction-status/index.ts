@@ -133,7 +133,7 @@ serve(async (req) => {
     const safeStatus = ensureSafeStatus(paymentIntent.status, 'Stripe PaymentIntent status');
 
     // Find the transaction record
-    const { data: transactionData, error: findError } = await supabaseServiceRole
+    let { data: transactionData, error: findError } = await supabaseServiceRole
       .from('transactions')
       .select('id, booking_id, status')
       .eq('payment_intent_id', payment_intent_id)
@@ -144,9 +144,63 @@ serve(async (req) => {
       throw new Error(`Database error: ${findError.message}`);
     }
 
+    // If transaction not found, create it from Stripe PaymentIntent data
     if (!transactionData) {
-      logStep("Transaction not found", { payment_intent_id });
-      throw new Error('Transaction not found');
+      logStep("Transaction not found, creating from Stripe data", { payment_intent_id });
+      
+      // Find the booking that has this payment_intent_id
+      const { data: bookingData, error: bookingError } = await supabaseServiceRole
+        .from('bookings')
+        .select('id, service_id, services(base_price)')
+        .eq('payment_intent_id', payment_intent_id)
+        .single();
+
+      if (bookingError || !bookingData) {
+        logStep("No booking found for payment intent", { payment_intent_id, error: bookingError });
+        return new Response(JSON.stringify({
+          success: false,
+          error: `No booking found for payment intent: ${payment_intent_id}`,
+          step: 'booking_lookup'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 404,
+        });
+      }
+
+      // Create the missing transaction record
+      const newTransactionData = {
+        booking_id: bookingData.id,
+        payment_intent_id: payment_intent_id,
+        amount: paymentIntent.amount / 100, // Convert from cents
+        currency: paymentIntent.currency.toUpperCase(),
+        status: safeStatus,
+        payment_method: 'card',
+        transaction_type: paymentIntent.status === 'requires_capture' ? 'authorization' : 'charge',
+        created_at: new Date().toISOString()
+      };
+
+      logStep("Creating missing transaction", newTransactionData);
+      
+      const { data: createdTransaction, error: createError } = await supabaseServiceRole
+        .from('transactions')
+        .insert(newTransactionData)
+        .select('id, booking_id, status')
+        .single();
+
+      if (createError || !createdTransaction) {
+        logStep("Failed to create missing transaction", { error: createError });
+        return new Response(JSON.stringify({
+          success: false,
+          error: `Failed to create missing transaction: ${createError?.message}`,
+          step: 'transaction_creation'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500,
+        });
+      }
+
+      transactionData = createdTransaction;
+      logStep("Missing transaction created successfully", { transaction_id: transactionData.id });
     }
 
     // Update transaction status
