@@ -64,11 +64,14 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ id, name, price, image
           <div className="text-2xl font-bold text-white transition-all duration-300">
             {name === 'TV Mounting' ? (isTestingMode ? '$1' : 'Starting at $90') : `$${effectivePrice}`}
           </div>
-          <button className={`p-3 rounded-full transition-all duration-300 group-hover:scale-110 ${
-            isClicked 
-              ? 'bg-green-600 text-white animate-pulse' 
-              : 'bg-blue-600 hover:bg-blue-700 text-white'
-          }`}>
+          <button 
+            className={`p-3 rounded-full transition-all duration-300 group-hover:scale-110 ${
+              isClicked 
+                ? 'bg-green-600 text-white animate-pulse' 
+                : 'bg-blue-600 hover:bg-blue-700 text-white'
+            }`}
+            aria-label={isClicked ? `${name} added to cart` : `Add ${name} to cart`}
+          >
             {isClicked ? <Check className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
           </button>
         </div>
