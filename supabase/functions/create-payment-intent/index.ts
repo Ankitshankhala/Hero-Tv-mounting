@@ -32,6 +32,7 @@ const ensureSafeStatus = (status: string, context: string = 'unknown'): string =
       break;
     case 'requires_capture':
     case 'authorized':
+    case 'payment_authorized':
       safeStatus = 'authorized';
       break;
     case 'succeeded':
