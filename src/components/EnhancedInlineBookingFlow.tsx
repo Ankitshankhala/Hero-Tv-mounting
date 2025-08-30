@@ -119,6 +119,10 @@ export const EnhancedInlineBookingFlow = ({
   };
 
   const handleScheduleToPayment = async () => {
+    console.log('🔄 BOOKING FLOW: handleScheduleToPayment called');
+    console.log('🔄 BOOKING FLOW: isMinimumCartMet:', isMinimumCartMet);
+    console.log('🔄 BOOKING FLOW: amountNeeded:', amountNeeded);
+    console.log('🔄 BOOKING FLOW: getTotalPrice():', getTotalPrice());
     if (!isMinimumCartMet) {
       toast({
         title: "Minimum Booking Amount Required",
@@ -140,21 +144,30 @@ export const EnhancedInlineBookingFlow = ({
     }
 
     try {
+      console.log('🚀 BOOKING FLOW: Starting booking creation process');
       // Create booking with payment_pending status
       optimizedLog('🚀 Creating booking and proceeding to payment...');
       
       // Validate minimum cart before booking creation
       if (!validateMinimumCart(services)) {
-        console.warn('Minimum cart validation failed - stopping booking creation');
+        console.warn('❌ BOOKING FLOW: Minimum cart validation failed - stopping booking creation');
         return;
       }
       
+      console.log('✅ BOOKING FLOW: Minimum cart validation passed, calling createInitialBooking');
+      console.log('📦 BOOKING FLOW: Services data:', services);
+      console.log('📋 BOOKING FLOW: Form data:', formData);
+      
       const createdBookingId = await createInitialBooking(services, formData);
       
+      console.log('📝 BOOKING FLOW: createInitialBooking returned:', createdBookingId);
+      
       if (!createdBookingId) {
+        console.error('❌ BOOKING FLOW: No booking ID returned from booking creation');
         throw new Error('No booking ID returned from booking creation');
       }
       
+      console.log('✅ BOOKING FLOW: Setting booking ID and success state:', createdBookingId);
       setBookingId(createdBookingId);
       setHasCreatedBooking(true);
       
