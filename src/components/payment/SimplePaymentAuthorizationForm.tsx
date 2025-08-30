@@ -199,25 +199,25 @@ export const SimplePaymentAuthorizationForm = ({
       if (paymentIntent?.status === 'requires_capture' || paymentIntent?.status === 'succeeded') {
         console.log('✅ Payment authorized successfully!');
         
-        // Update transaction status and ensure booking consistency
+        // Handle payment success and update all statuses
         try {
-          console.log('Updating transaction status for payment intent:', intentData.payment_intent_id);
+          console.log('Processing payment success for payment intent:', intentData.payment_intent_id);
           
-          const { data: updateData, error: updateError } = await supabase.functions.invoke(
-            'update-transaction-status',
+          const { data: successData, error: successError } = await supabase.functions.invoke(
+            'handle-payment-success',
             {
               body: {
                 payment_intent_id: intentData.payment_intent_id,
-                status: paymentIntent?.status || 'authorized' // Use actual Stripe status
+                booking_id: bookingId
               }
             }
           );
           
-          if (updateError || !updateData?.success) {
-            console.error('Transaction status update failed:', updateError);
-            console.warn('Payment was authorized but status sync failed - will be fixed by consistency check');
+          if (successError || !successData?.success) {
+            console.error('Payment success handler failed:', successError);
+            console.warn('Payment was authorized but processing failed');
           } else {
-            console.log('Transaction status updated successfully:', updateData);
+            console.log('Payment success processed successfully:', successData);
           }
 
           // CRITICAL FIX: Always verify payment intent after authorization to ensure consistency

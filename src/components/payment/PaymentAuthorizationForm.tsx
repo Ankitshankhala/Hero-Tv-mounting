@@ -164,61 +164,34 @@ export const PaymentAuthorizationForm = ({
       if (paymentIntent?.status === 'requires_capture' || paymentIntent?.status === 'succeeded') {
         console.log('✅ Payment authorized successfully for existing booking!');
         
-        // Update transaction status to 'authorized'
+        // Handle payment success and update all statuses
         try {
-          const { data: updateData, error: updateError } = await supabase.functions.invoke(
-            'update-transaction-status',
+          const { data: successData, error: successError } = await supabase.functions.invoke(
+            'handle-payment-success',
             {
               body: {
                 payment_intent_id: intentData.payment_intent_id,
-                status: 'authorized',
+                booking_id: bookingId,
               },
             }
           );
 
-          if (updateError || !updateData?.success) {
-            console.warn('Update transaction status failed, attempting verification sync:', updateError);
-            
-            // Fallback: Use verify-payment-intent to sync statuses
-            try {
-              const { data: verifyData, error: verifyError } = await supabase.functions.invoke(
-                'verify-payment-intent',
-                {
-                  body: {
-                    payment_intent_id: intentData.payment_intent_id,
-                    booking_id: bookingId,
-                  },
-                }
-              );
-
-              if (verifyError || !verifyData?.success) {
-                throw new Error(verifyError?.message || verifyData?.error || 'Failed to verify payment status');
-              }
-
-              console.log('Payment status verified and synced successfully');
-            } catch (verifyErr) {
-              console.error('Both update and verify failed:', verifyErr);
-              throw new Error('Payment authorized but failed to update transaction status');
-            }
+          if (successError || !successData?.success) {
+            console.warn('Payment success handler failed:', successError);
+            throw new Error(successError?.message || successData?.error || 'Failed to process payment success');
           }
 
-          console.log('Transaction status updated to authorized for existing booking');
-          
-          // Invoke booking consistency check
-          try {
-            await supabase.functions.invoke('booking-status-consistency-check', {
-              body: { booking_id: bookingId },
-            });
-          } catch (consistencyError) {
-            console.warn('Booking consistency check failed:', consistencyError);
-            // Don't fail the entire flow for this
-          }
+          console.log('Payment success processed and all statuses updated');
           
           onAuthorizationSuccess(intentData.payment_intent_id);
         } catch (error) {
-          console.error('Error updating transaction status:', error);
-          toast({ title: 'Error', description: 'Payment authorized but failed to update transaction status', variant: 'destructive' });
-          throw new Error('Payment authorized but failed to update transaction status');
+          console.error('Error processing payment success:', error);
+          toast({ 
+            title: 'Payment Authorized but Processing Failed', 
+            description: 'Your payment was authorized but we had trouble updating the booking. Please contact support.', 
+            variant: 'destructive' 
+          });
+          throw new Error('Payment authorized but failed to process success');
         }
       } else {
         throw new Error(`Payment authorization incomplete. Status: ${paymentIntent?.status || 'unknown'}`);

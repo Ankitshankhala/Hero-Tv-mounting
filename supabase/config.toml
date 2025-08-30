@@ -126,3 +126,12 @@ verify_jwt = false
 
 [functions.booking-status-consistency-check]
 verify_jwt = false
+
+[functions.unified-payment-status-sync]
+verify_jwt = false
+
+[functions.verify-payment-intent]
+verify_jwt = false
+
+[functions.handle-payment-success]
+verify_jwt = false

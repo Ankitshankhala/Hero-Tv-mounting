@@ -56,6 +56,48 @@ export const usePaymentProcessing = () => {
     }
   };
 
+  const handlePaymentSuccess = async (paymentIntentId: string, bookingId?: string): Promise<PaymentResult> => {
+    setProcessing(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('handle-payment-success', {
+        body: { 
+          payment_intent_id: paymentIntentId,
+          booking_id: bookingId
+        }
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (!data?.success) {
+        throw new Error(data?.error || 'Payment verification failed');
+      }
+
+      toast({
+        title: "Payment Successful",
+        description: "Payment has been processed and booking confirmed",
+      });
+
+      return {
+        success: true,
+        transactionId: data.transaction_id
+      };
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Payment verification failed';
+      console.error('Payment success handler error:', error);
+      
+      return {
+        success: false,
+        error: errorMessage
+      };
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   const verifyPaymentIntent = async (paymentIntentId: string, bookingId?: string): Promise<PaymentResult> => {
     setProcessing(true);
     
@@ -175,6 +217,7 @@ export const usePaymentProcessing = () => {
     processOnlinePayment,
     verifyPayment,
     verifyPaymentIntent,
+    handlePaymentSuccess,
     retryPayment,
     processing,
     retryCount
