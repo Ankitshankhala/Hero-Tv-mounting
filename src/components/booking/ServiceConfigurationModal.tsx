@@ -5,6 +5,7 @@ import { ServiceModalHeader } from './modal/ServiceModalHeader';
 import { ServiceBaseCard } from './modal/ServiceBaseCard';
 import { ServiceOptionCard } from './modal/ServiceOptionCard';
 import { ServiceModalFooter } from './modal/ServiceModalFooter';
+import { disableBodyScroll, enableBodyScroll } from '@/utils/bodyScrollLock';
 
 interface ServiceOption {
   id: string;
@@ -73,14 +74,31 @@ export const ServiceConfigurationModal = ({
     return groups;
   }, {} as Record<string, ServiceOption[]>);
 
+  // Handle body scroll lock
+  React.useEffect(() => {
+    if (isOpen) {
+      disableBodyScroll();
+    } else {
+      enableBodyScroll();
+    }
+    
+    return () => {
+      enableBodyScroll();
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[95vh] overflow-y-auto">
-        <ServiceModalHeader serviceName={serviceName} onClose={onClose} />
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-1 sm:p-2">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[100dvh] sm:max-h-[98dvh] overflow-hidden flex flex-col">
+        {/* Sticky Header */}
+        <div className="sticky top-0 z-10 bg-white rounded-t-2xl">
+          <ServiceModalHeader serviceName={serviceName} onClose={onClose} />
+        </div>
 
-        <div className="p-4 sm:p-6 space-y-6">
+        {/* Scrollable Content Area */}
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-6 pb-24">
           <ServiceBaseCard 
             serviceName={serviceName}
             basePrice={basePrice}
@@ -117,6 +135,10 @@ export const ServiceConfigurationModal = ({
             </div>
           )}
 
+        </div>
+        
+        {/* Sticky Footer */}
+        <div className="sticky bottom-0 z-10 bg-white/95 backdrop-blur-sm border-t border-gray-200 rounded-b-2xl pb-safe">
           <ServiceModalFooter
             serviceName={serviceName}
             quantity={quantity}

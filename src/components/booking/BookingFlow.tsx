@@ -6,6 +6,7 @@ import { PaymentStep } from './PaymentStep';
 import { BookingProgressSteps } from './BookingProgressSteps';
 import { useBookingOperations } from '@/hooks/booking/useBookingOperations';
 import { ServiceItem, FormData } from '@/hooks/booking/types';
+import { disableBodyScroll, enableBodyScroll } from '@/utils/bodyScrollLock';
 
 interface BookingFlowProps {
   onClose: () => void;
@@ -118,17 +119,28 @@ export const BookingFlow = ({ onClose, initialServices = [] }: BookingFlowProps)
   // Ensure we have the necessary data for payment step
   const canProceedToPayment = totalPrice > 0 && formData.customerEmail && formData.customerName;
 
+  // Handle body scroll lock
+  React.useEffect(() => {
+    disableBodyScroll();
+    
+    return () => {
+      enableBodyScroll();
+    };
+  }, []);
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center p-6 border-b">
-          <h1 className="text-2xl font-bold">Book Your Service</h1>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-1 sm:p-2">
+      <div className="bg-white rounded-lg w-full max-w-4xl max-h-[100dvh] sm:max-h-[98dvh] overflow-hidden flex flex-col">
+        {/* Sticky Header */}
+        <div className="sticky top-0 z-10 bg-white flex justify-between items-center p-4 sm:p-6 border-b">
+          <h1 className="text-xl sm:text-2xl font-bold">Book Your Service</h1>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
             <X className="h-6 w-6" />
           </button>
         </div>
 
-        <div className="p-6">
+        {/* Scrollable Content Area */}
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 pb-24">
           <BookingProgressSteps currentStep={currentStep} />
           
           <div className="mt-8">

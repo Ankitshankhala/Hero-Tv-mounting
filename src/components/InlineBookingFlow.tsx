@@ -13,6 +13,7 @@ import { X, User, Mail, Phone, MapPin, Calendar as CalendarIcon, Clock, ArrowRig
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
+import { disableBodyScroll, enableBodyScroll } from '@/utils/bodyScrollLock';
 
 interface InlineBookingFlowProps {
   isOpen: boolean;
@@ -127,6 +128,19 @@ export const InlineBookingFlow = ({ isOpen, onClose, onSubmit, selectedServices 
     }
   }, [formData.selectedDate, formData.zipcode]);
 
+  // Handle body scroll lock
+  useEffect(() => {
+    if (isOpen) {
+      disableBodyScroll();
+    } else {
+      enableBodyScroll();
+    }
+    
+    return () => {
+      enableBodyScroll();
+    };
+  }, [isOpen]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const submissionData = {
@@ -156,10 +170,10 @@ export const InlineBookingFlow = ({ isOpen, onClose, onSubmit, selectedServices 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[95vh] overflow-y-auto border border-gray-100">
-        {/* Enhanced Header */}
-        <div className="relative bg-gradient-to-br from-indigo-600 via-blue-600 to-purple-700 text-white px-8 py-6 rounded-t-2xl">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-1 sm:p-2">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[100dvh] sm:max-h-[98dvh] overflow-hidden flex flex-col border border-gray-100">
+        {/* Enhanced Header - Sticky */}
+        <div className="sticky top-0 z-10 bg-gradient-to-br from-indigo-600 via-blue-600 to-purple-700 text-white px-4 sm:px-8 py-4 sm:py-6 rounded-t-2xl">
           <button
             onClick={onClose}
             className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-lg transition-all duration-200"
@@ -178,7 +192,8 @@ export const InlineBookingFlow = ({ isOpen, onClose, onSubmit, selectedServices 
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        {/* Scrollable Content Area */}
+        <form id="booking-form" onSubmit={handleSubmit} className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-6 pb-24">
           {/* Service Summary - Enhanced */}
           {selectedServices.length > 0 && (
             <Card className="bg-gradient-to-r from-emerald-50 to-green-50 border-emerald-200 shadow-sm">
@@ -492,18 +507,37 @@ export const InlineBookingFlow = ({ isOpen, onClose, onSubmit, selectedServices 
             </div>
           </div>
 
-          {/* Submit Button */}
-          <div className="pt-4">
-            <Button 
-              type="submit"
-              className="w-full h-16 text-lg font-bold bg-gradient-to-r from-indigo-600 via-blue-600 to-purple-600 hover:from-indigo-700 hover:via-blue-700 hover:to-purple-700 text-white rounded-xl shadow-xl hover:shadow-2xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] disabled:transform-none"
-              disabled={!isFormValid}
-            >
-              <span>Proceed to Payment - ${getTotalPrice()}</span>
-              <ArrowRight className="h-5 w-5 ml-3" />
-            </Button>
-          </div>
         </form>
+        
+        {/* Sticky Footer Submit Button */}
+        <div className="sticky bottom-0 z-10 bg-white/95 backdrop-blur-sm border-t border-gray-200 px-4 sm:px-6 py-4 rounded-b-2xl pb-safe">
+          <div className="flex items-center justify-center space-x-3 mb-4">
+            <Shield className="h-5 w-5 text-green-600" />
+            <span className="text-sm text-gray-600 font-medium">Secure booking powered by Stripe</span>
+          </div>
+          
+          <Button
+            type="submit"
+            form="booking-form"
+            disabled={!isFormValid || loading}
+            size="lg"
+            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold py-4 px-8 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
+            onClick={handleSubmit}
+          >
+            {loading ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
+                Processing...
+              </>
+            ) : (
+              <>
+                <Star className="mr-2 h-5 w-5" />
+                Proceed to Payment (${getTotalPrice()})
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </>
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   );

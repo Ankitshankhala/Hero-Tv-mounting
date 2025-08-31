@@ -18,6 +18,7 @@ import { optimizedLog } from '@/utils/performanceOptimizer';
 import { StepHeader } from '@/components/booking/StepHeader';
 import { StepCelebration } from '@/components/booking/StepCelebration';
 import { HeroMascot } from '@/components/booking/HeroMascot';
+import { disableBodyScroll, enableBodyScroll } from '@/utils/bodyScrollLock';
 
 interface ServiceItem {
   id: string;
@@ -320,6 +321,19 @@ export const EnhancedInlineBookingFlow = ({
     }
   }, [currentStep, bookingId, loading]);
 
+  // Handle body scroll lock
+  React.useEffect(() => {
+    if (isOpen) {
+      disableBodyScroll();
+    } else {
+      enableBodyScroll();
+    }
+    
+    return () => {
+      enableBodyScroll();
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
@@ -334,10 +348,10 @@ export const EnhancedInlineBookingFlow = ({
       />
 
       {!showSuccess && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
-          <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-y-auto border border-slate-700/50 backdrop-blur-xl">
-            {/* Enhanced Header */}
-            <div className="relative bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 text-white px-4 sm:px-8 py-4 sm:py-6 rounded-t-2xl border-b border-slate-600/50">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-1 sm:p-2">
+          <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[100dvh] sm:max-h-[98dvh] overflow-hidden flex flex-col border border-slate-700/50 backdrop-blur-xl">
+            {/* Enhanced Header - Sticky */}
+            <div className="sticky top-0 z-10 bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 text-white px-4 sm:px-8 py-4 sm:py-6 rounded-t-2xl border-b border-slate-600/50">
               <button
                 onClick={onClose}
                 className="absolute top-3 right-3 sm:top-4 sm:right-4 p-2 hover:bg-white/10 rounded-lg transition-all duration-200"
@@ -366,7 +380,8 @@ export const EnhancedInlineBookingFlow = ({
               <BookingProgressSteps currentStep={currentStep} />
             </div>
 
-            <div className="p-4 sm:p-6 space-y-6">
+            {/* Scrollable Content Area */}
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-6 pb-24">
               {/* Step 1: Service Configuration */}
               {currentStep === 1 && (
                 <div className="space-y-6">
@@ -470,76 +485,57 @@ export const EnhancedInlineBookingFlow = ({
                 </div>
               )}
 
-              {/* Enhanced Navigation Buttons */}
-              <div className="flex flex-col sm:flex-row justify-between items-center pt-6 border-t border-slate-600/50 bg-slate-800/30 rounded-xl p-4 space-y-4 sm:space-y-0 backdrop-blur-sm">
-                <div className="flex items-center space-x-2">
-                  <Shield className="h-4 w-4 text-green-400" />
-                  <span className="text-sm text-slate-300">Secure & encrypted</span>
-                </div>
-
-                <div className="flex space-x-3 w-full sm:w-auto">
-                  {currentStep > 1 && (
+            </div>
+            
+            {/* Sticky Footer Navigation */}
+            <div className="sticky bottom-0 z-10 bg-gradient-to-r from-slate-800/95 to-slate-700/95 backdrop-blur-sm border-t border-slate-600/50 px-4 sm:px-6 py-4 rounded-b-2xl pb-safe">
+              <div className="flex justify-between items-center">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handlePrevStep}
+                  disabled={currentStep === 1 || loading}
+                  className="bg-slate-600/50 border-slate-500 text-white hover:bg-slate-500"
+                >
+                  Back
+                </Button>
+                
+                <div className="flex space-x-3">
+                  {currentStep === 3 && (
                     <Button
-                      variant="outline"
-                      onClick={handlePrevStep}
-                      className="flex-1 sm:flex-none bg-slate-700/50 border-slate-600 text-white hover:bg-slate-600/50 hover:border-slate-500"
-                      disabled={loading}
+                      type="button"
+                      onClick={handleScheduleToPayment}
+                      disabled={!isStep3Valid || !isMinimumCartMet || loading}
+                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8"
                     >
-                      Back
+                      {loading ? 'Creating Booking...' : 'Continue to Tip & Payment'}
                     </Button>
                   )}
                   
-                  {currentStep < 4 && (
+                  {currentStep === 4 && (
                     <Button
+                      type="button"
+                      onClick={() => ensureBookingBeforePayment()}
+                      disabled={!isMinimumCartMet || loading}
+                      className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white px-8"
+                    >
+                      {loading ? 'Preparing...' : 'Continue to Payment'}
+                    </Button>
+                  )}
+                  
+                  {currentStep < 3 && (
+                    <Button
+                      type="button"
                       onClick={handleNextStep}
                       disabled={
                         (currentStep === 1 && (!isStep1Valid || !isMinimumCartMet)) ||
                         (currentStep === 2 && !isStep2Valid) ||
                         loading
                       }
-                      className="flex-1 sm:flex-none bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 text-white border-0"
+                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8"
                     >
-                      {loading ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Loading...
-                        </>
-                      ) : (
-                        <>
-                          Next Step
-                          <ArrowRight className="h-4 w-4 ml-2" />
-                        </>
-                      )}
-                    </Button>
-                  )}
-
-                  {currentStep === 3 && (
-                    <Button
-                      onClick={handleScheduleToPayment}
-                      disabled={!isStep3Valid || !isMinimumCartMet || loading}
-                      className="flex-1 sm:flex-none bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 text-white border-0"
-                    >
-                      {loading ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Creating...
-                        </>
-                      ) : (
-                        <>
-                          Continue to Tip
-                          <ArrowRight className="h-4 w-4 ml-2" />
-                        </>
-                      )}
-                    </Button>
-                  )}
-
-                  {currentStep === 4 && (
-                    <Button
-                      onClick={ensureBookingBeforePayment}
-                      className="flex-1 sm:flex-none bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 text-white border-0"
-                    >
-                      Continue to Payment
-                      <ArrowRight className="h-4 w-4 ml-2" />
+                      Next Step
+                      <ArrowRight className="ml-2 h-5 w-5" />
                     </Button>
                   )}
                 </div>

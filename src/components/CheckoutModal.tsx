@@ -9,6 +9,7 @@ import { useFormValidation } from '@/hooks/useFormValidation';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { CartItem } from '@/types';
+import { disableBodyScroll, enableBodyScroll } from '@/utils/bodyScrollLock';
 
 interface CheckoutModalProps {
   cart: CartItem[];
@@ -41,6 +42,15 @@ export const CheckoutModal = ({ cart, total, onClose }: CheckoutModalProps) => {
   };
 
   const { errors, touched, validateField, validateAllFields, markFieldAsTouched, hasError } = useFormValidation(validationRules);
+
+  // Handle body scroll lock
+  React.useEffect(() => {
+    disableBodyScroll();
+    
+    return () => {
+      enableBodyScroll();
+    };
+  }, []);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -143,8 +153,8 @@ export const CheckoutModal = ({ cart, total, onClose }: CheckoutModalProps) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-1 sm:p-2">
+      <div className="bg-white rounded-lg w-full max-w-2xl max-h-[100dvh] sm:max-h-[98dvh] overflow-hidden flex flex-col">
         <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex justify-between items-center">
           <h2 className="text-2xl font-bold text-gray-900">Book Your Service</h2>
           <button
@@ -155,7 +165,8 @@ export const CheckoutModal = ({ cart, total, onClose }: CheckoutModalProps) => {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        {/* Scrollable Content Area */}
+        <form id="checkout-form" onSubmit={handleSubmit} className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-6 pb-24">
           {/* Service Summary */}
           <div className="bg-gray-50 p-4 rounded-lg">
             <h3 className="font-semibold text-gray-900 mb-3">Service Summary</h3>
@@ -291,12 +302,17 @@ export const CheckoutModal = ({ cart, total, onClose }: CheckoutModalProps) => {
             />
           </div>
 
-          {/* Submit Button */}
-          <div className="flex space-x-4 pt-4">
+        </form>
+        
+        {/* Sticky Footer Submit Button */}
+        <div className="sticky bottom-0 z-10 bg-white/95 backdrop-blur-sm border-t border-gray-200 px-4 sm:px-6 py-4 pb-safe">
+          <div className="flex space-x-4">
             <Button
               type="submit"
+              form="checkout-form"
               disabled={isProcessing}
               className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={handleSubmit}
             >
               {isProcessing ? 'Processing...' : 'Proceed to Payment'}
             </Button>
@@ -309,7 +325,7 @@ export const CheckoutModal = ({ cart, total, onClose }: CheckoutModalProps) => {
               Cancel
             </Button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
