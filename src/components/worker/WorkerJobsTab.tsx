@@ -13,9 +13,10 @@ interface WorkerJobsTabProps {
   jobs: any[];
   onStatusUpdate: (jobId: string, newStatus: BookingStatus) => void;
   onJobCancelled: () => void;
+  initialTab?: string;
 }
 
-export const WorkerJobsTab = ({ jobs, onStatusUpdate, onJobCancelled }: WorkerJobsTabProps) => {
+export const WorkerJobsTab = ({ jobs, onStatusUpdate, onJobCancelled, initialTab = 'active' }: WorkerJobsTabProps) => {
   // Active jobs: exclude archived, completed/canceled statuses and cancelled/failed/refunded payments
   const activeJobs = useMemo(() => 
     jobs.filter(job => 
@@ -140,7 +141,7 @@ export const WorkerJobsTab = ({ jobs, onStatusUpdate, onJobCancelled }: WorkerJo
         </Card>
       )}
       
-      <Tabs defaultValue="active" className="w-full">
+      <Tabs defaultValue={initialTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="active" className="flex items-center space-x-2">
             <Briefcase className="h-4 w-4" />
