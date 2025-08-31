@@ -34,9 +34,48 @@ export function WorkerDashboardWithSidebar() {
   const [showCreateBooking, setShowCreateBooking] = useState(false);
   const location = useLocation();
 
-  // Set up real-time job updates  
-  // TODO: Fix useRealtimeBookings hook
-  // useRealtimeBookings(user?.id || '');
+  // Set up real-time job updates
+  const { isConnected } = useRealtimeBookings({
+    userId: user?.id,
+    userRole: 'worker',
+    onBookingUpdate: (updatedBooking, reassignmentInfo) => {
+      console.log('Real-time booking update received:', updatedBooking, reassignmentInfo);
+      setJobs(currentJobs => {
+        const existingJobIndex = currentJobs.findIndex(job => job.id === updatedBooking.id);
+        
+        // Handle job reassignment
+        if (reassignmentInfo?.wasReassignedAway) {
+          // Remove job that was reassigned away from this worker
+          console.log('Job reassigned away, removing from list');
+          return currentJobs.filter(job => job.id !== updatedBooking.id);
+        }
+        
+        if (reassignmentInfo?.wasReassignedTo) {
+          // Job was reassigned to this worker, refetch to get complete data
+          console.log('Job reassigned to this worker, refetching jobs');
+          fetchWorkerJobs();
+          return currentJobs;
+        }
+        
+        if (existingJobIndex >= 0) {
+          // Update existing job
+          const updatedJobs = [...currentJobs];
+          updatedJobs[existingJobIndex] = {
+            ...updatedJobs[existingJobIndex],
+            ...updatedBooking
+          };
+          console.log('Updated existing job:', updatedJobs[existingJobIndex]);
+          return updatedJobs;
+        } else if (updatedBooking.worker_id === user?.id) {
+          // Add new job if it's assigned to this worker
+          console.log('New job assigned, refetching jobs');
+          fetchWorkerJobs();
+          return currentJobs;
+        }
+        return currentJobs;
+      });
+    }
+  });
 
   useEffect(() => {
     if (user && profile && profile.role === 'worker') {

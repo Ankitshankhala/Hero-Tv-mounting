@@ -6,7 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 interface UseRealtimeBookingsProps {
   userId?: string;
   userRole?: 'worker' | 'customer' | 'admin';
-  onBookingUpdate?: (booking: any) => void;
+  onBookingUpdate?: (booking: any, reassignmentInfo?: any) => void;
 }
 
 export const useRealtimeBookings = ({ 
@@ -37,8 +37,9 @@ export const useRealtimeBookings = ({
     // Set up different filters based on user role
     switch (userRole) {
       case 'worker':
-        channelName = `worker-bookings-${subscriptionId}`;
-        filter = `worker_id=eq.${userId}`;
+        // Listen to all booking updates to detect reassignments
+        channelName = `worker-all-bookings-${subscriptionId}`;
+        filter = ''; // No filter - we'll handle filtering in the callback
         break;
       case 'customer':
         channelName = `customer-bookings-${subscriptionId}`;
@@ -90,6 +91,18 @@ export const useRealtimeBookings = ({
           
           const { eventType, new: newRecord, old: oldRecord } = payload;
           
+          // For workers, only process updates relevant to them
+          if (userRole === 'worker') {
+            const isRelevantToWorker = (record: any) => record?.worker_id === userId;
+            const wasAssignedToWorker = oldRecord && isRelevantToWorker(oldRecord);
+            const isAssignedToWorker = newRecord && isRelevantToWorker(newRecord);
+            
+            // Skip if not relevant to this worker
+            if (!wasAssignedToWorker && !isAssignedToWorker) {
+              return;
+            }
+          }
+          
           // Handle different event types
           if (eventType === 'UPDATE' && oldRecord && newRecord) {
             // Status change notification
@@ -109,18 +122,43 @@ export const useRealtimeBookings = ({
               }
             }
 
-            // Worker assignment notification
+            // Worker assignment notification for customers
             if (!oldRecord.worker_id && newRecord.worker_id && userRole === 'customer') {
               toast({
                 title: "Worker Assigned",
                 description: "A technician has been assigned to your booking!",
               });
             }
+
+            // Worker reassignment notifications for workers
+            if (userRole === 'worker') {
+              // Job was reassigned away from this worker
+              if (oldRecord.worker_id === userId && newRecord.worker_id !== userId) {
+                toast({
+                  title: "Job Reassigned",
+                  description: "A job has been reassigned to another technician.",
+                });
+              }
+              // Job was reassigned to this worker
+              if (oldRecord.worker_id !== userId && newRecord.worker_id === userId) {
+                toast({
+                  title: "New Job Assignment",
+                  description: "A new job has been assigned to you!",
+                });
+              }
+            }
           }
 
-          // Call the callback with the updated booking
+          // Call the callback with the updated booking and reassignment info
           if (onBookingUpdate) {
-            onBookingUpdate(newRecord || oldRecord);
+            const reassignmentInfo = eventType === 'UPDATE' && oldRecord && newRecord ? {
+              wasReassignedAway: oldRecord.worker_id === userId && newRecord.worker_id !== userId,
+              wasReassignedTo: oldRecord.worker_id !== userId && newRecord.worker_id === userId,
+              oldWorkerId: oldRecord.worker_id,
+              newWorkerId: newRecord.worker_id
+            } : null;
+            
+            onBookingUpdate(newRecord || oldRecord, reassignmentInfo);
           }
         }
       }

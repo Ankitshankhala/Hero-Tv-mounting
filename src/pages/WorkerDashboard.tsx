@@ -42,10 +42,25 @@ const WorkerDashboard = () => {
   } = useRealtimeBookings({
     userId: user?.id,
     userRole: 'worker',
-    onBookingUpdate: updatedBooking => {
-      console.log('Real-time booking update received:', updatedBooking);
+    onBookingUpdate: (updatedBooking, reassignmentInfo) => {
+      console.log('Real-time booking update received:', updatedBooking, reassignmentInfo);
       setJobs(currentJobs => {
         const existingJobIndex = currentJobs.findIndex(job => job.id === updatedBooking.id);
+        
+        // Handle job reassignment
+        if (reassignmentInfo?.wasReassignedAway) {
+          // Remove job that was reassigned away from this worker
+          console.log('Job reassigned away, removing from list');
+          return currentJobs.filter(job => job.id !== updatedBooking.id);
+        }
+        
+        if (reassignmentInfo?.wasReassignedTo) {
+          // Job was reassigned to this worker, refetch to get complete data
+          console.log('Job reassigned to this worker, refetching jobs');
+          fetchWorkerJobs();
+          return currentJobs;
+        }
+        
         if (existingJobIndex >= 0) {
           // Update existing job
           const updatedJobs = [...currentJobs];
