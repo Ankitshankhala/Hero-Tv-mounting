@@ -289,7 +289,7 @@ export class TransactionManager {
       switch (latestTransaction.status) {
         case 'completed':
           bookingPaymentStatus = 'completed';
-          bookingStatus = 'confirmed';
+          bookingStatus = 'completed';
           break;
         case 'authorized':
           bookingPaymentStatus = 'authorized';
