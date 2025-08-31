@@ -197,13 +197,13 @@ export const PaymentCaptureButton = ({
 
   // Main capture button for authorized payments
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2">
+      <div className="space-y-2 w-full">
+      <div className="flex items-center gap-2 w-full">
         <Button
           onClick={handleCapturePayment}
           disabled={processing || !bookingDetails?.payment_intent_id}
           size="sm"
-          className="job-button bg-action-success hover:bg-action-success/90 text-white border-action-success transition-all duration-200"
+          className="job-button charge bg-action-success hover:bg-action-success/90 text-white border-action-success transition-all duration-200"
         >
           <CreditCard className="h-4 w-4 mr-2" />
           <span className="hidden sm:inline">
