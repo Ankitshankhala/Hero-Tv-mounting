@@ -117,10 +117,8 @@ export function WorkerSidebar({ activeSection, onSectionChange, stats }: WorkerS
     <Sidebar className={cn("transition-all duration-300", collapsed ? "w-14" : "w-64")} collapsible="icon">
       {/* Mobile trigger */}
       <div className="md:hidden flex items-center justify-between p-4 border-b border-border">
-        <SidebarTrigger asChild>
-          <Button variant="ghost" size="sm">
-            <Menu className="h-4 w-4" />
-          </Button>
+        <SidebarTrigger className="p-2 h-8 w-8">
+          <Menu className="h-4 w-4" />
         </SidebarTrigger>
       </div>
 
