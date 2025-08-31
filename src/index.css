@@ -185,7 +185,9 @@
     .job-card .job-button > button,
     .job-card .job-button button,
     .job-card button.job-button {
-      display: block !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
       margin: 10px auto !important;
       width: 85% !important;
       max-width: 300px !important;
@@ -194,28 +196,35 @@
       font-weight: 600 !important;
       border-radius: 8px !important;
       text-align: center !important;
-      flex: none !important;
       box-sizing: border-box !important;
     }
     
     /* Special handling for the MapAppSelector - make it a single unified button on mobile */
     .job-card .job-button.flex {
       display: flex !important;
+      align-items: center !important;
       justify-content: center !important;
       width: 85% !important;
       max-width: 300px !important;
       margin: 10px auto !important;
+      padding: 0 !important;
     }
     
     .job-card .job-button.flex > button:first-child {
       flex: 1 !important;
       border-radius: 8px 0 0 8px !important;
       margin: 0 !important;
+      padding: 12px 16px !important;
+      font-size: 16px !important;
+      font-weight: 600 !important;
     }
     
     .job-card .job-button.flex > div > button {
       border-radius: 0 8px 8px 0 !important;
       margin: 0 !important;
+      padding: 12px 8px !important;
+      font-size: 16px !important;
+      font-weight: 600 !important;
       width: auto !important;
     }
   }
