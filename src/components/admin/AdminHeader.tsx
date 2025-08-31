@@ -10,7 +10,14 @@ import { AssignWorkerModal } from './AssignWorkerModal';
 import { TodaysJobsModal } from './TodaysJobsModal';
 import { supabase } from '@/integrations/supabase/client';
 import { ArrowSidebarToggle } from './ArrowSidebarToggle';
-export const AdminHeader = () => {
+import { NotificationBell } from './NotificationBell';
+import { GlobalSearch } from './GlobalSearch';
+import { QuickStatsRibbon } from './QuickStatsRibbon';
+interface AdminHeaderProps {
+  onNavigate?: (section: string) => void;
+}
+
+export const AdminHeader = ({ onNavigate }: AdminHeaderProps = {}) => {
   const [showAssignWorker, setShowAssignWorker] = useState(false);
   const [showTodaysJobs, setShowTodaysJobs] = useState(false);
   const [stripeStatus, setStripeStatus] = useState<'checking' | 'live' | 'test' | 'error'>('checking');
@@ -64,6 +71,7 @@ export const AdminHeader = () => {
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
   return <>
+      <QuickStatsRibbon />
       <header className="bg-slate-800/30 backdrop-blur-sm border-b border-slate-700 px-6 py-4">
         <div className="flex justify-between items-center">
           <div className="flex items-center space-x-4">
@@ -80,6 +88,12 @@ export const AdminHeader = () => {
             </div>
           </div>
           <div className="flex items-center space-x-3">
+            {/* Global Search */}
+            <GlobalSearch onNavigate={onNavigate || (() => {})} />
+            
+            {/* Notifications */}
+            <NotificationBell />
+            
             {/* Stripe Status Indicator */}
             <Badge variant={stripeStatus === 'live' ? 'default' : stripeStatus === 'test' ? 'secondary' : 'destructive'} className={stripeStatus === 'live' ? 'bg-green-600' : ''}>
               {stripeStatus === 'checking' && '🔄 Checking...'}

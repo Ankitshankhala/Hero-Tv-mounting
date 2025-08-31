@@ -32,7 +32,7 @@ const Admin = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard');
 
-  // Get sidebar state from cookie for persistence
+  // Get sidebar state from cookie for persistence  
   const getSidebarState = () => {
     if (typeof window !== 'undefined') {
       const saved = document.cookie
@@ -43,6 +43,15 @@ const Admin = () => {
     }
     return false;
   };
+
+  // Sync activeTab with URL params
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tab = urlParams.get('tab');
+    if (tab && tab !== activeTab) {
+      setActiveTab(tab);
+    }
+  }, [activeTab]);
 
   console.log('Admin page - Auth state:', { user: user?.email, profile: profile?.role, loading });
 
@@ -147,7 +156,7 @@ const Admin = () => {
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex w-full overflow-hidden">
           <AdminSidebar activeTab={activeTab} onTabChange={setActiveTab} />
           <div className="flex-1 flex flex-col min-w-0">
-            <AdminHeader />
+            <AdminHeader onNavigate={setActiveTab} />
             <main className="flex-1 p-4 lg:p-6 overflow-auto">
               <div className="max-w-full">
                 {renderContent()}
