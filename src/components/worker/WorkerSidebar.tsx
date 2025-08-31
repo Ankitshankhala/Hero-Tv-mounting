@@ -149,21 +149,22 @@ export function WorkerSidebar({ activeSection, onSectionChange, stats }: WorkerS
                             : "hover:bg-muted text-muted-foreground hover:text-foreground"
                         )}
                       >
-                        <IconComponent className={cn("h-4 w-4 flex-shrink-0", active && "text-primary-foreground")} />
-                        
-                        {!collapsed && (
-                          <>
+                        <div className="flex items-center gap-3 w-full">
+                          <IconComponent className={cn("h-4 w-4 flex-shrink-0", active && "text-primary-foreground")} />
+                          
+                          {!collapsed && (
                             <span className="flex-1 text-left">{item.title}</span>
-                            {item.badge && (
-                              <Badge 
-                                variant={active ? "secondary" : "outline"} 
-                                className="ml-auto text-xs h-5 px-1.5"
-                              >
-                                {item.badge}
-                              </Badge>
-                            )}
-                          </>
-                        )}
+                          )}
+                          
+                          {!collapsed && item.badge && (
+                            <Badge 
+                              variant={active ? "secondary" : "outline"} 
+                              className="ml-auto text-xs h-5 px-1.5"
+                            >
+                              {item.badge}
+                            </Badge>
+                          )}
+                        </div>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   );
