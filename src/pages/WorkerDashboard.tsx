@@ -1,23 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Plus } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useRealtimeBookings } from '@/hooks/useRealtimeBookings';
-import { SidebarProvider } from '@/components/ui/sidebar';
-import { WorkerSidebar } from '@/components/worker/WorkerSidebar';
-import { NotificationBellWorker } from '@/components/worker/NotificationBellWorker';
 import WorkerDashboardHeader from '@/components/worker/WorkerDashboardHeader';
 import WorkerDashboardStats from '@/components/worker/WorkerDashboardStats';
 import WorkerJobsTab from '@/components/worker/WorkerJobsTab';
 import WorkerCalendar from '@/components/worker/WorkerCalendar';
 import WorkerScheduleManager from '@/components/worker/WorkerScheduleManager';
-import { WorkerEarnings } from '@/components/worker/WorkerEarnings';
-import { WorkerNotificationsCenter } from '@/components/worker/WorkerNotificationsCenter';
-import { WorkerProfileSettings } from '@/components/worker/WorkerProfileSettings';
 import WorkerLoginForm from '@/components/worker/WorkerLoginForm';
 import WorkerDashboardLoading from '@/components/worker/WorkerDashboardLoading';
 import { WorkerCreateBookingModal } from '@/components/worker/WorkerCreateBookingModal';
+
 import CoverageNotifications from '@/components/worker/CoverageNotifications';
 import { ServiceAreaSettings } from '@/components/worker/service-area/ServiceAreaSettings';
 import type { Database } from '@/integrations/supabase/types';
@@ -29,8 +26,7 @@ const WorkerDashboard = () => {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateBooking, setShowCreateBooking] = useState(false);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [activeSection, setActiveSection] = useState(searchParams.get('section') || 'dashboard');
+  const [activeTab, setActiveTab] = useState('jobs');
   const {
     user,
     profile,
@@ -308,24 +304,6 @@ const WorkerDashboard = () => {
     });
   };
 
-  // Handle section changes and URL sync
-  const handleSectionChange = (section: string) => {
-    setActiveSection(section);
-    setSearchParams({ section });
-  };
-
-  // Calculate stats for sidebar badges
-  const today = new Date().toDateString();
-  const todaysJobs = jobs.filter(job => new Date(job.scheduled_at).toDateString() === today);
-  const upcomingJobs = jobs.filter(job => new Date(job.scheduled_at) > new Date());
-  const archivedJobs = jobs.filter(job => job.is_archived);
-  const sidebarStats = {
-    todaysJobs: todaysJobs.length,
-    upcomingJobs: upcomingJobs.length,
-    notifications: 3, // Mock count
-    archivedJobs: archivedJobs.length
-  };
-
   // Show loading while auth is initializing
   if (authLoading) {
     console.log('Showing auth loading state');
@@ -344,87 +322,65 @@ const WorkerDashboard = () => {
     return <WorkerDashboardLoading />;
   }
   console.log('Rendering dashboard with', jobs.length, 'jobs');
+  const today = new Date().toDateString();
+  const todaysJobs = jobs.filter(job => new Date(job.scheduled_at).toDateString() === today);
+  const upcomingJobs = jobs.filter(job => new Date(job.scheduled_at) > new Date());
   const completedJobs = jobs.filter(job => job.status === 'completed');
   const todaysEarnings = todaysJobs.reduce((sum, job) => sum + job.total_price, 0);
-
-  // Render different sections based on activeSection
-  const renderContent = () => {
-    switch (activeSection) {
-      case 'dashboard':
-        return (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h1 className="text-2xl font-bold">Dashboard</h1>
-                {isConnected && <p className="text-sm text-green-400">● Live updates enabled</p>}
-                <p className="text-sm text-muted-foreground">Loaded {jobs.length} jobs</p>
-              </div>
-              <NotificationBellWorker onNotificationClick={handleSectionChange} />
-            </div>
-
-            <CoverageNotifications />
-            
-            <div data-tour="worker-earnings">
-              <WorkerDashboardStats 
-                todaysJobs={todaysJobs.length} 
-                upcomingJobs={upcomingJobs.length} 
-                completedJobs={completedJobs.length} 
-                todaysEarnings={todaysEarnings} 
-              />
-            </div>
-          </div>
-        );
-      case 'jobs':
-        return <WorkerJobsTab jobs={jobs} onStatusUpdate={updateJobStatus} onJobCancelled={handleJobCancelled} />;
-      case 'calendar':
-        return <WorkerCalendar />;
-      case 'schedule':
-        return <WorkerScheduleManager onScheduleUpdate={fetchWorkerJobs} />;
-      case 'service-area':
-        return <ServiceAreaSettings />;
-      case 'archived':
-        return <WorkerJobsTab jobs={jobs} onStatusUpdate={updateJobStatus} onJobCancelled={handleJobCancelled} initialTab="archived" />;
-      case 'earnings':
-        return <WorkerEarnings />;
-      case 'notifications':
-        return <WorkerNotificationsCenter />;
-      case 'profile':
-        return <WorkerProfileSettings />;
-      default:
-        return renderContent(); // Default to dashboard
-    }
-  };
-
   return (
     <TourProvider>
-      <SidebarProvider>
-        <div className="min-h-screen w-full flex bg-background">
-          <SEO title="Worker Dashboard | Hero TV Mounting" description="Manage your jobs, schedule, and live assignments." noindex />
-          
-          <WorkerSidebar 
-            activeSection={activeSection} 
-            onSectionChange={handleSectionChange}
-            stats={sidebarStats}
-          />
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <SEO title="Worker Dashboard | Hero TV Mounting" description="Manage your jobs, schedule, and live assignments." noindex />
+        <WorkerDashboardHeader workerName={profile?.name || 'Worker'} />
 
-          <div className="flex-1 flex flex-col">
-            <WorkerDashboardHeader workerName={profile?.name || 'Worker'} />
-            
-            <main className="flex-1 p-6 overflow-auto">
-              {renderContent()}
-            </main>
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h1 className="text-2xl font-bold text-white">Dashboard</h1>
+              {isConnected && <p className="text-sm text-green-400">● Live updates enabled</p>}
+              <p className="text-sm text-gray-400">Loaded {jobs.length} jobs</p>
+            </div>
           </div>
 
-          {showCreateBooking && (
-            <WorkerCreateBookingModal 
-              onClose={() => setShowCreateBooking(false)} 
-              onBookingCreated={handleBookingCreated} 
-            />
-          )}
-          
-          <TourManager />
+          {/* Add Coverage Notifications at the top */}
+          <div className="mb-6">
+            <CoverageNotifications />
+          </div>
+
+          <div data-tour="worker-earnings" className="mb-6">
+            <WorkerDashboardStats todaysJobs={todaysJobs.length} upcomingJobs={upcomingJobs.length} completedJobs={completedJobs.length} todaysEarnings={todaysEarnings} />
+          </div>
+
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 h-auto bg-slate-800 border border-slate-700 p-1 rounded-lg">
+              <TabsTrigger value="jobs" className="w-full justify-center text-white data-[state=active]:bg-slate-700" data-tour="worker-jobs">My Jobs</TabsTrigger>
+              <TabsTrigger value="calendar" className="w-full justify-center text-white data-[state=active]:bg-slate-700">Calendar</TabsTrigger>
+              <TabsTrigger value="schedule" className="w-full justify-center text-white data-[state=active]:bg-slate-700" data-tour="worker-schedule">Set Schedule</TabsTrigger>
+              <TabsTrigger value="service-area" className="w-full justify-center text-white data-[state=active]:bg-slate-700" data-tour="worker-profile">Service Area</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="jobs" className="mt-6">
+              <WorkerJobsTab jobs={jobs} onStatusUpdate={updateJobStatus} onJobCancelled={handleJobCancelled} />
+            </TabsContent>
+            
+            <TabsContent value="calendar" className="mt-6">
+              <WorkerCalendar />
+            </TabsContent>
+            
+            <TabsContent value="schedule" className="mt-6">
+              <WorkerScheduleManager onScheduleUpdate={fetchWorkerJobs} />
+            </TabsContent>
+            
+            <TabsContent value="service-area" className="mt-6">
+              <ServiceAreaSettings />
+            </TabsContent>
+          </Tabs>
         </div>
-      </SidebarProvider>
+
+        {showCreateBooking && <WorkerCreateBookingModal onClose={() => setShowCreateBooking(false)} onBookingCreated={handleBookingCreated} />}
+        
+        <TourManager />
+      </div>
     </TourProvider>
   );
 };
