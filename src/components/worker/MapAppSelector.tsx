@@ -34,10 +34,10 @@ export const MapAppSelector = ({ address, className }: MapAppSelectorProps) => {
         onClick={handleDefaultDirections}
         size="sm"
         variant="outline"
-        className="flex-1 justify-center rounded-r-none border-r-0"
+        className="flex-1 justify-center items-center rounded-r-none border-r-0"
       >
         <PreferredIcon className="h-4 w-4 mr-2" />
-        Directions
+        <span>Directions</span>
       </Button>
       
       <DropdownMenu>
