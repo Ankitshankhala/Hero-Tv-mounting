@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, User, Settings, Key } from 'lucide-react';
+import { ArrowLeft, User, Settings, Key, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -12,6 +12,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/hooks/useAuth';
+import { useTour } from '@/contexts/TourContext';
+import { useIsMobile } from '@/hooks/use-mobile';
 import ChangePasswordModal from './ChangePasswordModal';
 
 interface WorkerDashboardHeaderProps {
@@ -21,6 +23,8 @@ interface WorkerDashboardHeaderProps {
 const WorkerDashboardHeader = ({ workerName }: WorkerDashboardHeaderProps) => {
   const [showChangePassword, setShowChangePassword] = useState(false);
   const { signOut } = useAuth();
+  const { showTourPrompt } = useTour();
+  const isMobile = useIsMobile();
 
   const handleSignOut = () => {
     signOut();
@@ -59,6 +63,10 @@ const WorkerDashboardHeader = ({ workerName }: WorkerDashboardHeaderProps) => {
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel>Account</DropdownMenuLabel>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={showTourPrompt}>
+                    <HelpCircle className="mr-2 h-4 w-4" />
+                    Take Tour
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setShowChangePassword(true)}>
                     <Key className="mr-2 h-4 w-4" />
                     Change Password
@@ -79,6 +87,16 @@ const WorkerDashboardHeader = ({ workerName }: WorkerDashboardHeaderProps) => {
               <p className="text-white font-medium">{new Date().toLocaleDateString()}</p>
             </div>
             
+            <Button
+              variant="ghost"
+              onClick={showTourPrompt}
+              className="text-white hover:text-blue-400"
+              size="sm"
+            >
+              <HelpCircle className="h-4 w-4 mr-1" />
+              Take Tour
+            </Button>
+            
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="text-white hover:text-blue-400" size="sm">
@@ -88,6 +106,10 @@ const WorkerDashboardHeader = ({ workerName }: WorkerDashboardHeaderProps) => {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>Account</DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={showTourPrompt}>
+                  <HelpCircle className="mr-2 h-4 w-4" />
+                  Take Tour
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setShowChangePassword(true)}>
                   <Key className="mr-2 h-4 w-4" />
                   Change Password

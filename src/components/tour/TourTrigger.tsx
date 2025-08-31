@@ -16,32 +16,20 @@ export function TourTrigger() {
   const { profile } = useAuth();
   const isMobile = useIsMobile();
 
-  if (!profile || (profile.role !== 'worker' && profile.role !== 'admin')) {
+  // Only show floating button on mobile for workers/admins
+  if (!profile || (profile.role !== 'worker' && profile.role !== 'admin') || !isMobile) {
     return null;
   }
 
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size={isMobile ? "icon" : "sm"}
-            onClick={showTourPrompt}
-            className={`fixed z-50 bg-background/80 backdrop-blur-sm border border-border hover:bg-accent ${
-              isMobile 
-                ? "bottom-20 right-4 h-12 w-12 rounded-full shadow-lg" 
-                : "top-4 right-4"
-            }`}
-          >
-            <HelpCircle className={`h-4 w-4 ${!isMobile ? "mr-1" : ""}`} />
-            {!isMobile && "Take Tour"}
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p>Take a guided tour of the dashboard</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={showTourPrompt}
+      className="fixed bottom-20 right-4 z-50 h-12 w-12 rounded-full bg-background/80 backdrop-blur-sm border border-border hover:bg-accent shadow-lg"
+      aria-label="Take a guided tour of the dashboard"
+    >
+      <HelpCircle className="h-4 w-4" />
+    </Button>
   );
 }
