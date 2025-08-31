@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Trash2, Phone, MapPin, CreditCard, DollarSign, Plus, Users, Clock } from 'lucide-react';
+import { Trash2, Phone, MapPin, CreditCard, DollarSign, Plus, Users, Clock, Archive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PaymentCaptureButton } from './PaymentCaptureButton';
@@ -7,6 +7,8 @@ import { initiatePhoneCall } from '@/utils/phoneUtils';
 import { MapAppSelector } from './MapAppSelector';
 import { ReassignJobModal } from './ReassignJobModal';
 import { RescheduleJobModal } from './RescheduleJobModal';
+import { archiveBooking } from '@/utils/serviceHelpers';
+import { useToast } from '@/hooks/use-toast';
 interface JobActionsProps {
   job: any;
   onStatusUpdate: (jobId: string, newStatus: string) => void;
@@ -29,6 +31,7 @@ const JobActions = ({
 }: JobActionsProps) => {
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const { toast } = useToast();
   const callCustomer = (phone: string) => {
     initiatePhoneCall(phone);
   };
@@ -53,6 +56,25 @@ const JobActions = ({
   const canModifyServices = job.status === 'confirmed' || job.status === 'in_progress' || job.status === 'payment_authorized';
   const isPaymentPaid = job.payment_status === 'captured' || job.payment_status === 'completed';
   const canReassignOrReschedule = job.status !== 'completed' && job.status !== 'cancelled';
+  const canArchive = job.status === 'completed' && (job.payment_status === 'captured' || job.payment_status === 'completed');
+
+  const handleArchiveJob = async () => {
+    try {
+      await archiveBooking(job.id);
+      toast({
+        title: "Job Archived",
+        description: "The completed job has been archived successfully.",
+      });
+      onJobUpdated?.();
+    } catch (error) {
+      console.error('Error archiving job:', error);
+      toast({
+        title: "Error",
+        description: "Failed to archive the job. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
   const getValidNextStatuses = (currentStatus: string) => {
     switch (currentStatus) {
       case 'pending':
@@ -155,6 +177,19 @@ const JobActions = ({
               Change Time
             </Button>
           </>
+        )}
+
+        {/* Archive Action for Completed Jobs */}
+        {canArchive && (
+          <Button 
+            size="sm" 
+            variant="outline" 
+            onClick={handleArchiveJob}
+            className="job-button border-green-500 text-green-600 hover:bg-green-500 hover:text-white transition-all duration-200"
+          >
+            <Archive className="h-4 w-4 mr-2" />
+            Archive Job
+          </Button>
         )}
       </div>
       

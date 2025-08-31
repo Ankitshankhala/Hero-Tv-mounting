@@ -330,10 +330,28 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
     };
   }, []);
 
+  const handleArchiveJob = async (jobId: string) => {
+    try {
+      // Update the local state immediately for better UX
+      setBookings(prevBookings => 
+        prevBookings.map(booking => 
+          booking.id === jobId 
+            ? { ...booking, is_archived: true, archived_at: new Date().toISOString() }
+            : booking
+        )
+      );
+    } catch (error) {
+      console.error('Error updating archived job locally:', error);
+      // If local update fails, refetch to ensure consistency
+      fetchBookings();
+    }
+  };
+
   return {
     bookings,
     loading,
     handleBookingUpdate,
-    fetchBookings
+    fetchBookings,
+    handleArchiveJob
   };
 };

@@ -74,3 +74,19 @@ export const updateBookingStatus = async (
   if (error) throw error;
   return data;
 };
+
+// Archive a completed booking
+export const archiveBooking = async (bookingId: string) => {
+  const { data, error } = await supabase
+    .from('bookings')
+    .update({ 
+      is_archived: true, 
+      archived_at: new Date().toISOString() 
+    })
+    .eq('id', bookingId)
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
+};
