@@ -175,7 +175,7 @@ export const PaymentCaptureButton = ({
             // This will trigger a payment collection modal
             console.log('Collect payment for booking:', bookingId);
           }}
-          className="bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-2 rounded-md text-sm font-medium transition-colors"
+          className="job-button bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-2 rounded-md text-sm font-medium transition-colors"
         >
           <CreditCard className="h-4 w-4 mr-2 inline" />
           Collect Payment
@@ -219,7 +219,7 @@ export const PaymentCaptureButton = ({
           variant="ghost"
           size="sm"
           onClick={() => setShowDebug(!showDebug)}
-          className="h-8 w-8 p-0"
+          className="h-8 w-8 p-0 hidden md:inline-flex"
         >
           <Info className="h-4 w-4" />
         </Button>
