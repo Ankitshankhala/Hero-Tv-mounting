@@ -1,0 +1,31 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <!-- Hero cape -->
+  <path d="M25 35 C20 30, 15 40, 20 50 L30 65 C35 60, 30 45, 25 35 Z" fill="hsl(var(--primary))" opacity="0.8"/>
+  
+  <!-- Hero body -->
+  <circle cx="50" cy="50" r="25" fill="hsl(var(--primary))" opacity="0.9"/>
+  
+  <!-- Hero face -->
+  <circle cx="50" cy="45" r="18" fill="hsl(var(--background))"/>
+  
+  <!-- Eyes -->
+  <circle cx="44" cy="42" r="2" fill="hsl(var(--foreground))"/>
+  <circle cx="56" cy="42" r="2" fill="hsl(var(--foreground))"/>
+  
+  <!-- Smile -->
+  <path d="M42 50 Q50 56 58 50" stroke="hsl(var(--foreground))" stroke-width="2" fill="none" stroke-linecap="round"/>
+  
+  <!-- Hero mask -->
+  <path d="M35 38 L42 42 L42 48 L58 48 L58 42 L65 38 C65 35, 60 32, 50 32 C40 32, 35 35, 35 38 Z" fill="hsl(var(--primary))"/>
+  
+  <!-- TV icon on chest -->
+  <rect x="46" y="52" width="8" height="6" rx="1" fill="hsl(var(--background))" stroke="hsl(var(--primary))" stroke-width="1"/>
+  <rect x="47" y="53" width="6" height="4" fill="hsl(var(--muted))"/>
+  
+  <!-- Arms -->
+  <circle cx="28" cy="55" r="6" fill="hsl(var(--primary))" opacity="0.9"/>
+  <circle cx="72" cy="55" r="6" fill="hsl(var(--primary))" opacity="0.9"/>
+  
+  <!-- Thumbs up -->
+  <path d="M70 50 L74 48 C76 46, 78 48, 76 52 L72 58" stroke="hsl(var(--background))" stroke-width="2" fill="none" stroke-linecap="round"/>
+</svg>

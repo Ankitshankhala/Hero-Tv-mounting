@@ -54,14 +54,14 @@ export const BookingSuccessModal = ({
               "transform transition-all duration-700 delay-500",
               successAnimation ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
             )}>
-              <h2 className="text-3xl font-bold mb-2">Booking Confirmed!</h2>
+              <h2 className="text-3xl font-bold mb-2">You're all set! Our hero is on the way! 🦸‍♂️</h2>
               <div className="flex items-center justify-center space-x-2 text-green-100">
                 <Sparkles className="h-5 w-5" />
                 <span className="text-lg">Payment Authorized</span>
                 <Sparkles className="h-5 w-5" />
               </div>
               <p className="text-green-100/80 text-sm mt-2">
-                Your card has been authorized. Payment will be charged when service is completed.
+                Your TV mounting adventure begins soon - get ready for some heroic service!
               </p>
             </div>
           </div>

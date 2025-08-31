@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { X, ArrowRight, Shield, AlertCircle } from 'lucide-react';
+import { X, ArrowRight, Shield, AlertCircle, Tv, User, Calendar, Gift, CreditCard } from 'lucide-react';
 import { CalendarIcon } from 'lucide-react';
 import { useTestingMode, getEffectiveMinimumAmount } from '@/contexts/TestingModeContext';
 import { PaymentAuthorizationForm } from '@/components/payment/PaymentAuthorizationForm';
@@ -15,6 +15,9 @@ import { BookingSuccessModal } from '@/components/booking/BookingSuccessModal';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { optimizedLog } from '@/utils/performanceOptimizer';
+import { StepHeader } from '@/components/booking/StepHeader';
+import { StepCelebration } from '@/components/booking/StepCelebration';
+import { HeroMascot } from '@/components/booking/HeroMascot';
 
 interface ServiceItem {
   id: string;
@@ -37,6 +40,8 @@ export const EnhancedInlineBookingFlow = ({
   onSubmit, 
   selectedServices = [] 
 }: EnhancedInlineBookingFlowProps) => {
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [celebrationMessage, setCelebrationMessage] = useState('');
   const { isTestingMode } = useTestingMode();
   const MINIMUM_BOOKING_AMOUNT = getEffectiveMinimumAmount(isTestingMode);
   const {
@@ -109,7 +114,25 @@ export const EnhancedInlineBookingFlow = ({
     }
     
     if (currentStep < 5) {
-      setCurrentStep(currentStep + 1);
+      // Show celebration for completing steps
+      const celebrations = {
+        1: "Perfect! Your services are ready!",
+        2: "Awesome! We know where to find you!",
+        3: "Great choice! Time slot secured!",
+        4: "So generous! Your hero will appreciate it!"
+      };
+      
+      if (celebrations[currentStep as keyof typeof celebrations]) {
+        setCelebrationMessage(celebrations[currentStep as keyof typeof celebrations]);
+        setShowCelebration(true);
+        
+        setTimeout(() => {
+          setShowCelebration(false);
+          setCurrentStep(currentStep + 1);
+        }, 1500);
+      } else {
+        setCurrentStep(currentStep + 1);
+      }
     }
   };
 
@@ -322,14 +345,19 @@ export const EnhancedInlineBookingFlow = ({
                 <X className="h-5 w-5" />
               </button>
               
-              <div className="flex items-center space-x-3">
-                <div className="p-2 sm:p-3 bg-white/10 rounded-xl backdrop-blur-sm border border-white/20">
-                  <CalendarIcon className="h-6 w-6 sm:h-7 sm:w-7" />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 sm:p-3 bg-white/10 rounded-xl backdrop-blur-sm border border-white/20">
+                    <CalendarIcon className="h-6 w-6 sm:h-7 sm:w-7" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl sm:text-2xl font-bold mb-1 bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
+                      Hero TV Mounting
+                    </h2>
+                    <p className="text-slate-300 text-xs sm:text-sm">Step {currentStep} of 5</p>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-xl sm:text-2xl font-bold mb-1">Book Your Service</h2>
-                  <p className="text-slate-300 text-xs sm:text-sm">Step {currentStep} of 5</p>
-                </div>
+                <HeroMascot message="Let's get started!" className="hidden sm:flex" />
               </div>
             </div>
 
@@ -520,6 +548,13 @@ export const EnhancedInlineBookingFlow = ({
           </div>
         </div>
       )}
+
+      {/* Step celebration overlay */}
+      <StepCelebration
+        isVisible={showCelebration}
+        message={celebrationMessage}
+        onComplete={() => setShowCelebration(false)}
+      />
     </>
   );
 };
