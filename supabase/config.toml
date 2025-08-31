@@ -133,5 +133,8 @@ verify_jwt = false
 [functions.verify-payment-intent]
 verify_jwt = false
 
+[functions.get-eligible-workers]
+verify_jwt = true
+
 [functions.handle-payment-success]
 verify_jwt = false

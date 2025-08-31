@@ -83,14 +83,20 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error('Unauthorized: You can only view workers for your own jobs');
     }
 
-    // Get all active workers except the current one
-    const { data: workers, error: workersError } = await supabase
+    // Get all active workers except the current one (if any)
+    let query = supabase
       .from('users')
       .select('id, name, email')
       .eq('role', 'worker')
       .eq('is_active', true)
-      .neq('id', booking.worker_id)
       .order('name');
+    
+    // Only exclude current worker if one is assigned
+    if (booking.worker_id) {
+      query = query.neq('id', booking.worker_id);
+    }
+    
+    const { data: workers, error: workersError } = await query;
 
     if (workersError) {
       throw new Error(`Failed to fetch workers: ${workersError.message}`);

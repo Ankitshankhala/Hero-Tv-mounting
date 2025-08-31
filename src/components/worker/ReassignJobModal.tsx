@@ -143,11 +143,17 @@ export const ReassignJobModal = ({ isOpen, onClose, bookingId, onSuccess }: Reas
                 <SelectValue placeholder={fetchingWorkers ? "Loading workers..." : "Choose a worker"} />
               </SelectTrigger>
               <SelectContent>
-                {workers.map((worker) => (
-                  <SelectItem key={worker.id} value={worker.id}>
-                    {worker.name} ({worker.email})
+                {workers.length === 0 && !fetchingWorkers ? (
+                  <SelectItem value="" disabled>
+                    No eligible workers found
                   </SelectItem>
-                ))}
+                ) : (
+                  workers.map((worker) => (
+                    <SelectItem key={worker.id} value={worker.id}>
+                      {worker.name} ({worker.email})
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>
