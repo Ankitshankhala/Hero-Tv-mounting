@@ -19,6 +19,8 @@ import CoverageNotifications from '@/components/worker/CoverageNotifications';
 import { ServiceAreaSettings } from '@/components/worker/service-area/ServiceAreaSettings';
 import type { Database } from '@/integrations/supabase/types';
 import { SEO } from '@/components/SEO';
+import { TourProvider } from '@/contexts/TourContext';
+import { TourManager } from '@/components/tour/TourManager';
 type BookingStatus = Database['public']['Enums']['booking_status'];
 const WorkerDashboard = () => {
   const [jobs, setJobs] = useState([]);
@@ -325,55 +327,61 @@ const WorkerDashboard = () => {
   const upcomingJobs = jobs.filter(job => new Date(job.scheduled_at) > new Date());
   const completedJobs = jobs.filter(job => job.status === 'completed');
   const todaysEarnings = todaysJobs.reduce((sum, job) => sum + job.total_price, 0);
-  return <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      <SEO title="Worker Dashboard | Hero TV Mounting" description="Manage your jobs, schedule, and live assignments." noindex />
-      <WorkerDashboardHeader workerName={profile?.name || 'Worker'} />
+  return (
+    <TourProvider>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <SEO title="Worker Dashboard | Hero TV Mounting" description="Manage your jobs, schedule, and live assignments." noindex />
+        <WorkerDashboardHeader workerName={profile?.name || 'Worker'} />
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-            {isConnected && <p className="text-sm text-green-400">● Live updates enabled</p>}
-            <p className="text-sm text-gray-400">Loaded {jobs.length} jobs</p>
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h1 className="text-2xl font-bold text-white">Dashboard</h1>
+              {isConnected && <p className="text-sm text-green-400">● Live updates enabled</p>}
+              <p className="text-sm text-gray-400">Loaded {jobs.length} jobs</p>
+            </div>
           </div>
-          
+
+          {/* Add Coverage Notifications at the top */}
+          <div className="mb-6">
+            <CoverageNotifications />
+          </div>
+
+          <div data-tour="worker-earnings" className="mb-6">
+            <WorkerDashboardStats todaysJobs={todaysJobs.length} upcomingJobs={upcomingJobs.length} completedJobs={completedJobs.length} todaysEarnings={todaysEarnings} />
+          </div>
+
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 h-auto bg-slate-800 border border-slate-700 p-1 rounded-lg">
+              <TabsTrigger value="jobs" className="w-full justify-center text-white data-[state=active]:bg-slate-700" data-tour="worker-jobs">My Jobs</TabsTrigger>
+              <TabsTrigger value="calendar" className="w-full justify-center text-white data-[state=active]:bg-slate-700">Calendar</TabsTrigger>
+              <TabsTrigger value="schedule" className="w-full justify-center text-white data-[state=active]:bg-slate-700" data-tour="worker-schedule">Set Schedule</TabsTrigger>
+              <TabsTrigger value="service-area" className="w-full justify-center text-white data-[state=active]:bg-slate-700" data-tour="worker-profile">Service Area</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="jobs" className="mt-6">
+              <WorkerJobsTab jobs={jobs} onStatusUpdate={updateJobStatus} onJobCancelled={handleJobCancelled} />
+            </TabsContent>
+            
+            <TabsContent value="calendar" className="mt-6">
+              <WorkerCalendar />
+            </TabsContent>
+            
+            <TabsContent value="schedule" className="mt-6">
+              <WorkerScheduleManager onScheduleUpdate={fetchWorkerJobs} />
+            </TabsContent>
+            
+            <TabsContent value="service-area" className="mt-6">
+              <ServiceAreaSettings />
+            </TabsContent>
+          </Tabs>
         </div>
 
-        {/* Add Coverage Notifications at the top */}
-        <div className="mb-6">
-          <CoverageNotifications />
-        </div>
-
-
-        <WorkerDashboardStats todaysJobs={todaysJobs.length} upcomingJobs={upcomingJobs.length} completedJobs={completedJobs.length} todaysEarnings={todaysEarnings} />
-
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 h-auto bg-slate-800 border border-slate-700 p-1 rounded-lg">
-            <TabsTrigger value="jobs" className="w-full justify-center text-white data-[state=active]:bg-slate-700">My Jobs</TabsTrigger>
-            <TabsTrigger value="calendar" className="w-full justify-center text-white data-[state=active]:bg-slate-700">Calendar</TabsTrigger>
-            <TabsTrigger value="schedule" className="w-full justify-center text-white data-[state=active]:bg-slate-700">Set Schedule</TabsTrigger>
-            <TabsTrigger value="service-area" className="w-full justify-center text-white data-[state=active]:bg-slate-700">Service Area</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="jobs" className="mt-6">
-            <WorkerJobsTab jobs={jobs} onStatusUpdate={updateJobStatus} onJobCancelled={handleJobCancelled} />
-          </TabsContent>
-          
-          <TabsContent value="calendar" className="mt-6">
-            <WorkerCalendar />
-          </TabsContent>
-          
-          <TabsContent value="schedule" className="mt-6">
-            <WorkerScheduleManager onScheduleUpdate={fetchWorkerJobs} />
-          </TabsContent>
-          
-          <TabsContent value="service-area" className="mt-6">
-            <ServiceAreaSettings />
-          </TabsContent>
-        </Tabs>
+        {showCreateBooking && <WorkerCreateBookingModal onClose={() => setShowCreateBooking(false)} onBookingCreated={handleBookingCreated} />}
+        
+        <TourManager />
       </div>
-
-      {showCreateBooking && <WorkerCreateBookingModal onClose={() => setShowCreateBooking(false)} onBookingCreated={handleBookingCreated} />}
-    </div>;
+    </TourProvider>
+  );
 };
 export default WorkerDashboard;

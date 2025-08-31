@@ -34,19 +34,19 @@ interface AdminSidebarProps {
 
 export const AdminSidebar = ({ activeTab, onTabChange }: AdminSidebarProps) => {
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
-    { id: 'bookings', label: 'Bookings', icon: Calendar },
+    { id: 'dashboard', label: 'Dashboard', icon: BarChart3, tourAttr: 'admin-dashboard' },
+    { id: 'bookings', label: 'Bookings', icon: Calendar, tourAttr: 'admin-bookings' },
     { id: 'customers', label: 'Customers', icon: Users },
-    { id: 'workers', label: 'Workers', icon: Wrench },
+    { id: 'workers', label: 'Workers', icon: Wrench, tourAttr: 'admin-workers' },
     { id: 'services', label: 'Services', icon: Settings },
     { id: 'reviews', label: 'Reviews', icon: Star },
-    { id: 'payments', label: 'Payments', icon: CreditCard },
+    { id: 'payments', label: 'Payments', icon: CreditCard, tourAttr: 'admin-payments' },
     { id: 'invoices', label: 'Invoices', icon: FileText },
     { id: 'sms', label: 'SMS Logs', icon: MessageSquare },
     { id: 'email', label: 'Email Logs', icon: Mail },
     { id: 'blog', label: 'Blog', icon: FileText },
     { id: 'coverage', label: 'Coverage Requests', icon: MapPin },
-    { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'settings', label: 'Settings', icon: Settings, tourAttr: 'admin-settings' },
   ];
 
   return (
@@ -87,6 +87,7 @@ export const AdminSidebar = ({ activeTab, onTabChange }: AdminSidebarProps) => {
                               ? "bg-accent text-accent-foreground shadow-sm font-medium" 
                               : "text-muted-foreground hover:text-foreground"
                           )}
+                          {...(item.tourAttr && { 'data-tour': item.tourAttr })}
                         >
                           <NavLink
                             to={`/admin?tab=${item.id}`}

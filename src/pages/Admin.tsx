@@ -24,6 +24,8 @@ import { EmailLogsManager } from '@/components/admin/EmailLogsManager';
 import { SEO } from '@/components/SEO';
 import { NotificationsSettings } from '@/components/admin/NotificationsSettings';
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarTrigger } from '@/components/ui/sidebar';
+import { TourProvider } from '@/contexts/TourContext';
+import { TourManager } from '@/components/tour/TourManager';
 
 const Admin = () => {
   const { user, profile, loading } = useAuth();
@@ -128,7 +130,7 @@ const Admin = () => {
   };
 
   return (
-    <>
+    <TourProvider>
       <SEO 
         title="Admin Dashboard | Hero TV Mounting"
         description="Admin controls for bookings, payments, invoices, and system health."
@@ -153,8 +155,10 @@ const Admin = () => {
             </main>
           </div>
         </div>
+        
+        <TourManager />
       </SidebarProvider>
-    </>
+    </TourProvider>
   );
 };
 
