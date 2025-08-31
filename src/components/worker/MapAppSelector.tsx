@@ -29,7 +29,7 @@ export const MapAppSelector = ({ address, className }: MapAppSelectorProps) => {
   const PreferredIcon = mapAppConfig[preferredApp].icon;
 
   return (
-    <div className="flex">
+    <div className="flex job-button">
       <Button
         onClick={handleDefaultDirections}
         size="sm"
