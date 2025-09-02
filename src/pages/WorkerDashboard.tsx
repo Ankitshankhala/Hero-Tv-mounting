@@ -17,6 +17,7 @@ import { WorkerCreateBookingModal } from '@/components/worker/WorkerCreateBookin
 
 import CoverageNotifications from '@/components/worker/CoverageNotifications';
 import { ServiceAreaSettings } from '@/components/worker/service-area/ServiceAreaSettings';
+import { CoverageStatusCard } from '@/components/worker/CoverageStatusCard';
 import type { Database } from '@/integrations/supabase/types';
 import { SEO } from '@/components/SEO';
 import { TourProvider } from '@/contexts/TourContext';
@@ -357,8 +358,9 @@ const WorkerDashboard = () => {
             </div>
           </div>
 
-          {/* Add Coverage Notifications at the top */}
-          <div className="mb-6">
+          {/* Add Coverage Status Card and Notifications */}
+          <div className="mb-6 space-y-4">
+            <CoverageStatusCard />
             <CoverageNotifications />
           </div>
 
