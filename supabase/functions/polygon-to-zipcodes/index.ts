@@ -142,7 +142,7 @@ function isPointInPolygon(point: { lat: number; lng: number }, polygon: PolygonP
   return inside;
 }
 
-// Enhanced zipcode lookup with external API fallback
+// Enhanced zipcode lookup with Nominatim reverse geocoding fallback
 async function findZipcodesInPolygon(polygon: PolygonPoint[]): Promise<string[]> {
   console.log(`Processing polygon with ${polygon.length} points`);
   
@@ -153,12 +153,14 @@ async function findZipcodesInPolygon(polygon: PolygonPoint[]): Promise<string[]>
   
   console.log(`Found ${localZipcodes.length} zipcodes in local data`);
   
-  // In production, you could enhance this with:
-  // 1. External geocoding APIs like Google Maps, Mapbox, or PostGIS
-  // 2. A comprehensive ZIP code database
-  // 3. Grid-based sampling for better coverage
+  // If we found fewer than 3 zipcodes, try reverse geocoding fallback
+  if (localZipcodes.length < 3) {
+    console.log('Trying reverse geocoding fallback...');
+    const geocodedZipcodes = await getZipcodesFromGeocoding(polygon);
+    localZipcodes.push(...geocodedZipcodes);
+  }
   
-  // For now, if we found fewer than 3 zipcodes, add some nearby ones based on bounds
+  // If still fewer than 3, add some nearby ones based on bounds
   if (localZipcodes.length < 3) {
     const bounds = getBounds(polygon);
     const nearbyZipcodes = US_ZIPCODES
@@ -174,6 +176,82 @@ async function findZipcodesInPolygon(polygon: PolygonPoint[]): Promise<string[]>
   }
   
   return [...new Set(localZipcodes)]; // Remove duplicates
+}
+
+// Use Nominatim (OpenStreetMap) reverse geocoding to find ZIP codes
+async function getZipcodesFromGeocoding(polygon: PolygonPoint[]): Promise<string[]> {
+  const zipcodes: string[] = [];
+  const bounds = getBounds(polygon);
+  
+  // Sample points within the polygon for reverse geocoding
+  const samplePoints = generateSamplePoints(polygon, bounds);
+  
+  for (const point of samplePoints) {
+    try {
+      // Rate limiting: wait 1 second between requests to respect Nominatim usage policy
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${point.lat}&lon=${point.lng}&addressdetails=1&zoom=18`,
+        {
+          headers: {
+            'User-Agent': 'ServiceAreaMapper/1.0'
+          }
+        }
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        const zipcode = data.address?.postcode;
+        
+        if (zipcode && /^\d{5}(-\d{4})?$/.test(zipcode)) {
+          // Extract 5-digit ZIP code
+          const zip5 = zipcode.split('-')[0];
+          if (!zipcodes.includes(zip5)) {
+            zipcodes.push(zip5);
+            console.log(`Found ZIP code ${zip5} via reverse geocoding`);
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('Reverse geocoding failed for point:', point, error);
+    }
+    
+    // Stop if we have enough ZIP codes
+    if (zipcodes.length >= 5) break;
+  }
+  
+  return zipcodes;
+}
+
+// Generate sample points within the polygon for reverse geocoding
+function generateSamplePoints(polygon: PolygonPoint[], bounds: any): PolygonPoint[] {
+  const points: PolygonPoint[] = [];
+  
+  // Add polygon center
+  const centerLat = (bounds.north + bounds.south) / 2;
+  const centerLng = (bounds.east + bounds.west) / 2;
+  points.push({ lat: centerLat, lng: centerLng });
+  
+  // Add some grid points within bounds
+  const latStep = (bounds.north - bounds.south) / 4;
+  const lngStep = (bounds.east - bounds.west) / 4;
+  
+  for (let i = 1; i <= 3; i++) {
+    for (let j = 1; j <= 3; j++) {
+      const lat = bounds.south + i * latStep;
+      const lng = bounds.west + j * lngStep;
+      const point = { lat, lng };
+      
+      // Only include points that are actually inside the polygon
+      if (isPointInPolygon(point, polygon)) {
+        points.push(point);
+      }
+    }
+  }
+  
+  // Limit to 6 points to avoid too many API calls
+  return points.slice(0, 6);
 }
 
 function getBounds(polygon: PolygonPoint[]) {

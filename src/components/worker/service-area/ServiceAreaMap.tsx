@@ -591,6 +591,52 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, isActive }: ServiceArea
     }
   };
 
+  const suggestZipFromMapCenter = async () => {
+    if (!mapRef.current) return;
+
+    try {
+      const center = mapRef.current.getCenter();
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${center.lat}&lon=${center.lng}&addressdetails=1&zoom=18`,
+        {
+          headers: {
+            'User-Agent': 'ServiceAreaMapper/1.0'
+          }
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        const zipcode = data.address?.postcode;
+        
+        if (zipcode && /^\d{5}(-\d{4})?$/.test(zipcode)) {
+          const zip5 = zipcode.split('-')[0];
+          const currentZips = manualZipcodes.trim();
+          const newZips = currentZips ? `${currentZips}, ${zip5}` : zip5;
+          setManualZipcodes(newZips);
+          
+          toast({
+            title: "ZIP code suggested",
+            description: `Added ${zip5} from map center location`,
+          });
+        } else {
+          toast({
+            title: "No ZIP code found",
+            description: "Could not determine ZIP code for map center location",
+            variant: "destructive",
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error getting ZIP from map center:', error);
+      toast({
+        title: "Error",
+        description: "Failed to get ZIP code from map center",
+        variant: "destructive",
+      });
+    }
+  };
+
 
   return (
     <div className="space-y-6">
@@ -695,7 +741,19 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, isActive }: ServiceArea
                       No ZIP codes were found in your selected area. You can manually enter the ZIP codes you serve:
                     </p>
                     <div className="space-y-2">
-                      <Label htmlFor="manualZips">ZIP Codes (separated by commas, spaces, or new lines)</Label>
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="manualZips">ZIP Codes (separated by commas, spaces, or new lines)</Label>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={suggestZipFromMapCenter}
+                          disabled={!mapRef.current}
+                          className="text-xs"
+                        >
+                          <MapPin className="h-3 w-3 mr-1" />
+                          Suggest from map center
+                        </Button>
+                      </div>
                       <textarea
                         id="manualZips"
                         value={manualZipcodes}
