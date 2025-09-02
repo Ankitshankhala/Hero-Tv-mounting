@@ -6,14 +6,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-interface PolygonPoint {
-  lat: number;
-  lng: number;
-}
-
-// Enhanced US ZIP code dataset with comprehensive Texas coverage
-const US_ZIPCODES = [
-  // Texas (Dallas-Fort Worth Metro)
+// Comprehensive US ZIP code dataset with state coverage
+const US_ZIP_DATASET = [
+  // Texas (Dallas-Fort Worth area)
   { zipcode: '75001', lat: 32.8485, lng: -96.9155, city: 'Addison', state: 'TX' },
   { zipcode: '75002', lat: 32.9312, lng: -96.9656, city: 'Allen', state: 'TX' },
   { zipcode: '75006', lat: 32.9223, lng: -96.8227, city: 'Carrollton', state: 'TX' },
@@ -116,11 +111,34 @@ const US_ZIPCODES = [
   { zipcode: '76179', lat: 32.9137, lng: -97.3753, city: 'Fort Worth', state: 'TX' },
   { zipcode: '76180', lat: 32.8626, lng: -97.1086, city: 'North Richland Hills', state: 'TX' },
   { zipcode: '76182', lat: 32.8829, lng: -97.2086, city: 'North Richland Hills', state: 'TX' },
-  // Sample ZIP codes from other states for testing
+  // Houston area samples
+  { zipcode: '77001', lat: 29.7604, lng: -95.3698, city: 'Houston', state: 'TX' },
+  { zipcode: '77002', lat: 29.7604, lng: -95.3698, city: 'Houston', state: 'TX' },
+  { zipcode: '77003', lat: 29.7404, lng: -95.3498, city: 'Houston', state: 'TX' },
+  { zipcode: '77004', lat: 29.7304, lng: -95.3898, city: 'Houston', state: 'TX' },
+  { zipcode: '77005', lat: 29.7204, lng: -95.4098, city: 'Houston', state: 'TX' },
+  // Major California cities
   { zipcode: '90210', lat: 34.0901, lng: -118.4065, city: 'Beverly Hills', state: 'CA' },
+  { zipcode: '90211', lat: 34.0681, lng: -118.4059, city: 'Beverly Hills', state: 'CA' },
+  { zipcode: '90212', lat: 34.0681, lng: -118.4059, city: 'Beverly Hills', state: 'CA' },
+  { zipcode: '90301', lat: 33.8847, lng: -118.2931, city: 'Inglewood', state: 'CA' },
+  { zipcode: '90302', lat: 33.8736, lng: -118.3089, city: 'Inglewood', state: 'CA' },
+  // New York area samples
   { zipcode: '10001', lat: 40.7506, lng: -73.9972, city: 'New York', state: 'NY' },
+  { zipcode: '10002', lat: 40.7157, lng: -73.9864, city: 'New York', state: 'NY' },
+  { zipcode: '10003', lat: 40.7318, lng: -73.9892, city: 'New York', state: 'NY' },
+  { zipcode: '10004', lat: 40.6991, lng: -74.0146, city: 'New York', state: 'NY' },
+  { zipcode: '10005', lat: 40.7056, lng: -74.0134, city: 'New York', state: 'NY' },
+  // Florida samples
   { zipcode: '33101', lat: 25.7617, lng: -80.1918, city: 'Miami', state: 'FL' },
+  { zipcode: '33102', lat: 25.7753, lng: -80.1937, city: 'Miami', state: 'FL' },
+  { zipcode: '33103', lat: 25.7839, lng: -80.1300, city: 'Miami', state: 'FL' },
 ];
+
+interface PolygonPoint {
+  lat: number;
+  lng: number;
+}
 
 // Point in polygon algorithm (ray casting)
 function isPointInPolygon(point: { lat: number; lng: number }, polygon: PolygonPoint[]): boolean {
@@ -142,40 +160,6 @@ function isPointInPolygon(point: { lat: number; lng: number }, polygon: PolygonP
   return inside;
 }
 
-// Enhanced zipcode lookup with external API fallback
-async function findZipcodesInPolygon(polygon: PolygonPoint[]): Promise<string[]> {
-  console.log(`Processing polygon with ${polygon.length} points`);
-  
-  // First, use our local zipcode data
-  const localZipcodes = US_ZIPCODES
-    .filter(zipData => isPointInPolygon({ lat: zipData.lat, lng: zipData.lng }, polygon))
-    .map(zipData => zipData.zipcode);
-  
-  console.log(`Found ${localZipcodes.length} zipcodes in local data`);
-  
-  // In production, you could enhance this with:
-  // 1. External geocoding APIs like Google Maps, Mapbox, or PostGIS
-  // 2. A comprehensive ZIP code database
-  // 3. Grid-based sampling for better coverage
-  
-  // For now, if we found fewer than 3 zipcodes, add some nearby ones based on bounds
-  if (localZipcodes.length < 3) {
-    const bounds = getBounds(polygon);
-    const nearbyZipcodes = US_ZIPCODES
-      .filter(zipData => 
-        zipData.lat >= bounds.south && zipData.lat <= bounds.north &&
-        zipData.lng >= bounds.west && zipData.lng <= bounds.east &&
-        !localZipcodes.includes(zipData.zipcode)
-      )
-      .map(zipData => zipData.zipcode)
-      .slice(0, 5); // Add up to 5 nearby zipcodes
-    
-    localZipcodes.push(...nearbyZipcodes);
-  }
-  
-  return [...new Set(localZipcodes)]; // Remove duplicates
-}
-
 function getBounds(polygon: PolygonPoint[]) {
   let north = -90, south = 90, east = -180, west = 180;
   
@@ -187,6 +171,43 @@ function getBounds(polygon: PolygonPoint[]) {
   }
   
   return { north, south, east, west };
+}
+
+// Enhanced zipcode lookup with better coverage
+async function findZipcodesInPolygon(polygon: PolygonPoint[]): Promise<string[]> {
+  console.log(`Processing polygon with ${polygon.length} points`);
+  
+  // First, find ZIP codes directly within the polygon
+  const directZipcodes = US_ZIP_DATASET
+    .filter(zipData => isPointInPolygon({ lat: zipData.lat, lng: zipData.lng }, polygon))
+    .map(zipData => zipData.zipcode);
+  
+  console.log(`Found ${directZipcodes.length} zipcodes directly in polygon`);
+  
+  // If we found very few ZIP codes, expand search using bounds-based approach
+  if (directZipcodes.length < 5) {
+    const bounds = getBounds(polygon);
+    const expandedBounds = {
+      north: bounds.north + 0.05, // Expand by ~3 miles
+      south: bounds.south - 0.05,
+      east: bounds.east + 0.05,
+      west: bounds.west - 0.05
+    };
+    
+    const nearbyZipcodes = US_ZIP_DATASET
+      .filter(zipData => 
+        zipData.lat >= expandedBounds.south && zipData.lat <= expandedBounds.north &&
+        zipData.lng >= expandedBounds.west && zipData.lng <= expandedBounds.east &&
+        !directZipcodes.includes(zipData.zipcode)
+      )
+      .map(zipData => zipData.zipcode)
+      .slice(0, 10); // Add up to 10 nearby ZIP codes
+    
+    console.log(`Added ${nearbyZipcodes.length} nearby zipcodes from expanded bounds`);
+    directZipcodes.push(...nearbyZipcodes);
+  }
+  
+  return [...new Set(directZipcodes)]; // Remove duplicates
 }
 
 serve(async (req) => {
@@ -203,7 +224,7 @@ serve(async (req) => {
 
     const { polygon, workerId, areaName = 'Service Area', zipcodesOnly } = await req.json();
 
-    // Allow either polygon or zipcodesOnly
+    // Validate inputs
     if (!zipcodesOnly && (!polygon || !Array.isArray(polygon) || polygon.length < 3)) {
       throw new Error('Invalid polygon: must have at least 3 points');
     }

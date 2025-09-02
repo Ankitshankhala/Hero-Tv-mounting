@@ -49,6 +49,10 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, isActive }: ServiceArea
   const [testZipcode, setTestZipcode] = useState('');
   const [zipcodeTesting, setZipcodeTesting] = useState(false);
   const [zipcodeTestResult, setZipcodeTestResult] = useState<{ found: boolean; message: string } | null>(null);
+  const [showLocationButton, setShowLocationButton] = useState(true);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [showZipFallback, setShowZipFallback] = useState(false);
+  const [manualZipcodes, setManualZipcodes] = useState('');
   const { toast } = useToast();
   const { serviceZipcodes, getActiveZipcodes, fetchServiceAreas } = useWorkerServiceAreas(workerId);
 
@@ -57,7 +61,7 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, isActive }: ServiceArea
     if (!isActive) return;
     if (!mapContainerRef.current || mapRef.current) return;
 
-    // Create map centered on Dallas, TX
+    // Create map centered on Dallas, TX (will be updated to user's location)
     const map = L.map(mapContainerRef.current).setView([32.7767, -96.7970], 10);
     mapRef.current = map;
 
@@ -157,6 +161,54 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, isActive }: ServiceArea
       if (ro && mapContainerRef.current) ro.unobserve(mapContainerRef.current);
     };
   }, [isActive]);
+
+  // Get user's current location and center map
+  const centerOnUserLocation = async () => {
+    if (!mapRef.current) return;
+    
+    setLocationLoading(true);
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 300000 // 5 minutes cache
+        });
+      });
+
+      const { latitude, longitude } = position.coords;
+      mapRef.current.setView([latitude, longitude], 12);
+      
+      // Add a marker for user's location
+      const userMarker = L.marker([latitude, longitude], {
+        icon: L.icon({
+          iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+          shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+          iconSize: [25, 41],
+          iconAnchor: [12, 41],
+          popupAnchor: [1, -34],
+          shadowSize: [41, 41]
+        })
+      }).addTo(mapRef.current);
+      
+      userMarker.bindPopup('Your current location').openPopup();
+      setShowLocationButton(false);
+      
+      toast({
+        title: "Location found",
+        description: "Map centered on your current location",
+      });
+    } catch (error) {
+      console.error('Error getting location:', error);
+      toast({
+        title: "Location access denied",
+        description: "Please allow location access or manually navigate to your area",
+        variant: "destructive",
+      });
+    } finally {
+      setLocationLoading(false);
+    }
+  };
 
   // Ensure map resizes correctly when tab becomes active
   useEffect(() => {
@@ -286,6 +338,16 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, isActive }: ServiceArea
       if (error) throw error;
 
       if (!data.success) {
+        // Handle the special case where no ZIP codes are found
+        if (data.error === 'NO_ZIPCODES_FOUND' && data.suggestManualMode) {
+          setShowZipFallback(true);
+          toast({
+            title: "No ZIP codes found",
+            description: data.message,
+            variant: "destructive",
+          });
+          return;
+        }
         throw new Error(data.error || 'Failed to process polygon');
       }
 
@@ -297,6 +359,7 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, isActive }: ServiceArea
       // Reload service areas
       await loadServiceAreas();
       await fetchServiceAreas();
+      setShowZipFallback(false);
       
       if (onServiceAreaUpdate) {
         onServiceAreaUpdate();
@@ -359,6 +422,76 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, isActive }: ServiceArea
     setCurrentPolygon(null);
     setEditingArea(null);
     setAreaName('Service Area');
+    setShowZipFallback(false);
+    setManualZipcodes('');
+  };
+
+  const saveZipcodesOnly = async () => {
+    if (!manualZipcodes.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter at least one ZIP code",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Parse and validate ZIP codes
+    const zipArray = manualZipcodes
+      .split(/[,\s\n]+/)
+      .map(zip => zip.trim())
+      .filter(zip => /^\d{5}$/.test(zip));
+
+    if (zipArray.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please enter valid 5-digit ZIP codes",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('polygon-to-zipcodes', {
+        body: {
+          zipcodesOnly: zipArray,
+          workerId: workerId,
+          areaName: areaName.trim() || 'Manual ZIP Codes'
+        }
+      });
+
+      if (error) throw error;
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to save ZIP codes');
+      }
+
+      toast({
+        title: "Success",
+        description: `Service area saved with ${data.zipcodesCount} ZIP codes`,
+      });
+
+      // Reload service areas
+      await loadServiceAreas();
+      await fetchServiceAreas();
+      setShowZipFallback(false);
+      setManualZipcodes('');
+      
+      if (onServiceAreaUpdate) {
+        onServiceAreaUpdate();
+      }
+
+    } catch (error) {
+      console.error('Error saving ZIP codes:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save ZIP codes",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const testZipcodeInServiceArea = async () => {
@@ -414,6 +547,30 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, isActive }: ServiceArea
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
                 </div>
               )}
+              {/* Location button overlay */}
+              {showLocationButton && (
+                <div className="absolute top-4 left-4">
+                  <Button
+                    onClick={centerOnUserLocation}
+                    disabled={locationLoading}
+                    variant="secondary"
+                    size="sm"
+                    className="shadow-lg"
+                  >
+                    {locationLoading ? (
+                      <>
+                        <div className="h-4 w-4 mr-2 animate-spin rounded-full border-b-2 border-primary" />
+                        Finding...
+                      </>
+                    ) : (
+                      <>
+                        <MapPinCheck className="h-4 w-4 mr-2" />
+                        Center on me
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
             </div>
 
             {/* Controls */}
@@ -457,6 +614,58 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, isActive }: ServiceArea
               </div>
             </div>
 
+            {/* ZIP Code Fallback Mode */}
+            {showZipFallback && (
+              <Card className="border-orange-200 bg-orange-50">
+                <CardContent className="pt-4">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-orange-600" />
+                      <Label className="font-medium text-orange-800">Manual ZIP Code Entry</Label>
+                    </div>
+                    <p className="text-sm text-orange-700">
+                      No ZIP codes were found in your selected area. You can manually enter the ZIP codes you serve:
+                    </p>
+                    <div className="space-y-2">
+                      <Label htmlFor="manualZips">ZIP Codes (separated by commas, spaces, or new lines)</Label>
+                      <textarea
+                        id="manualZips"
+                        value={manualZipcodes}
+                        onChange={(e) => setManualZipcodes(e.target.value)}
+                        placeholder="75201, 75202, 75203..."
+                        className="w-full h-20 p-2 border rounded-md resize-none"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={saveZipcodesOnly}
+                        disabled={saving || !manualZipcodes.trim()}
+                        className="flex-1"
+                      >
+                        {saving ? (
+                          <>
+                            <div className="h-4 w-4 mr-2 animate-spin rounded-full border-b-2 border-white" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="h-4 w-4 mr-2" />
+                            Save ZIP Codes
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => setShowZipFallback(false)}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* ZIP Code Tester */}
             <Card className="bg-muted/50">
               <CardContent className="pt-4">
@@ -496,6 +705,7 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, isActive }: ServiceArea
             <div className="text-sm text-muted-foreground bg-muted p-3 rounded-lg">
               <p className="font-medium mb-1">How to use:</p>
               <ul className="list-disc list-inside space-y-1">
+                <li>Click "Center on me" to find your current location</li>
                 <li>Click the polygon tool (rectangle or polygon) on the map</li>
                 <li>Draw your service area by clicking points on the map</li>
                 <li>Complete the shape by clicking the first point again</li>
