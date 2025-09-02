@@ -143,23 +143,19 @@ export const formatBookingTimeForContext = (
   context: 'worker' | 'admin' | 'customer',
   viewerTimezone?: string
 ) => {
-  // Use proper priority order: start_time_utc -> local_service fields -> legacy fields
+  // Use start_time_utc if available, fallback to constructed UTC time
   let utcTime: Date;
   
   if (booking.start_time_utc) {
     utcTime = new Date(booking.start_time_utc);
-  } else if (booking.local_service_date && booking.local_service_time) {
-    // Construct UTC from local service fields using service timezone
-    const serviceTimezone = booking.service_tz || DEFAULT_SERVICE_TIMEZONE;
-    const localDateTimeString = `${booking.local_service_date} ${booking.local_service_time}`;
-    utcTime = fromZonedTime(localDateTimeString, serviceTimezone);
-  } else if (booking.scheduled_date && booking.scheduled_start) {
-    // Fallback to legacy fields
-    const serviceTimezone = booking.service_tz || DEFAULT_SERVICE_TIMEZONE;
-    const legacyDateTimeString = `${booking.scheduled_date} ${booking.scheduled_start}`;
-    utcTime = fromZonedTime(legacyDateTimeString, serviceTimezone);
+  } else if (booking.local_service_date && booking.local_service_time && booking.service_tz) {
+    // Construct UTC from local fields (respecting provided time)
+    const localDateTimeString = `${booking.local_service_date} ${booking.local_service_time}:00`;
+    utcTime = fromZonedTime(localDateTimeString, booking.service_tz);
   } else {
-    throw new Error('No valid time fields found in booking');
+    // Fallback to legacy fields
+    const legacyDateTimeString = `${booking.scheduled_date} ${booking.scheduled_start}:00`;
+    utcTime = fromZonedTime(legacyDateTimeString, booking.service_tz || DEFAULT_SERVICE_TIMEZONE);
   }
 
   const serviceTimezone = booking.service_tz || DEFAULT_SERVICE_TIMEZONE;

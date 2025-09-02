@@ -8,14 +8,12 @@ interface ExpandableJobCardContainerProps {
   job: any;
   onStatusUpdate: (jobId: string, newStatus: string) => void;
   onJobCancelled: () => void;
-  onJobUpdated?: () => void;
 }
 
 export const ExpandableJobCardContainer = ({ 
   job, 
   onStatusUpdate, 
-  onJobCancelled,
-  onJobUpdated
+  onJobCancelled 
 }: ExpandableJobCardContainerProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -68,7 +66,6 @@ export const ExpandableJobCardContainer = ({
           job={job}
           onStatusUpdate={onStatusUpdate}
           onJobCancelled={onJobCancelled}
-          onJobUpdated={onJobUpdated}
           onCollapse={handleCollapse}
         />
       </CollapsibleContent>

@@ -3,9 +3,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
-import { formatBookingTimeForContext } from '@/utils/timezoneUtils';
+import { formatBookingTime } from '@/utils/timezoneUtils';
 import { formatTimeTo12Hour } from '@/utils/timeUtils';
-import { getBookingTimezone } from '@/utils/jobTimeUtils';
 
 import JobActions from './JobActions';
 import { RemoveServicesModal } from './RemoveServicesModal';
@@ -61,11 +60,10 @@ interface ExpandedJobCardProps {
   };
   onStatusUpdate?: (jobId: string, newStatus: string) => void;
   onJobCancelled?: () => void;
-  onJobUpdated?: () => void;
   onCollapse: () => void;
 }
 
-export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onJobUpdated, onCollapse }: ExpandedJobCardProps) => {
+export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onCollapse }: ExpandedJobCardProps) => {
   const [showModifyModal, setShowModifyModal] = useState(false);
   const [showChargeModal, setShowChargeModal] = useState(false);
   const [showAddServicesModal, setShowAddServicesModal] = useState(false);
@@ -93,19 +91,22 @@ export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onJobUpda
     onJobCancelled?.();
   };
 
-  // Format date and time for display using the booking's timezone
-  const formatDate = (job: any) => {
-    if (!job.scheduled_date) return 'Invalid date';
+  // Format date and time for display using America/Chicago timezone
+  const formatDate = (date: string) => {
+    if (!date) return 'Invalid date';
     
     try {
-      const timezone = getBookingTimezone(job);
-      return formatBookingTimeForContext(
-        job,
-        'worker',
-        timezone
+      // Use timezone utility to properly handle local service dates
+      return formatBookingTime(
+        `${date}T00:00:00`, 
+        'America/Chicago',
+        {
+          showTime: false,
+          dateFormat: 'EEEE, MMMM dd, yyyy'
+        }
       );
     } catch (error) {
-      console.error('Error formatting date:', { job, error });
+      console.error('Error formatting date:', { date, error });
       return 'Invalid date';
     }
   };
@@ -269,7 +270,8 @@ export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onJobUpda
           <div>
             <h4 className="text-lg font-semibold text-foreground mb-3">Date & Time</h4>
             <div className="text-sm">
-              <div className="font-medium text-foreground">{formatDate(job)}</div>
+              <div className="font-medium text-foreground">{formatDate(job.scheduled_date)}</div>
+              <div className="text-muted-foreground">{formatTime(job.scheduled_start)}</div>
             </div>
           </div>
 
@@ -339,7 +341,6 @@ export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onJobUpda
             onCaptureSuccess={handleCaptureSuccess}
             onAddServicesClick={handleAddServicesClick}
             onModifyServicesClick={handleModifyClick}
-            onJobUpdated={onJobUpdated}
           />
         </div>
       </CardContent>

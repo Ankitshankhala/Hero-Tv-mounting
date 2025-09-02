@@ -4,7 +4,6 @@ import { Badge } from '@/components/ui/badge';
 import { ChevronDown, Phone, MapPin, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatBookingTimeForContext, convertUTCToLocal } from '@/utils/timezoneUtils';
-import { getBookingStartUtc, getBookingTimezone, isBookingToday, getMinutesUntilStart } from '@/utils/jobTimeUtils';
 
 
 interface CompactJobCardProps {
@@ -19,21 +18,52 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
   const [timeToStart, setTimeToStart] = useState<string | null>(null);
   const [isToday, setIsToday] = useState(false);
 
-  // Format date and time for compact display using the booking's timezone
+  // Format date and time for compact display using America/Chicago timezone
   const formatCompactDateTime = (booking: any) => {
     try {
-      const timezone = getBookingTimezone(booking);
-      return formatBookingTimeForContext(booking, 'worker', timezone);
+      return formatBookingTimeForContext(booking, 'worker', 'America/Chicago');
     } catch (error) {
       console.error('Error formatting booking date/time:', { booking, error });
       return 'Invalid date';
     }
   };
 
+  // Get job start time
+  const getJobStartTime = (job: any) => {
+    if (job.preferred_start_time) {
+      return new Date(job.preferred_start_time);
+    }
+    if (job.start_time) {
+      return new Date(job.start_time);
+    }
+    if (job.preferred_date && job.preferred_time) {
+      const serviceTimezone = job.service?.timezone || 'America/Chicago';
+      try {
+        const localDateTime = convertUTCToLocal(
+          new Date(`${job.preferred_date}T${job.preferred_time}`), 
+          serviceTimezone
+        );
+        return new Date(`${localDateTime.date}T${localDateTime.time}`);
+      } catch {
+        return new Date(`${job.preferred_date}T${job.preferred_time}`);
+      }
+    }
+    return null;
+  };
+
   // Calculate countdown and update every minute
   useEffect(() => {
     const calculateTimeToStart = () => {
-      const jobIsToday = isBookingToday(job);
+      const startTime = getJobStartTime(job);
+      if (!startTime) {
+        setTimeToStart(null);
+        setIsToday(false);
+        return;
+      }
+
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const jobIsToday = startTime >= today && startTime < new Date(today.getTime() + 86400000);
       setIsToday(jobIsToday);
 
       if (!jobIsToday) {
@@ -41,11 +71,7 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
         return;
       }
 
-      const minutesToStart = getMinutesUntilStart(job);
-      if (minutesToStart === null) {
-        setTimeToStart(null);
-        return;
-      }
+      const minutesToStart = Math.floor((startTime.getTime() - now.getTime()) / (1000 * 60));
       
       if (minutesToStart < 0) {
         setTimeToStart('Started');
@@ -66,10 +92,10 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
 
   // Get countdown badge style
   const getCountdownBadgeStyle = () => {
-    if (!isToday) return null;
+    const startTime = getJobStartTime(job);
+    if (!startTime || !isToday) return null;
 
-    const minutesToStart = getMinutesUntilStart(job);
-    if (minutesToStart === null) return null;
+    const minutesToStart = Math.floor((startTime.getTime() - new Date().getTime()) / (1000 * 60));
     
     if (minutesToStart < 0) {
       return 'bg-status-progress text-white border-status-progress'; // Started
