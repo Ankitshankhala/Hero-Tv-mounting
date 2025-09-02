@@ -228,17 +228,23 @@ async function getZipcodesFromGeocoding(polygon: PolygonPoint[]): Promise<string
 function generateSamplePoints(polygon: PolygonPoint[], bounds: any): PolygonPoint[] {
   const points: PolygonPoint[] = [];
   
-  // Add polygon center
+  // Add polygon centroid first (most likely to be representative)
+  const centroid = getPolygonCentroid(polygon);
+  points.push(centroid);
+  
+  // Add polygon center based on bounds
   const centerLat = (bounds.north + bounds.south) / 2;
   const centerLng = (bounds.east + bounds.west) / 2;
-  points.push({ lat: centerLat, lng: centerLng });
+  if (centerLat !== centroid.lat || centerLng !== centroid.lng) {
+    points.push({ lat: centerLat, lng: centerLng });
+  }
   
-  // Add some grid points within bounds
-  const latStep = (bounds.north - bounds.south) / 4;
-  const lngStep = (bounds.east - bounds.west) / 4;
+  // Add some grid points within bounds for better coverage
+  const latStep = (bounds.north - bounds.south) / 5;
+  const lngStep = (bounds.east - bounds.west) / 5;
   
-  for (let i = 1; i <= 3; i++) {
-    for (let j = 1; j <= 3; j++) {
+  for (let i = 1; i <= 4; i++) {
+    for (let j = 1; j <= 4; j++) {
       const lat = bounds.south + i * latStep;
       const lng = bounds.west + j * lngStep;
       const point = { lat, lng };
@@ -250,8 +256,37 @@ function generateSamplePoints(polygon: PolygonPoint[], bounds: any): PolygonPoin
     }
   }
   
-  // Limit to 6 points to avoid too many API calls
-  return points.slice(0, 6);
+  // Limit to 8 points to avoid too many API calls but ensure good coverage
+  return points.slice(0, 8);
+}
+
+// Calculate the centroid of a polygon (geometric center)
+function getPolygonCentroid(polygon: PolygonPoint[]): PolygonPoint {
+  let area = 0;
+  let x = 0;
+  let y = 0;
+  
+  for (let i = 0; i < polygon.length; i++) {
+    const j = (i + 1) % polygon.length;
+    const v = polygon[i].lng * polygon[j].lat - polygon[j].lng * polygon[i].lat;
+    area += v;
+    x += (polygon[i].lng + polygon[j].lng) * v;
+    y += (polygon[i].lat + polygon[j].lat) * v;
+  }
+  
+  area *= 0.5;
+  
+  if (area === 0) {
+    // Fallback to simple average if area calculation fails
+    const avgLat = polygon.reduce((sum, p) => sum + p.lat, 0) / polygon.length;
+    const avgLng = polygon.reduce((sum, p) => sum + p.lng, 0) / polygon.length;
+    return { lat: avgLat, lng: avgLng };
+  }
+  
+  return {
+    lat: y / (6 * area),
+    lng: x / (6 * area)
+  };
 }
 
 function getBounds(polygon: PolygonPoint[]) {
@@ -306,7 +341,48 @@ serve(async (req) => {
     }
     
     if (zipcodes.length === 0) {
-      // Instead of throwing an error, return a special response for handling in UI
+      // Try to suggest a ZIP code based on polygon centroid
+      const bounds = getBounds(polygon);
+      const centroid = getPolygonCentroid(polygon);
+      
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${centroid.lat}&lon=${centroid.lng}&addressdetails=1&zoom=18`,
+          {
+            headers: {
+              'User-Agent': 'ServiceAreaMapper/1.0'
+            }
+          }
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          const zipcode = data.address?.postcode;
+          let suggestedZip = '';
+          
+          if (zipcode && /^\d{5}(-\d{4})?$/.test(zipcode)) {
+            suggestedZip = zipcode.split('-')[0];
+          }
+          
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: 'NO_ZIPCODES_FOUND',
+              message: `No ZIP codes found in the selected area.${suggestedZip ? ` Try ZIP code ${suggestedZip} based on the center of your selection.` : ' You can manually add ZIP codes instead.'}`,
+              suggestManualMode: true,
+              suggestedZip: suggestedZip || null
+            }),
+            {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 200,
+            }
+          );
+        }
+      } catch (error) {
+        console.warn('Failed to get suggested ZIP code:', error);
+      }
+      
+      // Fallback without suggestion
       return new Response(
         JSON.stringify({
           success: false,
@@ -316,7 +392,7 @@ serve(async (req) => {
         }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200, // Don't use error status for this case
+          status: 200,
         }
       );
     }

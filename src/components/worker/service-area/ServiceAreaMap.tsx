@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Save, Trash2, Edit3, Search, MapPinCheck } from 'lucide-react';
+import { MapPin, Save, Trash2, Edit3, Search, MapPinCheck, Globe } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkerServiceAreas } from '@/hooks/useWorkerServiceAreas';
@@ -53,6 +53,8 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, isActive }: ServiceArea
   const [locationLoading, setLocationLoading] = useState(false);
   const [showZipFallback, setShowZipFallback] = useState(false);
   const [manualZipcodes, setManualZipcodes] = useState('');
+  const [searchAddress, setSearchAddress] = useState('');
+  const [searching, setSearching] = useState(false);
   const { toast } = useToast();
   const { serviceZipcodes, getActiveZipcodes, fetchServiceAreas } = useWorkerServiceAreas(workerId);
 
@@ -494,6 +496,68 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, isActive }: ServiceArea
     setManualZipcodes('');
   };
 
+  const searchForLocation = async () => {
+    if (!searchAddress.trim() || !mapRef.current) return;
+    
+    setSearching(true);
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchAddress)}&limit=1&addressdetails=1&countrycodes=us`,
+        {
+          headers: {
+            'User-Agent': 'ServiceAreaMapper/1.0'
+          }
+        }
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.length > 0) {
+          const location = data[0];
+          const lat = parseFloat(location.lat);
+          const lng = parseFloat(location.lon);
+          
+          mapRef.current.setView([lat, lng], 12);
+          
+          // Add a temporary marker
+          const searchMarker = L.marker([lat, lng], {
+            icon: L.icon({
+              iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+              shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+              iconSize: [25, 41],
+              iconAnchor: [12, 41],
+              popupAnchor: [1, -34],
+              shadowSize: [41, 41]
+            })
+          }).addTo(mapRef.current);
+          
+          searchMarker.bindPopup(`Found: ${location.display_name}`).openPopup();
+          setSearchAddress('');
+          
+          toast({
+            title: "Location found",
+            description: "Map centered on searched location",
+          });
+        } else {
+          toast({
+            title: "Location not found",
+            description: "Could not find the specified location",
+            variant: "destructive",
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error searching for location:', error);
+      toast({
+        title: "Search failed",
+        description: "Failed to search for location",
+        variant: "destructive",
+      });
+    } finally {
+      setSearching(false);
+    }
+  };
+
   const saveZipcodesOnly = async () => {
     if (!manualZipcodes.trim()) {
       toast({
@@ -649,6 +713,45 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, isActive }: ServiceArea
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
+            {/* Search controls */}
+            <div className="flex gap-2 mb-4">
+              <div className="flex-1 flex gap-2">
+                <Input
+                  placeholder="Search for a location (e.g., 'Dallas, TX' or '123 Main St')"
+                  value={searchAddress}
+                  onChange={(e) => setSearchAddress(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && searchForLocation()}
+                />
+                <Button
+                  onClick={searchForLocation}
+                  disabled={searching || !searchAddress.trim()}
+                  size="sm"
+                >
+                  {searching ? (
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Search className="w-4 h-4" />
+                  )}
+                </Button>
+              </div>
+              
+              {showLocationButton && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={centerOnUserLocation}
+                  disabled={locationLoading}
+                >
+                  {locationLoading ? (
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Globe className="w-4 h-4" />
+                  )}
+                  My Location
+                </Button>
+              )}
+            </div>
+
             {/* Map container */}
             <div className="relative">
               <div 
@@ -659,30 +762,6 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, isActive }: ServiceArea
               {loading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm rounded-lg">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-                </div>
-              )}
-              {/* Location button overlay */}
-              {showLocationButton && (
-                <div className="absolute top-4 left-4">
-                  <Button
-                    onClick={centerOnUserLocation}
-                    disabled={locationLoading}
-                    variant="secondary"
-                    size="sm"
-                    className="shadow-lg"
-                  >
-                    {locationLoading ? (
-                      <>
-                        <div className="h-4 w-4 mr-2 animate-spin rounded-full border-b-2 border-primary" />
-                        Finding...
-                      </>
-                    ) : (
-                      <>
-                        <MapPinCheck className="h-4 w-4 mr-2" />
-                        Center on me
-                      </>
-                    )}
-                  </Button>
                 </div>
               )}
             </div>
