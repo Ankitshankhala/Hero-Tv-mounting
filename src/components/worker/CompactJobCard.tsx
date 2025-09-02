@@ -3,7 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ChevronDown, Phone, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { formatBookingTimeForContext } from '@/utils/timezoneUtils';
+import { formatBookingTimeForContext, getUserTimezone } from '@/utils/timezoneUtils';
 
 
 interface CompactJobCardProps {
@@ -15,10 +15,11 @@ interface CompactJobCardProps {
 }
 
 export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections }: CompactJobCardProps) => {
-  // Format date and time for compact display using America/Chicago timezone
+  // Format date and time for compact display using the worker's timezone
   const formatCompactDateTime = (booking: any) => {
     try {
-      return formatBookingTimeForContext(booking, 'worker', 'America/Chicago');
+      const workerTimezone = getUserTimezone();
+      return formatBookingTimeForContext(booking, 'worker', workerTimezone);
     } catch (error) {
       console.error('Error formatting booking date/time:', { booking, error });
       return 'Invalid date';
