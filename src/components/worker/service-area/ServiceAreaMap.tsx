@@ -153,6 +153,11 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, isActive }: ServiceArea
     });
     if (mapContainerRef.current) ro.observe(mapContainerRef.current);
 
+    // Auto-detect user location when map is ready
+    setTimeout(() => {
+      autoDetectLocation();
+    }, 1000);
+
     return () => {
       if (mapRef.current) {
         mapRef.current.remove();
@@ -162,7 +167,70 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, isActive }: ServiceArea
     };
   }, [isActive]);
 
-  // Get user's current location and center map
+  // Auto-detect user location when map becomes active
+  const autoDetectLocation = async () => {
+    if (!mapRef.current || !isActive) return;
+    
+    // Check if geolocation is supported
+    if (!navigator.geolocation) {
+      console.log('Geolocation not supported');
+      return;
+    }
+
+    // Check permissions first
+    try {
+      if ('permissions' in navigator) {
+        const permission = await navigator.permissions.query({ name: 'geolocation' });
+        if (permission.state === 'denied') {
+          console.log('Geolocation permission denied');
+          return;
+        }
+      }
+    } catch (error) {
+      console.log('Cannot check geolocation permission');
+    }
+
+    setLocationLoading(true);
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 8000,
+          maximumAge: 300000 // 5 minutes cache
+        });
+      });
+
+      const { latitude, longitude } = position.coords;
+      mapRef.current.setView([latitude, longitude], 12);
+      
+      // Add a marker for user's location
+      const userMarker = L.marker([latitude, longitude], {
+        icon: L.icon({
+          iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+          shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+          iconSize: [25, 41],
+          iconAnchor: [12, 41],
+          popupAnchor: [1, -34],
+          shadowSize: [41, 41]
+        })
+      }).addTo(mapRef.current);
+      
+      userMarker.bindPopup('Your current location').openPopup();
+      setShowLocationButton(false);
+      
+      toast({
+        title: "Location detected",
+        description: "Map centered on your current location",
+      });
+    } catch (error) {
+      console.log('Auto-location detection failed:', error);
+      // Silent fail for auto-detection, keep manual button available
+    } finally {
+      setLocationLoading(false);
+    }
+  };
+
+  // Manual location detection (triggered by button)
   const centerOnUserLocation = async () => {
     if (!mapRef.current) return;
     
