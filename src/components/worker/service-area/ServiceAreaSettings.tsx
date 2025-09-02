@@ -45,6 +45,7 @@ export const ServiceAreaSettings: React.FC = () => {
   const [savingZips, setSavingZips] = useState(false);
   const [savingSingle, setSavingSingle] = useState(false);
   const [activeTab, setActiveTab] = useState('areas');
+  const [expandedAreas, setExpandedAreas] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
 
   useEffect(() => {
@@ -175,6 +176,13 @@ export const ServiceAreaSettings: React.FC = () => {
     return activeZipcodes.includes(zipcode);
   };
 
+  const toggleAreaExpansion = (areaId: string) => {
+    setExpandedAreas(prev => ({
+      ...prev,
+      [areaId]: !prev[areaId]
+    }));
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -222,10 +230,10 @@ export const ServiceAreaSettings: React.FC = () => {
                   <h4 className="font-medium">Your Service Areas</h4>
                   {serviceAreas.map((area) => {
                     const areaZipcodes = getServiceAreaZipcodes(area.id);
-                    const [isExpanded, setIsExpanded] = useState(false);
+                    const isExpanded = expandedAreas[area.id] || false;
                     
                     return (
-                      <Collapsible key={area.id} open={isExpanded} onOpenChange={setIsExpanded}>
+                      <Collapsible key={area.id} open={isExpanded} onOpenChange={() => toggleAreaExpansion(area.id)}>
                         <div className="border rounded-lg">
                           <div className="flex items-center justify-between p-3">
                             <div className="flex items-center gap-3 flex-1">
