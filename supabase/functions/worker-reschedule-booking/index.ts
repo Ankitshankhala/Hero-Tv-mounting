@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.0";
+import { fromZonedTime } from "https://esm.sh/date-fns-tz@3.2.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -104,16 +105,17 @@ const handler = async (req: Request): Promise<Response> => {
     // Get service timezone (default to Chicago if not set)
     const serviceTimezone = booking.service_tz || 'America/Chicago';
 
-    // Create date objects for timezone calculations
-    const localDateTime = new Date(`${requestData.newDate}T${requestData.newTime}`);
+    // Create proper timezone conversion using date-fns-tz
+    const localDateTimeString = `${requestData.newDate} ${requestData.newTime}`;
+    const startTimeUtc = fromZonedTime(localDateTimeString, serviceTimezone);
     
-    // Convert local service time to UTC
-    const utcOffset = localDateTime.getTimezoneOffset() * 60000; // Convert minutes to milliseconds
-    const localTimeWithoutOffset = new Date(localDateTime.getTime() - utcOffset);
-    
-    // For proper timezone conversion, we need to account for the service timezone
-    // This is a simplified approach - for production, consider using a proper timezone library
-    const startTimeUtc = new Date(`${requestData.newDate}T${requestData.newTime}:00`);
+    console.log('Timezone conversion:', {
+      localDateTime: localDateTimeString,
+      serviceTimezone,
+      startTimeUtc: startTimeUtc.toISOString(),
+      newDate: requestData.newDate,
+      newTime: requestData.newTime
+    });
 
     // Update booking with all time-related fields
     const { error: updateError } = await supabase
