@@ -61,10 +61,11 @@ interface ExpandedJobCardProps {
   };
   onStatusUpdate?: (jobId: string, newStatus: string) => void;
   onJobCancelled?: () => void;
+  onJobUpdated?: () => void;
   onCollapse: () => void;
 }
 
-export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onCollapse }: ExpandedJobCardProps) => {
+export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onJobUpdated, onCollapse }: ExpandedJobCardProps) => {
   const [showModifyModal, setShowModifyModal] = useState(false);
   const [showChargeModal, setShowChargeModal] = useState(false);
   const [showAddServicesModal, setShowAddServicesModal] = useState(false);
@@ -338,6 +339,7 @@ export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onCollaps
             onCaptureSuccess={handleCaptureSuccess}
             onAddServicesClick={handleAddServicesClick}
             onModifyServicesClick={handleModifyClick}
+            onJobUpdated={onJobUpdated}
           />
         </div>
       </CardContent>

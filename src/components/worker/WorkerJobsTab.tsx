@@ -131,6 +131,7 @@ export const WorkerJobsTab = ({ jobs, onStatusUpdate, onJobCancelled, initialTab
                   job={job}
                   onStatusUpdate={onStatusUpdate}
                   onJobCancelled={onJobCancelled}
+                  onJobUpdated={onJobCancelled}
                 />
               ))}
             </div>
@@ -164,6 +165,7 @@ export const WorkerJobsTab = ({ jobs, onStatusUpdate, onJobCancelled, initialTab
                   job={job}
                   onStatusUpdate={onStatusUpdate}
                   onJobCancelled={onJobCancelled}
+                  onJobUpdated={onJobCancelled}
                 />
               ))}
             </div>
