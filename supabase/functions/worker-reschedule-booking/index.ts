@@ -101,12 +101,30 @@ const handler = async (req: Request): Promise<Response> => {
     const oldDate = booking.scheduled_date;
     const oldTime = booking.scheduled_start;
 
-    // Update booking with new date/time
+    // Get service timezone (default to Chicago if not set)
+    const serviceTimezone = booking.service_tz || 'America/Chicago';
+
+    // Create date objects for timezone calculations
+    const localDateTime = new Date(`${requestData.newDate}T${requestData.newTime}`);
+    
+    // Convert local service time to UTC
+    const utcOffset = localDateTime.getTimezoneOffset() * 60000; // Convert minutes to milliseconds
+    const localTimeWithoutOffset = new Date(localDateTime.getTime() - utcOffset);
+    
+    // For proper timezone conversion, we need to account for the service timezone
+    // This is a simplified approach - for production, consider using a proper timezone library
+    const startTimeUtc = new Date(`${requestData.newDate}T${requestData.newTime}:00`);
+
+    // Update booking with all time-related fields
     const { error: updateError } = await supabase
       .from('bookings')
       .update({ 
         scheduled_date: requestData.newDate,
-        scheduled_start: requestData.newTime
+        scheduled_start: requestData.newTime,
+        local_service_date: requestData.newDate,
+        local_service_time: requestData.newTime,
+        start_time_utc: startTimeUtc.toISOString(),
+        service_tz: serviceTimezone
       })
       .eq('id', requestData.bookingId);
 

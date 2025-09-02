@@ -65,11 +65,14 @@ const WorkerDashboard = () => {
         if (existingJobIndex >= 0) {
           // Update existing job
           const updatedJobs = [...currentJobs];
-          updatedJobs[existingJobIndex] = {
+          const updatedJob = {
             ...updatedJobs[existingJobIndex],
-            ...updatedBooking
+            ...updatedBooking,
+            // Recompute scheduled_at if date/time fields were updated
+            scheduled_at: `${updatedBooking.scheduled_date || updatedJobs[existingJobIndex].scheduled_date}T${updatedBooking.scheduled_start || updatedJobs[existingJobIndex].scheduled_start}`
           };
-          console.log('Updated existing job:', updatedJobs[existingJobIndex]);
+          updatedJobs[existingJobIndex] = updatedJob;
+          console.log('Updated existing job:', updatedJob);
           return updatedJobs;
         } else if (updatedBooking.worker_id === user?.id) {
           // Add new job if it's assigned to this worker
