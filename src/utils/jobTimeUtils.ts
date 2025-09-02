@@ -1,4 +1,5 @@
 import { convertUTCToLocal } from './timezoneUtils';
+import { fromZonedTime } from 'date-fns-tz';
 
 /**
  * Central utility to get the canonical start time for a booking in UTC
@@ -18,10 +19,9 @@ export const getBookingStartUtc = (booking: any): Date | null => {
   if (booking.local_service_date && booking.local_service_time) {
     const serviceTimezone = booking.service_tz || booking.service?.timezone || 'America/Chicago';
     try {
-      // Convert local service time to UTC
+      // Convert local service time to UTC properly using fromZonedTime
       const localDateTime = `${booking.local_service_date} ${booking.local_service_time}`;
-      const utcTime = new Date(`${localDateTime}T00:00:00.000Z`);
-      return utcTime;
+      return fromZonedTime(localDateTime, serviceTimezone);
     } catch (error) {
       console.warn('Invalid local_service_date/time:', booking.local_service_date, booking.local_service_time);
     }
@@ -29,9 +29,10 @@ export const getBookingStartUtc = (booking: any): Date | null => {
 
   // Priority 3: Fallback to scheduled_date + scheduled_start
   if (booking.scheduled_date && booking.scheduled_start) {
+    const serviceTimezone = booking.service_tz || booking.service?.timezone || 'America/Chicago';
     try {
-      const dateTimeString = `${booking.scheduled_date}T${booking.scheduled_start}`;
-      return new Date(dateTimeString);
+      const dateTimeString = `${booking.scheduled_date} ${booking.scheduled_start}`;
+      return fromZonedTime(dateTimeString, serviceTimezone);
     } catch (error) {
       console.warn('Invalid scheduled_date/start:', booking.scheduled_date, booking.scheduled_start);
     }

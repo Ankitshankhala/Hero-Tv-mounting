@@ -93,18 +93,18 @@ export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onCollaps
   };
 
   // Format date and time for display using the booking's timezone
-  const formatDate = (date: string) => {
-    if (!date) return 'Invalid date';
+  const formatDate = (job: any) => {
+    if (!job.scheduled_date) return 'Invalid date';
     
     try {
       const timezone = getBookingTimezone(job);
       return formatBookingTimeForContext(
-        { ...job, scheduled_date: date },
+        job,
         'worker',
         timezone
       );
     } catch (error) {
-      console.error('Error formatting date:', { date, error });
+      console.error('Error formatting date:', { job, error });
       return 'Invalid date';
     }
   };
@@ -268,8 +268,7 @@ export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onCollaps
           <div>
             <h4 className="text-lg font-semibold text-foreground mb-3">Date & Time</h4>
             <div className="text-sm">
-              <div className="font-medium text-foreground">{formatDate(job.scheduled_date)}</div>
-              <div className="text-muted-foreground">{formatTime(job.scheduled_start)}</div>
+              <div className="font-medium text-foreground">{formatDate(job)}</div>
             </div>
           </div>
 
