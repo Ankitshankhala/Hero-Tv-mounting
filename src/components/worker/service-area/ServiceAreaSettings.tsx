@@ -7,6 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { 
   MapPin, 
   Hash, 
@@ -15,7 +16,9 @@ import {
   Eye, 
   EyeOff,
   Search,
-  X 
+  X,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useWorkerServiceAreas } from '@/hooks/useWorkerServiceAreas';
@@ -161,6 +164,13 @@ export const ServiceAreaSettings: React.FC = () => {
     return serviceZipcodes.filter(zip => zip.service_area_id === areaId).length;
   };
 
+  const getServiceAreaZipcodes = (areaId: string) => {
+    return serviceZipcodes
+      .filter(zip => zip.service_area_id === areaId)
+      .map(zip => zip.zipcode)
+      .sort();
+  };
+
   const isZipcodeActive = (zipcode: string) => {
     return activeZipcodes.includes(zipcode);
   };
@@ -210,36 +220,79 @@ export const ServiceAreaSettings: React.FC = () => {
               {serviceAreas.length > 0 && (
                 <div className="space-y-3">
                   <h4 className="font-medium">Your Service Areas</h4>
-                  {serviceAreas.map((area) => (
-                    <div key={area.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <Switch
-                          checked={area.is_active}
-                          onCheckedChange={(checked) => toggleServiceAreaStatus(area.id, checked)}
-                        />
-                        <div>
-                          <div className="font-medium">{area.area_name}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {getServiceAreaZipCount(area.id)} ZIP codes
+                  {serviceAreas.map((area) => {
+                    const areaZipcodes = getServiceAreaZipcodes(area.id);
+                    const [isExpanded, setIsExpanded] = useState(false);
+                    
+                    return (
+                      <Collapsible key={area.id} open={isExpanded} onOpenChange={setIsExpanded}>
+                        <div className="border rounded-lg">
+                          <div className="flex items-center justify-between p-3">
+                            <div className="flex items-center gap-3 flex-1">
+                              <Switch
+                                checked={area.is_active}
+                                onCheckedChange={(checked) => toggleServiceAreaStatus(area.id, checked)}
+                              />
+                              <div className="flex-1">
+                                <div className="font-medium">{area.area_name}</div>
+                                <div className="text-sm text-muted-foreground">
+                                  {getServiceAreaZipCount(area.id)} ZIP codes
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {area.is_active ? (
+                                <Badge variant="default">Active</Badge>
+                              ) : (
+                                <Badge variant="secondary">Inactive</Badge>
+                              )}
+                              {areaZipcodes.length > 0 && (
+                                <CollapsibleTrigger asChild>
+                                  <Button variant="ghost" size="sm">
+                                    {isExpanded ? (
+                                      <ChevronDown className="h-4 w-4" />
+                                    ) : (
+                                      <ChevronRight className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                </CollapsibleTrigger>
+                              )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => deleteServiceArea(area.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
+                          
+                          {areaZipcodes.length > 0 && (
+                            <CollapsibleContent>
+                              <div className="px-3 pb-3 border-t">
+                                <div className="pt-3">
+                                  <div className="text-xs font-medium text-muted-foreground mb-2">
+                                    ZIP Codes ({areaZipcodes.length})
+                                  </div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {areaZipcodes.map((zipcode) => (
+                                      <Badge
+                                        key={zipcode}
+                                        variant={area.is_active ? "default" : "secondary"}
+                                        className="text-xs font-mono"
+                                      >
+                                        {zipcode}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            </CollapsibleContent>
+                          )}
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {area.is_active ? (
-                          <Badge variant="default">Active</Badge>
-                        ) : (
-                          <Badge variant="secondary">Inactive</Badge>
-                        )}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => deleteServiceArea(area.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                      </Collapsible>
+                    );
+                  })}
                 </div>
               )}
             </div>
