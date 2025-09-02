@@ -106,6 +106,7 @@ const handler = async (req: Request): Promise<Response> => {
     const serviceTimezone = booking.service_tz || 'America/Chicago';
 
     // Create proper timezone conversion using date-fns-tz
+    // Note: fromZonedTime expects the local time string in the service timezone
     const localDateTimeString = `${requestData.newDate} ${requestData.newTime}`;
     const startTimeUtc = fromZonedTime(localDateTimeString, serviceTimezone);
     
@@ -117,7 +118,7 @@ const handler = async (req: Request): Promise<Response> => {
       newTime: requestData.newTime
     });
 
-    // Update booking with all time-related fields
+    // Update booking with all time-related fields consistently
     const { error: updateError } = await supabase
       .from('bookings')
       .update({ 

@@ -7,6 +7,7 @@ import { useJobFilters } from '@/hooks/useJobFilters';
 import { Calendar, Briefcase, Archive } from 'lucide-react';
 import type { Database } from '@/integrations/supabase/types';
 import { convertUTCToLocal } from '@/utils/timezoneUtils';
+import { getBookingStartUtc, isBookingToday } from '@/utils/jobTimeUtils';
 
 type BookingStatus = Database['public']['Enums']['booking_status'];
 
@@ -35,35 +36,13 @@ export const WorkerJobsTab = ({ jobs, onStatusUpdate, onJobCancelled, initialTab
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       
-      // Get job start times
-      const getJobStartTime = (job: any) => {
-        if (job.preferred_start_time) {
-          return new Date(job.preferred_start_time);
-        }
-        if (job.start_time) {
-          return new Date(job.start_time);
-        }
-        if (job.preferred_date && job.preferred_time) {
-          const serviceTimezone = job.service?.timezone || 'America/Chicago';
-          try {
-            const localDateTime = convertUTCToLocal(
-              new Date(`${job.preferred_date}T${job.preferred_time}`), 
-              serviceTimezone
-            );
-            return new Date(`${localDateTime.date}T${localDateTime.time}`);
-          } catch {
-            return new Date(`${job.preferred_date}T${job.preferred_time}`);
-          }
-        }
-        return null;
-      };
-
-      const aStartTime = getJobStartTime(a);
-      const bStartTime = getJobStartTime(b);
+      // Use consistent time source
+      const aStartTime = getBookingStartUtc(a);
+      const bStartTime = getBookingStartUtc(b);
       
-      // Check if jobs are today
-      const aIsToday = aStartTime && aStartTime >= today && aStartTime < new Date(today.getTime() + 86400000);
-      const bIsToday = bStartTime && bStartTime >= today && bStartTime < new Date(today.getTime() + 86400000);
+      // Check if jobs are today using the timezone-aware helper
+      const aIsToday = isBookingToday(a);
+      const bIsToday = isBookingToday(b);
       
       // Today's jobs first
       if (aIsToday && !bIsToday) return -1;
