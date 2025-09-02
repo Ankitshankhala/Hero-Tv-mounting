@@ -6,6 +6,7 @@ import { JobFiltersBar } from './JobFiltersBar';
 import { useJobFilters } from '@/hooks/useJobFilters';
 import { Calendar, Briefcase, Archive } from 'lucide-react';
 import type { Database } from '@/integrations/supabase/types';
+import { convertUTCToLocal } from '@/utils/timezoneUtils';
 
 type BookingStatus = Database['public']['Enums']['booking_status'];
 
@@ -18,8 +19,8 @@ interface WorkerJobsTabProps {
 
 export const WorkerJobsTab = ({ jobs, onStatusUpdate, onJobCancelled, initialTab = "active" }: WorkerJobsTabProps) => {
   // Active jobs: exclude archived, completed/canceled statuses and completed payments
-  const activeJobs = useMemo(() => 
-    jobs.filter(job => 
+  const activeJobs = useMemo(() => {
+    const filtered = jobs.filter(job => 
       !job.is_archived && 
       job.status !== 'completed' &&
       job.status !== 'cancelled' &&
@@ -27,7 +28,56 @@ export const WorkerJobsTab = ({ jobs, onStatusUpdate, onJobCancelled, initialTab
       // Exclude jobs with captured/completed payments (these are effectively completed)
       !['captured', 'completed', 'cancelled','canceled','failed','refunded'].includes(job.payment_status) &&
       job.worker_id // Only show jobs with assigned workers
-    ), [jobs]);
+    );
+
+    // Sort jobs: today's jobs first by start time, then others by creation time
+    return filtered.sort((a, b) => {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      
+      // Get job start times
+      const getJobStartTime = (job: any) => {
+        if (job.preferred_start_time) {
+          return new Date(job.preferred_start_time);
+        }
+        if (job.start_time) {
+          return new Date(job.start_time);
+        }
+        if (job.preferred_date && job.preferred_time) {
+          const serviceTimezone = job.service?.timezone || 'America/Chicago';
+          try {
+            const localDateTime = convertUTCToLocal(
+              new Date(`${job.preferred_date}T${job.preferred_time}`), 
+              serviceTimezone
+            );
+            return new Date(`${localDateTime.date}T${localDateTime.time}`);
+          } catch {
+            return new Date(`${job.preferred_date}T${job.preferred_time}`);
+          }
+        }
+        return null;
+      };
+
+      const aStartTime = getJobStartTime(a);
+      const bStartTime = getJobStartTime(b);
+      
+      // Check if jobs are today
+      const aIsToday = aStartTime && aStartTime >= today && aStartTime < new Date(today.getTime() + 86400000);
+      const bIsToday = bStartTime && bStartTime >= today && bStartTime < new Date(today.getTime() + 86400000);
+      
+      // Today's jobs first
+      if (aIsToday && !bIsToday) return -1;
+      if (!aIsToday && bIsToday) return 1;
+      
+      // Both today: sort by start time (earliest first)
+      if (aIsToday && bIsToday && aStartTime && bStartTime) {
+        return aStartTime.getTime() - bStartTime.getTime();
+      }
+      
+      // Both not today: sort by creation time (newest first)
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  }, [jobs]);
   const archivedJobs = useMemo(() => jobs.filter(job => job.is_archived), [jobs]);
   
   // Payment issues: only pending payments that need collection (exclude captured, cancelled, failed)

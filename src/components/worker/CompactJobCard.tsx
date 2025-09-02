@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ChevronDown, Phone, MapPin } from 'lucide-react';
+import { ChevronDown, Phone, MapPin, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { formatBookingTimeForContext } from '@/utils/timezoneUtils';
+import { formatBookingTimeForContext, convertUTCToLocal } from '@/utils/timezoneUtils';
 
 
 interface CompactJobCardProps {
@@ -15,6 +15,9 @@ interface CompactJobCardProps {
 }
 
 export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections }: CompactJobCardProps) => {
+  const [timeToStart, setTimeToStart] = useState<string | null>(null);
+  const [isToday, setIsToday] = useState(false);
+
   // Format date and time for compact display using America/Chicago timezone
   const formatCompactDateTime = (booking: any) => {
     try {
@@ -23,6 +26,85 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
       console.error('Error formatting booking date/time:', { booking, error });
       return 'Invalid date';
     }
+  };
+
+  // Get job start time
+  const getJobStartTime = (job: any) => {
+    if (job.preferred_start_time) {
+      return new Date(job.preferred_start_time);
+    }
+    if (job.start_time) {
+      return new Date(job.start_time);
+    }
+    if (job.preferred_date && job.preferred_time) {
+      const serviceTimezone = job.service?.timezone || 'America/Chicago';
+      try {
+        const localDateTime = convertUTCToLocal(
+          new Date(`${job.preferred_date}T${job.preferred_time}`), 
+          serviceTimezone
+        );
+        return new Date(`${localDateTime.date}T${localDateTime.time}`);
+      } catch {
+        return new Date(`${job.preferred_date}T${job.preferred_time}`);
+      }
+    }
+    return null;
+  };
+
+  // Calculate countdown and update every minute
+  useEffect(() => {
+    const calculateTimeToStart = () => {
+      const startTime = getJobStartTime(job);
+      if (!startTime) {
+        setTimeToStart(null);
+        setIsToday(false);
+        return;
+      }
+
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const jobIsToday = startTime >= today && startTime < new Date(today.getTime() + 86400000);
+      setIsToday(jobIsToday);
+
+      if (!jobIsToday) {
+        setTimeToStart(null);
+        return;
+      }
+
+      const minutesToStart = Math.floor((startTime.getTime() - now.getTime()) / (1000 * 60));
+      
+      if (minutesToStart < 0) {
+        setTimeToStart('Started');
+      } else if (minutesToStart < 60) {
+        setTimeToStart(`${minutesToStart}m`);
+      } else {
+        const hours = Math.floor(minutesToStart / 60);
+        const minutes = minutesToStart % 60;
+        setTimeToStart(minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`);
+      }
+    };
+
+    calculateTimeToStart();
+    const interval = setInterval(calculateTimeToStart, 60000); // Update every minute
+
+    return () => clearInterval(interval);
+  }, [job]);
+
+  // Get countdown badge style
+  const getCountdownBadgeStyle = () => {
+    const startTime = getJobStartTime(job);
+    if (!startTime || !isToday) return null;
+
+    const minutesToStart = Math.floor((startTime.getTime() - new Date().getTime()) / (1000 * 60));
+    
+    if (minutesToStart < 0) {
+      return 'bg-status-progress text-white border-status-progress'; // Started
+    } else if (minutesToStart <= 30) {
+      return 'bg-status-cancelled text-white border-status-cancelled'; // Red for urgent
+    } else if (minutesToStart <= 120) {
+      return 'bg-action-warning text-white border-action-warning'; // Orange for soon
+    }
+    return 'bg-action-info text-white border-action-info'; // Blue for today
   };
 
   // Get all service lines with quantities
@@ -235,6 +317,15 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
                 >
                   {paymentStatus.text}
                 </Badge>
+                {timeToStart && isToday && !isArchived && (
+                  <Badge 
+                    variant="outline" 
+                    className={`text-xs font-medium flex items-center gap-1 ${getCountdownBadgeStyle()}`}
+                  >
+                    <Clock className="h-3 w-3" />
+                    {timeToStart === 'Started' ? 'Started' : `Starts in ${timeToStart}`}
+                  </Badge>
+                )}
                 {isNewJob() && !isArchived && (
                   <Badge 
                     variant="outline" 
@@ -312,15 +403,28 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
         </div>
 
         {/* Mobile: Show date/address below on small screens */}
-        <div className="sm:hidden mt-2 pt-2 border-t border-border">
-          <div className="text-sm text-muted-foreground">
-            {formatCompactDateTime(job)}
-          </div>
-          <div className="text-sm text-muted-foreground truncate">
-            {getShortAddress()}
-          </div>
-          <div className="text-xs text-muted-foreground mt-1">
-            {isArchived ? `Completed ${new Date(job.archived_at).toLocaleDateString()}` : `Received ${getTimeSinceCreation()}`}
+        <div className="sm:hidden mt-2 pt-2 border-border">
+          {timeToStart && isToday && !isArchived && (
+            <div className="mb-2">
+              <Badge 
+                variant="outline" 
+                className={`text-xs font-medium flex items-center gap-1 w-fit ${getCountdownBadgeStyle()}`}
+              >
+                <Clock className="h-3 w-3" />
+                {timeToStart === 'Started' ? 'Started' : `Starts in ${timeToStart}`}
+              </Badge>
+            </div>
+          )}
+          <div className="border-t border-border pt-2">
+            <div className="text-sm text-muted-foreground">
+              {formatCompactDateTime(job)}
+            </div>
+            <div className="text-sm text-muted-foreground truncate">
+              {getShortAddress()}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              {isArchived ? `Completed ${new Date(job.archived_at).toLocaleDateString()}` : `Received ${getTimeSinceCreation()}`}
+            </div>
           </div>
         </div>
       </CardContent>
