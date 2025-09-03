@@ -14,7 +14,6 @@ import WorkerScheduleManager from '@/components/worker/WorkerScheduleManager';
 import WorkerLoginForm from '@/components/worker/WorkerLoginForm';
 import WorkerDashboardLoading from '@/components/worker/WorkerDashboardLoading';
 import { WorkerCreateBookingModal } from '@/components/worker/WorkerCreateBookingModal';
-
 import CoverageNotifications from '@/components/worker/CoverageNotifications';
 import { ServiceAreaSettings } from '@/components/worker/service-area/ServiceAreaSettings';
 import { CoverageStatusCard } from '@/components/worker/CoverageStatusCard';
@@ -47,21 +46,19 @@ const WorkerDashboard = () => {
       console.log('Real-time booking update received:', updatedBooking, reassignmentInfo);
       setJobs(currentJobs => {
         const existingJobIndex = currentJobs.findIndex(job => job.id === updatedBooking.id);
-        
+
         // Handle job reassignment
         if (reassignmentInfo?.wasReassignedAway) {
           // Remove job that was reassigned away from this worker
           console.log('Job reassigned away, removing from list');
           return currentJobs.filter(job => job.id !== updatedBooking.id);
         }
-        
         if (reassignmentInfo?.wasReassignedTo) {
           // Job was reassigned to this worker, refetch to get complete data
           console.log('Job reassigned to this worker, refetching jobs');
           fetchWorkerJobs();
           return currentJobs;
         }
-        
         if (existingJobIndex >= 0) {
           // Update existing job
           const updatedJobs = [...currentJobs];
@@ -119,7 +116,6 @@ const WorkerDashboard = () => {
     if (!loading) {
       let attempts = 0;
       const maxAttempts = 10;
-      
       const scrollToActiveJobs = () => {
         const activeJobsSection = document.getElementById('active-jobs-section');
         if (activeJobsSection) {
@@ -132,12 +128,10 @@ const WorkerDashboard = () => {
         }
         return false;
       };
-
       const retryScroll = () => {
         if (scrollToActiveJobs()) {
           return; // Success, stop retrying
         }
-        
         attempts++;
         if (attempts < maxAttempts) {
           setTimeout(retryScroll, 100);
@@ -156,35 +150,32 @@ const WorkerDashboard = () => {
     try {
       setLoading(true);
       console.log('Fetching jobs for worker:', user.id);
-      
+
       // Fetch bookings without booking_services to avoid FK error - only confirmed, completed, and payment_authorized
-      const { data: bookingsData, error: bookingsError } = await supabase.from('bookings').select(`
+      const {
+        data: bookingsData,
+        error: bookingsError
+      } = await supabase.from('bookings').select(`
           *,
           customer:users!customer_id(name, phone),
           service:services!service_id(name, description, base_price, duration_minutes)
-        `).eq('worker_id', user.id)
-        .in('status', ['confirmed', 'completed', 'payment_authorized'])
-        .order('updated_at', {
+        `).eq('worker_id', user.id).in('status', ['confirmed', 'completed', 'payment_authorized']).order('updated_at', {
         ascending: false
       }).order('scheduled_date', {
         ascending: true
       });
-
       if (bookingsError) {
         console.error('Supabase error:', bookingsError);
         throw bookingsError;
       }
-
       let servicesByBooking = {};
-      
       if (bookingsData && bookingsData.length > 0) {
         // Fetch booking services separately for all bookings
         const bookingIds = bookingsData.map(booking => booking.id);
-        const { data: bookingServicesData, error: servicesError } = await supabase
-          .from('booking_services')
-          .select('booking_id, service_name, quantity, base_price, configuration')
-          .in('booking_id', bookingIds);
-
+        const {
+          data: bookingServicesData,
+          error: servicesError
+        } = await supabase.from('booking_services').select('booking_id, service_name, quantity, base_price, configuration').in('booking_id', bookingIds);
         if (servicesError) {
           console.error('Error fetching booking services:', servicesError);
         } else {
@@ -198,7 +189,6 @@ const WorkerDashboard = () => {
           }, {} as Record<string, any[]>);
         }
       }
-
       console.log('Raw jobs data:', bookingsData);
       console.log('Booking services data:', servicesByBooking);
 
@@ -256,7 +246,7 @@ const WorkerDashboard = () => {
             error: captureError
           } = await supabase.functions.invoke('capture-payment-intent', {
             body: {
-              booking_id: jobId  // Fixed: use booking_id instead of bookingId
+              booking_id: jobId // Fixed: use booking_id instead of bookingId
             }
           });
           if (captureError) {
@@ -346,8 +336,7 @@ const WorkerDashboard = () => {
   const upcomingJobs = jobs.filter(job => new Date(job.scheduled_at) > new Date());
   const completedJobs = jobs.filter(job => job.status === 'completed');
   const todaysEarnings = todaysJobs.reduce((sum, job) => sum + job.total_price, 0);
-  return (
-    <TourProvider>
+  return <TourProvider>
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         <SEO title="Worker Dashboard | Hero TV Mounting" description="Manage your jobs, schedule, and live assignments." noindex />
         <WorkerDashboardHeader workerName={profile?.name || 'Worker'} />
@@ -362,10 +351,7 @@ const WorkerDashboard = () => {
           </div>
 
           {/* Add Coverage Status Card and Notifications */}
-          <div className="mb-6 space-y-4">
-            <CoverageStatusCard />
-            <CoverageNotifications />
-          </div>
+          
 
           <div data-tour="worker-earnings" className="mb-6">
             <WorkerDashboardStats todaysJobs={todaysJobs.length} upcomingJobs={upcomingJobs.length} completedJobs={completedJobs.length} todaysEarnings={todaysEarnings} />
@@ -401,7 +387,6 @@ const WorkerDashboard = () => {
         
         <TourManager />
       </div>
-    </TourProvider>
-  );
+    </TourProvider>;
 };
 export default WorkerDashboard;
