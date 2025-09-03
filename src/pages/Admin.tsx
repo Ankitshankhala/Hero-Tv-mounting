@@ -19,6 +19,7 @@ import { SMSLogsManager } from '@/components/admin/SMSLogsManager';
 import { BlogManager } from '@/components/admin/BlogManager';
 import { AdminCalendarView } from '@/components/admin/AdminCalendarView';
 import { CoverageRequestsManager } from '@/components/admin/CoverageRequestsManager';
+import { AdminCoverageManager } from '@/components/admin/AdminCoverageManager';
 import { InvoicesManager } from '@/components/admin/InvoicesManager';
 import { EmailLogsManager } from '@/components/admin/EmailLogsManager';
 import { SEO } from '@/components/SEO';
@@ -125,7 +126,7 @@ const Admin = () => {
       case 'blog':
         return <BlogManager />;
       case 'coverage':
-        return <CoverageRequestsManager />;
+        return <AdminCoverageManager />;
       case 'settings':
         return <NotificationsSettings />;
       case 'invoice-monitoring':
