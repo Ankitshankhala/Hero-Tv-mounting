@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { format } from 'date-fns';
-import { Edit, Trash2, Eye, UserPlus, Calendar, DollarSign, CreditCard, Send, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { Edit, Trash2, Eye, UserPlus, Calendar, DollarSign, CreditCard, Send, X, ChevronDown, ChevronUp, Archive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatBookingTimeForContext, US_TIMEZONES, DEFAULT_SERVICE_TIMEZONE } from '@/utils/timezoneUtils';
 import { BookingEmailStatus } from './BookingEmailStatus';
+import { archiveBooking } from '@/utils/serviceHelpers';
+import { useToast } from '@/hooks/use-toast';
 
 interface Customer {
   id: string;
@@ -119,6 +121,25 @@ export const BookingTable = ({
 }: BookingTableProps) => {
   const [displayTimezone, setDisplayTimezone] = useState(DEFAULT_SERVICE_TIMEZONE);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const { toast } = useToast();
+
+  const handleArchiveJob = async (booking: Booking) => {
+    try {
+      await archiveBooking(booking.id);
+      toast({
+        title: "Job Archived",
+        description: `Job ${booking.id.slice(0, 8)} has been archived successfully.`,
+      });
+      onBookingUpdate?.();
+    } catch (error) {
+      console.error('Error archiving job:', error);
+      toast({
+        title: "Error",
+        description: "Failed to archive the job. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const formatServices = (booking: Booking) => {
     // If we have booking_services data, use that directly
@@ -353,6 +374,16 @@ export const BookingTable = ({
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
+                            {booking.status === 'completed' && (booking.payment_status === 'captured' || booking.payment_status === 'completed') && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleArchiveJob(booking)}
+                                title="Archive completed job"
+                              >
+                                <Archive className="h-4 w-4" />
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="sm"
