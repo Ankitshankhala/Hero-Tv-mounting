@@ -37,21 +37,36 @@ const handler = async (req: Request): Promise<Response> => {
       if (booking.status === 'completed' && oldBooking?.status !== 'completed') {
         console.log(`Booking ${booking.id} completed, generating invoice...`);
         
-        // Call generate-invoice function
-        const invoiceResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-invoice`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
+        // Check for existing invoice to prevent duplicates
+        const { data: existingInvoice } = await supabase
+          .from('invoices')
+          .select('id, invoice_number, delivery_status')
+          .eq('booking_id', booking.id)
+          .maybeSingle();
+
+        if (existingInvoice) {
+          console.log(`Invoice already exists for booking ${booking.id}: ${existingInvoice.invoice_number}`);
+          return new Response(JSON.stringify({ 
+            success: true, 
+            message: 'Invoice already exists',
+            invoice_id: existingInvoice.id 
+          }), {
+            status: 200,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          });
+        }
+
+        // Call enhanced-invoice-generator function
+        const invoiceResponse = await supabase.functions.invoke('enhanced-invoice-generator', {
+          body: {
             booking_id: booking.id,
+            trigger_source: 'booking_completed',
             send_email: true
-          })
+          }
         });
         
-        if (!invoiceResponse.ok) {
-          console.error('Failed to generate invoice:', await invoiceResponse.text());
+        if (invoiceResponse.error) {
+          console.error('Failed to generate invoice:', invoiceResponse.error);
         } else {
           console.log('Invoice generated successfully for booking:', booking.id);
         }
@@ -66,21 +81,18 @@ const handler = async (req: Request): Promise<Response> => {
       if (transaction.status === 'completed' && oldTransaction?.status !== 'completed') {
         console.log(`Transaction ${transaction.id} completed, generating invoice...`);
         
-        // Call generate-invoice function
-        const invoiceResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-invoice`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
+        // Call enhanced-invoice-generator function
+        const invoiceResponse = await supabase.functions.invoke('enhanced-invoice-generator', {
+          body: {
             booking_id: transaction.booking_id,
+            transaction_id: transaction.id,
+            trigger_source: 'payment_capture',
             send_email: true
-          })
+          }
         });
         
-        if (!invoiceResponse.ok) {
-          console.error('Failed to generate invoice:', await invoiceResponse.text());
+        if (invoiceResponse.error) {
+          console.error('Failed to generate invoice:', invoiceResponse.error);
         } else {
           console.log('Invoice generated successfully for transaction:', transaction.id);
         }

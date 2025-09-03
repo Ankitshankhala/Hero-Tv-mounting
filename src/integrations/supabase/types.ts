@@ -1430,6 +1430,10 @@ export type Database = {
         Args: { p_booking_id: string }
         Returns: Json
       }
+      determine_invoice_status: {
+        Args: { p_booking_id: string }
+        Returns: string
+      }
       find_available_workers: {
         Args: {
           p_duration_minutes?: number

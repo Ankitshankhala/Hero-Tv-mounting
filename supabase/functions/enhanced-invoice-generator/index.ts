@@ -112,6 +112,9 @@ const handler = async (req: Request): Promise<Response> => {
       // Include any additional charges from pending payments
       const totalAmount = completedTransaction.amount;
 
+      // Determine invoice status based on payment capture
+      const invoiceStatus = await supabase.rpc('determine_invoice_status', { p_booking_id: booking_id });
+      
       // Create enhanced invoice
       const { data: newInvoice, error: invoiceError } = await supabase
         .from('invoices')
@@ -122,7 +125,7 @@ const handler = async (req: Request): Promise<Response> => {
           amount: totalAmount,
           tax_amount: 0,
           total_amount: totalAmount,
-          status: 'sent',
+          status: invoiceStatus.data || 'unpaid',
           delivery_status: 'pending'
         })
         .select()

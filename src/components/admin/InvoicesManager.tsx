@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,7 @@ import { FileText, Mail, Search, Eye, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { InvoiceDetailsModal } from './InvoiceDetailsModal';
+import { useRealtimeInvoices } from '@/hooks/useRealtimeInvoices';
 
 interface Invoice {
   id: string;
@@ -43,11 +44,7 @@ export const InvoicesManager = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchInvoices();
-  }, []);
-
-  const fetchInvoices = async () => {
+  const fetchInvoices = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('invoices')
@@ -73,7 +70,14 @@ export const InvoicesManager = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  // Set up real-time subscription
+  useRealtimeInvoices(fetchInvoices);
+
+  useEffect(() => {
+    fetchInvoices();
+  }, [fetchInvoices]);
 
   const generateInvoice = async (bookingId: string) => {
     try {
