@@ -21,6 +21,7 @@ import { AdminCalendarView } from '@/components/admin/AdminCalendarView';
 import { CoverageRequestsManager } from '@/components/admin/CoverageRequestsManager';
 import { AdminCoverageManager } from '@/components/admin/AdminCoverageManager';
 import { InvoicesManager } from '@/components/admin/InvoicesManager';
+import { InvoiceMonitoringPanel } from '@/components/admin/InvoiceMonitoringPanel';
 import { EmailLogsManager } from '@/components/admin/EmailLogsManager';
 import { SEO } from '@/components/SEO';
 import { NotificationsSettings } from '@/components/admin/NotificationsSettings';
@@ -118,7 +119,12 @@ const Admin = () => {
       case 'payments':
         return <PaymentsManager />;
       case 'invoices':
-        return <InvoicesManager />;
+        return (
+          <div className="space-y-6">
+            <InvoiceMonitoringPanel />
+            <InvoicesManager />
+          </div>
+        );
       case 'sms':
         return <SMSLogsManager />;
       case 'email':
