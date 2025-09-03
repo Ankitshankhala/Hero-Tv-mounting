@@ -98,8 +98,9 @@ export const InvoiceMonitoringPanel = () => {
     try {
       const { data, error } = await supabase.functions.invoke('batch-invoice-generator', {
         body: { 
-          force_regenerate: false,
-          send_email: true 
+          send_email: true,
+          payment_status_filter: 'captured',
+          max_bookings: 50
         }
       });
 
@@ -230,7 +231,7 @@ export const InvoiceMonitoringPanel = () => {
                 size="sm"
               >
                 <Send className="w-4 h-4 mr-2" />
-                {processingBatch ? 'Processing...' : 'Generate All Invoices'}
+                {processingBatch ? 'Processing...' : 'Generate Missing Invoices'}
               </Button>
             </div>
           </div>

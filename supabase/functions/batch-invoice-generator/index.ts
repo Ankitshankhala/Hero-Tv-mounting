@@ -9,6 +9,8 @@ const corsHeaders = {
 interface BatchInvoiceRequest {
   force_regenerate?: boolean;
   send_email?: boolean;
+  payment_status_filter?: 'captured' | 'completed' | 'all';
+  max_bookings?: number;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -22,12 +24,22 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const { force_regenerate = false, send_email = true }: BatchInvoiceRequest = await req.json();
+    const { 
+      force_regenerate = false, 
+      send_email = true, 
+      payment_status_filter = 'captured',
+      max_bookings = 100 
+    }: BatchInvoiceRequest = await req.json();
     
-    console.log('Starting batch invoice generation for completed jobs...');
+    console.log('Starting batch invoice generation for completed jobs...', {
+      force_regenerate,
+      send_email,
+      payment_status_filter,
+      max_bookings
+    });
 
-    // Find all completed bookings with captured payments
-    const { data: completedBookings, error: bookingsError } = await supabase
+    // Build query for completed bookings
+    let query = supabase
       .from('bookings')
       .select(`
         id,
@@ -40,18 +52,26 @@ const handler = async (req: Request): Promise<Response> => {
         created_at
       `)
       .eq('status', 'completed')
-      .eq('payment_status', 'captured');
+      .order('created_at', { ascending: false })
+      .limit(max_bookings);
+
+    // Apply payment status filter
+    if (payment_status_filter !== 'all') {
+      query = query.eq('payment_status', payment_status_filter);
+    }
+
+    const { data: completedBookings, error: bookingsError } = await query;
 
     if (bookingsError) {
       throw new Error(`Failed to fetch completed bookings: ${bookingsError.message}`);
     }
 
-    console.log(`Found ${completedBookings?.length || 0} completed bookings with captured payments`);
+    console.log(`Found ${completedBookings?.length || 0} completed bookings with payment status: ${payment_status_filter}`);
 
     if (!completedBookings?.length) {
       return new Response(JSON.stringify({
         success: true,
-        message: 'No completed bookings with captured payments found',
+        message: `No completed bookings with payment status '${payment_status_filter}' found`,
         generated_count: 0,
         skipped_count: 0,
         failed_count: 0
@@ -107,27 +127,20 @@ const handler = async (req: Request): Promise<Response> => {
         try {
           console.log(`Generating invoice for booking ${booking.id}`);
           
-          const invoiceResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/enhanced-invoice-generator`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
+          const invoiceResponse = await supabase.functions.invoke('enhanced-invoice-generator', {
+            body: {
               booking_id: booking.id,
               send_email: send_email,
               trigger_source: 'batch_generation'
-            })
+            }
           });
 
-          if (invoiceResponse.ok) {
-            const result = await invoiceResponse.json();
-            console.log(`Successfully generated invoice for booking ${booking.id}`);
-            return { success: true, booking_id: booking.id, result };
+          if (invoiceResponse.error) {
+            console.error(`Failed to generate invoice for booking ${booking.id}:`, invoiceResponse.error);
+            return { success: false, booking_id: booking.id, error: invoiceResponse.error.message };
           } else {
-            const errorText = await invoiceResponse.text();
-            console.error(`Failed to generate invoice for booking ${booking.id}:`, errorText);
-            return { success: false, booking_id: booking.id, error: errorText };
+            console.log(`Successfully generated invoice for booking ${booking.id}`);
+            return { success: true, booking_id: booking.id, result: invoiceResponse.data };
           }
         } catch (error) {
           console.error(`Error processing booking ${booking.id}:`, error);
