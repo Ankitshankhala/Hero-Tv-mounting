@@ -138,3 +138,15 @@ verify_jwt = true
 
 [functions.handle-payment-success]
 verify_jwt = false
+
+[functions.auto-invoice]
+verify_jwt = false
+
+[functions.enhanced-invoice-generator]
+verify_jwt = false
+
+[functions.generate-invoice-pdf]
+verify_jwt = false
+
+[functions.update-invoice]
+verify_jwt = false

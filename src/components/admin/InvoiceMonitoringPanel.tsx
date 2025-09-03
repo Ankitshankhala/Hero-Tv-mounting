@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertCircle, CheckCircle2, Clock, Download, Mail, RefreshCw, Send } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useRealtimeInvoices } from '@/hooks/useRealtimeInvoices';
 
 interface Invoice {
   id: string;
@@ -35,7 +36,7 @@ export const InvoiceMonitoringPanel = () => {
   const [activeTab, setActiveTab] = useState('all');
   const { toast } = useToast();
 
-  const fetchInvoices = async () => {
+  const fetchInvoices = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('invoices')
@@ -59,7 +60,14 @@ export const InvoiceMonitoringPanel = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  // Set up real-time subscription
+  useRealtimeInvoices(fetchInvoices);
+
+  useEffect(() => {
+    fetchInvoices();
+  }, [fetchInvoices]);
 
   const retryInvoiceDelivery = async (invoiceId: string) => {
     try {
@@ -148,10 +156,6 @@ export const InvoiceMonitoringPanel = () => {
       });
     }
   };
-
-  useEffect(() => {
-    fetchInvoices();
-  }, []);
 
   const filteredInvoices = invoices.filter(invoice => {
     switch (activeTab) {
