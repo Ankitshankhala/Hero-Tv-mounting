@@ -95,20 +95,47 @@ export const InvoiceMonitoringPanel = () => {
 
   const generateBatchInvoices = async () => {
     setProcessingBatch(true);
+    
+    let totalGenerated = 0;
+    let totalFailed = 0;
+    let totalSkipped = 0;
+    let runCount = 0;
+    const maxRuns = 10; // Safety cap to prevent infinite loops
+    
     try {
-      const { data, error } = await supabase.functions.invoke('batch-invoice-generator', {
-        body: { 
-          send_email: true,
-          payment_status_filter: 'captured',
-          max_bookings: 50
-        }
-      });
+      while (runCount < maxRuns) {
+        runCount++;
+        console.log(`Batch run ${runCount}...`);
+        
+        const { data, error } = await supabase.functions.invoke('batch-invoice-generator', {
+          body: { 
+            send_email: true,
+            payment_status_filter: 'captured',
+            max_bookings: 50
+          }
+        });
 
-      if (error) throw error;
+        if (error) throw error;
+
+        totalGenerated += data.generated_count || 0;
+        totalFailed += data.failed_count || 0;
+        totalSkipped += data.skipped_count || 0;
+
+        console.log(`Run ${runCount} results:`, data);
+
+        // If no invoices were generated, we're done
+        if ((data.generated_count || 0) === 0) {
+          console.log('No more invoices to generate, stopping batch processing');
+          break;
+        }
+
+        // Small delay between batches
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
 
       toast({
         title: 'Batch Processing Complete',
-        description: `Generated ${data.generated_count} invoices, ${data.failed_count} failed, ${data.skipped_count} skipped`,
+        description: `Generated ${totalGenerated} invoices across ${runCount} runs. ${totalFailed} failed, ${totalSkipped} skipped`,
       });
 
       fetchInvoices();
