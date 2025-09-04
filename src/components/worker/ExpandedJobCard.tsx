@@ -3,8 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
-import { formatBookingTime, convertLocalToUTC, DEFAULT_SERVICE_TIMEZONE } from '@/utils/timezoneUtils';
-import { formatTimeTo12Hour } from '@/utils/timeUtils';
+import { formatBookingTimeForContext } from '@/utils/timezoneUtils';
 
 import JobActions from './JobActions';
 import { RemoveServicesModal } from './RemoveServicesModal';
@@ -30,6 +29,10 @@ interface ExpandedJobCardProps {
     id: string;
     scheduled_date: string;
     scheduled_start: string;
+    start_time_utc?: string;
+    local_service_date?: string;
+    local_service_time?: string;
+    service_tz?: string;
     status: string;
     payment_status?: string;
     location_notes?: string;
@@ -91,33 +94,41 @@ export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onCollaps
     onJobCancelled?.();
   };
 
-  // Format date and time for display using service timezone
-  const formatDate = (date: string) => {
-    if (!date) return 'Invalid date';
-    
+  // Format date and time using the same logic as CompactJobCard
+  const getFormattedDateTime = () => {
     try {
-      // Convert the scheduled date and time to proper UTC instant
-      const serviceTimezone = DEFAULT_SERVICE_TIMEZONE;
-      const utcDate = convertLocalToUTC(date, job.scheduled_start || '09:00', serviceTimezone);
-      
-      // Format the UTC date back to the service timezone for display
-      return formatBookingTime(
-        utcDate, 
-        serviceTimezone,
-        {
-          showTime: false,
-          dateFormat: 'EEEE, MMMM dd, yyyy'
-        }
-      );
+      return formatBookingTimeForContext(job, 'worker', 'America/Chicago');
     } catch (error) {
-      console.error('Error formatting date:', { date, error });
+      console.error('Error formatting booking date/time:', { job, error });
+      return 'Invalid date and time';
+    }
+  };
+
+  const getFormattedDate = () => {
+    try {
+      const fullDateTime = formatBookingTimeForContext(job, 'worker', 'America/Chicago');
+      // Extract just the date part (everything before the first comma after day name)
+      const parts = fullDateTime.split(',');
+      if (parts.length >= 2) {
+        return `${parts[0]}, ${parts[1]}`.trim();
+      }
+      return fullDateTime.split(' at ')[0] || fullDateTime;
+    } catch (error) {
+      console.error('Error formatting date:', { job, error });
       return 'Invalid date';
     }
   };
 
-  const formatTime = (time: string) => {
-    if (!time) return 'Invalid time';
-    return formatTimeTo12Hour(time);
+  const getFormattedTime = () => {
+    try {
+      const fullDateTime = formatBookingTimeForContext(job, 'worker', 'America/Chicago');
+      // Extract time part (everything after 'at')
+      const timePart = fullDateTime.split(' at ')[1];
+      return timePart || fullDateTime.split(', ').pop() || fullDateTime;
+    } catch (error) {
+      console.error('Error formatting time:', { job, error });
+      return 'Invalid time';
+    }
   };
 
   // Extract special instructions from location_notes or special_instructions field
@@ -274,8 +285,8 @@ export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onCollaps
           <div>
             <h4 className="text-lg font-semibold text-foreground mb-3">Date & Time</h4>
             <div className="text-sm">
-              <div className="font-medium text-foreground">{formatDate(job.scheduled_date)}</div>
-              <div className="text-muted-foreground">{formatTime(job.scheduled_start)}</div>
+              <div className="font-medium text-foreground">{getFormattedDate()}</div>
+              <div className="text-muted-foreground">{getFormattedTime()}</div>
             </div>
           </div>
 
