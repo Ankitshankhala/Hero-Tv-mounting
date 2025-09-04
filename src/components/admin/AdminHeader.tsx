@@ -117,7 +117,10 @@ export const AdminHeader = ({ onNavigate }: AdminHeaderProps = {}) => {
                 </Button>
               </div> : <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  
+                  <Button variant="outline" size="sm" className="bg-slate-700/50 text-slate-300 border-slate-600 hover:bg-white hover:text-slate-900 transition-colors">
+                    <TestTube className="h-4 w-4 mr-2" />
+                    10-min Test
+                  </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
