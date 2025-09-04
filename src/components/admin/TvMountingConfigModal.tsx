@@ -207,26 +207,26 @@ export const TvMountingConfigModal: React.FC<TvMountingConfigModalProps> = ({
                     </label>
                   </div>
 
-                  {/* Stone/Brick/Tile Wall Add-on */}
+                  {/* Steel/Brick/Concrete Wall Add-on */}
                   <div className="bg-white rounded-lg p-3 border">
                     <label className="flex items-center space-x-3 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={config.wallType !== 'standard'}
-                        onChange={(e) => updateTvConfiguration(config.id, { wallType: e.target.checked ? 'stone' : 'standard' })}
+                        onChange={(e) => updateTvConfiguration(config.id, { wallType: e.target.checked ? 'steel' : 'standard' })}
                         className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500"
                       />
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
-                          <span className="font-medium text-gray-900">Stone/Brick/Steel/Tile Wall</span>
+                          <span className="font-medium text-gray-900">Steel/Brick/Concrete Wall</span>
                           {config.wallType !== 'standard' && (
                             <span className="text-green-600 font-semibold">
-                              +${stoneWallService?.base_price || 50}
+                              +${stoneWallService?.base_price || 40}
                             </span>
                           )}
                         </div>
                         <p className="text-gray-600 text-xs">
-                          Additional charge for specialty wall surfaces (+${stoneWallService?.base_price || 50})
+                          Additional charge for specialty wall surfaces (+${stoneWallService?.base_price || 40})
                         </p>
                       </div>
                     </label>

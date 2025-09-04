@@ -136,18 +136,18 @@ export const TvMountingModal = ({ open, onClose, onAddToCart, services }: TvMoun
                       </div>
                     </label>
 
-                    {/* Stone/Brick/Tile Wall */}
+                    {/* Steel/Brick/Concrete Wall */}
                     <label className="flex items-center space-x-3 p-3 bg-slate-800 rounded-lg cursor-pointer hover:bg-slate-750 transition-colors">
                       <input
                         type="checkbox"
                         checked={config.wallType !== 'standard'}
-                        onChange={(e) => updateTvConfiguration(config.id, { wallType: e.target.checked ? 'stone' : 'standard' })}
+                        onChange={(e) => updateTvConfiguration(config.id, { wallType: e.target.checked ? 'steel' : 'standard' })}
                         className="w-5 h-5 text-blue-600 bg-slate-700 border-slate-600 rounded focus:ring-blue-500"
                       />
                       <div className="flex-1">
-                        <div className="font-medium text-white">Stone/Brick/Steel/Tile Wall</div>
+                        <div className="font-medium text-white">Steel/Brick/Concrete Wall</div>
                         <div className="text-sm text-slate-400">
-                          Additional charge for specialty wall surfaces (+$50)
+                          Additional charge for specialty wall surfaces (+$40)
                         </div>
                       </div>
                     </label>

@@ -18,9 +18,9 @@ export const WallTypeSelector: React.FC<WallTypeSelectorProps> = ({
 }) => {
   const wallTypeOptions = [
     { value: 'standard', label: 'Standard Drywall' },
-    { value: 'stone', label: 'Stone' },
+    { value: 'steel', label: 'Steel' },
     { value: 'brick', label: 'Brick' },
-    { value: 'tile', label: 'Tile' }
+    { value: 'concrete', label: 'Concrete' }
   ];
 
   return (
@@ -51,11 +51,11 @@ export const WallTypeSelector: React.FC<WallTypeSelectorProps> = ({
               ) : (
                 <div className="text-xs mt-1">
                   <p className="text-slate-400">
-                    +${stoneWallService?.base_price || 50} per TV
+                    +${stoneWallService?.base_price || 40} per TV
                   </p>
                   {wallType === option.value && (
                     <p className="text-green-400 font-semibold">
-                      Total: +${(stoneWallService?.base_price || 50) * numberOfTvs}
+                      Total: +${(stoneWallService?.base_price || 40) * numberOfTvs}
                     </p>
                   )}
                 </div>

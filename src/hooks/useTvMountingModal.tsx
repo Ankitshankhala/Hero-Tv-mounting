@@ -25,7 +25,7 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
   const tvMountingService = allServices.find(s => s.name === 'TV Mounting');
   const over65Service = allServices.find(s => s.name === 'Over 65" TV Add-on');
   const frameMountService = allServices.find(s => s.name === 'Frame Mount Add-on');
-  const stoneWallService = allServices.find(s => s.name === 'Stone/Brick/Tile Wall');
+  const stoneWallService = allServices.find(s => s.name === 'Steel/Brick/Concrete Wall');
   const isReady = Boolean(tvMountingService?.id);
 
   const calculateTvMountingPrice = (numTvs: number) => {
@@ -100,7 +100,7 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
       }
       
       if (config.wallType !== 'standard') {
-        price += (stoneWallService?.base_price || 50);
+        price += (stoneWallService?.base_price || 40);
       }
 
       if (config.soundbar) {
@@ -182,7 +182,7 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
         });
         serviceIndex++;
       } else {
-        console.warn('Stone/Brick/Tile Wall service not found in database, skipping');
+        console.warn('Steel/Brick/Concrete Wall service not found in database, skipping');
       }
     }
 

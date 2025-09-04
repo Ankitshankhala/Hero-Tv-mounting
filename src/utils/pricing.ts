@@ -13,8 +13,8 @@ export function calculateServiceLinePrice(service: BookingService): number {
   if (service.service_name === 'TV Mounting') {
     if (config.over65) price += 50;
     if (config.frameMount) price += 75;
-    if (config.wallType === 'stone' || config.wallType === 'brick' || config.wallType === 'tile') {
-      price += 100;
+    if (config.wallType === 'steel' || config.wallType === 'brick' || config.wallType === 'concrete') {
+      price += 40;
     }
     if (config.soundbar) price += 30;
   }

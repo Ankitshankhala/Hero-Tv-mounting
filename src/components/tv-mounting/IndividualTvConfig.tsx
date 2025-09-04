@@ -85,26 +85,26 @@ export const IndividualTvConfig: React.FC<IndividualTvConfigProps> = ({
           </label>
         </div>
 
-        {/* Stone/Brick/Tile Wall Add-on */}
+        {/* Steel/Brick/Concrete Wall Add-on */}
         <div className="bg-slate-800 rounded-lg p-3">
           <label className="flex items-center space-x-3 cursor-pointer">
             <input
               type="checkbox"
               checked={tvConfig.wallType !== 'standard'}
-              onChange={(e) => onUpdateConfig(tvConfig.id, { wallType: e.target.checked ? 'stone' : 'standard' })}
+              onChange={(e) => onUpdateConfig(tvConfig.id, { wallType: e.target.checked ? 'steel' : 'standard' })}
               className="w-4 h-4 text-blue-600 bg-slate-700 border-slate-600 rounded focus:ring-blue-500"
             />
             <div className="flex-1">
               <div className="flex items-center justify-between">
-                <span className="font-medium text-white">Stone/Brick/Steel/Tile Wall</span>
+                <span className="font-medium text-white">Steel/Brick/Concrete Wall</span>
                 {tvConfig.wallType !== 'standard' && (
                   <span className="text-green-400 font-semibold">
-                    +${stoneWallService?.base_price || 50}
+                    +${stoneWallService?.base_price || 40}
                   </span>
                 )}
               </div>
               <p className="text-slate-400 text-xs">
-                Additional charge for specialty wall surfaces (+${stoneWallService?.base_price || 50})
+                Additional charge for specialty wall surfaces (+${stoneWallService?.base_price || 40})
               </p>
             </div>
           </label>
