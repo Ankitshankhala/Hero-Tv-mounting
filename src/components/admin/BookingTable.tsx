@@ -101,6 +101,7 @@ interface BookingTableProps {
   onViewCalendar?: (workerId: string) => void;
   onBookingUpdate?: () => void;
   loading?: boolean;
+  enriching?: boolean;
   showPendingPaymentActions?: boolean;
   onSendReminder?: (booking: Booking) => void;
   onCancelBooking?: (booking: Booking) => void;
@@ -115,6 +116,7 @@ export const BookingTable = ({
   onViewCalendar,
   onBookingUpdate,
   loading = false,
+  enriching = false,
   showPendingPaymentActions = false,
   onSendReminder,
   onCancelBooking
@@ -251,55 +253,61 @@ export const BookingTable = ({
                           </div>
                         </div>
                       </td>
-                    <td className="p-3">
-                      <div className="space-y-1">
-                        <div className="font-medium">
-                          {getCustomerName(booking)}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {getCustomerEmail(booking)}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {getCustomerPhone(booking)}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-3">
-                      <div className="space-y-1">
-                        {renderServiceLines(services)}
-                      </div>
-                    </td>
-                    <td className="p-3">
-                      {booking.worker ? (
-                        <div className="space-y-1">
-                          <div className="font-medium">{booking.worker.name}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {booking.worker.email}
-                          </div>
-                          {onViewCalendar && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => onViewCalendar(booking.worker.id)}
-                              className="h-6 px-2 text-xs"
-                            >
-                              <Calendar className="h-3 w-3 mr-1" />
-                              Calendar
-                            </Button>
-                          )}
-                        </div>
-                      ) : (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onAssignWorker(booking)}
-                          className="h-8"
-                        >
-                          <UserPlus className="h-4 w-4 mr-1" />
-                          Assign
-                        </Button>
-                      )}
-                    </td>
+                     <td className="p-3">
+                       <div className="space-y-1">
+                         <div className="font-medium">
+                           {getCustomerName(booking)}
+                         </div>
+                         <div className="text-sm text-muted-foreground">
+                           {getCustomerEmail(booking)}
+                         </div>
+                         <div className="text-sm text-muted-foreground">
+                           {getCustomerPhone(booking)}
+                         </div>
+                       </div>
+                     </td>
+                     <td className="p-3">
+                       <div className="space-y-1">
+                         {services.length > 0 ? renderServiceLines(services) : (
+                           <div className="text-sm text-muted-foreground">
+                             {enriching ? 'Loading services...' : 'TV Mounting'}
+                           </div>
+                         )}
+                       </div>
+                     </td>
+                     <td className="p-3">
+                       {booking.worker ? (
+                         <div className="space-y-1">
+                           <div className="font-medium">{booking.worker.name}</div>
+                           <div className="text-sm text-muted-foreground">
+                             {booking.worker.email}
+                           </div>
+                           {onViewCalendar && (
+                             <Button
+                               variant="ghost"
+                               size="sm"
+                               onClick={() => onViewCalendar(booking.worker.id)}
+                               className="h-6 px-2 text-xs"
+                             >
+                               <Calendar className="h-3 w-3 mr-1" />
+                               Calendar
+                             </Button>
+                           )}
+                         </div>
+                       ) : booking.worker_id && enriching ? (
+                         <div className="text-sm text-muted-foreground">Loading worker...</div>
+                       ) : (
+                         <Button
+                           variant="outline"
+                           size="sm"
+                           onClick={() => onAssignWorker(booking)}
+                           className="h-8"
+                         >
+                           <UserPlus className="h-4 w-4 mr-1" />
+                           Assign
+                         </Button>
+                       )}
+                     </td>
                     <td className="p-3">
                       <div className="space-y-1">
                         <div className="font-medium">{formattedDateTime}</div>
@@ -308,11 +316,14 @@ export const BookingTable = ({
                         </div>
                       </div>
                     </td>
-                    <td className="p-3">
-                      <div className="font-medium">
-                        ${Number(booking.stripe_authorized_amount || booking.total_price || 0).toFixed(2)}
-                      </div>
-                    </td>
+                     <td className="p-3">
+                       <div className="font-medium">
+                         ${Number(booking.stripe_authorized_amount || booking.total_price || 0).toFixed(2)}
+                         {enriching && !booking.stripe_authorized_amount && (
+                           <div className="text-xs text-muted-foreground">Updating...</div>
+                         )}
+                       </div>
+                     </td>
                     <td className="p-3">
                       <Badge variant={getStatusVariant(booking.status)}>
                         {booking.status}

@@ -30,11 +30,12 @@ export const BookingsManager = () => {
   const { user } = useAuth();
 
   // Use our enhanced booking manager hook
-  const {
-    bookings,
-    loading,
-    handleBookingUpdate,
-    fetchBookings
+  const { 
+    bookings, 
+    loading, 
+    enriching,
+    handleBookingUpdate, 
+    fetchBookings 
   } = useBookingManager();
 
   // Set up real-time subscriptions for admin with enhanced callback
@@ -188,6 +189,8 @@ export const BookingsManager = () => {
                   onDeleteBooking={handleDeleteBooking}
                   onViewBooking={handleViewBooking}
                   onAssignWorker={handleAssignWorker}
+                  loading={loading}
+                  enriching={enriching}
                   showPendingPaymentActions={archiveFilter === 'pending_payments'}
                   onSendReminder={handleSendReminder}
                   onCancelBooking={handleCancelBooking}

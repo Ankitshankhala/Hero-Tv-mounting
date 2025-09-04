@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { calculateBookingTotal } from '@/utils/pricing';
 import { DEFAULT_SERVICE_TIMEZONE } from '@/utils/timezoneUtils';
+import { optimizedSupabaseCall, measureApiCall } from '@/utils/optimizedApi';
 
 interface BookingData {
   id: string;
@@ -36,6 +37,7 @@ interface BookingData {
 export const useBookingManager = (isCalendarConnected: boolean = false) => {
   const [bookings, setBookings] = useState<BookingData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [enriching, setEnriching] = useState(false);
   const { toast } = useToast();
 
   const enrichSingleBooking = async (booking: any): Promise<BookingData> => {
@@ -44,10 +46,10 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
     if (booking.guest_customer_info) {
       customer = {
         id: null, // Guest customers don't have user IDs
-        name: booking.guest_customer_info.customerName || booking.guest_customer_info.name || 'Unknown',
-        email: booking.guest_customer_info.customerEmail || booking.guest_customer_info.email || 'Unknown',
-        phone: booking.guest_customer_info.customerPhone || booking.guest_customer_info.phone || 'Unknown',
-        city: booking.guest_customer_info.city || 'Unknown'
+        name: (booking.guest_customer_info as any)?.customerName || (booking.guest_customer_info as any)?.name || 'Unknown',
+        email: (booking.guest_customer_info as any)?.customerEmail || (booking.guest_customer_info as any)?.email || 'Unknown',
+        phone: (booking.guest_customer_info as any)?.customerPhone || (booking.guest_customer_info as any)?.phone || 'Unknown',
+        city: (booking.guest_customer_info as any)?.city || 'Unknown'
       };
     }
 
@@ -113,101 +115,244 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
   const fetchBookings = async () => {
     try {
       setLoading(true);
-      console.log('Fetching bookings...');
+      console.log('Fetching bookings with two-phase strategy...');
 
-      // Order by start_time_utc first, then fallback to legacy fields
-      const { data: bookingsData, error: bookingsError } = await supabase
-        .from('bookings')
-        .select('*')
-        .order('start_time_utc', { ascending: false, nullsFirst: false })
-        .order('created_at', { ascending: false });
+      // PHASE 1: Fast-first paint - essential fields only, limited results
+      const { data: bookingsData, error: bookingsError } = await measureApiCall(
+        'bookings-phase1',
+        async () => {
+          const result = await optimizedSupabaseCall(
+            'bookings-recent-25',
+            async () => {
+              const response = await supabase
+                .from('bookings')
+                .select(`
+                  id, customer_id, worker_id, service_id,
+                  scheduled_date, scheduled_start, status,
+                  start_time_utc, local_service_date, local_service_time, service_tz,
+                  payment_status, payment_intent_id, created_at,
+                  guest_customer_info, location_notes, is_archived
+                `)
+                .order('start_time_utc', { ascending: false, nullsFirst: false })
+                .order('created_at', { ascending: false })
+                .limit(25);
+              return response;
+            },
+            true,
+            10000 // 10s cache for fast pagination
+          );
+          return result;
+        }
+      );
 
       if (bookingsError) {
-        console.error('Error fetching bookings:', bookingsError);
+        console.error('Error fetching bookings (Phase 1):', bookingsError);
         throw bookingsError;
       }
 
-      console.log('Raw bookings data:', bookingsData);
+      console.log('Phase 1 complete - basic bookings:', bookingsData?.length || 0);
 
       if (!bookingsData || bookingsData.length === 0) {
         console.log('No bookings found');
         setBookings([]);
+        setLoading(false);
         return;
       }
 
-      // Fetch booking services for all bookings
-      let servicesByBooking = {};
-      if (bookingsData.length > 0) {
-        const bookingIds = bookingsData.map(booking => booking.id);
-        const { data: bookingServicesData, error: servicesError } = await supabase
-          .from('booking_services')
-          .select('booking_id, service_name, quantity, base_price, configuration')
-          .in('booking_id', bookingIds);
+      // Set minimal bookings immediately for fast render
+      const minimalBookings = bookingsData.map(booking => ({
+        ...booking,
+        customer: booking.guest_customer_info ? {
+          id: null,
+          name: (booking.guest_customer_info as any)?.customerName || 'Loading...',
+          email: (booking.guest_customer_info as any)?.customerEmail || '',
+          phone: (booking.guest_customer_info as any)?.customerPhone || ''
+        } : null,
+        worker: null, // Will be enriched in Phase 2
+        service: null, // Will be enriched in Phase 2
+        booking_services: [], // Will be enriched in Phase 2
+        total_price: 0, // Will be calculated in Phase 2
+        services: [],
+        scheduled_at: booking.start_time_utc || `${booking.scheduled_date}T${booking.scheduled_start}`,
+        customer_address: booking.location_notes || 'Loading...',
+        service_tz: booking.service_tz || DEFAULT_SERVICE_TIMEZONE
+      }));
 
-        if (servicesError) {
-          console.error('Error fetching booking services:', servicesError);
-        } else {
-          servicesByBooking = (bookingServicesData || []).reduce((acc, service) => {
-            if (!acc[service.booking_id]) {
-              acc[service.booking_id] = [];
-            }
-            acc[service.booking_id].push(service);
-            return acc;
-          }, {} as Record<string, any[]>);
-        }
+      setBookings(minimalBookings);
+      setLoading(false); // Table appears immediately
+
+      // PHASE 2: Parallel enrichment without blocking UI
+      setEnriching(true);
+      
+      const bookingIds = bookingsData.map(b => b.id);
+      const workerIds = [...new Set(bookingsData.filter(b => b.worker_id).map(b => b.worker_id))];
+      const serviceIds = [...new Set(bookingsData.map(b => b.service_id))];
+
+      console.log('Phase 2 starting - batching related data...');
+
+      // Batch all enrichment queries in parallel
+      const [
+        bookingServicesResult,
+        transactionsResult,
+        workersResult,
+        servicesResult
+      ] = await Promise.allSettled([
+        // Booking services
+        optimizedSupabaseCall(
+          `booking-services-${bookingIds.length}`,
+          async () => {
+            const response = await supabase
+              .from('booking_services')
+              .select('booking_id, service_name, quantity, base_price, configuration')
+              .in('booking_id', bookingIds);
+            return response;
+          },
+          true,
+          30000
+        ),
+        
+        // Latest transactions
+        optimizedSupabaseCall(
+          `transactions-${bookingIds.length}`,
+          async () => {
+            const response = await supabase
+              .from('transactions')
+              .select('booking_id, amount, status, currency, created_at')
+              .in('booking_id', bookingIds)
+              .in('status', ['authorized', 'completed'])
+              .order('created_at', { ascending: false });
+            return response;
+          },
+          true,
+          30000
+        ),
+
+        // Workers
+        workerIds.length > 0 ? optimizedSupabaseCall(
+          `workers-${workerIds.length}`,
+          async () => {
+            const response = await supabase
+              .from('users')
+              .select('id, name, email, phone')
+              .in('id', workerIds as string[]);
+            return response;
+          },
+          true,
+          300000 // 5min cache for worker data
+        ) : Promise.resolve({ data: [], error: null }),
+
+        // Services
+        optimizedSupabaseCall(
+          `services-${serviceIds.length}`,
+          async () => {
+            const response = await supabase
+              .from('services')
+              .select('id, name, description, base_price, duration_minutes')
+              .in('id', serviceIds as string[]);
+            return response;
+          },
+          true,
+          300000 // 5min cache for service data
+        )
+      ]);
+
+      console.log('Phase 2 batch queries complete');
+
+      // Process results
+      const bookingServicesData = bookingServicesResult.status === 'fulfilled' 
+        ? (bookingServicesResult.value as any)?.data || [] 
+        : [];
+      const transactionsData = transactionsResult.status === 'fulfilled' 
+        ? (transactionsResult.value as any)?.data || [] 
+        : [];
+      const workersData = workersResult.status === 'fulfilled' 
+        ? (workersResult.value as any)?.data || [] 
+        : [];
+      const servicesData = servicesResult.status === 'fulfilled' 
+        ? (servicesResult.value as any)?.data || [] 
+        : [];
+
+      if (bookingServicesResult.status === 'rejected') {
+        console.error('Failed to fetch booking services:', bookingServicesResult.reason);
       }
-      // Fetch latest Stripe transactions (authorized or completed) for all bookings
-      let txByBooking: Record<string, any> = {};
-      if (bookingsData.length > 0) {
-        const bookingIds = bookingsData.map(b => b.id);
-        const { data: txData, error: txError } = await supabase
-          .from('transactions')
-          .select('booking_id, amount, status, currency, created_at')
-          .in('booking_id', bookingIds)
-          .in('status', ['authorized','completed'])
-          .order('created_at', { ascending: false });
-
-        if (txError) {
-          console.error('Error fetching transactions:', txError);
-        } else {
-          (txData || []).forEach((tx: any) => {
-            if (!txByBooking[tx.booking_id]) {
-              txByBooking[tx.booking_id] = tx;
-            }
-          });
-        }
+      if (transactionsResult.status === 'rejected') {
+        console.error('Failed to fetch transactions:', transactionsResult.reason);
+      }
+      if (workersResult.status === 'rejected') {
+        console.error('Failed to fetch workers:', workersResult.reason);
+      }
+      if (servicesResult.status === 'rejected') {
+        console.error('Failed to fetch services:', servicesResult.reason);
       }
 
-      // Enrich bookings with customer, worker, service data, services, and Stripe snapshot
-      const enrichedBookings = await Promise.all(
-        bookingsData.map(async (booking) => {
-          const enriched = await enrichSingleBooking(booking);
-          const bookingServices = servicesByBooking[booking.id] || [];
-          
-          // Calculate total authorized amount from booking services or fallback
-          let computedTotalAuthorized = 0;
-          if (bookingServices.length > 0) {
-            computedTotalAuthorized = calculateBookingTotal(bookingServices);
-          } else if (enriched.service?.base_price) {
-            computedTotalAuthorized = enriched.service.base_price;
-          }
+      // Create lookup maps
+      const servicesByBooking = bookingServicesData.reduce((acc, service) => {
+        if (!acc[service.booking_id]) acc[service.booking_id] = [];
+        acc[service.booking_id].push(service);
+        return acc;
+      }, {} as Record<string, any[]>);
 
-          const latestTx = txByBooking[booking.id];
+      const txByBooking = transactionsData.reduce((acc, tx) => {
+        if (!acc[tx.booking_id]) acc[tx.booking_id] = tx; // Keep latest
+        return acc;
+      }, {} as Record<string, any>);
 
-          return {
-            ...enriched,
-            booking_services: bookingServices,
-            total_price: computedTotalAuthorized,
-            stripe_authorized_amount: latestTx ? Number(latestTx.amount) : undefined,
-            stripe_payment_status: latestTx?.status,
-            stripe_currency: latestTx?.currency || 'USD',
-            stripe_tx_created_at: latestTx?.created_at
-          };
-        })
-      );
+      const workersById = workersData.reduce((acc, worker) => {
+        acc[worker.id] = worker;
+        return acc;
+      }, {} as Record<string, any>);
 
-      console.log('Enriched bookings with services and Stripe snapshot:', enrichedBookings);
+      const servicesById = servicesData.reduce((acc, service) => {
+        acc[service.id] = service;
+        return acc;
+      }, {} as Record<string, any>);
+
+      // Merge enriched data
+      const enrichedBookings = bookingsData.map(booking => {
+        const bookingServices = servicesByBooking[booking.id] || [];
+        const service = servicesById[booking.service_id];
+        const worker = booking.worker_id ? workersById[booking.worker_id] : null;
+        const latestTx = txByBooking[booking.id];
+
+        // Calculate total
+        let totalPrice = 0;
+        if (bookingServices.length > 0) {
+          totalPrice = calculateBookingTotal(bookingServices);
+        } else if (service?.base_price) {
+          totalPrice = Number(service.base_price) || 0;
+        }
+
+        // Enhanced customer from guest_customer_info
+        const customer = booking.guest_customer_info ? {
+          id: null,
+          name: (booking.guest_customer_info as any)?.customerName || (booking.guest_customer_info as any)?.name || 'Unknown',
+          email: (booking.guest_customer_info as any)?.customerEmail || (booking.guest_customer_info as any)?.email || 'Unknown',
+          phone: (booking.guest_customer_info as any)?.customerPhone || (booking.guest_customer_info as any)?.phone || 'Unknown',
+          city: (booking.guest_customer_info as any)?.city || 'Unknown'
+        } : null;
+
+        return {
+          ...booking,
+          customer,
+          worker,
+          service,
+          services: service ? [service] : [],
+          scheduled_at: booking.start_time_utc || `${booking.scheduled_date}T${booking.scheduled_start}`,
+          customer_address: booking.location_notes || 'No address provided',
+          total_price: totalPrice,
+          booking_services: bookingServices,
+          stripe_authorized_amount: latestTx ? Number(latestTx.amount) : undefined,
+          stripe_payment_status: latestTx?.status,
+          stripe_currency: latestTx?.currency || 'USD',
+          stripe_tx_created_at: latestTx?.created_at,
+          service_tz: booking.service_tz || DEFAULT_SERVICE_TIMEZONE
+        };
+      });
+
+      console.log('Phase 2 complete - fully enriched bookings:', enrichedBookings.length);
       setBookings(enrichedBookings);
+      setEnriching(false);
+      
     } catch (error) {
       console.error('Error in fetchBookings:', error);
       toast({
@@ -215,8 +360,8 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
         description: "Failed to load bookings",
         variant: "destructive",
       });
-    } finally {
       setLoading(false);
+      setEnriching(false);
     }
   };
 
@@ -350,6 +495,7 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
   return {
     bookings,
     loading,
+    enriching,
     handleBookingUpdate,
     fetchBookings,
     handleArchiveJob
