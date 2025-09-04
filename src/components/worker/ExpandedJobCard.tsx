@@ -3,7 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
-import { formatBookingTime } from '@/utils/timezoneUtils';
+import { formatBookingTime, convertLocalToUTC, DEFAULT_SERVICE_TIMEZONE } from '@/utils/timezoneUtils';
 import { formatTimeTo12Hour } from '@/utils/timeUtils';
 
 import JobActions from './JobActions';
@@ -91,15 +91,19 @@ export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onCollaps
     onJobCancelled?.();
   };
 
-  // Format date and time for display using America/Chicago timezone
+  // Format date and time for display using service timezone
   const formatDate = (date: string) => {
     if (!date) return 'Invalid date';
     
     try {
-      // Use timezone utility to properly handle local service dates
+      // Convert the scheduled date and time to proper UTC instant
+      const serviceTimezone = DEFAULT_SERVICE_TIMEZONE;
+      const utcDate = convertLocalToUTC(date, job.scheduled_start || '09:00', serviceTimezone);
+      
+      // Format the UTC date back to the service timezone for display
       return formatBookingTime(
-        `${date}T00:00:00`, 
-        'America/Chicago',
+        utcDate, 
+        serviceTimezone,
         {
           showTime: false,
           dateFormat: 'EEEE, MMMM dd, yyyy'
