@@ -36,13 +36,9 @@ interface ServiceAreaMapProps {
   onServiceAreaCreated?: () => void;
   isActive?: boolean;
   adminMode?: boolean;
-  serviceZipcodes?: Array<{
-    zipcode: string;
-    service_area_id: string;
-  }>;
 }
 
-const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, isActive, adminMode = false, serviceZipcodes: propServiceZipcodes }: ServiceAreaMapProps) => {
+const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, isActive, adminMode = false }: ServiceAreaMapProps) => {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const drawnItemsRef = useRef<L.FeatureGroup | null>(null);
@@ -63,15 +59,7 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
   const [searchAddress, setSearchAddress] = useState('');
   const [searching, setSearching] = useState(false);
   const { toast } = useToast();
-  const { serviceZipcodes: workerServiceZipcodes, getActiveZipcodes, fetchServiceAreas } = useWorkerServiceAreas(workerId);
-
-  // Use admin ZIP codes if in admin mode, otherwise use worker ZIP codes
-  const serviceZipcodes = adminMode && propServiceZipcodes ? propServiceZipcodes : workerServiceZipcodes;
-
-  // Get zip code count for a specific service area
-  const getZipCodeCountForArea = (areaId: string) => {
-    return serviceZipcodes.filter(zip => zip.service_area_id === areaId).length;
-  };
+  const { serviceZipcodes, getActiveZipcodes, fetchServiceAreas } = useWorkerServiceAreas(workerId);
 
   // Initialize map
   useEffect(() => {
@@ -980,14 +968,14 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
                         Created {new Date(area.created_at).toLocaleDateString()}
                         {area.is_active && ' • Active'}
                       </p>
-                       {area.is_active && (
-                         <div className="flex items-center gap-2 mt-1">
-                           <MapPinCheck className="h-3 w-3 text-primary" />
-                           <Badge variant="secondary" className="text-xs">
-                             {getZipCodeCountForArea(area.id)} ZIP codes covered
-                           </Badge>
-                         </div>
-                       )}
+                      {area.is_active && (
+                        <div className="flex items-center gap-2 mt-1">
+                          <MapPinCheck className="h-3 w-3 text-primary" />
+                          <Badge variant="secondary" className="text-xs">
+                            {getActiveZipcodes().length} ZIP codes covered
+                          </Badge>
+                        </div>
+                      )}
                     </div>
                   </div>
                   
