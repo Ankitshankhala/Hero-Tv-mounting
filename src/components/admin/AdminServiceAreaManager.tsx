@@ -10,7 +10,6 @@ import ServiceAreaMap from '@/components/worker/service-area/ServiceAreaMap';
 import { useAdminServiceAreas } from '@/hooks/useAdminServiceAreas';
 import { useRealtimeServiceAreas } from '@/hooks/useRealtimeServiceAreas';
 import { formatDistanceToNow } from 'date-fns';
-
 export const AdminServiceAreaManager = () => {
   const [selectedWorkerId, setSelectedWorkerId] = useState<string>('');
   const {
@@ -21,9 +20,7 @@ export const AdminServiceAreaManager = () => {
     fetchAuditLogs,
     createServiceAreaForWorker
   } = useAdminServiceAreas();
-
   const selectedWorker = workers.find(w => w.id === selectedWorkerId);
-
   useEffect(() => {
     fetchWorkers();
     fetchAuditLogs();
@@ -45,22 +42,18 @@ export const AdminServiceAreaManager = () => {
     fetchWorkers();
     fetchAuditLogs(selectedWorkerId || undefined);
   });
-
   const handleWorkerSelect = (workerId: string) => {
     setSelectedWorkerId(workerId);
     fetchAuditLogs(workerId);
   };
-
   const handleRefresh = () => {
     fetchWorkers();
     fetchAuditLogs(selectedWorkerId || undefined);
   };
-
-  return (
-    <div className="p-6 space-y-6">
+  return <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Service Area Management</h1>
+          <h1 className="text-3xl font-bold text-zinc-50">Service Area Management</h1>
           <p className="text-muted-foreground">
             Manage worker service areas and zip code assignments
           </p>
@@ -94,21 +87,18 @@ export const AdminServiceAreaManager = () => {
                       <SelectValue placeholder="Choose a worker..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {workers.map((worker) => (
-                        <SelectItem key={worker.id} value={worker.id}>
+                      {workers.map(worker => <SelectItem key={worker.id} value={worker.id}>
                           <div className="flex items-center justify-between w-full">
                             <span>{worker.name || worker.email}</span>
                             <Badge variant={worker.is_active ? "default" : "secondary"}>
                               {worker.is_active ? "Active" : "Inactive"}
                             </Badge>
                           </div>
-                        </SelectItem>
-                      ))}
+                        </SelectItem>)}
                     </SelectContent>
                   </Select>
 
-                  {selectedWorker && (
-                    <div className="space-y-2 p-3 bg-muted rounded-lg">
+                  {selectedWorker && <div className="space-y-2 p-3 bg-muted rounded-lg">
                       <div className="text-sm font-medium">{selectedWorker.name || selectedWorker.email}</div>
                       <div className="text-xs text-muted-foreground space-y-1">
                         <div className="flex justify-between">
@@ -120,8 +110,7 @@ export const AdminServiceAreaManager = () => {
                           <Badge variant="outline">{selectedWorker.total_zipcodes}</Badge>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    </div>}
                 </CardContent>
               </Card>
 
@@ -133,14 +122,14 @@ export const AdminServiceAreaManager = () => {
                 <CardContent>
                   <ScrollArea className="h-32">
                     <div className="space-y-2">
-                      {auditLogs.slice(0, 3).map((log) => (
-                        <div key={log.id} className="text-xs p-2 bg-muted rounded">
+                      {auditLogs.slice(0, 3).map(log => <div key={log.id} className="text-xs p-2 bg-muted rounded">
                           <div className="font-medium">{log.change_summary}</div>
                           <div className="text-muted-foreground">
-                            {formatDistanceToNow(new Date(log.changed_at), { addSuffix: true })}
+                            {formatDistanceToNow(new Date(log.changed_at), {
+                          addSuffix: true
+                        })}
                           </div>
-                        </div>
-                      ))}
+                        </div>)}
                     </div>
                   </ScrollArea>
                 </CardContent>
@@ -154,32 +143,21 @@ export const AdminServiceAreaManager = () => {
                   <CardTitle className="flex items-center">
                     <MapPin className="h-5 w-5 mr-2" />
                     Service Area Map
-                    {selectedWorker && (
-                      <span className="ml-2 text-sm font-normal text-muted-foreground">
+                    {selectedWorker && <span className="ml-2 text-sm font-normal text-muted-foreground">
                         - {selectedWorker.name || selectedWorker.email}
-                      </span>
-                    )}
+                      </span>}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="h-full p-0">
-                  {selectedWorkerId ? (
-                    <ServiceAreaMap 
-                      workerId={selectedWorkerId}
-                      onServiceAreaCreated={() => {
-                        fetchWorkers();
-                        fetchAuditLogs(selectedWorkerId);
-                      }}
-                      adminMode={true}
-                      isActive={true}
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-muted-foreground">
+                  {selectedWorkerId ? <ServiceAreaMap workerId={selectedWorkerId} onServiceAreaCreated={() => {
+                  fetchWorkers();
+                  fetchAuditLogs(selectedWorkerId);
+                }} adminMode={true} isActive={true} /> : <div className="flex items-center justify-center h-full text-muted-foreground">
                       <div className="text-center">
                         <MapPin className="h-12 w-12 mx-auto mb-4 opacity-50" />
                         <p>Select a worker to view and edit their service areas</p>
                       </div>
-                    </div>
-                  )}
+                    </div>}
                 </CardContent>
               </Card>
             </div>
@@ -196,34 +174,25 @@ export const AdminServiceAreaManager = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {auditLogs.length > 0 ? (
-                  auditLogs.map((log) => (
-                    <div key={log.id} className="flex items-start space-x-4 p-4 border rounded-lg">
-                      <Badge variant={
-                        log.operation === 'INSERT' ? 'default' :
-                        log.operation === 'UPDATE' ? 'secondary' :
-                        'destructive'
-                      }>
+                {auditLogs.length > 0 ? auditLogs.map(log => <div key={log.id} className="flex items-start space-x-4 p-4 border rounded-lg">
+                      <Badge variant={log.operation === 'INSERT' ? 'default' : log.operation === 'UPDATE' ? 'secondary' : 'destructive'}>
                         {log.operation}
                       </Badge>
                       <div className="flex-1">
                         <div className="font-medium">{log.change_summary}</div>
                         <div className="text-sm text-muted-foreground">
-                          {formatDistanceToNow(new Date(log.changed_at), { addSuffix: true })}
+                          {formatDistanceToNow(new Date(log.changed_at), {
+                      addSuffix: true
+                    })}
                         </div>
                       </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center text-muted-foreground py-8">
+                    </div>) : <div className="text-center text-muted-foreground py-8">
                     No activity logs found
-                  </div>
-                )}
+                  </div>}
               </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
-  );
+    </div>;
 };
