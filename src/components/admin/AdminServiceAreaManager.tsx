@@ -20,13 +20,14 @@ export const AdminServiceAreaManager = () => {
     loading,
     fetchWorkers,
     fetchAuditLogs,
-    createServiceAreaForWorker
+    createServiceAreaForWorker,
+    fetchWorkersWithServiceAreas
   } = useAdminServiceAreas();
   const selectedWorker = workers.find(w => w.id === selectedWorkerId);
   useEffect(() => {
-    fetchWorkers();
+    fetchWorkersWithServiceAreas();
     fetchAuditLogs();
-  }, [fetchWorkers, fetchAuditLogs]);
+  }, [fetchWorkersWithServiceAreas, fetchAuditLogs]);
 
   // Auto-select first worker when workers are loaded
   useEffect(() => {
@@ -166,11 +167,12 @@ export const AdminServiceAreaManager = () => {
                     onServiceAreaCreated={() => {
                       // Clear cache and refresh data
                       apiCache.clear();
-                      fetchWorkers();
+                      fetchWorkersWithServiceAreas();
                       fetchAuditLogs(selectedWorkerId);
                     }} 
                     adminMode={true} 
                     isActive={true} 
+                    serviceZipcodes={selectedWorker?.service_zipcodes}
                     key={selectedWorkerId} // Force re-mount for new worker
                   /> : <div className="flex items-center justify-center h-full text-muted-foreground">
                       <div className="text-center">

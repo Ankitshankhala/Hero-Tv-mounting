@@ -36,9 +36,13 @@ interface ServiceAreaMapProps {
   onServiceAreaCreated?: () => void;
   isActive?: boolean;
   adminMode?: boolean;
+  serviceZipcodes?: Array<{
+    zipcode: string;
+    service_area_id: string;
+  }>;
 }
 
-const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, isActive, adminMode = false }: ServiceAreaMapProps) => {
+const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, isActive, adminMode = false, serviceZipcodes: adminServiceZipcodes }: ServiceAreaMapProps) => {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const drawnItemsRef = useRef<L.FeatureGroup | null>(null);
@@ -59,7 +63,10 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
   const [searchAddress, setSearchAddress] = useState('');
   const [searching, setSearching] = useState(false);
   const { toast } = useToast();
-  const { serviceZipcodes, getActiveZipcodes, fetchServiceAreas } = useWorkerServiceAreas(workerId);
+  const { serviceZipcodes: workerServiceZipcodes, getActiveZipcodes, fetchServiceAreas } = useWorkerServiceAreas(workerId);
+
+  // Use admin ZIP codes if in admin mode, otherwise use worker ZIP codes
+  const serviceZipcodes = adminMode && adminServiceZipcodes ? adminServiceZipcodes : workerServiceZipcodes;
 
   // Get zip code count for a specific service area
   const getZipCodeCountForArea = (areaId: string) => {
