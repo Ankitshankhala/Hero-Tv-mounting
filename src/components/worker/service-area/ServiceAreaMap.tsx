@@ -158,10 +158,12 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
     });
     if (mapContainerRef.current) ro.observe(mapContainerRef.current);
 
-    // Auto-detect user location when map is ready
-    setTimeout(() => {
-      autoDetectLocation();
-    }, 1000);
+    // Don't auto-detect location in admin mode - let service areas determine bounds
+    if (!adminMode) {
+      setTimeout(() => {
+        autoDetectLocation();
+      }, 1000);
+    }
 
     return () => {
       if (mapRef.current) {
@@ -349,9 +351,12 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
         // Fit map to show all polygons or keep default view
         if (hasPolygons && drawnItemsRef.current.getLayers().length > 0) {
           const group = L.featureGroup(drawnItemsRef.current.getLayers());
-          mapRef.current.fitBounds(group.getBounds());
+          mapRef.current.fitBounds(group.getBounds(), { padding: [20, 20] });
+        } else if (adminMode) {
+          // In admin mode with no polygons, keep the default view without auto-location
+          mapRef.current.setView([32.7767, -96.7970], 10);
         } else {
-          // Handle ZIP-only areas or no areas - keep default view
+          // For worker mode, keep default view for ZIP-only areas
           mapRef.current.setView([32.7767, -96.7970], 10);
         }
       }
