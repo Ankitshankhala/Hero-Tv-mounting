@@ -29,6 +29,17 @@ export const AdminServiceAreaManager = () => {
     fetchAuditLogs();
   }, [fetchWorkers, fetchAuditLogs]);
 
+  // Auto-select first worker when workers are loaded
+  useEffect(() => {
+    if (workers.length > 0 && !selectedWorkerId) {
+      const firstActiveWorker = workers.find(w => w.is_active) || workers[0];
+      if (firstActiveWorker) {
+        setSelectedWorkerId(firstActiveWorker.id);
+        fetchAuditLogs(firstActiveWorker.id);
+      }
+    }
+  }, [workers, selectedWorkerId, fetchAuditLogs]);
+
   // Set up real-time updates
   useRealtimeServiceAreas(() => {
     fetchWorkers();
@@ -159,6 +170,7 @@ export const AdminServiceAreaManager = () => {
                         fetchAuditLogs(selectedWorkerId);
                       }}
                       adminMode={true}
+                      isActive={true}
                     />
                   ) : (
                     <div className="flex items-center justify-center h-full text-muted-foreground">
