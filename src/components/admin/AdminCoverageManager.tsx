@@ -4,22 +4,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Search, 
-  MapPin, 
-  Users, 
-  Download, 
-  Eye,
-  EyeOff,
-  Filter,
-  RefreshCw
-} from 'lucide-react';
+import { Search, MapPin, Users, Download, Eye, EyeOff, Filter, RefreshCw } from 'lucide-react';
 import { WorkerServiceAreasMap } from './WorkerServiceAreasMap';
 import { useAdminServiceAreas } from '@/hooks/useAdminServiceAreas';
 import { useRealtimeServiceAreas } from '@/hooks/useRealtimeServiceAreas';
 import { useToast } from '@/hooks/use-toast';
 import { exportToCSV, exportToPDF } from '@/utils/exportUtils';
-
 interface CoverageWorker {
   id: string;
   name: string;
@@ -38,25 +28,22 @@ interface CoverageWorker {
     service_area_id: string;
   }>;
 }
-
 export const AdminCoverageManager = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedWorkerId, setSelectedWorkerId] = useState<string | null>(null);
   const [zipCodeFilter, setZipCodeFilter] = useState('');
   const [showInactiveWorkers, setShowInactiveWorkers] = useState(false);
   const [showInactiveAreas, setShowInactiveAreas] = useState(false);
-  
-  const { 
-    workers: adminWorkers, 
-    loading, 
+  const {
+    workers: adminWorkers,
+    loading,
     fetchWorkersWithServiceAreas,
-    refreshData 
+    refreshData
   } = useAdminServiceAreas();
-  
   const workers = adminWorkers as CoverageWorker[];
-  
-  const { toast } = useToast();
-
+  const {
+    toast
+  } = useToast();
   useEffect(() => {
     fetchWorkersWithServiceAreas();
   }, [fetchWorkersWithServiceAreas]);
@@ -65,111 +52,74 @@ export const AdminCoverageManager = () => {
   useRealtimeServiceAreas(() => {
     refreshData();
   });
-
-  const filteredWorkers = workers.filter((worker) => {
-    const matchesSearch = 
-      worker.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      worker.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      worker.id.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesZipCode = !zipCodeFilter || 
-      worker.service_zipcodes.some(zip => 
-        zip.zipcode.includes(zipCodeFilter)
-      );
-    
+  const filteredWorkers = workers.filter(worker => {
+    const matchesSearch = worker.name.toLowerCase().includes(searchTerm.toLowerCase()) || worker.email.toLowerCase().includes(searchTerm.toLowerCase()) || worker.id.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesZipCode = !zipCodeFilter || worker.service_zipcodes.some(zip => zip.zipcode.includes(zipCodeFilter));
     const matchesActiveFilter = showInactiveWorkers || worker.is_active;
-
     return matchesSearch && matchesZipCode && matchesActiveFilter;
   });
-
-  const selectedWorker = selectedWorkerId 
-    ? workers.find(w => w.id === selectedWorkerId)
-    : null;
-
+  const selectedWorker = selectedWorkerId ? workers.find(w => w.id === selectedWorkerId) : null;
   const handleWorkerSelect = (workerId: string) => {
     setSelectedWorkerId(workerId === selectedWorkerId ? null : workerId);
   };
-
   const handleExportCSV = () => {
-    const exportData = filteredWorkers.flatMap(worker => 
-      worker.service_areas
-        .filter(area => showInactiveAreas || area.is_active)
-        .map(area => ({
-          'Worker Name': worker.name,
-          'Worker Email': worker.email,
-          'Worker ID': worker.id,
-          'Area Name': area.area_name,
-          'Area Status': area.is_active ? 'Active' : 'Inactive',
-          'Zip Codes': worker.service_zipcodes
-            .filter(zip => zip.service_area_id === area.id)
-            .map(zip => zip.zipcode)
-            .join(', '),
-          'Created Date': new Date(area.created_at).toLocaleDateString(),
-          'Worker Active': worker.is_active ? 'Yes' : 'No'
-        }))
-    );
-
+    const exportData = filteredWorkers.flatMap(worker => worker.service_areas.filter(area => showInactiveAreas || area.is_active).map(area => ({
+      'Worker Name': worker.name,
+      'Worker Email': worker.email,
+      'Worker ID': worker.id,
+      'Area Name': area.area_name,
+      'Area Status': area.is_active ? 'Active' : 'Inactive',
+      'Zip Codes': worker.service_zipcodes.filter(zip => zip.service_area_id === area.id).map(zip => zip.zipcode).join(', '),
+      'Created Date': new Date(area.created_at).toLocaleDateString(),
+      'Worker Active': worker.is_active ? 'Yes' : 'No'
+    })));
     exportToCSV(exportData, 'worker-service-areas');
     toast({
       title: "Export Complete",
-      description: "Service area data exported to CSV",
+      description: "Service area data exported to CSV"
     });
   };
-
   const handleExportPDF = async () => {
     try {
       await exportToPDF(filteredWorkers, 'worker-service-areas');
       toast({
         title: "Export Complete",
-        description: "Service area data exported to PDF",
+        description: "Service area data exported to PDF"
       });
     } catch (error) {
       toast({
         title: "Export Failed",
         description: "Failed to generate PDF export",
-        variant: "destructive",
+        variant: "destructive"
       });
     }
   };
-
   const getWorkerStats = (worker: CoverageWorker) => {
     const activeAreas = worker.service_areas.filter(area => area.is_active).length;
     const totalZipCodes = worker.service_zipcodes.length;
-    return { activeAreas, totalZipCodes };
+    return {
+      activeAreas,
+      totalZipCodes
+    };
   };
-
-  return (
-    <div className="space-y-6">
+  return <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Service Area Coverage</h2>
+          <h2 className="text-2xl font-bold text-gray-200">Service Area Coverage</h2>
           <p className="text-muted-foreground">
             Manage and view worker service area assignments
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => refreshData()}
-            disabled={loading}
-          >
+          <Button variant="outline" size="sm" onClick={() => refreshData()} disabled={loading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExportCSV}
-          >
+          <Button variant="outline" size="sm" onClick={handleExportCSV}>
             <Download className="h-4 w-4 mr-2" />
             CSV
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExportPDF}
-          >
+          <Button variant="outline" size="sm" onClick={handleExportPDF}>
             <Download className="h-4 w-4 mr-2" />
             PDF
           </Button>
@@ -194,34 +144,17 @@ export const AdminCoverageManager = () => {
                 <div className="space-y-2">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                    <Input
-                      placeholder="Search workers..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-9"
-                    />
+                    <Input placeholder="Search workers..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-9" />
                   </div>
                   <div className="relative">
-                    <Input
-                      placeholder="Filter by zip code..."
-                      value={zipCodeFilter}
-                      onChange={(e) => setZipCodeFilter(e.target.value)}
-                    />
+                    <Input placeholder="Filter by zip code..." value={zipCodeFilter} onChange={e => setZipCodeFilter(e.target.value)} />
                   </div>
                   <div className="flex gap-2">
-                    <Button
-                      variant={showInactiveWorkers ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setShowInactiveWorkers(!showInactiveWorkers)}
-                    >
+                    <Button variant={showInactiveWorkers ? "default" : "outline"} size="sm" onClick={() => setShowInactiveWorkers(!showInactiveWorkers)}>
                       {showInactiveWorkers ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                       <span className="ml-1">Inactive</span>
                     </Button>
-                    <Button
-                      variant={showInactiveAreas ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setShowInactiveAreas(!showInactiveAreas)}
-                    >
+                    <Button variant={showInactiveAreas ? "default" : "outline"} size="sm" onClick={() => setShowInactiveAreas(!showInactiveAreas)}>
                       {showInactiveAreas ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                       <span className="ml-1">Old Areas</span>
                     </Button>
@@ -230,37 +163,19 @@ export const AdminCoverageManager = () => {
               </CardHeader>
               <CardContent className="p-0">
                 <div className="space-y-1 max-h-[calc(100vh-500px)] overflow-y-auto">
-                  {loading ? (
-                    <div className="p-4 text-center text-muted-foreground">
+                  {loading ? <div className="p-4 text-center text-muted-foreground">
                       Loading workers...
-                    </div>
-                  ) : filteredWorkers.length === 0 ? (
-                    <div className="p-4 text-center text-muted-foreground">
+                    </div> : filteredWorkers.length === 0 ? <div className="p-4 text-center text-muted-foreground">
                       No workers found
-                    </div>
-                  ) : (
-                    filteredWorkers.map((worker) => {
-                      const stats = getWorkerStats(worker);
-                      const isSelected = selectedWorkerId === worker.id;
-                      
-                      return (
-                        <div
-                          key={worker.id}
-                          className={`p-3 border-l-4 cursor-pointer transition-colors ${
-                            isSelected
-                              ? 'bg-accent border-l-primary'
-                              : 'hover:bg-muted border-l-transparent'
-                          }`}
-                          onClick={() => handleWorkerSelect(worker.id)}
-                        >
+                    </div> : filteredWorkers.map(worker => {
+                  const stats = getWorkerStats(worker);
+                  const isSelected = selectedWorkerId === worker.id;
+                  return <div key={worker.id} className={`p-3 border-l-4 cursor-pointer transition-colors ${isSelected ? 'bg-accent border-l-primary' : 'hover:bg-muted border-l-transparent'}`} onClick={() => handleWorkerSelect(worker.id)}>
                           <div className="flex items-center justify-between">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
                                 <p className="font-medium truncate">{worker.name}</p>
-                                <Badge 
-                                  variant={worker.is_active ? "default" : "secondary"}
-                                  className="text-xs"
-                                >
+                                <Badge variant={worker.is_active ? "default" : "secondary"} className="text-xs">
                                   {worker.is_active ? 'Active' : 'Inactive'}
                                 </Badge>
                               </div>
@@ -278,10 +193,8 @@ export const AdminCoverageManager = () => {
                               </div>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })
-                  )}
+                        </div>;
+                })}
                 </div>
               </CardContent>
             </Card>
@@ -292,23 +205,17 @@ export const AdminCoverageManager = () => {
                 <CardTitle className="text-lg flex items-center">
                   <MapPin className="h-5 w-5 mr-2" />
                   Service Areas Map
-                  {selectedWorker && (
-                    <Badge variant="outline" className="ml-2">
+                  {selectedWorker && <Badge variant="outline" className="ml-2">
                       {selectedWorker.name}
-                    </Badge>
-                  )}
+                    </Badge>}
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
-                <WorkerServiceAreasMap
-                  workers={filteredWorkers.map(w => ({
-                    ...w,
-                    service_areas: w.service_areas || [],
-                    service_zipcodes: w.service_zipcodes || []
-                  }))}
-                  selectedWorkerId={selectedWorkerId}
-                  showInactiveAreas={showInactiveAreas}
-                />
+                <WorkerServiceAreasMap workers={filteredWorkers.map(w => ({
+                ...w,
+                service_areas: w.service_areas || [],
+                service_zipcodes: w.service_zipcodes || []
+              }))} selectedWorkerId={selectedWorkerId} showInactiveAreas={showInactiveAreas} />
               </CardContent>
             </Card>
           </div>
@@ -321,14 +228,10 @@ export const AdminCoverageManager = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {filteredWorkers.map((worker) => {
-                  const stats = getWorkerStats(worker);
-                  const visibleAreas = worker.service_areas.filter(area => 
-                    showInactiveAreas || area.is_active
-                  );
-                  
-                  return (
-                    <div key={worker.id} className="border rounded-lg p-4">
+                {filteredWorkers.map(worker => {
+                const stats = getWorkerStats(worker);
+                const visibleAreas = worker.service_areas.filter(area => showInactiveAreas || area.is_active);
+                return <div key={worker.id} className="border rounded-lg p-4">
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
                           <h3 className="font-semibold">{worker.name}</h3>
@@ -351,37 +254,25 @@ export const AdminCoverageManager = () => {
                         
                         <div>
                           <p className="text-sm text-muted-foreground mb-1">Service Areas</p>
-                          {visibleAreas.length === 0 ? (
-                            <p className="text-sm text-muted-foreground">No service areas</p>
-                          ) : (
-                            <div className="space-y-1">
-                              {visibleAreas.map((area) => (
-                                <div key={area.id} className="flex items-center gap-2">
+                          {visibleAreas.length === 0 ? <p className="text-sm text-muted-foreground">No service areas</p> : <div className="space-y-1">
+                              {visibleAreas.map(area => <div key={area.id} className="flex items-center gap-2">
                                   <Badge variant={area.is_active ? "default" : "secondary"}>
                                     {area.area_name}
                                   </Badge>
                                   <span className="text-xs text-muted-foreground">
-                                    {worker.service_zipcodes
-                                      .filter(zip => zip.service_area_id === area.id)
-                                      .map(zip => zip.zipcode)
-                                      .slice(0, 3)
-                                      .join(', ')}
+                                    {worker.service_zipcodes.filter(zip => zip.service_area_id === area.id).map(zip => zip.zipcode).slice(0, 3).join(', ')}
                                     {worker.service_zipcodes.filter(zip => zip.service_area_id === area.id).length > 3 && '...'}
                                   </span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
+                                </div>)}
+                            </div>}
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    </div>;
+              })}
               </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
-  );
+    </div>;
 };
