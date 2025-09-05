@@ -102,7 +102,7 @@ export const AdminHeader = ({ onNavigate }: AdminHeaderProps = {}) => {
               {stripeStatus === 'error' && '❌ Config Error'}
             </Badge>
             
-            {/* Testing Mode Status & Controls */}
+            {/* Testing Mode Status & Controls - Hidden */}
             {isTestingMode ? <div className="flex items-center space-x-2">
                 <Badge variant="destructive" className="animate-pulse">
                   <TestTube className="h-3 w-3 mr-1" />
@@ -115,39 +115,7 @@ export const AdminHeader = ({ onNavigate }: AdminHeaderProps = {}) => {
                 <Button variant="outline" size="sm" onClick={handleTestingModeDeactivate} className="bg-red-900/20 text-red-400 border-red-600/50 hover:bg-red-600 hover:text-white transition-colors">
                   Deactivate Testing
                 </Button>
-              </div> : <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="bg-slate-700/50 text-slate-300 border-slate-600 hover:bg-white hover:text-slate-900 transition-colors">
-                    <TestTube className="h-4 w-4 mr-2" />
-                    10-min Test
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle className="flex items-center">
-                      <AlertTriangle className="h-5 w-5 text-orange-500 mr-2" />
-                      Activate Testing Mode
-                    </AlertDialogTitle>
-                    <AlertDialogDescription className="space-y-2">
-                      <p>This will reduce the minimum booking amount from <strong>$75 to $1</strong> for 10 minutes.</p>
-                      <div className="bg-orange-50 p-3 rounded-md border border-orange-200">
-                        <p className="text-orange-800 font-medium">⚠️ IMPORTANT:</p>
-                        <ul className="text-orange-700 text-sm mt-1 space-y-1">
-                          <li>• ONLY use with LIVE Stripe keys</li>
-                          <li>• Real payments will be processed</li>
-                          <li>• Use for final testing before launch</li>
-                        </ul>
-                      </div>
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleTestingModeActivate} className="bg-blue-600 hover:bg-blue-700">
-                      Activate Testing Mode
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>}
+              </div> : null}
             
             <Button variant="outline" onClick={() => setShowTodaysJobs(true)} className="bg-slate-700/50 text-slate-300 border-slate-600 hover:bg-white hover:text-slate-900 transition-colors">
               <Calendar className="h-4 w-4 mr-2" />
