@@ -770,6 +770,48 @@ export type Database = {
         }
         Relationships: []
       }
+      service_area_audit_logs: {
+        Row: {
+          area_name: string | null
+          change_summary: string | null
+          changed_at: string
+          changed_by: string | null
+          id: string
+          new_data: Json | null
+          old_data: Json | null
+          operation: string
+          record_id: string
+          table_name: string
+          worker_id: string
+        }
+        Insert: {
+          area_name?: string | null
+          change_summary?: string | null
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          new_data?: Json | null
+          old_data?: Json | null
+          operation: string
+          record_id: string
+          table_name: string
+          worker_id: string
+        }
+        Update: {
+          area_name?: string | null
+          change_summary?: string | null
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          new_data?: Json | null
+          old_data?: Json | null
+          operation?: string
+          record_id?: string
+          table_name?: string
+          worker_id?: string
+        }
+        Relationships: []
+      }
       services: {
         Row: {
           base_price: number | null
@@ -1466,6 +1508,18 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: number
       }
+      create_service_area_audit_log: {
+        Args: {
+          p_area_name?: string
+          p_new_data?: Json
+          p_old_data?: Json
+          p_operation: string
+          p_record_id: string
+          p_table_name: string
+          p_worker_id?: string
+        }
+        Returns: string
+      }
       delete_booking_with_cascade: {
         Args: { p_booking_id: string }
         Returns: Json
@@ -1578,6 +1632,17 @@ export type Database = {
       get_worker_weekly_availability: {
         Args: { p_worker_id: string }
         Returns: Json
+      }
+      get_workers_for_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          email: string
+          id: string
+          is_active: boolean
+          name: string
+          service_area_count: number
+          total_zipcodes: number
+        }[]
       }
       import_application_availability: {
         Args: { worker_uuid: string }

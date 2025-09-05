@@ -46,6 +46,7 @@ export const AdminSidebar = ({ activeTab, onTabChange }: AdminSidebarProps) => {
         { id: 'bookings', label: 'Bookings', icon: Calendar, tourAttr: 'admin-bookings', badge: 'new' },
         { id: 'services', label: 'Services', icon: Wrench },
         { id: 'coverage', label: 'Service Coverage', icon: MapPin },
+        { id: 'service-areas', label: 'Service Area Manager', icon: MapPin },
       ]
     },
     {

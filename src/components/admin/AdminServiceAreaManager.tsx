@@ -1,0 +1,217 @@
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { RefreshCw, MapPin, Users } from 'lucide-react';
+import ServiceAreaMap from '@/components/worker/service-area/ServiceAreaMap';
+import { useAdminServiceAreas } from '@/hooks/useAdminServiceAreas';
+import { useRealtimeServiceAreas } from '@/hooks/useRealtimeServiceAreas';
+import { formatDistanceToNow } from 'date-fns';
+
+export const AdminServiceAreaManager = () => {
+  const [selectedWorkerId, setSelectedWorkerId] = useState<string>('');
+  const {
+    workers,
+    auditLogs,
+    loading,
+    fetchWorkers,
+    fetchAuditLogs,
+    createServiceAreaForWorker
+  } = useAdminServiceAreas();
+
+  const selectedWorker = workers.find(w => w.id === selectedWorkerId);
+
+  useEffect(() => {
+    fetchWorkers();
+    fetchAuditLogs();
+  }, [fetchWorkers, fetchAuditLogs]);
+
+  // Set up real-time updates
+  useRealtimeServiceAreas(() => {
+    fetchWorkers();
+    fetchAuditLogs(selectedWorkerId || undefined);
+  });
+
+  const handleWorkerSelect = (workerId: string) => {
+    setSelectedWorkerId(workerId);
+    fetchAuditLogs(workerId);
+  };
+
+  const handleRefresh = () => {
+    fetchWorkers();
+    fetchAuditLogs(selectedWorkerId || undefined);
+  };
+
+  return (
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Service Area Management</h1>
+          <p className="text-muted-foreground">
+            Manage worker service areas and zip code assignments
+          </p>
+        </div>
+        <Button onClick={handleRefresh} disabled={loading} variant="outline">
+          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
+      </div>
+
+      <Tabs defaultValue="map" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="map">Interactive Map</TabsTrigger>
+          <TabsTrigger value="audit">Activity Log</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="map" className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            {/* Worker Selection Panel */}
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Users className="h-5 w-5 mr-2" />
+                    Select Worker
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Select value={selectedWorkerId} onValueChange={handleWorkerSelect}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose a worker..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {workers.map((worker) => (
+                        <SelectItem key={worker.id} value={worker.id}>
+                          <div className="flex items-center justify-between w-full">
+                            <span>{worker.name || worker.email}</span>
+                            <Badge variant={worker.is_active ? "default" : "secondary"}>
+                              {worker.is_active ? "Active" : "Inactive"}
+                            </Badge>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {selectedWorker && (
+                    <div className="space-y-2 p-3 bg-muted rounded-lg">
+                      <div className="text-sm font-medium">{selectedWorker.name || selectedWorker.email}</div>
+                      <div className="text-xs text-muted-foreground space-y-1">
+                        <div className="flex justify-between">
+                          <span>Service Areas:</span>
+                          <Badge variant="outline">{selectedWorker.service_area_count}</Badge>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Zip Codes:</span>
+                          <Badge variant="outline">{selectedWorker.total_zipcodes}</Badge>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Recent Activity */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Recent Activity</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="h-32">
+                    <div className="space-y-2">
+                      {auditLogs.slice(0, 3).map((log) => (
+                        <div key={log.id} className="text-xs p-2 bg-muted rounded">
+                          <div className="font-medium">{log.change_summary}</div>
+                          <div className="text-muted-foreground">
+                            {formatDistanceToNow(new Date(log.changed_at), { addSuffix: true })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Map Panel */}
+            <div className="lg:col-span-3">
+              <Card className="h-[600px]">
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <MapPin className="h-5 w-5 mr-2" />
+                    Service Area Map
+                    {selectedWorker && (
+                      <span className="ml-2 text-sm font-normal text-muted-foreground">
+                        - {selectedWorker.name || selectedWorker.email}
+                      </span>
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="h-full p-0">
+                  {selectedWorkerId ? (
+                    <ServiceAreaMap 
+                      workerId={selectedWorkerId}
+                      onServiceAreaCreated={() => {
+                        fetchWorkers();
+                        fetchAuditLogs(selectedWorkerId);
+                      }}
+                      adminMode={true}
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-muted-foreground">
+                      <div className="text-center">
+                        <MapPin className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>Select a worker to view and edit their service areas</p>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="audit" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Activity Log</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Track all service area changes and assignments
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {auditLogs.length > 0 ? (
+                  auditLogs.map((log) => (
+                    <div key={log.id} className="flex items-start space-x-4 p-4 border rounded-lg">
+                      <Badge variant={
+                        log.operation === 'INSERT' ? 'default' :
+                        log.operation === 'UPDATE' ? 'secondary' :
+                        'destructive'
+                      }>
+                        {log.operation}
+                      </Badge>
+                      <div className="flex-1">
+                        <div className="font-medium">{log.change_summary}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {formatDistanceToNow(new Date(log.changed_at), { addSuffix: true })}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center text-muted-foreground py-8">
+                    No activity logs found
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+};

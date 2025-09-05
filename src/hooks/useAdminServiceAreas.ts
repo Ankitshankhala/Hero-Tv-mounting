@@ -6,25 +6,134 @@ interface Worker {
   id: string;
   name: string;
   email: string;
-  phone: string;
+  phone?: string;
   is_active: boolean;
-  service_areas: Array<{
+  service_area_count: number;
+  total_zipcodes: number;
+  service_areas?: Array<{
     id: string;
     area_name: string;
     polygon_coordinates: any;
     is_active: boolean;
     created_at: string;
   }>;
-  service_zipcodes: Array<{
+  service_zipcodes?: Array<{
     zipcode: string;
     service_area_id: string;
   }>;
 }
 
+interface ServiceAreaAuditLog {
+  id: string;
+  operation: string;
+  change_summary: string;
+  changed_at: string;
+  changed_by: string;
+  worker_id: string;
+  area_name: string;
+}
+
 export const useAdminServiceAreas = () => {
   const [workers, setWorkers] = useState<Worker[]>([]);
+  const [auditLogs, setAuditLogs] = useState<ServiceAreaAuditLog[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+
+  const fetchWorkers = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('get_workers_for_admin');
+      
+      if (error) throw error;
+      setWorkers(data || []);
+    } catch (error) {
+      console.error('Error fetching workers:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load workers",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
+
+  const fetchAuditLogs = useCallback(async (workerId?: string) => {
+    try {
+      let query = supabase
+        .from('service_area_audit_logs')
+        .select(`
+          id,
+          operation,
+          change_summary,
+          changed_at,
+          worker_id,
+          area_name,
+          changed_by
+        `)
+        .order('changed_at', { ascending: false })
+        .limit(50);
+
+      if (workerId) {
+        query = query.eq('worker_id', workerId);
+      }
+
+      const { data, error } = await query;
+      
+      if (error) throw error;
+      setAuditLogs(data || []);
+    } catch (error) {
+      console.error('Error fetching audit logs:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load audit logs",
+        variant: "destructive",
+      });
+    }
+  }, [toast]);
+
+  const createServiceAreaForWorker = useCallback(async (
+    workerId: string,
+    areaName: string,
+    polygon?: Array<{ lat: number; lng: number }>,
+    zipcodesOnly?: string[]
+  ) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-service-area-manager', {
+        body: {
+          workerId,
+          areaName,
+          polygon,
+          zipcodesOnly,
+          mode: 'replace_all'
+        }
+      });
+
+      if (error) throw error;
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to create service area');
+      }
+
+      toast({
+        title: "Success",
+        description: data.message,
+      });
+
+      await fetchWorkers();
+      await fetchAuditLogs();
+      return data;
+
+    } catch (error) {
+      console.error('Error creating service area:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create service area",
+        variant: "destructive",
+      });
+      return null;
+    }
+  }, [toast, fetchWorkers, fetchAuditLogs]);
 
   const fetchWorkersWithServiceAreas = useCallback(async () => {
     setLoading(true);
@@ -60,6 +169,8 @@ export const useAdminServiceAreas = () => {
 
         return {
           ...worker,
+          service_area_count: workerAreas.filter(area => area.is_active).length,
+          total_zipcodes: workerZipcodes.length,
           service_areas: workerAreas,
           service_zipcodes: workerZipcodes
         };
@@ -150,7 +261,11 @@ export const useAdminServiceAreas = () => {
 
   return {
     workers,
+    auditLogs,
     loading,
+    fetchWorkers,
+    fetchAuditLogs,
+    createServiceAreaForWorker,
     fetchWorkersWithServiceAreas,
     refreshData,
     updateWorkerServiceArea,

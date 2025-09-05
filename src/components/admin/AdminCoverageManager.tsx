@@ -20,7 +20,7 @@ import { useRealtimeServiceAreas } from '@/hooks/useRealtimeServiceAreas';
 import { useToast } from '@/hooks/use-toast';
 import { exportToCSV, exportToPDF } from '@/utils/exportUtils';
 
-interface Worker {
+interface CoverageWorker {
   id: string;
   name: string;
   email: string;
@@ -47,11 +47,13 @@ export const AdminCoverageManager = () => {
   const [showInactiveAreas, setShowInactiveAreas] = useState(false);
   
   const { 
-    workers, 
+    workers: adminWorkers, 
     loading, 
     fetchWorkersWithServiceAreas,
     refreshData 
   } = useAdminServiceAreas();
+  
+  const workers = adminWorkers as CoverageWorker[];
   
   const { toast } = useToast();
 
@@ -130,7 +132,7 @@ export const AdminCoverageManager = () => {
     }
   };
 
-  const getWorkerStats = (worker: Worker) => {
+  const getWorkerStats = (worker: CoverageWorker) => {
     const activeAreas = worker.service_areas.filter(area => area.is_active).length;
     const totalZipCodes = worker.service_zipcodes.length;
     return { activeAreas, totalZipCodes };
@@ -299,7 +301,11 @@ export const AdminCoverageManager = () => {
               </CardHeader>
               <CardContent className="p-0">
                 <WorkerServiceAreasMap
-                  workers={filteredWorkers}
+                  workers={filteredWorkers.map(w => ({
+                    ...w,
+                    service_areas: w.service_areas || [],
+                    service_zipcodes: w.service_zipcodes || []
+                  }))}
                   selectedWorkerId={selectedWorkerId}
                   showInactiveAreas={showInactiveAreas}
                 />

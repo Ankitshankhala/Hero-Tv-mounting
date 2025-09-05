@@ -32,10 +32,12 @@ interface ServiceArea {
 interface ServiceAreaMapProps {
   workerId: string;
   onServiceAreaUpdate?: () => void;
+  onServiceAreaCreated?: () => void;
   isActive?: boolean;
+  adminMode?: boolean;
 }
 
-const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, isActive }: ServiceAreaMapProps) => {
+const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, isActive, adminMode = false }: ServiceAreaMapProps) => {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const drawnItemsRef = useRef<L.FeatureGroup | null>(null);
@@ -433,6 +435,9 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, isActive }: ServiceArea
       
       if (onServiceAreaUpdate) {
         onServiceAreaUpdate();
+      }
+      if (onServiceAreaCreated) {
+        onServiceAreaCreated();
       }
 
     } catch (error) {
