@@ -4,10 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Save, Trash2, Edit3, Search, MapPinCheck, Globe } from 'lucide-react';
+import { MapPin, Save, Trash2, Edit3, Search, MapPinCheck, Globe, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkerServiceAreas } from '@/hooks/useWorkerServiceAreas';
+import { optimizedSupabaseCall } from '@/utils/optimizedApi';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
@@ -291,30 +292,42 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
     }
   }, [isActive]);
 
-  // Load existing service areas
+  // Load existing service areas with optimized caching
   useEffect(() => {
+    if (!workerId) return;
     loadServiceAreas();
-    fetchServiceAreas();
-  }, [workerId, fetchServiceAreas]);
+    // Remove redundant fetchServiceAreas call
+  }, [workerId]);
 
   const loadServiceAreas = async () => {
     if (!workerId) return;
 
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('worker_service_areas')
-        .select('*')
-        .eq('worker_id', workerId)
-        .order('created_at', { ascending: false });
+      const data = await optimizedSupabaseCall(
+        `service-areas-${workerId}`,
+        async () => {
+          const { data, error } = await supabase
+            .from('worker_service_areas')
+            .select('id, area_name, polygon_coordinates, is_active, created_at')
+            .eq('worker_id', workerId)
+            .order('created_at', { ascending: false });
 
-      if (error) throw error;
+          if (error) throw error;
+          return data;
+        },
+        true, // use cache
+        30000 // 30 second cache
+      );
 
       setServiceAreas(data || []);
       
-      // Display all active area polygons on map
+      // Display polygons on map but preserve existing layers if switching quickly
       if (data && data.length > 0 && mapRef.current && drawnItemsRef.current) {
-        drawnItemsRef.current.clearLayers();
+        // Only clear if we're not in middle of loading
+        if (!loading) {
+          drawnItemsRef.current.clearLayers();
+        }
         
         const activeAreas = data.filter(area => area.is_active);
         let hasPolygons = false;
@@ -428,9 +441,8 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
         description: `Service area saved with ${data.zipcodesCount} zip codes`,
       });
 
-      // Reload service areas
+      // Reload service areas - remove redundant fetchServiceAreas call
       await loadServiceAreas();
-      await fetchServiceAreas();
       setShowZipFallback(false);
       
       if (onServiceAreaUpdate) {
@@ -467,7 +479,6 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
       });
 
       await loadServiceAreas();
-      await fetchServiceAreas();
       
       // Clear map
       if (drawnItemsRef.current) {

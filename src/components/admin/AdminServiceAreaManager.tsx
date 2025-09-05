@@ -9,7 +9,9 @@ import { RefreshCw, MapPin, Users } from 'lucide-react';
 import ServiceAreaMap from '@/components/worker/service-area/ServiceAreaMap';
 import { useAdminServiceAreas } from '@/hooks/useAdminServiceAreas';
 import { useRealtimeServiceAreas } from '@/hooks/useRealtimeServiceAreas';
+import { useDebounce } from '@/hooks/useDebounce';
 import { formatDistanceToNow } from 'date-fns';
+import { apiCache } from '@/utils/optimizedApi';
 export const AdminServiceAreaManager = () => {
   const [selectedWorkerId, setSelectedWorkerId] = useState<string>('');
   const {
@@ -42,11 +44,21 @@ export const AdminServiceAreaManager = () => {
     fetchWorkers();
     fetchAuditLogs(selectedWorkerId || undefined);
   });
-  const handleWorkerSelect = (workerId: string) => {
+  // Debounce worker selection to prevent rapid API calls
+  const { debouncedCallback: debouncedWorkerSelect } = useDebounce((workerId: string) => {
     setSelectedWorkerId(workerId);
     fetchAuditLogs(workerId);
+  }, 250);
+
+  const handleWorkerSelect = (workerId: string) => {
+    // Update UI immediately for responsiveness
+    setSelectedWorkerId(workerId);
+    // Debounce the API call
+    debouncedWorkerSelect(workerId);
   };
   const handleRefresh = () => {
+    // Clear cache for fresh data
+    apiCache.clear();
     fetchWorkers();
     fetchAuditLogs(selectedWorkerId || undefined);
   };
@@ -149,10 +161,18 @@ export const AdminServiceAreaManager = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="h-full p-0">
-                  {selectedWorkerId ? <ServiceAreaMap workerId={selectedWorkerId} onServiceAreaCreated={() => {
-                  fetchWorkers();
-                  fetchAuditLogs(selectedWorkerId);
-                }} adminMode={true} isActive={true} /> : <div className="flex items-center justify-center h-full text-muted-foreground">
+                  {selectedWorkerId ? <ServiceAreaMap 
+                    workerId={selectedWorkerId} 
+                    onServiceAreaCreated={() => {
+                      // Clear cache and refresh data
+                      apiCache.clear();
+                      fetchWorkers();
+                      fetchAuditLogs(selectedWorkerId);
+                    }} 
+                    adminMode={true} 
+                    isActive={true} 
+                    key={selectedWorkerId} // Force re-mount for new worker
+                  /> : <div className="flex items-center justify-center h-full text-muted-foreground">
                       <div className="text-center">
                         <MapPin className="h-12 w-12 mx-auto mb-4 opacity-50" />
                         <p>Select a worker to view and edit their service areas</p>

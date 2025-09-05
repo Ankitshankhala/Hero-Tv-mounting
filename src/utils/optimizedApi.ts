@@ -2,7 +2,8 @@
 import { 
   deduplicateRequest as canonicalDedup, 
   measurePerformance,
-  optimizedTimeout as canonicalTimeout 
+  optimizedTimeout as canonicalTimeout,
+  isDevelopment
 } from './performanceOptimizer';
 
 // Re-export canonical functions with API-specific naming
@@ -56,17 +57,27 @@ export const optimizedSupabaseCall = async <T>(
 ): Promise<T> => {
   if (useCache) {
     const cached = apiCache.get(key) as T;
-    if (cached) return cached;
+    if (cached) {
+      if (isDevelopment) {
+        console.log(`[CACHE] 🎯 Cache hit for ${key}`);
+      }
+      return cached;
+    } else if (isDevelopment) {
+      console.log(`[CACHE] 🔄 Cache miss for ${key}`);
+    }
   }
 
   const result = await canonicalDedup(
     key,
-    () => measurePerformance(key, supabaseCall),
+    () => measurePerformance(`API: ${key}`, supabaseCall),
     0 // No TTL for immediate cleanup after request
   );
 
   if (useCache) {
     apiCache.set(key, result, cacheTTL);
+    if (isDevelopment) {
+      console.log(`[CACHE] 💾 Cached ${key} for ${cacheTTL}ms`);
+    }
   }
 
   return result;

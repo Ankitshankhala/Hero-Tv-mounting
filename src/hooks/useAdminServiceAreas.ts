@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { optimizedSupabaseCall, measureApiCall } from '@/utils/optimizedApi';
 
 interface Worker {
   id: string;
@@ -12,8 +13,9 @@ interface Worker {
   total_zipcodes: number;
   service_areas?: Array<{
     id: string;
+    worker_id?: string;
     area_name: string;
-    polygon_coordinates: any;
+    polygon_coordinates?: any;
     is_active: boolean;
     created_at: string;
   }>;
@@ -42,9 +44,17 @@ export const useAdminServiceAreas = () => {
   const fetchWorkers = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.rpc('get_workers_for_admin');
+      const data = await optimizedSupabaseCall(
+        'admin-workers-list',
+        async () => {
+          const { data, error } = await supabase.rpc('get_workers_for_admin');
+          if (error) throw error;
+          return data;
+        },
+        true, // use cache
+        60000 // 1 minute cache
+      );
       
-      if (error) throw error;
       setWorkers(data || []);
     } catch (error) {
       console.error('Error fetching workers:', error);
@@ -60,27 +70,29 @@ export const useAdminServiceAreas = () => {
 
   const fetchAuditLogs = useCallback(async (workerId?: string) => {
     try {
-      let query = supabase
-        .from('service_area_audit_logs')
-        .select(`
-          id,
-          operation,
-          change_summary,
-          changed_at,
-          worker_id,
-          area_name,
-          changed_by
-        `)
-        .order('changed_at', { ascending: false })
-        .limit(50);
-
-      if (workerId) {
-        query = query.eq('worker_id', workerId);
-      }
-
-      const { data, error } = await query;
+      const cacheKey = workerId ? `audit-logs-worker-${workerId}` : 'audit-logs-all';
       
-      if (error) throw error;
+      const data = await optimizedSupabaseCall(
+        cacheKey,
+        async () => {
+          let query = supabase
+            .from('service_area_audit_logs')
+            .select('id, operation, change_summary, changed_at, worker_id, area_name, changed_by')
+            .order('changed_at', { ascending: false })
+            .limit(50);
+
+          if (workerId) {
+            query = query.eq('worker_id', workerId);
+          }
+
+          const { data, error } = await query;
+          if (error) throw error;
+          return data;
+        },
+        true, // use cache
+        30000 // 30 second cache
+      );
+      
       setAuditLogs(data || []);
     } catch (error) {
       console.error('Error fetching audit logs:', error);
@@ -138,45 +150,54 @@ export const useAdminServiceAreas = () => {
   const fetchWorkersWithServiceAreas = useCallback(async () => {
     setLoading(true);
     try {
-      // Fetch all workers with role 'worker'
-      const { data: workersData, error: workersError } = await supabase
-        .from('users')
-        .select('id, name, email, phone, is_active')
-        .eq('role', 'worker')
-        .order('name');
+      const data = await optimizedSupabaseCall(
+        'workers-with-service-areas',
+        async () => {
+          // Fetch essential columns only
+          const { data: workersData, error: workersError } = await supabase
+            .from('users')
+            .select('id, name, email, phone, is_active')
+            .eq('role', 'worker')
+            .order('name');
 
-      if (workersError) throw workersError;
+          if (workersError) throw workersError;
 
-      // Fetch all service areas
-      const { data: serviceAreasData, error: areasError } = await supabase
-        .from('worker_service_areas')
-        .select('*')
-        .order('created_at', { ascending: false });
+          // Fetch only essential service area columns
+          const { data: serviceAreasData, error: areasError } = await supabase
+            .from('worker_service_areas')
+            .select('id, worker_id, area_name, is_active, created_at')
+            .order('created_at', { ascending: false });
 
-      if (areasError) throw areasError;
+          if (areasError) throw areasError;
 
-      // Fetch all service zip codes
-      const { data: zipcodesData, error: zipcodesError } = await supabase
-        .from('worker_service_zipcodes')
-        .select('*');
+          // Fetch zip code counts only
+          const { data: zipcodesData, error: zipcodesError } = await supabase
+            .from('worker_service_zipcodes')
+            .select('worker_id, zipcode, service_area_id');
 
-      if (zipcodesError) throw zipcodesError;
+          if (zipcodesError) throw zipcodesError;
 
-      // Combine the data
-      const workersWithAreas: Worker[] = (workersData || []).map(worker => {
-        const workerAreas = (serviceAreasData || []).filter(area => area.worker_id === worker.id);
-        const workerZipcodes = (zipcodesData || []).filter(zip => zip.worker_id === worker.id);
+          // Combine the data efficiently
+          const workersWithAreas: Worker[] = (workersData || []).map(worker => {
+            const workerAreas = (serviceAreasData || []).filter(area => area.worker_id === worker.id);
+            const workerZipcodes = (zipcodesData || []).filter(zip => zip.worker_id === worker.id);
 
-        return {
-          ...worker,
-          service_area_count: workerAreas.filter(area => area.is_active).length,
-          total_zipcodes: workerZipcodes.length,
-          service_areas: workerAreas,
-          service_zipcodes: workerZipcodes
-        };
-      });
+            return {
+              ...worker,
+              service_area_count: workerAreas.filter(area => area.is_active).length,
+              total_zipcodes: workerZipcodes.length,
+              service_areas: workerAreas,
+              service_zipcodes: workerZipcodes
+            };
+          });
 
-      setWorkers(workersWithAreas);
+          return workersWithAreas;
+        },
+        true, // use cache
+        45000 // 45 second cache
+      );
+
+      setWorkers(data);
     } catch (error) {
       console.error('Error fetching workers with service areas:', error);
       toast({
