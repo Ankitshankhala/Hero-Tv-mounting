@@ -102,7 +102,7 @@ export const AdminHeader = ({ onNavigate }: AdminHeaderProps = {}) => {
               {stripeStatus === 'error' && '❌ Config Error'}
             </Badge>
             
-            {/* Testing Mode Status & Controls - Hidden */}
+            {/* Testing Mode Status & Controls */}
             {isTestingMode ? <div className="flex items-center space-x-2">
                 <Badge variant="destructive" className="animate-pulse">
                   <TestTube className="h-3 w-3 mr-1" />
@@ -115,7 +115,37 @@ export const AdminHeader = ({ onNavigate }: AdminHeaderProps = {}) => {
                 <Button variant="outline" size="sm" onClick={handleTestingModeDeactivate} className="bg-red-900/20 text-red-400 border-red-600/50 hover:bg-red-600 hover:text-white transition-colors">
                   Deactivate Testing
                 </Button>
-              </div> : null}
+              </div> : <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="bg-orange-900/20 text-orange-400 border-orange-600/50 hover:bg-orange-600 hover:text-white transition-colors">
+                    <TestTube className="h-4 w-4 mr-2" />
+                    10-Min Test Mode
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center">
+                      <AlertTriangle className="h-5 w-5 text-orange-500 mr-2" />
+                      Activate Testing Mode
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will reduce the minimum payment to $1 for 10 minutes. 
+                      <strong> Only use this with LIVE Stripe keys for real testing!</strong>
+                      <br /><br />
+                      <Badge variant="outline" className="text-orange-600 border-orange-300">
+                        <DollarSign className="h-3 w-3 mr-1" />
+                        $75 → $1 minimum
+                      </Badge>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleTestingModeActivate} className="bg-orange-600 hover:bg-orange-700">
+                      Activate Testing Mode
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>}
             
             <Button variant="outline" onClick={() => setShowTodaysJobs(true)} className="bg-slate-700/50 text-slate-300 border-slate-600 hover:bg-white hover:text-slate-900 transition-colors">
               <Calendar className="h-4 w-4 mr-2" />
