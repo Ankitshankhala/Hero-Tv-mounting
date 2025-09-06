@@ -294,19 +294,26 @@ export const BookingTable = ({
                              </Button>
                            )}
                          </div>
-                       ) : booking.worker_id && enriching ? (
-                         <div className="text-sm text-muted-foreground">Loading worker...</div>
-                       ) : (
-                         <Button
-                           variant="outline"
-                           size="sm"
-                           onClick={() => onAssignWorker(booking)}
-                           className="h-8"
-                         >
-                           <UserPlus className="h-4 w-4 mr-1" />
-                           Assign
-                         </Button>
-                       )}
+                        ) : booking.worker_id && enriching ? (
+                          <div className="text-sm text-muted-foreground">Loading worker...</div>
+                        ) : (
+                          <div className="space-y-2">
+                            {(booking.payment_status === 'authorized' || booking.status === 'pending') && (
+                              <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-800">
+                                ⚠️ Awaiting Assignment
+                              </Badge>
+                            )}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => onAssignWorker(booking)}
+                              className="h-8"
+                            >
+                              <UserPlus className="h-4 w-4 mr-1" />
+                              Assign
+                            </Button>
+                          </div>
+                        )}
                      </td>
                     <td className="p-3">
                       <div className="space-y-1">

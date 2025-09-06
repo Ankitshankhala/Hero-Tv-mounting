@@ -70,6 +70,19 @@ export const BookingsManager = () => {
         const bTime = new Date(b.created_at).getTime();
         return bTime - aTime;
       });
+    } else if (archiveFilter === 'authorized_unassigned') {
+      // Only bookings that are authorized but don't have a worker assigned
+      filtered = filtered.filter(booking => 
+        !booking.is_archived && 
+        (booking.payment_status === 'authorized' || booking.status === 'pending') &&
+        !booking.worker_id
+      );
+      // Sort by newest first for urgent assignment
+      filtered = filtered.sort((a, b) => {
+        const aTime = new Date(a.created_at).getTime();
+        const bTime = new Date(b.created_at).getTime();
+        return bTime - aTime;
+      });
     } else if (archiveFilter === 'archived') {
       filtered = filtered.filter(booking => booking.is_archived);
     }

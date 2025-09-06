@@ -27,10 +27,11 @@ export const BookingFilters = ({
     <div className="space-y-4 mb-6">
       {/* Booking Filter Tabs */}
       <Tabs value={archiveFilter} onValueChange={onArchiveFilterChange} className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="active">All Bookings</TabsTrigger>
           <TabsTrigger value="pending_payments">Pending Payments</TabsTrigger>
-          <TabsTrigger value="archived">Archived Bookings</TabsTrigger>
+          <TabsTrigger value="authorized_unassigned">Authorized — Unassigned</TabsTrigger>
+          <TabsTrigger value="archived">Archived</TabsTrigger>
         </TabsList>
       </Tabs>
 
