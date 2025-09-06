@@ -56,16 +56,13 @@ export const BookingsManager = () => {
     
     // Archive and payment status filter
     if (archiveFilter === 'active') {
-      // All non-archived bookings except pending payments
-      filtered = filtered.filter(booking => 
-        !booking.is_archived && 
-        !(booking.payment_status === 'pending' || !booking.payment_status || booking.payment_status === 'failed')
-      );
+      // All non-archived bookings (including new ones with pending payments)
+      filtered = filtered.filter(booking => !booking.is_archived);
     } else if (archiveFilter === 'pending_payments') {
       // Only bookings with pending/missing payment authorization
       filtered = filtered.filter(booking => 
         !booking.is_archived && 
-        (booking.payment_status === 'pending' || !booking.payment_status || booking.payment_status === 'failed')
+        (booking.payment_status === 'pending' || booking.payment_status === 'payment_pending' || !booking.payment_status || booking.payment_status === 'failed')
       );
       // Sort by newest first for pending payments
       filtered = filtered.sort((a, b) => {
@@ -97,6 +94,12 @@ export const BookingsManager = () => {
   const handleBookingCreated = () => {
     console.log('Booking created, refreshing list');
     fetchBookings();
+    
+    // Also refresh after a short delay to ensure database consistency
+    setTimeout(() => {
+      console.log('Secondary refresh after booking creation');
+      fetchBookings();
+    }, 1000);
   };
 
   const handleBookingUpdated = () => {

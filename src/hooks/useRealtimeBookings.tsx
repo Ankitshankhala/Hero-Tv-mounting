@@ -164,7 +164,7 @@ export const useRealtimeBookings = ({
       }
     );
 
-    // Subscribe to the channel
+    // Subscribe to the channel with improved error handling
     configuredChannel.subscribe((status) => {
       if (process.env.NODE_ENV === 'development') {
         console.log('Realtime subscription status:', status, 'for channel:', channelName);
@@ -178,8 +178,27 @@ export const useRealtimeBookings = ({
             console.log('Successfully subscribed to realtime updates');
           }
         } else if (status === 'CHANNEL_ERROR') {
-          console.error('Channel subscription error');
+          console.error('Channel subscription error for channel:', channelName);
           setIsConnected(false);
+          
+          // Retry subscription after a delay
+          setTimeout(() => {
+            if (subscriptionIdRef.current === subscriptionId) {
+              console.log('Retrying realtime subscription...');
+              configuredChannel.subscribe();
+            }
+          }, 2000);
+        } else if (status === 'TIMED_OUT') {
+          console.error('Channel subscription timed out for channel:', channelName);
+          setIsConnected(false);
+          
+          // Retry subscription after a delay
+          setTimeout(() => {
+            if (subscriptionIdRef.current === subscriptionId) {
+              console.log('Retrying realtime subscription after timeout...');
+              configuredChannel.subscribe();
+            }
+          }, 3000);
         }
       }
     });
