@@ -16,20 +16,24 @@ interface ContactInfoSectionProps {
   touched: any;
   zipcodeValid: boolean;
   cityState: string;
+  hasServiceCoverage: boolean;
+  workerCount: number;
   onInputChange: (field: string, value: string) => void;
   onBlur: (field: string) => void;
   onZipcodeChange: (zipcode: string, cityStateData?: string) => void;
 }
 
-export const ContactInfoSection = ({
-  formData,
-  errors,
-  touched,
-  zipcodeValid,
-  cityState,
-  onInputChange,
-  onBlur,
-  onZipcodeChange
+export const ContactInfoSection = ({ 
+  formData, 
+  errors, 
+  touched, 
+  zipcodeValid, 
+  cityState, 
+  hasServiceCoverage,
+  workerCount,
+  onInputChange, 
+  onBlur, 
+  onZipcodeChange 
 }: ContactInfoSectionProps) => {
   return (
     <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 shadow-sm">
@@ -115,13 +119,39 @@ export const ContactInfoSection = ({
         </div>
       </div>
 
-      {cityState && zipcodeValid && (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-4 mt-6">
-          <p className="text-sm text-green-700 flex items-center space-x-2">
-            <CheckCircle className="h-5 w-5 text-green-600" />
-            <span className="font-semibold">Service Area Confirmed:</span>
-            <span className="font-medium">{cityState}</span>
-          </p>
+      {/* Zipcode confirmation and service coverage */}
+      {zipcodeValid && cityState && (
+        <div className="mt-6 space-y-3">
+          {/* Location confirmation */}
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-blue-600" />
+              <span className="text-sm text-blue-700">
+                Service location: <span className="font-medium">{cityState}</span>
+              </span>
+            </div>
+          </div>
+          
+          {/* Service coverage status */}
+          {hasServiceCoverage ? (
+            <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+                <span className="text-sm font-medium text-green-700">
+                  Service available • {workerCount} {workerCount === 1 ? 'worker' : 'workers'} in your area
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 bg-red-500 rounded-full"></div>
+                <span className="text-sm font-medium text-red-700">
+                  Service not available in this area
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

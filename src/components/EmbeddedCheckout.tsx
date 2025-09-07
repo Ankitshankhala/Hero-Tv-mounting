@@ -42,6 +42,8 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
   const [isProcessing, setIsProcessing] = useState(false);
   const [zipcodeValid, setZipcodeValid] = useState(false);
   const [cityState, setCityState] = useState('');
+  const [hasServiceCoverage, setHasServiceCoverage] = useState(false);
+  const [zipcodeWorkerCount, setZipcodeWorkerCount] = useState(0);
   const { toast } = useToast();
   const { createUnauthenticatedBooking } = useBookingOperations();
 
@@ -69,50 +71,46 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
     try {
       const dateStr = format(date, 'yyyy-MM-dd');
       
-      const { data: bookings, error } = await supabase
-        .from('bookings')
-        .select(`
-          scheduled_start,
-          worker_bookings!inner(
-            worker_id,
-            users!inner(zip_code)
-          )
-        `)
-        .eq('scheduled_date', dateStr)
-        .eq('status', 'confirmed');
+      // Use the updated database function that enforces strict ZIP code matching
+      const { data: availableSlots, error } = await supabase.rpc('get_available_time_slots', {
+        p_zipcode: zipcode,
+        p_date: dateStr,
+        p_service_duration_minutes: 60
+      });
 
       if (error) {
-        console.error('Error fetching bookings:', error);
+        console.error('Error fetching available time slots:', error);
+        setAvailableSlots([]);
+        setBlockedSlots(timeSlots);
+        setWorkerCount(0);
         return;
       }
 
-      const zipcodePrefix = zipcode.substring(0, 3);
-      const relevantBookings = bookings?.filter(booking => {
-        const workerZipcode = booking.worker_bookings?.[0]?.users?.zip_code;
-        return workerZipcode && workerZipcode.substring(0, 3) === zipcodePrefix;
-      }) || [];
+      // Extract available time slots 
+      const slots = availableSlots?.map(slot => {
+        // Convert time format if needed
+        const timeString = slot.time_slot?.toString();
+        if (timeString?.includes(':')) {
+          return timeString.substring(0, 5); // Get HH:MM format
+        }
+        return timeString;
+      }).filter(Boolean) || [];
 
-      const { data: workers, error: workerError } = await supabase
-        .from('users')
-        .select('id, zip_code')
-        .eq('role', 'worker')
-        .eq('is_active', true);
+      // Calculate total unique workers for this zipcode
+      const totalWorkerIds = new Set();
+      availableSlots?.forEach(slot => {
+        slot.worker_ids?.forEach(id => totalWorkerIds.add(id));
+      });
 
-      if (!workerError) {
-        const availableWorkers = workers?.filter(worker => 
-          worker.zip_code && worker.zip_code.substring(0, 3) === zipcodePrefix
-        ) || [];
-        setWorkerCount(availableWorkers.length);
-      }
-
-      const blocked = relevantBookings.map(booking => 
-        booking.scheduled_start.substring(0, 5)
-      );
-
-      setBlockedSlots(blocked);
-      setAvailableSlots(timeSlots.filter(slot => !blocked.includes(slot)));
+      setWorkerCount(totalWorkerIds.size);
+      setAvailableSlots(slots);
+      setBlockedSlots(timeSlots.filter(slot => !slots.includes(slot)));
+      
     } catch (error) {
       console.error('Error fetching worker availability:', error);
+      setAvailableSlots([]);
+      setBlockedSlots(timeSlots);
+      setWorkerCount(0);
     } finally {
       setLoading(false);
     }
@@ -136,14 +134,28 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
     validateField(field, formData[field]);
   };
 
-  const handleZipcodeChange = (zipcode: string, cityStateData?: string) => {
+  const handleZipcodeChange = async (zipcode: string, cityStateData?: string) => {
     setFormData(prev => ({ ...prev, zipcode }));
     if (cityStateData) {
       setCityState(cityStateData);
       setZipcodeValid(true);
+      
+      // Check service coverage for the new zipcode
+      try {
+        const { getServiceCoverageInfo } = await import('@/utils/zipcodeValidation');
+        const coverageData = await getServiceCoverageInfo(zipcode);
+        setHasServiceCoverage(coverageData.hasServiceCoverage);
+        setZipcodeWorkerCount(coverageData.workerCount);
+      } catch (error) {
+        console.error('Error checking service coverage:', error);
+        setHasServiceCoverage(false);
+        setZipcodeWorkerCount(0);
+      }
     } else {
       setCityState('');
       setZipcodeValid(zipcode.length === 5);
+      setHasServiceCoverage(false);
+      setZipcodeWorkerCount(0);
     }
   };
 
@@ -182,6 +194,24 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
       toast({
         title: "Invalid Zipcode",
         description: "Please enter a valid US zipcode",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!hasServiceCoverage) {
+      toast({
+        title: "Service Not Available",
+        description: "We don't currently service this area. Please contact us for alternative options.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (availableSlots.length === 0) {
+      toast({
+        title: "No Available Time Slots",
+        description: "No workers are available for your selected date. Please choose a different date.",
         variant: "destructive",
       });
       return;
@@ -261,6 +291,8 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
               touched={touched}
               zipcodeValid={zipcodeValid}
               cityState={cityState}
+              hasServiceCoverage={hasServiceCoverage}
+              workerCount={zipcodeWorkerCount}
               onInputChange={handleInputChange}
               onBlur={handleBlur}
               onZipcodeChange={handleZipcodeChange}
@@ -293,6 +325,7 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
             <CheckoutActions
               isProcessing={isProcessing}
               zipcodeValid={zipcodeValid}
+              hasServiceCoverage={hasServiceCoverage}
               selectedDate={selectedDate}
               formData={formData}
               total={total}

@@ -1,9 +1,10 @@
 import { useState, useCallback } from 'react';
-import { validateUSZipcode, isZipcodeInServiceArea } from '@/utils/zipcodeValidation';
+import { validateUSZipcode, getServiceCoverageInfo } from '@/utils/zipcodeValidation';
 
 interface ZipcodeValidationResult {
   isValid: boolean;
   hasServiceCoverage: boolean;
+  workerCount: number;
   locationData?: {
     city: string;
     state: string;
@@ -17,6 +18,7 @@ export const useZipcodeValidation = () => {
   const [validationState, setValidationState] = useState<ZipcodeValidationResult>({
     isValid: false,
     hasServiceCoverage: false,
+    workerCount: 0,
     isLoading: false
   });
 
@@ -32,6 +34,7 @@ export const useZipcodeValidation = () => {
         const result = {
           isValid: false,
           hasServiceCoverage: false,
+          workerCount: 0,
           isLoading: false,
           error: 'Invalid ZIP code format'
         };
@@ -39,18 +42,23 @@ export const useZipcodeValidation = () => {
         return result;
       }
 
-      // Check service coverage - don't fail if RPC is down
+      // Check service coverage and worker count - don't fail if RPC is down
       let hasServiceCoverage = false;
+      let workerCount = 0;
       try {
-        hasServiceCoverage = await isZipcodeInServiceArea(zipcode);
+        const coverageData = await getServiceCoverageInfo(zipcode);
+        hasServiceCoverage = coverageData.hasServiceCoverage;
+        workerCount = coverageData.workerCount;
       } catch (serviceError) {
         console.warn('Service area check failed, assuming no coverage:', serviceError);
         hasServiceCoverage = false;
+        workerCount = 0;
       }
       
       const result = {
         isValid: true,
         hasServiceCoverage,
+        workerCount,
         locationData: {
           city: locationData.city,
           state: locationData.state,
@@ -67,6 +75,7 @@ export const useZipcodeValidation = () => {
       const result = {
         isValid: false,
         hasServiceCoverage: false,
+        workerCount: 0,
         isLoading: false,
         error: 'Unable to validate ZIP code'
       };

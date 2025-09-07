@@ -5,6 +5,7 @@ import { useTestingMode, getEffectiveMinimumAmount } from '@/contexts/TestingMod
 interface CheckoutActionsProps {
   isProcessing: boolean;
   zipcodeValid: boolean;
+  hasServiceCoverage: boolean;
   selectedDate: Date | undefined;
   formData: {
     time: string;
@@ -17,6 +18,7 @@ interface CheckoutActionsProps {
 export const CheckoutActions = ({
   isProcessing,
   zipcodeValid,
+  hasServiceCoverage,
   selectedDate,
   formData,
   total,
@@ -41,7 +43,7 @@ export const CheckoutActions = ({
       )}
       <Button
         type="submit"
-        disabled={isProcessing || !zipcodeValid || !selectedDate || !formData.time || (!isTestingMode && total < minimumAmount)}
+        disabled={isProcessing || !zipcodeValid || !hasServiceCoverage || !selectedDate || !formData.time || (!isTestingMode && total < minimumAmount)}
         onClick={onSubmit}
         className="flex-1 h-14 text-lg font-bold bg-gradient-to-r from-indigo-600 via-blue-600 to-purple-600 hover:from-indigo-700 hover:via-blue-700 hover:to-purple-700 text-white rounded-xl shadow-xl hover:shadow-2xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] disabled:transform-none"
       >

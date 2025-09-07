@@ -10,8 +10,14 @@ interface ZipcodeData {
   longitude?: number;
 }
 
+interface ServiceCoverageData {
+  hasServiceCoverage: boolean;
+  workerCount: number;
+}
+
 // Cache for zipcode lookups to avoid repeated API calls
 const zipcodeCache = new Map<string, ZipcodeData | null>();
+const serviceCoverageCache = new Map<string, ServiceCoverageData>();
 
 export const validateUSZipcode = async (zipcode: string): Promise<ZipcodeData | null> => {
   // Clean zipcode (remove spaces and hyphens, keep only digits)
@@ -107,27 +113,57 @@ export const calculateZipcodeDistance = (zipcode1: string, zipcode2: string): nu
   return Math.abs(num1 - num2) * 10; // miles approximation
 };
 
-export const isZipcodeInServiceArea = async (customerZipcode: string): Promise<boolean> => {
-  // Clean zipcode first
-  const cleanZipcode = customerZipcode.replace(/[^\d]/g, '').substring(0, 5);
-  
+// Service area coverage check with worker count
+export const getServiceCoverageInfo = async (customerZipcode: string): Promise<ServiceCoverageData> => {
   try {
-    const { data, error } = await supabase.rpc('zip_has_active_coverage', {
-      p_zipcode: cleanZipcode
-    });
+    // Clean zipcode
+    const cleanZipcode = customerZipcode.replace(/[^\d]/g, '').substring(0, 5);
     
-    if (error) {
-      console.error('Service area check error:', error);
-      // Graceful fallback - assume coverage exists for valid ZIP format
-      return /^\d{5}$/.test(cleanZipcode);
+    // Check cache first
+    if (serviceCoverageCache.has(cleanZipcode)) {
+      return serviceCoverageCache.get(cleanZipcode)!;
     }
     
-    return data === true;
+    // Get both coverage and worker count in parallel
+    const [coverageResult, workerCountResult] = await Promise.all([
+      supabase.rpc('zip_has_active_coverage_by_zip', {
+        p_zipcode: cleanZipcode
+      }),
+      supabase.rpc('get_worker_count_by_zip', {
+        p_zipcode: cleanZipcode
+      })
+    ]);
+
+    if (coverageResult.error) {
+      console.error('Service coverage check error:', coverageResult.error);
+    }
+    
+    if (workerCountResult.error) {
+      console.error('Worker count check error:', workerCountResult.error);
+    }
+
+    const coverageData: ServiceCoverageData = {
+      hasServiceCoverage: Boolean(coverageResult.data),
+      workerCount: workerCountResult.data || 0
+    };
+    
+    // Cache the result
+    serviceCoverageCache.set(cleanZipcode, coverageData);
+    return coverageData;
+    
   } catch (error) {
-    console.error('Service area validation error:', error);
-    // Graceful fallback - assume coverage exists for valid ZIP format
-    return /^\d{5}$/.test(cleanZipcode);
+    console.error('Error checking service coverage:', error);
+    return {
+      hasServiceCoverage: false,
+      workerCount: 0
+    };
   }
+};
+
+// Legacy function for backward compatibility
+export const isZipcodeInServiceArea = async (customerZipcode: string): Promise<boolean> => {
+  const coverage = await getServiceCoverageInfo(customerZipcode);
+  return coverage.hasServiceCoverage;
 };
 
 export const formatZipcode = (value: string): string => {
