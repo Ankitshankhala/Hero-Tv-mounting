@@ -6,6 +6,7 @@ import { Loader2, MapPin, AlertCircle, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { validateUSZipcode, formatZipcode, clearZipcodeFromCache } from '@/utils/zipcodeValidation';
 import { getLocalZipFast } from '@/utils/localZipIndex';
+import { getZipServiceAreaAssignment, type ServiceAreaAssignment } from '@/services/zipcodeService';
 
 interface ZipcodeInputProps {
   id: string;
@@ -36,6 +37,7 @@ export const ZipcodeInput: React.FC<ZipcodeInputProps> = ({
   const [validationStatus, setValidationStatus] = useState<'idle' | 'valid' | 'invalid'>('idle');
   const [cityState, setCityState] = useState('');
   const [validationError, setValidationError] = useState('');
+  const [serviceArea, setServiceArea] = useState<ServiceAreaAssignment | null>(null);
 
   useEffect(() => {
     let isStale = false;
@@ -61,6 +63,23 @@ export const ZipcodeInput: React.FC<ZipcodeInputProps> = ({
           
           onChange(value, locationText);
           console.timeEnd(`zipcode-lookup-${value}`);
+          
+          // Check for service area assignment in parallel
+          getZipServiceAreaAssignment(value).then((assignment) => {
+            if (!isStale) {
+              setServiceArea(assignment);
+              if (assignment) {
+                const areaText = `${assignment.areaName} (${assignment.workerName})`;
+                setCityState(areaText);
+                onChange(value, areaText);
+              }
+            }
+          }).catch((error) => {
+            console.error('Service area lookup error:', error);
+            if (!isStale) {
+              setServiceArea(null);
+            }
+          });
           
           // Background validation for data freshness (non-blocking)
           validateUSZipcode(value).catch(console.warn);
@@ -119,6 +138,7 @@ export const ZipcodeInput: React.FC<ZipcodeInputProps> = ({
         setCityState('');
         setValidationError('');
         setIsValidating(false);
+        setServiceArea(null);
         
         if (onValidation) {
           onValidation(false);
@@ -198,7 +218,11 @@ export const ZipcodeInput: React.FC<ZipcodeInputProps> = ({
       {cityState && (
         <p className="text-sm text-muted-foreground flex items-center space-x-1">
           <MapPin className="h-3 w-3" />
-          <span>{cityState}</span>
+          <span className={cn(
+            serviceArea && "text-primary font-medium"
+          )}>
+            {cityState}
+          </span>
         </p>
       )}
       

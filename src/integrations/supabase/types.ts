@@ -1464,6 +1464,10 @@ export type Database = {
         Args: { p_booking_id: string; p_worker_id: string }
         Returns: boolean
       }
+      auto_assign_worker_by_zip: {
+        Args: { p_booking_id: string }
+        Returns: boolean
+      }
       auto_assign_workers_to_booking: {
         Args: { p_booking_id: string }
         Returns: {
@@ -1676,6 +1680,16 @@ export type Database = {
           name: string
           service_area_count: number
           total_zipcodes: number
+        }[]
+      }
+      get_zip_service_assignment: {
+        Args: { p_zip: string }
+        Returns: {
+          area_id: string
+          area_name: string
+          is_active: boolean
+          worker_id: string
+          worker_name: string
         }[]
       }
       get_zipcode_location_data: {

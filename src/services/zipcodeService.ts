@@ -129,3 +129,60 @@ export const mapToRegion = (city: string, state: string): string => {
   // Default to downtown if no pattern matches
   return 'downtown';
 };
+
+// Interface for service area assignment
+export interface ServiceAreaAssignment {
+  areaId: string;
+  areaName: string;
+  workerId: string;
+  workerName: string;
+  isActive: boolean;
+}
+
+// Cache for service area assignments
+const serviceAreaCache = new Map<string, ServiceAreaAssignment | null>();
+
+// Function to get service area assignment for a ZIP code
+export const getZipServiceAreaAssignment = async (zipcode: string): Promise<ServiceAreaAssignment | null> => {
+  const cleanZip = zipcode.replace(/\D/g, '').slice(0, 5);
+  
+  if (cleanZip.length !== 5) {
+    return null;
+  }
+
+  // Check cache first
+  if (serviceAreaCache.has(cleanZip)) {
+    return serviceAreaCache.get(cleanZip) || null;
+  }
+
+  try {
+    const { data, error } = await supabase.rpc('get_zip_service_assignment', {
+      p_zip: cleanZip
+    });
+
+    if (error) {
+      console.error('Error fetching service area assignment:', error);
+      serviceAreaCache.set(cleanZip, null);
+      return null;
+    }
+
+    if (data && data.length > 0) {
+      const assignment: ServiceAreaAssignment = {
+        areaId: data[0].area_id,
+        areaName: data[0].area_name,
+        workerId: data[0].worker_id,
+        workerName: data[0].worker_name,
+        isActive: data[0].is_active
+      };
+      serviceAreaCache.set(cleanZip, assignment);
+      return assignment;
+    }
+
+    serviceAreaCache.set(cleanZip, null);
+    return null;
+  } catch (error) {
+    console.error('Error fetching service area assignment:', error);
+    serviceAreaCache.set(cleanZip, null);
+    return null;
+  }
+};
