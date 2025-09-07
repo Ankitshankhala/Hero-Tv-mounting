@@ -46,17 +46,21 @@ export const WorkerTableRow = ({
   reactivatingWorkerId,
   deletingWorkerId
 }: WorkerTableRowProps) => {
-  const [specificScheduleCount, setSpecificScheduleCount] = useState<number>(0);
+  const [futureAvailableScheduleCount, setFutureAvailableScheduleCount] = useState<number>(0);
 
   useEffect(() => {
     const fetchSpecificSchedules = async () => {
+      const today = new Date().toISOString().split('T')[0];
+      
       const { data, error } = await supabase
         .from('worker_schedule')
         .select('*')
-        .eq('worker_id', worker.id);
+        .eq('worker_id', worker.id)
+        .eq('is_available', true)
+        .gte('date', today);
       
       if (!error && data) {
-        setSpecificScheduleCount(data.length);
+        setFutureAvailableScheduleCount(data.length);
       }
     };
 
@@ -85,12 +89,18 @@ export const WorkerTableRow = ({
   }, [worker.id]);
 
   const getAvailabilityBadge = (workerAvailability: any[]) => {
+    // If worker is inactive, show inactive status
+    if (!worker.is_active) {
+      return <Badge variant="destructive">Inactive</Badge>;
+    }
+
     const hasWeeklyAvailability = workerAvailability && workerAvailability.length > 0;
     
-    if (!hasWeeklyAvailability && specificScheduleCount === 0) {
+    // No weekly availability and no future specific schedules
+    if (!hasWeeklyAvailability && futureAvailableScheduleCount === 0) {
       return (
         <div className="flex items-center gap-2">
-          <Badge variant="secondary">Not Set</Badge>
+          <Badge variant="secondary">Unavailable</Badge>
           <Button
             variant="outline"
             size="sm"
@@ -104,10 +114,11 @@ export const WorkerTableRow = ({
       );
     }
     
-    if (!hasWeeklyAvailability && specificScheduleCount > 0) {
+    // Has specific future schedules but no weekly availability
+    if (!hasWeeklyAvailability && futureAvailableScheduleCount > 0) {
       return (
         <div className="flex items-center gap-2">
-          <Badge variant="outline">{specificScheduleCount} specific dates</Badge>
+          <Badge variant="outline">Specific: {futureAvailableScheduleCount} dates</Badge>
           <Button
             variant="outline"
             size="sm"
@@ -121,7 +132,21 @@ export const WorkerTableRow = ({
       );
     }
     
-    return <Badge variant="default">Available</Badge>;
+    // Has weekly availability
+    if (hasWeeklyAvailability) {
+      const enabledDays = workerAvailability.length;
+      if (futureAvailableScheduleCount > 0) {
+        return (
+          <div className="flex items-center gap-2">
+            <Badge variant="default">Weekly: {enabledDays} days</Badge>
+            <Badge variant="outline">+{futureAvailableScheduleCount} specific</Badge>
+          </div>
+        );
+      }
+      return <Badge variant="default">Weekly: {enabledDays} days</Badge>;
+    }
+    
+    return <Badge variant="secondary">Unavailable</Badge>;
   };
 
   return (
