@@ -1006,6 +1006,36 @@ export type Database = {
           },
         ]
       }
+      us_zip_codes: {
+        Row: {
+          city: string
+          created_at: string | null
+          latitude: number | null
+          longitude: number | null
+          state: string
+          state_abbr: string
+          zipcode: string
+        }
+        Insert: {
+          city: string
+          created_at?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          state: string
+          state_abbr: string
+          zipcode: string
+        }
+        Update: {
+          city?: string
+          created_at?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          state?: string
+          state_abbr?: string
+          zipcode?: string
+        }
+        Relationships: []
+      }
       users: {
         Row: {
           city: string | null
@@ -1629,6 +1659,10 @@ export type Database = {
         Args: { p_worker_id: string }
         Returns: string[]
       }
+      get_worker_count_by_zip: {
+        Args: { p_zipcode: string }
+        Returns: number
+      }
       get_worker_weekly_availability: {
         Args: { p_worker_id: string }
         Returns: Json
@@ -1648,8 +1682,10 @@ export type Database = {
         Args: { p_zipcode: string }
         Returns: {
           city: string
+          latitude: number
+          longitude: number
           state: string
-          zipcode: string
+          state_abbr: string
         }[]
       }
       import_application_availability: {
@@ -1724,6 +1760,10 @@ export type Database = {
         Returns: boolean
       }
       zip_has_active_coverage: {
+        Args: { p_zipcode: string }
+        Returns: boolean
+      }
+      zip_has_active_coverage_by_zip: {
         Args: { p_zipcode: string }
         Returns: boolean
       }
