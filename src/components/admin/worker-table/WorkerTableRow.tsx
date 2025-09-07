@@ -61,6 +61,27 @@ export const WorkerTableRow = ({
     };
 
     fetchSpecificSchedules();
+
+    // Subscribe to worker-specific schedule changes
+    const scheduleChannel = supabase
+      .channel(`worker-schedule-${worker.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'worker_schedule',
+          filter: `worker_id=eq.${worker.id}`
+        },
+        () => {
+          fetchSpecificSchedules();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(scheduleChannel);
+    };
   }, [worker.id]);
 
   const getAvailabilityBadge = (workerAvailability: any[]) => {

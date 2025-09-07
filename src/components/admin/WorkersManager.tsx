@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Wrench } from 'lucide-react';
@@ -17,9 +17,58 @@ export const WorkersManager = () => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
+  // Debounced fetch function to avoid excessive API calls
+  const debouncedFetchWorkers = useCallback(
+    (() => {
+      let timeoutId: NodeJS.Timeout;
+      return () => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(fetchWorkers, 500);
+      };
+    })(),
+    []
+  );
+
   useEffect(() => {
     fetchWorkers();
-  }, []);
+
+    // Subscribe to worker availability changes
+    const availabilityChannel = supabase
+      .channel('worker-availability-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'worker_availability'
+        },
+        () => {
+          debouncedFetchWorkers();
+        }
+      )
+      .subscribe();
+
+    // Subscribe to worker schedule changes
+    const scheduleChannel = supabase
+      .channel('worker-schedule-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'worker_schedule'
+        },
+        () => {
+          debouncedFetchWorkers();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(availabilityChannel);
+      supabase.removeChannel(scheduleChannel);
+    };
+  }, [debouncedFetchWorkers]);
 
   const fetchWorkers = async () => {
     try {
