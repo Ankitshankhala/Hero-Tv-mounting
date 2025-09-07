@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -7,7 +6,6 @@ import { cn } from '@/lib/utils';
 import { validateUSZipcode, formatZipcode, clearZipcodeFromCache } from '@/utils/zipcodeValidation';
 import { getLocalZipFast } from '@/utils/localZipIndex';
 import { getZipServiceAreaAssignment, type ServiceAreaAssignment } from '@/services/zipcodeService';
-
 interface ZipcodeInputProps {
   id: string;
   label: string;
@@ -20,7 +18,6 @@ interface ZipcodeInputProps {
   className?: string;
   disabled?: boolean;
 }
-
 export const ZipcodeInput: React.FC<ZipcodeInputProps> = ({
   id,
   label,
@@ -38,39 +35,30 @@ export const ZipcodeInput: React.FC<ZipcodeInputProps> = ({
   const [cityState, setCityState] = useState('');
   const [validationError, setValidationError] = useState('');
   const [serviceArea, setServiceArea] = useState<ServiceAreaAssignment | null>(null);
-
   useEffect(() => {
     let isStale = false;
-    
     const validateZipcode = async () => {
       if (value.length === 5) {
         // Try instant local lookup first
         console.time(`zipcode-lookup-${value}`);
         const localResult = getLocalZipFast(value);
-        
         if (localResult) {
           // Instant success - set UI immediately
           setValidationStatus('valid');
           setIsValidating(false);
           setValidationError('');
-          
           const locationText = `${localResult.city}, ${localResult.stateAbbr}`;
           setCityState(locationText);
-          
           if (onValidation) {
             onValidation(true, localResult);
           }
-          
           onChange(value, locationText);
           console.timeEnd(`zipcode-lookup-${value}`);
-          
+
           // Run service area and zipcode lookups in parallel for faster results
-          Promise.allSettled([
-            getZipServiceAreaAssignment(value),
-            validateUSZipcode(value)
-          ]).then(([serviceAreaResult, zipcodeResult]) => {
+          Promise.allSettled([getZipServiceAreaAssignment(value), validateUSZipcode(value)]).then(([serviceAreaResult, zipcodeResult]) => {
             if (isStale) return;
-            
+
             // Prioritize service area display if available
             if (serviceAreaResult.status === 'fulfilled' && serviceAreaResult.value) {
               const assignment = serviceAreaResult.value;
@@ -82,47 +70,50 @@ export const ZipcodeInput: React.FC<ZipcodeInputProps> = ({
               setServiceArea(null);
               // Keep existing city/state display from local lookup
             }
-          }).catch((error) => {
+          }).catch(error => {
             console.error('Parallel lookup error:', error);
             if (!isStale) {
               setServiceArea(null);
             }
           });
-          
           return;
         }
-        
+
         // Fallback to async lookup if local not available
         setValidationStatus('valid');
         setIsValidating(true);
         setValidationError('');
-        
+
         // Immediately call validation for format (no loading text)
         if (onValidation) {
-          onValidation(true, { zipcode: value, city: '', state: '', stateAbbr: '' });
+          onValidation(true, {
+            zipcode: value,
+            city: '',
+            state: '',
+            stateAbbr: ''
+          });
         }
-        
         try {
           // Run service area and zipcode lookups in parallel
-          const [serviceAreaResult, zipcodeResult] = await Promise.allSettled([
-            getZipServiceAreaAssignment(value),
-            validateUSZipcode(value)
-          ]);
-          
+          const [serviceAreaResult, zipcodeResult] = await Promise.allSettled([getZipServiceAreaAssignment(value), validateUSZipcode(value)]);
+
           // Check if this result is still relevant
           if (isStale) return;
-          
+
           // Prioritize service area display
           if (serviceAreaResult.status === 'fulfilled' && serviceAreaResult.value) {
             const assignment = serviceAreaResult.value;
             setServiceArea(assignment);
             const areaText = `${assignment.areaName} (${assignment.workerName})`;
             setCityState(areaText);
-            
             if (onValidation) {
-              onValidation(true, { zipcode: value, city: assignment.areaName, state: '', stateAbbr: '' });
+              onValidation(true, {
+                zipcode: value,
+                city: assignment.areaName,
+                state: '',
+                stateAbbr: ''
+              });
             }
-            
             onChange(value, areaText);
           } else if (zipcodeResult.status === 'fulfilled' && zipcodeResult.value) {
             // Fall back to city/state if no service area
@@ -130,11 +121,9 @@ export const ZipcodeInput: React.FC<ZipcodeInputProps> = ({
             const locationText = `${zipcodeData.city}, ${zipcodeData.stateAbbr}`;
             setCityState(locationText);
             setServiceArea(null);
-            
             if (onValidation) {
               onValidation(true, zipcodeData);
             }
-            
             onChange(value, locationText);
           } else {
             // No results from either lookup
@@ -144,7 +133,6 @@ export const ZipcodeInput: React.FC<ZipcodeInputProps> = ({
           }
         } catch (err) {
           if (isStale) return;
-          
           console.warn('Zipcode lookup failed:', err);
           setCityState('');
           setServiceArea(null);
@@ -160,7 +148,6 @@ export const ZipcodeInput: React.FC<ZipcodeInputProps> = ({
         setValidationError('');
         setIsValidating(false);
         setServiceArea(null);
-        
         if (onValidation) {
           onValidation(false);
         }
@@ -175,90 +162,51 @@ export const ZipcodeInput: React.FC<ZipcodeInputProps> = ({
       clearTimeout(timeoutId);
     };
   }, [value, onChange, onValidation]);
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formattedValue = formatZipcode(e.target.value);
     onChange(formattedValue);
   };
-
   const getStatusIcon = () => {
     if (isValidating) {
       return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />;
     }
-    
     if (validationStatus === 'valid') {
       return <CheckCircle className="h-4 w-4 text-green-500" />;
     }
-    
     if (validationStatus === 'invalid') {
       return <AlertCircle className="h-4 w-4 text-destructive" />;
     }
-    
     return <MapPin className="h-4 w-4 text-muted-foreground" />;
   };
-
   const displayError = error || validationError;
   const hasError = Boolean(displayError);
-
-  return (
-    <div className={cn("space-y-2", className)}>
-      <Label 
-        htmlFor={id} 
-        className={cn(
-          "text-sm font-medium",
-          hasError && "text-destructive",
-          required && "after:content-['*'] after:ml-0.5 after:text-destructive"
-        )}
-      >
+  return <div className={cn("space-y-2", className)}>
+      <Label htmlFor={id} className={cn("text-sm font-medium", hasError && "text-destructive", required && "after:content-['*'] after:ml-0.5 after:text-destructive")}>
         {label}
       </Label>
       
       <div className="relative">
-        <Input
-          id={id}
-          type="text"
-          value={value}
-          onChange={handleChange}
-          placeholder={placeholder}
-          disabled={disabled}
-          maxLength={5}
-          className={cn(
-            "pr-10",
-            hasError && "border-destructive focus-visible:ring-destructive",
-            validationStatus === 'valid' && "border-green-500 focus-visible:ring-green-500"
-          )}
-          aria-invalid={hasError}
-          aria-describedby={hasError ? `${id}-error` : undefined}
-        />
+        <Input id={id} type="text" value={value} onChange={handleChange} placeholder={placeholder} disabled={disabled} maxLength={5} className={cn("pr-10", hasError && "border-destructive focus-visible:ring-destructive", validationStatus === 'valid' && "border-green-500 focus-visible:ring-green-500")} aria-invalid={hasError} aria-describedby={hasError ? `${id}-error` : undefined} />
         
         <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
           {getStatusIcon()}
         </div>
       </div>
       
-      {cityState && (
-        <p className="text-sm text-muted-foreground flex items-center space-x-1">
+      {cityState && <p className="text-sm flex items-center space-x-1 text-gray-50">
           <MapPin className="h-3 w-3" />
-          <span className={cn(
-            serviceArea && "text-primary font-medium"
-          )}>
+          <span className={cn(serviceArea && "text-primary font-medium")}>
             {cityState}
           </span>
-        </p>
-      )}
+        </p>}
       
-      {hasError && (
-        <p id={`${id}-error`} className="text-sm text-destructive flex items-center space-x-1">
+      {hasError && <p id={`${id}-error`} className="text-sm text-destructive flex items-center space-x-1">
           <AlertCircle className="h-3 w-3" />
           <span>{displayError}</span>
-        </p>
-      )}
+        </p>}
       
-      {value.length > 0 && value.length < 5 && (
-        <p className="text-sm text-muted-foreground">
+      {value.length > 0 && value.length < 5 && <p className="text-sm text-muted-foreground">
           Enter a 5-digit US zipcode
-        </p>
-      )}
-    </div>
-  );
+        </p>}
+    </div>;
 };
