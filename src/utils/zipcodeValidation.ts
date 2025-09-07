@@ -13,11 +13,38 @@ interface ZipcodeData {
 import { fetchWithTimeout, raceWithFallback } from './networkUtils';
 import { optimizedSupabaseCall } from './optimizedApi';
 
-// Optimized zipcode lookup using zippopotam.us API with increased timeout and retry
+// Direct database lookup using us_zip_codes table
+const fetchZipcodeFromDatabase = async (zipcode: string): Promise<ZipcodeData | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('us_zip_codes')
+      .select('zipcode, city, state, state_abbr, latitude, longitude')
+      .eq('zipcode', zipcode)
+      .single();
+
+    if (error || !data) {
+      return null;
+    }
+
+    return {
+      zipcode: data.zipcode,
+      city: data.city,
+      state: data.state,
+      stateAbbr: data.state_abbr,
+      latitude: data.latitude ? parseFloat(data.latitude.toString()) : undefined,
+      longitude: data.longitude ? parseFloat(data.longitude.toString()) : undefined
+    };
+  } catch (error) {
+    console.warn('Database zipcode lookup failed:', error);
+    return null;
+  }
+};
+
+// Optimized zipcode lookup using zippopotam.us API with increased timeout
 const fetchZipcodeFromZippopotam = async (zipcode: string): Promise<ZipcodeData | null> => {
   try {
-    // First attempt with 2 second timeout
-    const response = await fetchWithTimeout(`https://api.zippopotam.us/us/${zipcode}`, 2000);
+    // First attempt with 4 second timeout
+    const response = await fetchWithTimeout(`https://api.zippopotam.us/us/${zipcode}`, 4000);
     if (!response.ok) {
       return null;
     }
@@ -36,9 +63,9 @@ const fetchZipcodeFromZippopotam = async (zipcode: string): Promise<ZipcodeData 
     }
     return null;
   } catch (error) {
-    // Retry with 3 second timeout if first attempt fails
+    // Retry with 6 second timeout if first attempt fails
     try {
-      const response = await fetchWithTimeout(`https://api.zippopotam.us/us/${zipcode}`, 3000);
+      const response = await fetchWithTimeout(`https://api.zippopotam.us/us/${zipcode}`, 6000);
       if (!response.ok) {
         return null;
       }
@@ -59,6 +86,37 @@ const fetchZipcodeFromZippopotam = async (zipcode: string): Promise<ZipcodeData 
       console.warn('Zippopotam.us API retry failed:', retryError);
     }
     
+    return null;
+  }
+};
+
+// OpenDataSoft API fallback
+const fetchZipcodeFromOpenData = async (zipcode: string): Promise<ZipcodeData | null> => {
+  try {
+    const response = await fetchWithTimeout(
+      `https://public.opendatasoft.com/api/records/1.0/search/?dataset=us-zip-code-latitude-and-longitude&q=${zipcode}&rows=1`,
+      2500
+    );
+    
+    if (!response.ok) {
+      return null;
+    }
+    
+    const data = await response.json();
+    if (data.records && data.records.length > 0) {
+      const record = data.records[0].fields;
+      return {
+        zipcode: zipcode,
+        city: record.city,
+        state: record.state,
+        stateAbbr: record.state,
+        latitude: record.latitude,
+        longitude: record.longitude
+      };
+    }
+    return null;
+  } catch (error) {
+    console.warn('OpenDataSoft API failed:', error);
     return null;
   }
 };
@@ -90,31 +148,16 @@ export const validateUSZipcode = async (zipcode: string): Promise<ZipcodeData | 
   }
 
   try {
-    // Parallelize database and API calls for better performance
-    const dbPromise = supabase.rpc('get_zipcode_location_data', {
-      p_zipcode: baseZipcode
-    });
-    
-    const apiPromise = fetchZipcodeFromZippopotam(baseZipcode);
+    // Use multiple data sources in parallel for better reliability
+    const dbPromise = fetchZipcodeFromDatabase(baseZipcode);
+    const zippopotamPromise = fetchZipcodeFromZippopotam(baseZipcode);
+    const openDataPromise = fetchZipcodeFromOpenData(baseZipcode);
 
-    // Use raceWithFallback to get the first successful result
+    // Use raceWithFallback to get the first successful result, preferring database
     const result = await raceWithFallback([
-      Promise.resolve(dbPromise).then(({ data, error }) => {
-        if (error) throw error;
-        if (data && data.length > 0) {
-          const locationData = data[0];
-          return {
-            zipcode: baseZipcode,
-            city: locationData.city,
-            state: locationData.state,
-            stateAbbr: locationData.state_abbr,
-            latitude: locationData.latitude,
-            longitude: locationData.longitude
-          };
-        }
-        return null;
-      }),
-      apiPromise
+      dbPromise,
+      zippopotamPromise,
+      openDataPromise
     ], 0); // Prefer database result (index 0)
 
     if (result) {

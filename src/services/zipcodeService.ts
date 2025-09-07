@@ -17,32 +17,40 @@ export const lookupZipcode = async (zipcode: string): Promise<ZipcodeData | null
       return null;
     }
     
-    // Use database function to get zipcode location data
-    const { data, error } = await supabase.rpc('get_zipcode_location_data', {
-      p_zipcode: cleanZipcode
-    });
-    
-    if (error) {
-      console.error('Database zipcode lookup error:', error);
-      return null;
-    }
-    
-    if (data && data.length > 0) {
-      const locationData = data[0];
+    // First try direct database lookup
+    const { data: dbData, error: dbError } = await supabase
+      .from('us_zip_codes')
+      .select('city, state, state_abbr')
+      .eq('zipcode', cleanZipcode)
+      .single();
+
+    if (!dbError && dbData) {
+      console.log('Successfully retrieved zipcode data from database:', dbData);
       return {
-        city: locationData.city,
-        state: locationData.state,
-        stateAbbr: locationData.state
+        city: dbData.city,
+        state: dbData.state,
+        stateAbbr: dbData.state_abbr
       };
     }
+
+    console.log('Database lookup failed, trying zippopotam.us with longer timeout');
     
-    // Try zippopotam.us as fallback for city/state display
+    // Try zippopotam.us with timeout
     try {
-      const response = await fetch(`https://api.zippopotam.us/us/${cleanZipcode}`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      
+      const response = await fetch(`https://api.zippopotam.us/us/${cleanZipcode}`, {
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
       if (response.ok) {
         const fallbackData = await response.json();
         if (fallbackData.places && fallbackData.places.length > 0) {
           const place = fallbackData.places[0];
+          console.log('Successfully retrieved zipcode data from zippopotam.us:', place);
           return {
             city: place['place name'],
             state: place['state'],
@@ -52,6 +60,34 @@ export const lookupZipcode = async (zipcode: string): Promise<ZipcodeData | null
       }
     } catch (fallbackError) {
       console.error('Zippopotam.us fallback error:', fallbackError);
+    }
+
+    // Try OpenDataSoft as final fallback
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2500);
+      
+      const response = await fetch(
+        `https://public.opendatasoft.com/api/records/1.0/search/?dataset=us-zip-code-latitude-and-longitude&q=${cleanZipcode}&rows=1`,
+        { signal: controller.signal }
+      );
+      
+      clearTimeout(timeoutId);
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.records && data.records.length > 0) {
+          const record = data.records[0].fields;
+          console.log('Successfully retrieved zipcode data from OpenDataSoft:', record);
+          return {
+            city: record.city,
+            state: record.state,
+            stateAbbr: record.state
+          };
+        }
+      }
+    } catch (openDataError) {
+      console.error('OpenDataSoft fallback error:', openDataError);
     }
     
     // Final fallback for valid ZIP codes not found anywhere
@@ -63,24 +99,6 @@ export const lookupZipcode = async (zipcode: string): Promise<ZipcodeData | null
     
   } catch (error) {
     console.error('Error looking up zipcode:', error);
-    // Try zippopotam.us as fallback even on error
-    const cleanZipcode = zipcode.replace(/[^\d]/g, '').substring(0, 5);
-    try {
-      const response = await fetch(`https://api.zippopotam.us/us/${cleanZipcode}`);
-      if (response.ok) {
-        const fallbackData = await response.json();
-        if (fallbackData.places && fallbackData.places.length > 0) {
-          const place = fallbackData.places[0];
-          return {
-            city: place['place name'],
-            state: place['state'],
-            stateAbbr: place['state abbreviation']
-          };
-        }
-      }
-    } catch (fallbackError) {
-      console.error('Zippopotam.us fallback error:', fallbackError);
-    }
     
     // Final fallback
     return {
