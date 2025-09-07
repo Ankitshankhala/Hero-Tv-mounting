@@ -139,8 +139,12 @@ export interface ServiceAreaAssignment {
   isActive: boolean;
 }
 
-// Cache for service area assignments
-const serviceAreaCache = new Map<string, ServiceAreaAssignment | null>();
+// Cache for service area assignments with TTL
+const serviceAreaCache = new Map<string, { data: ServiceAreaAssignment | null; expires: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// In-flight request deduplication
+const pendingRequests = new Map<string, Promise<ServiceAreaAssignment | null>>();
 
 // Function to get service area assignment for a ZIP code
 export const getZipServiceAreaAssignment = async (zipcode: string): Promise<ServiceAreaAssignment | null> => {
@@ -150,39 +154,59 @@ export const getZipServiceAreaAssignment = async (zipcode: string): Promise<Serv
     return null;
   }
 
-  // Check cache first
-  if (serviceAreaCache.has(cleanZip)) {
-    return serviceAreaCache.get(cleanZip) || null;
+  // Check cache first with TTL
+  const cached = serviceAreaCache.get(cleanZip);
+  if (cached && cached.expires > Date.now()) {
+    return cached.data;
   }
 
-  try {
-    const { data, error } = await supabase.rpc('get_zip_service_assignment', {
-      p_zip: cleanZip
-    });
+  // Check if request is already in flight
+  if (pendingRequests.has(cleanZip)) {
+    return pendingRequests.get(cleanZip)!;
+  }
 
-    if (error) {
+  // Create new request
+  const request = (async (): Promise<ServiceAreaAssignment | null> => {
+    try {
+      const { data, error } = await supabase.rpc('get_zip_service_assignment', {
+        p_zip: cleanZip
+      });
+
+      if (error) {
+        console.error('Error fetching service area assignment:', error);
+        const result = null;
+        serviceAreaCache.set(cleanZip, { data: result, expires: Date.now() + CACHE_TTL });
+        return result;
+      }
+
+      if (data && data.length > 0) {
+        const assignment: ServiceAreaAssignment = {
+          areaId: data[0].area_id,
+          areaName: data[0].area_name,
+          workerId: data[0].worker_id,
+          workerName: data[0].worker_name,
+          isActive: data[0].is_active
+        };
+        serviceAreaCache.set(cleanZip, { data: assignment, expires: Date.now() + CACHE_TTL });
+        return assignment;
+      }
+
+      const result = null;
+      serviceAreaCache.set(cleanZip, { data: result, expires: Date.now() + CACHE_TTL });
+      return result;
+    } catch (error) {
       console.error('Error fetching service area assignment:', error);
-      serviceAreaCache.set(cleanZip, null);
-      return null;
+      const result = null;
+      serviceAreaCache.set(cleanZip, { data: result, expires: Date.now() + CACHE_TTL });
+      return result;
+    } finally {
+      // Remove from pending requests
+      pendingRequests.delete(cleanZip);
     }
+  })();
 
-    if (data && data.length > 0) {
-      const assignment: ServiceAreaAssignment = {
-        areaId: data[0].area_id,
-        areaName: data[0].area_name,
-        workerId: data[0].worker_id,
-        workerName: data[0].worker_name,
-        isActive: data[0].is_active
-      };
-      serviceAreaCache.set(cleanZip, assignment);
-      return assignment;
-    }
-
-    serviceAreaCache.set(cleanZip, null);
-    return null;
-  } catch (error) {
-    console.error('Error fetching service area assignment:', error);
-    serviceAreaCache.set(cleanZip, null);
-    return null;
-  }
+  // Store pending request
+  pendingRequests.set(cleanZip, request);
+  
+  return request;
 };

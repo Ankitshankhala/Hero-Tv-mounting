@@ -64,25 +64,31 @@ export const ZipcodeInput: React.FC<ZipcodeInputProps> = ({
           onChange(value, locationText);
           console.timeEnd(`zipcode-lookup-${value}`);
           
-          // Check for service area assignment in parallel
-          getZipServiceAreaAssignment(value).then((assignment) => {
-            if (!isStale) {
+          // Run service area and zipcode lookups in parallel for faster results
+          Promise.allSettled([
+            getZipServiceAreaAssignment(value),
+            validateUSZipcode(value)
+          ]).then(([serviceAreaResult, zipcodeResult]) => {
+            if (isStale) return;
+            
+            // Prioritize service area display if available
+            if (serviceAreaResult.status === 'fulfilled' && serviceAreaResult.value) {
+              const assignment = serviceAreaResult.value;
               setServiceArea(assignment);
-              if (assignment) {
-                const areaText = `${assignment.areaName} (${assignment.workerName})`;
-                setCityState(areaText);
-                onChange(value, areaText);
-              }
+              const areaText = `${assignment.areaName} (${assignment.workerName})`;
+              setCityState(areaText);
+              onChange(value, areaText);
+            } else {
+              setServiceArea(null);
+              // Keep existing city/state display from local lookup
             }
           }).catch((error) => {
-            console.error('Service area lookup error:', error);
+            console.error('Parallel lookup error:', error);
             if (!isStale) {
               setServiceArea(null);
             }
           });
           
-          // Background validation for data freshness (non-blocking)
-          validateUSZipcode(value).catch(console.warn);
           return;
         }
         
@@ -90,43 +96,58 @@ export const ZipcodeInput: React.FC<ZipcodeInputProps> = ({
         setValidationStatus('valid');
         setIsValidating(true);
         setValidationError('');
-        setCityState('Looking up city...');
         
-        // Immediately call validation for format
+        // Immediately call validation for format (no loading text)
         if (onValidation) {
           onValidation(true, { zipcode: value, city: '', state: '', stateAbbr: '' });
         }
         
         try {
-          // Clear any stale cached data for this zipcode
-          clearZipcodeFromCache(value);
-          const zipcodeData = await validateUSZipcode(value);
+          // Run service area and zipcode lookups in parallel
+          const [serviceAreaResult, zipcodeResult] = await Promise.allSettled([
+            getZipServiceAreaAssignment(value),
+            validateUSZipcode(value)
+          ]);
           
           // Check if this result is still relevant
           if (isStale) return;
           
-          if (zipcodeData) {
+          // Prioritize service area display
+          if (serviceAreaResult.status === 'fulfilled' && serviceAreaResult.value) {
+            const assignment = serviceAreaResult.value;
+            setServiceArea(assignment);
+            const areaText = `${assignment.areaName} (${assignment.workerName})`;
+            setCityState(areaText);
+            
+            if (onValidation) {
+              onValidation(true, { zipcode: value, city: assignment.areaName, state: '', stateAbbr: '' });
+            }
+            
+            onChange(value, areaText);
+          } else if (zipcodeResult.status === 'fulfilled' && zipcodeResult.value) {
+            // Fall back to city/state if no service area
+            const zipcodeData = zipcodeResult.value;
             const locationText = `${zipcodeData.city}, ${zipcodeData.stateAbbr}`;
             setCityState(locationText);
+            setServiceArea(null);
             
             if (onValidation) {
               onValidation(true, zipcodeData);
             }
             
-            // Auto-fill city/state if onChange callback supports it
             onChange(value, locationText);
           } else {
-            // Keep as valid even if city not found, but show fallback text
-            setCityState('City not found');
+            // No results from either lookup
+            setCityState('');
+            setServiceArea(null);
             onChange(value);
           }
         } catch (err) {
           if (isStale) return;
           
-          // Only show error if it's a critical failure
           console.warn('Zipcode lookup failed:', err);
-          // Don't change validation status - keep as valid for 5-digit format
           setCityState('');
+          setServiceArea(null);
           onChange(value);
         } finally {
           if (!isStale) {
