@@ -26,21 +26,27 @@ export const fetchWithTimeout = async (
 
 // Utility to handle promises that might timeout or fail
 export const raceWithFallback = async <T>(
-  promises: Promise<T>[],
+  promises: Promise<T | null>[],
   preferredIndex: number = 0
 ): Promise<T | null> => {
   try {
     const results = await Promise.allSettled(promises);
     
-    // First, try the preferred result
+    // First, try the preferred result if it's fulfilled and not null
     if (results[preferredIndex]?.status === 'fulfilled') {
-      return results[preferredIndex].value as T;
+      const value = results[preferredIndex].value as T | null;
+      if (value !== null && value !== undefined) {
+        return value;
+      }
     }
     
-    // Then try any other successful result
+    // Then try any other successful non-null result
     for (const result of results) {
       if (result.status === 'fulfilled') {
-        return result.value as T;
+        const value = result.value as T | null;
+        if (value !== null && value !== undefined) {
+          return value;
+        }
       }
     }
     

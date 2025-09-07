@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, MapPin, AlertCircle, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { validateUSZipcode, formatZipcode } from '@/utils/zipcodeValidation';
+import { validateUSZipcode, formatZipcode, clearZipcodeFromCache } from '@/utils/zipcodeValidation';
 
 interface ZipcodeInputProps {
   id: string;
@@ -45,6 +45,7 @@ export const ZipcodeInput: React.FC<ZipcodeInputProps> = ({
         setValidationStatus('valid');
         setIsValidating(true);
         setValidationError('');
+        setCityState('Looking up city...');
         
         // Immediately call validation for format
         if (onValidation) {
@@ -52,6 +53,8 @@ export const ZipcodeInput: React.FC<ZipcodeInputProps> = ({
         }
         
         try {
+          // Clear any stale cached data for this zipcode
+          clearZipcodeFromCache(value);
           const zipcodeData = await validateUSZipcode(value);
           
           // Check if this result is still relevant
