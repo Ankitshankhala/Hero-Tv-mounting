@@ -27,12 +27,12 @@ export const BookingFilters = ({
     <div className="space-y-4 mb-6">
       {/* Booking Filter Tabs */}
       <Tabs value={archiveFilter} onValueChange={onArchiveFilterChange} className="w-full">
-        <TabsList className="w-full overflow-x-auto flex-nowrap gap-1">
-          <TabsTrigger value="active" className="md:flex-1">All Bookings</TabsTrigger>
-          <TabsTrigger value="new_bookings" className="md:flex-1">New Bookings</TabsTrigger>
-          <TabsTrigger value="pending_payments" className="md:flex-1">Pending Payments</TabsTrigger>
-          <TabsTrigger value="authorized_unassigned" className="md:flex-1">Authorized — Unassigned</TabsTrigger>
-          <TabsTrigger value="archived" className="md:flex-1">Archived</TabsTrigger>
+        <TabsList className="h-auto w-full justify-start overflow-x-auto overflow-y-hidden whitespace-nowrap p-1">
+          <TabsTrigger value="active" className="shrink-0 whitespace-nowrap">All Bookings</TabsTrigger>
+          <TabsTrigger value="new_bookings" className="shrink-0 whitespace-nowrap">New Bookings</TabsTrigger>
+          <TabsTrigger value="pending_payments" className="shrink-0 whitespace-nowrap">Pending Payments</TabsTrigger>
+          <TabsTrigger value="authorized_unassigned" className="shrink-0 whitespace-nowrap">Authorized — Unassigned</TabsTrigger>
+          <TabsTrigger value="archived" className="shrink-0 whitespace-nowrap">Archived</TabsTrigger>
         </TabsList>
       </Tabs>
 
