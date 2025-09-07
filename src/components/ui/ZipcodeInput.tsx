@@ -57,13 +57,17 @@ export const ZipcodeInput: React.FC<ZipcodeInputProps> = ({
             // Auto-fill city/state if onChange callback supports it
             onChange(value, locationText);
           } else {
-            setValidationStatus('invalid');
+            // For valid 5-digit ZIP format, treat as valid even if city not found
+            setValidationStatus('valid');
             setCityState('');
-            setValidationError('Invalid US zipcode');
+            setValidationError('');
             
             if (onValidation) {
-              onValidation(false);
+              onValidation(true, { zipcode: value, city: '', state: '', stateAbbr: '' });
             }
+            
+            // Just pass the zipcode without city/state
+            onChange(value);
           }
         } catch (err) {
           setValidationStatus('invalid');
