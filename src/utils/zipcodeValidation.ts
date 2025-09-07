@@ -1,17 +1,19 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import { fetchWithTimeout, raceWithFallback } from './networkUtils';
+import { optimizedSupabaseCall } from './optimizedApi';
+import { findLocalZip } from '@/utils/localZipIndex';
 
-interface ZipcodeData {
+export interface ZipcodeData {
   zipcode: string;
   city: string;
   state: string;
   stateAbbr: string;
+  lat?: number;
+  lng?: number;
   latitude?: number;
   longitude?: number;
 }
-
-import { fetchWithTimeout, raceWithFallback } from './networkUtils';
-import { optimizedSupabaseCall } from './optimizedApi';
 
 // Direct database lookup using us_zip_codes table
 const fetchZipcodeFromDatabase = async (zipcode: string): Promise<ZipcodeData | null> => {
@@ -26,14 +28,16 @@ const fetchZipcodeFromDatabase = async (zipcode: string): Promise<ZipcodeData | 
       return null;
     }
 
-    return {
-      zipcode: data.zipcode,
-      city: data.city,
-      state: data.state,
-      stateAbbr: data.state_abbr,
-      latitude: data.latitude ? parseFloat(data.latitude.toString()) : undefined,
-      longitude: data.longitude ? parseFloat(data.longitude.toString()) : undefined
-    };
+      return {
+        zipcode: data.zipcode,
+        city: data.city,
+        state: data.state,
+        stateAbbr: data.state_abbr,
+        lat: data.latitude ? parseFloat(data.latitude.toString()) : undefined,
+        lng: data.longitude ? parseFloat(data.longitude.toString()) : undefined,
+        latitude: data.latitude ? parseFloat(data.latitude.toString()) : undefined,
+        longitude: data.longitude ? parseFloat(data.longitude.toString()) : undefined
+      };
   } catch (error) {
     console.warn('Database zipcode lookup failed:', error);
     return null;
@@ -52,14 +56,16 @@ const fetchZipcodeFromZippopotam = async (zipcode: string): Promise<ZipcodeData 
     const data = await response.json();
     if (data.places && data.places.length > 0) {
       const place = data.places[0];
-      return {
-        zipcode: zipcode,
-        city: place['place name'],
-        state: place['state'],
-        stateAbbr: place['state abbreviation'],
-        latitude: parseFloat(place.latitude),
-        longitude: parseFloat(place.longitude)
-      };
+        return {
+          zipcode: zipcode,
+          city: place['place name'],
+          state: place['state'],
+          stateAbbr: place['state abbreviation'],
+          lat: parseFloat(place.latitude),
+          lng: parseFloat(place.longitude),
+          latitude: parseFloat(place.latitude),
+          longitude: parseFloat(place.longitude)
+        };
     }
     return null;
   } catch (error) {
@@ -73,14 +79,16 @@ const fetchZipcodeFromZippopotam = async (zipcode: string): Promise<ZipcodeData 
       const data = await response.json();
       if (data.places && data.places.length > 0) {
         const place = data.places[0];
-        return {
-          zipcode: zipcode,
-          city: place['place name'],
-          state: place['state'],
-          stateAbbr: place['state abbreviation'],
-          latitude: parseFloat(place.latitude),
-          longitude: parseFloat(place.longitude)
-        };
+          return {
+            zipcode: zipcode,
+            city: place['place name'],
+            state: place['state'],
+            stateAbbr: place['state abbreviation'],
+            lat: parseFloat(place.latitude),
+            lng: parseFloat(place.longitude),
+            latitude: parseFloat(place.latitude),
+            longitude: parseFloat(place.longitude)
+          };
       }
     } catch (retryError) {
       console.warn('Zippopotam.us API retry failed:', retryError);
@@ -105,14 +113,16 @@ const fetchZipcodeFromOpenData = async (zipcode: string): Promise<ZipcodeData | 
     const data = await response.json();
     if (data.records && data.records.length > 0) {
       const record = data.records[0].fields;
-      return {
-        zipcode: zipcode,
-        city: record.city,
-        state: record.state,
-        stateAbbr: record.state,
-        latitude: record.latitude,
-        longitude: record.longitude
-      };
+        return {
+          zipcode: zipcode,
+          city: record.city,
+          state: record.state,
+          stateAbbr: record.state,
+          lat: record.latitude,
+          lng: record.longitude,
+          latitude: record.latitude,
+          longitude: record.longitude
+        };
     }
     return null;
   } catch (error) {
@@ -147,17 +157,27 @@ export const validateUSZipcode = async (zipcode: string): Promise<ZipcodeData | 
     return zipcodeCache.get(baseZipcode) || null;
   }
 
+  // First try local ZIP index for instant results
   try {
-    // Use multiple data sources in parallel for better reliability
+    const localResult = await findLocalZip(baseZipcode);
+    if (localResult) {
+      zipcodeCache.set(baseZipcode, localResult);
+      return localResult;
+    }
+  } catch (error) {
+    console.warn('Local ZIP lookup failed:', error);
+  }
+
+  try {
+    // Use multiple data sources in parallel for better reliability (database preferred)
     const dbPromise = fetchZipcodeFromDatabase(baseZipcode);
     const zippopotamPromise = fetchZipcodeFromZippopotam(baseZipcode);
-    const openDataPromise = fetchZipcodeFromOpenData(baseZipcode);
+    // Removed OpenDataSoft as it was returning 404s
 
     // Use raceWithFallback to get the first successful result, preferring database
     const result = await raceWithFallback([
       dbPromise,
-      zippopotamPromise,
-      openDataPromise
+      zippopotamPromise
     ], 0); // Prefer database result (index 0)
 
     if (result) {

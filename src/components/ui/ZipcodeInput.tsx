@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, MapPin, AlertCircle, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { validateUSZipcode, formatZipcode, clearZipcodeFromCache } from '@/utils/zipcodeValidation';
+import { getLocalZipFast } from '@/utils/localZipIndex';
 
 interface ZipcodeInputProps {
   id: string;
@@ -41,7 +42,32 @@ export const ZipcodeInput: React.FC<ZipcodeInputProps> = ({
     
     const validateZipcode = async () => {
       if (value.length === 5) {
-        // Instantly set as valid for better UX
+        // Try instant local lookup first
+        console.time(`zipcode-lookup-${value}`);
+        const localResult = getLocalZipFast(value);
+        
+        if (localResult) {
+          // Instant success - set UI immediately
+          setValidationStatus('valid');
+          setIsValidating(false);
+          setValidationError('');
+          
+          const locationText = `${localResult.city}, ${localResult.stateAbbr}`;
+          setCityState(locationText);
+          
+          if (onValidation) {
+            onValidation(true, localResult);
+          }
+          
+          onChange(value, locationText);
+          console.timeEnd(`zipcode-lookup-${value}`);
+          
+          // Background validation for data freshness (non-blocking)
+          validateUSZipcode(value).catch(console.warn);
+          return;
+        }
+        
+        // Fallback to async lookup if local not available
         setValidationStatus('valid');
         setIsValidating(true);
         setValidationError('');
@@ -100,8 +126,9 @@ export const ZipcodeInput: React.FC<ZipcodeInputProps> = ({
       }
     };
 
-    // Reduced debounce for better UX
-    const timeoutId = setTimeout(validateZipcode, 300);
+    // No debounce for 5-digit ZIPs (instant local lookup), slight debounce for others
+    const delay = value.length === 5 ? 0 : 300;
+    const timeoutId = setTimeout(validateZipcode, delay);
     return () => {
       isStale = true;
       clearTimeout(timeoutId);
