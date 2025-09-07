@@ -57,7 +57,7 @@ export const WorkerTableRow = ({
         .select('*')
         .eq('worker_id', worker.id)
         .eq('is_available', true)
-        .gte('date', today);
+        .gte('work_date', today);
       
       if (!error && data) {
         setFutureAvailableScheduleCount(data.length);
