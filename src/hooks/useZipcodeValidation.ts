@@ -39,8 +39,14 @@ export const useZipcodeValidation = () => {
         return result;
       }
 
-      // Check service coverage
-      const hasServiceCoverage = await isZipcodeInServiceArea(zipcode);
+      // Check service coverage - don't fail if RPC is down
+      let hasServiceCoverage = false;
+      try {
+        hasServiceCoverage = await isZipcodeInServiceArea(zipcode);
+      } catch (serviceError) {
+        console.warn('Service area check failed, assuming no coverage:', serviceError);
+        hasServiceCoverage = false;
+      }
       
       const result = {
         isValid: true,
@@ -57,6 +63,7 @@ export const useZipcodeValidation = () => {
       return result;
       
     } catch (error) {
+      console.error('ZIP validation error:', error);
       const result = {
         isValid: false,
         hasServiceCoverage: false,
