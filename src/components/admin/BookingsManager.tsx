@@ -14,19 +14,15 @@ import { DeleteBookingModal } from './DeleteBookingModal';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
-import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 
 export const BookingsManager = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
   const [filteredBookings, setFilteredBookings] = useState([]);
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterRegion, setFilterRegion] = useState('all');
-  // Initialize from URL param or default to 'new_bookings'
-  const [archiveFilter, setArchiveFilter] = useState(() => {
-    return searchParams.get('bview') || 'new_bookings';
-  });
+  // Default to 'new_bookings' tab
+  const [archiveFilter, setArchiveFilter] = useState('new_bookings');
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -139,21 +135,6 @@ export const BookingsManager = () => {
     fetchBookings(true); // Bypass cache for manual refresh
   };
 
-  // Handle archive filter change with URL parameter updates
-  const handleArchiveFilterChange = (value: string) => {
-    setArchiveFilter(value);
-    
-    // Update URL parameter
-    const newSearchParams = new URLSearchParams(searchParams);
-    if (value === 'new_bookings') {
-      // Remove the parameter if it's the default
-      newSearchParams.delete('bview');
-    } else {
-      newSearchParams.set('bview', value);
-    }
-    setSearchParams(newSearchParams);
-  };
-
   const handleBookingUpdated = () => {
     console.log('Booking updated from BookingTable, refreshing list');
     fetchBookings();
@@ -244,7 +225,7 @@ export const BookingsManager = () => {
                   onSearchChange={setSearchTerm}
                   onStatusChange={setFilterStatus}
                   onRegionChange={setFilterRegion}
-                  onArchiveFilterChange={handleArchiveFilterChange}
+                  onArchiveFilterChange={setArchiveFilter}
                 />
 
                 <BookingTable 
