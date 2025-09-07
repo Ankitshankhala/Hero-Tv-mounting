@@ -36,7 +36,25 @@ export const lookupZipcode = async (zipcode: string): Promise<ZipcodeData | null
       };
     }
     
-    // Graceful fallback for valid ZIP codes not in our database
+    // Try zippopotam.us as fallback for city/state display
+    try {
+      const response = await fetch(`https://api.zippopotam.us/us/${cleanZipcode}`);
+      if (response.ok) {
+        const fallbackData = await response.json();
+        if (fallbackData.places && fallbackData.places.length > 0) {
+          const place = fallbackData.places[0];
+          return {
+            city: place['place name'],
+            state: place['state'],
+            stateAbbr: place['state abbreviation']
+          };
+        }
+      }
+    } catch (fallbackError) {
+      console.error('Zippopotam.us fallback error:', fallbackError);
+    }
+    
+    // Final fallback for valid ZIP codes not found anywhere
     return {
       city: 'Service Area',
       state: 'US',
@@ -45,7 +63,26 @@ export const lookupZipcode = async (zipcode: string): Promise<ZipcodeData | null
     
   } catch (error) {
     console.error('Error looking up zipcode:', error);
-    // Graceful fallback
+    // Try zippopotam.us as fallback even on error
+    const cleanZipcode = zipcode.replace(/[^\d]/g, '').substring(0, 5);
+    try {
+      const response = await fetch(`https://api.zippopotam.us/us/${cleanZipcode}`);
+      if (response.ok) {
+        const fallbackData = await response.json();
+        if (fallbackData.places && fallbackData.places.length > 0) {
+          const place = fallbackData.places[0];
+          return {
+            city: place['place name'],
+            state: place['state'],
+            stateAbbr: place['state abbreviation']
+          };
+        }
+      }
+    } catch (fallbackError) {
+      console.error('Zippopotam.us fallback error:', fallbackError);
+    }
+    
+    // Final fallback
     return {
       city: 'Service Area',
       state: 'US',

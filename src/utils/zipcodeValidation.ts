@@ -10,6 +10,33 @@ interface ZipcodeData {
   longitude?: number;
 }
 
+// Fallback zipcode lookup using zippopotam.us API
+const fetchZipcodeFromZippopotam = async (zipcode: string): Promise<ZipcodeData | null> => {
+  try {
+    const response = await fetch(`https://api.zippopotam.us/us/${zipcode}`);
+    if (!response.ok) {
+      return null;
+    }
+    
+    const data = await response.json();
+    if (data.places && data.places.length > 0) {
+      const place = data.places[0];
+      return {
+        zipcode: zipcode,
+        city: place['place name'],
+        state: place['state'],
+        stateAbbr: place['state abbreviation'],
+        latitude: parseFloat(place.latitude),
+        longitude: parseFloat(place.longitude)
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error('Zippopotam.us API error:', error);
+    return null;
+  }
+};
+
 interface ServiceCoverageData {
   hasServiceCoverage: boolean;
   workerCount: number;
@@ -63,7 +90,14 @@ export const validateUSZipcode = async (zipcode: string): Promise<ZipcodeData | 
       return zipcodeData;
     }
     
-    // If not found in our database, return null instead of fallback
+    // If not found in our database, try zippopotam.us as fallback
+    const fallbackData = await fetchZipcodeFromZippopotam(baseZipcode);
+    if (fallbackData) {
+      zipcodeCache.set(baseZipcode, fallbackData);
+      return fallbackData;
+    }
+    
+    // If no data found anywhere, return null
     zipcodeCache.set(baseZipcode, null);
     return null;
     
