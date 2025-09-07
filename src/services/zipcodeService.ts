@@ -130,24 +130,24 @@ export const mapToRegion = (city: string, state: string): string => {
   return 'downtown';
 };
 
-// Interface for service area assignment
-export interface ServiceAreaAssignment {
-  areaId: string;
+// Interface for service area information
+export interface ServiceAreaInfo {
   areaName: string;
-  workerId: string;
-  workerName: string;
-  isActive: boolean;
+  workerName: string | null;
+  workerId: string | null;
+  hasActiveWorker: boolean;
+  zipcode: string;
 }
 
-// Cache for service area assignments with TTL
-const serviceAreaCache = new Map<string, { data: ServiceAreaAssignment | null; expires: number }>();
+// Cache for service area info with TTL
+const serviceAreaCache = new Map<string, { data: ServiceAreaInfo | null; expires: number }>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 // In-flight request deduplication
-const pendingRequests = new Map<string, Promise<ServiceAreaAssignment | null>>();
+const pendingRequests = new Map<string, Promise<ServiceAreaInfo | null>>();
 
-// Function to get service area assignment for a ZIP code
-export const getZipServiceAreaAssignment = async (zipcode: string): Promise<ServiceAreaAssignment | null> => {
+// Function to get comprehensive service area info for a ZIP code
+export const getZipServiceAreaInfo = async (zipcode: string): Promise<ServiceAreaInfo | null> => {
   const cleanZip = zipcode.replace(/\D/g, '').slice(0, 5);
   
   if (cleanZip.length !== 5) {
@@ -166,36 +166,36 @@ export const getZipServiceAreaAssignment = async (zipcode: string): Promise<Serv
   }
 
   // Create new request
-  const request = (async (): Promise<ServiceAreaAssignment | null> => {
+  const request = (async (): Promise<ServiceAreaInfo | null> => {
     try {
-      const { data, error } = await supabase.rpc('get_zip_service_assignment', {
-        p_zip: cleanZip
+      const { data, error } = await supabase.rpc('get_zip_area_info', {
+        p_zipcode: cleanZip
       });
 
       if (error) {
-        console.error('Error fetching service area assignment:', error);
+        console.error('Error fetching service area info:', error);
         const result = null;
         serviceAreaCache.set(cleanZip, { data: result, expires: Date.now() + CACHE_TTL });
         return result;
       }
 
       if (data && data.length > 0) {
-        const assignment: ServiceAreaAssignment = {
-          areaId: data[0].area_id,
+        const info: ServiceAreaInfo = {
           areaName: data[0].area_name,
-          workerId: data[0].worker_id,
           workerName: data[0].worker_name,
-          isActive: data[0].is_active
+          workerId: data[0].worker_id,
+          hasActiveWorker: data[0].has_active_worker,
+          zipcode: data[0].zipcode
         };
-        serviceAreaCache.set(cleanZip, { data: assignment, expires: Date.now() + CACHE_TTL });
-        return assignment;
+        serviceAreaCache.set(cleanZip, { data: info, expires: Date.now() + CACHE_TTL });
+        return info;
       }
 
       const result = null;
       serviceAreaCache.set(cleanZip, { data: result, expires: Date.now() + CACHE_TTL });
       return result;
     } catch (error) {
-      console.error('Error fetching service area assignment:', error);
+      console.error('Error fetching service area info:', error);
       const result = null;
       serviceAreaCache.set(cleanZip, { data: result, expires: Date.now() + CACHE_TTL });
       return result;
@@ -209,4 +209,27 @@ export const getZipServiceAreaAssignment = async (zipcode: string): Promise<Serv
   pendingRequests.set(cleanZip, request);
   
   return request;
+};
+
+// Legacy interface for backward compatibility
+export interface ServiceAreaAssignment {
+  areaId: string;
+  areaName: string;
+  workerId: string;
+  workerName: string;
+  isActive: boolean;
+}
+
+// Legacy function for backward compatibility
+export const getZipServiceAreaAssignment = async (zipcode: string): Promise<ServiceAreaAssignment | null> => {
+  const info = await getZipServiceAreaInfo(zipcode);
+  if (!info) return null;
+  
+  return {
+    areaId: 'legacy',
+    areaName: info.areaName,
+    workerId: info.workerId || 'none',
+    workerName: info.workerName || 'No worker available',
+    isActive: info.hasActiveWorker
+  };
 };

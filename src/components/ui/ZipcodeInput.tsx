@@ -5,7 +5,7 @@ import { Loader2, MapPin, AlertCircle, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { validateUSZipcode, formatZipcode, clearZipcodeFromCache } from '@/utils/zipcodeValidation';
 import { getLocalZipFast } from '@/utils/localZipIndex';
-import { getZipServiceAreaAssignment, type ServiceAreaAssignment } from '@/services/zipcodeService';
+import { getZipServiceAreaInfo, type ServiceAreaInfo } from '@/services/zipcodeService';
 interface ZipcodeInputProps {
   id: string;
   label: string;
@@ -34,7 +34,7 @@ export const ZipcodeInput: React.FC<ZipcodeInputProps> = ({
   const [validationStatus, setValidationStatus] = useState<'idle' | 'valid' | 'invalid'>('idle');
   const [cityState, setCityState] = useState('');
   const [validationError, setValidationError] = useState('');
-  const [serviceArea, setServiceArea] = useState<ServiceAreaAssignment | null>(null);
+  const [serviceArea, setServiceArea] = useState<ServiceAreaInfo | null>(null);
   useEffect(() => {
     let isStale = false;
     const validateZipcode = async () => {
@@ -56,14 +56,17 @@ export const ZipcodeInput: React.FC<ZipcodeInputProps> = ({
           console.timeEnd(`zipcode-lookup-${value}`);
 
           // Run service area and zipcode lookups in parallel for faster results
-          Promise.allSettled([getZipServiceAreaAssignment(value), validateUSZipcode(value)]).then(([serviceAreaResult, zipcodeResult]) => {
+          Promise.allSettled([getZipServiceAreaInfo(value), validateUSZipcode(value)]).then(([serviceAreaResult, zipcodeResult]) => {
             if (isStale) return;
 
             // Prioritize service area display if available
             if (serviceAreaResult.status === 'fulfilled' && serviceAreaResult.value) {
-              const assignment = serviceAreaResult.value;
-              setServiceArea(assignment);
-              const areaText = `${assignment.areaName} (${assignment.workerName})`;
+              const info = serviceAreaResult.value;
+              setServiceArea(info);
+              const workerStatus = info.hasActiveWorker && info.workerName 
+                ? info.workerName 
+                : 'No worker available';
+              const areaText = `${info.areaName} (${workerStatus})`;
               setCityState(areaText);
               onChange(value, areaText);
             } else {
@@ -95,21 +98,24 @@ export const ZipcodeInput: React.FC<ZipcodeInputProps> = ({
         }
         try {
           // Run service area and zipcode lookups in parallel
-          const [serviceAreaResult, zipcodeResult] = await Promise.allSettled([getZipServiceAreaAssignment(value), validateUSZipcode(value)]);
+          const [serviceAreaResult, zipcodeResult] = await Promise.allSettled([getZipServiceAreaInfo(value), validateUSZipcode(value)]);
 
           // Check if this result is still relevant
           if (isStale) return;
 
           // Prioritize service area display
           if (serviceAreaResult.status === 'fulfilled' && serviceAreaResult.value) {
-            const assignment = serviceAreaResult.value;
-            setServiceArea(assignment);
-            const areaText = `${assignment.areaName} (${assignment.workerName})`;
+            const info = serviceAreaResult.value;
+            setServiceArea(info);
+            const workerStatus = info.hasActiveWorker && info.workerName 
+              ? info.workerName 
+              : 'No worker available';
+            const areaText = `${info.areaName} (${workerStatus})`;
             setCityState(areaText);
             if (onValidation) {
               onValidation(true, {
                 zipcode: value,
-                city: assignment.areaName,
+                city: info.areaName,
                 state: '',
                 stateAbbr: ''
               });

@@ -1682,6 +1682,16 @@ export type Database = {
           total_zipcodes: number
         }[]
       }
+      get_zip_area_info: {
+        Args: { p_zipcode: string }
+        Returns: {
+          area_name: string
+          has_active_worker: boolean
+          worker_id: string
+          worker_name: string
+          zipcode: string
+        }[]
+      }
       get_zip_service_assignment: {
         Args: { p_zip: string }
         Returns: {
