@@ -1,16 +1,5 @@
 
-interface ZippopotamResponse {
-  'post code': string;
-  country: string;
-  'country abbreviation': string;
-  places: Array<{
-    'place name': string;
-    longitude: string;
-    state: string;
-    'state abbreviation': string;
-    latitude: string;
-  }>;
-}
+import { supabase } from "@/integrations/supabase/client";
 
 interface ZipcodeData {
   city: string;
@@ -20,27 +9,48 @@ interface ZipcodeData {
 
 export const lookupZipcode = async (zipcode: string): Promise<ZipcodeData | null> => {
   try {
-    const response = await fetch(`https://api.zippopotam.us/us/${zipcode}`);
+    // Clean zipcode
+    const cleanZipcode = zipcode.replace(/[^\d]/g, '').substring(0, 5);
     
-    if (!response.ok) {
+    // Basic format validation
+    if (!/^\d{5}$/.test(cleanZipcode)) {
       return null;
     }
     
-    const data: ZippopotamResponse = await response.json();
+    // Use database function to get zipcode location data
+    const { data, error } = await supabase.rpc('get_zipcode_location_data', {
+      p_zipcode: cleanZipcode
+    });
     
-    if (data.places && data.places.length > 0) {
-      const place = data.places[0];
+    if (error) {
+      console.error('Database zipcode lookup error:', error);
+      return null;
+    }
+    
+    if (data && data.length > 0) {
+      const locationData = data[0];
       return {
-        city: place['place name'],
-        state: place.state,
-        stateAbbr: place['state abbreviation']
+        city: locationData.city,
+        state: locationData.state,
+        stateAbbr: locationData.state
       };
     }
     
-    return null;
+    // Graceful fallback for valid ZIP codes not in our database
+    return {
+      city: 'Service Area',
+      state: 'US',
+      stateAbbr: 'US'
+    };
+    
   } catch (error) {
     console.error('Error looking up zipcode:', error);
-    return null;
+    // Graceful fallback
+    return {
+      city: 'Service Area',
+      state: 'US',
+      stateAbbr: 'US'
+    };
   }
 };
 

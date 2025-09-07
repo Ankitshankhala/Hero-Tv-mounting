@@ -1,68 +1,75 @@
-
 import { useState, useCallback } from 'react';
-import { validateUSZipcode } from '@/utils/zipcodeValidation';
+import { validateUSZipcode, isZipcodeInServiceArea } from '@/utils/zipcodeValidation';
 
-interface ZipcodeValidationState {
+interface ZipcodeValidationResult {
   isValid: boolean;
-  isValidating: boolean;
-  error: string | null;
-  data: any | null;
+  hasServiceCoverage: boolean;
+  locationData?: {
+    city: string;
+    state: string;
+    stateAbbr: string;
+  };
+  isLoading: boolean;
+  error?: string;
 }
 
 export const useZipcodeValidation = () => {
-  const [state, setState] = useState<ZipcodeValidationState>({
+  const [validationState, setValidationState] = useState<ZipcodeValidationResult>({
     isValid: false,
-    isValidating: false,
-    error: null,
-    data: null
+    hasServiceCoverage: false,
+    isLoading: false
   });
 
-  const validateZipcode = useCallback(async (zipcode: string) => {
-    if (!zipcode || zipcode.length !== 5) {
-      setState({
-        isValid: false,
-        isValidating: false,
-        error: 'Zipcode must be 5 digits',
-        data: null
-      });
-      return false;
-    }
-
-    setState(prev => ({ ...prev, isValidating: true, error: null }));
-
+  const validateZipcode = useCallback(async (zipcode: string): Promise<ZipcodeValidationResult> => {
+    // Reset state
+    setValidationState(prev => ({ ...prev, isLoading: true, error: undefined }));
+    
     try {
-      const zipcodeData = await validateUSZipcode(zipcode);
+      // First check basic format and get location data
+      const locationData = await validateUSZipcode(zipcode);
       
-      if (zipcodeData) {
-        setState({
-          isValid: true,
-          isValidating: false,
-          error: null,
-          data: zipcodeData
-        });
-        return true;
-      } else {
-        setState({
+      if (!locationData) {
+        const result = {
           isValid: false,
-          isValidating: false,
-          error: 'Invalid US zipcode',
-          data: null
-        });
-        return false;
+          hasServiceCoverage: false,
+          isLoading: false,
+          error: 'Invalid ZIP code format'
+        };
+        setValidationState(result);
+        return result;
       }
+
+      // Check service coverage
+      const hasServiceCoverage = await isZipcodeInServiceArea(zipcode);
+      
+      const result = {
+        isValid: true,
+        hasServiceCoverage,
+        locationData: {
+          city: locationData.city,
+          state: locationData.state,
+          stateAbbr: locationData.stateAbbr
+        },
+        isLoading: false
+      };
+      
+      setValidationState(result);
+      return result;
+      
     } catch (error) {
-      setState({
+      const result = {
         isValid: false,
-        isValidating: false,
-        error: 'Unable to validate zipcode',
-        data: null
-      });
-      return false;
+        hasServiceCoverage: false,
+        isLoading: false,
+        error: 'Unable to validate ZIP code'
+      };
+      setValidationState(result);
+      return result;
     }
   }, []);
 
   return {
-    ...state,
+    ...validationState,
     validateZipcode
   };
 };

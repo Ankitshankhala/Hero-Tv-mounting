@@ -1,4 +1,6 @@
 
+import { supabase } from "@/integrations/supabase/client";
+
 interface ZipcodeData {
   zipcode: string;
   city: string;
@@ -20,7 +22,7 @@ export const validateUSZipcode = async (zipcode: string): Promise<ZipcodeData | 
     return null;
   }
 
-  // Use just the first 5 digits for API lookup
+  // Use just the first 5 digits for lookup
   const baseZipcode = cleanZipcode.substring(0, 5);
 
   // Check cache first
@@ -29,38 +31,62 @@ export const validateUSZipcode = async (zipcode: string): Promise<ZipcodeData | 
   }
 
   try {
-    // Use free zipcode API for validation
-    const response = await fetch(`https://api.zippopotam.us/us/${baseZipcode}`);
+    // Use database function to get zipcode location data
+    const { data, error } = await supabase.rpc('get_zipcode_location_data', {
+      p_zipcode: baseZipcode
+    });
     
-    if (!response.ok) {
+    if (error) {
+      console.error('Database zipcode lookup error:', error);
       zipcodeCache.set(baseZipcode, null);
       return null;
     }
 
-    const data = await response.json();
-    
-    if (data.places && data.places.length > 0) {
-      const place = data.places[0];
+    if (data && data.length > 0) {
+      const locationData = data[0];
       const zipcodeData: ZipcodeData = {
         zipcode: baseZipcode,
-        city: place['place name'],
-        state: place.state,
-        stateAbbr: place['state abbreviation'],
-        latitude: parseFloat(place.latitude),
-        longitude: parseFloat(place.longitude)
+        city: locationData.city,
+        state: locationData.state,
+        stateAbbr: locationData.state,
+        // No lat/lng from our database currently
+        latitude: undefined,
+        longitude: undefined
       };
       
       zipcodeCache.set(baseZipcode, zipcodeData);
       return zipcodeData;
     }
     
-    zipcodeCache.set(baseZipcode, null);
-    return null;
+    // If not found in our database, still accept it as a valid format
+    // This allows for any properly formatted US ZIP codes
+    const genericData: ZipcodeData = {
+      zipcode: baseZipcode,
+      city: 'Unknown City',
+      state: 'US',
+      stateAbbr: 'US',
+      latitude: undefined,
+      longitude: undefined
+    };
+    
+    zipcodeCache.set(baseZipcode, genericData);
+    return genericData;
     
   } catch (error) {
     console.error('Zipcode validation error:', error);
-    zipcodeCache.set(baseZipcode, null);
-    return null;
+    
+    // Graceful fallback - accept valid ZIP format even if database lookup fails
+    const fallbackData: ZipcodeData = {
+      zipcode: baseZipcode,
+      city: 'Service Area',
+      state: 'US', 
+      stateAbbr: 'US',
+      latitude: undefined,
+      longitude: undefined
+    };
+    
+    zipcodeCache.set(baseZipcode, fallbackData);
+    return fallbackData;
   }
 };
 
@@ -81,9 +107,27 @@ export const calculateZipcodeDistance = (zipcode1: string, zipcode2: string): nu
   return Math.abs(num1 - num2) * 10; // miles approximation
 };
 
-export const isZipcodeInServiceArea = (customerZipcode: string, workerZipcode: string, maxDistance: number = 50): boolean => {
-  const distance = calculateZipcodeDistance(customerZipcode, workerZipcode);
-  return distance <= maxDistance;
+export const isZipcodeInServiceArea = async (customerZipcode: string): Promise<boolean> => {
+  // Clean zipcode first
+  const cleanZipcode = customerZipcode.replace(/[^\d]/g, '').substring(0, 5);
+  
+  try {
+    const { data, error } = await supabase.rpc('zip_has_active_coverage', {
+      p_zipcode: cleanZipcode
+    });
+    
+    if (error) {
+      console.error('Service area check error:', error);
+      // Graceful fallback - assume coverage exists for valid ZIP format
+      return /^\d{5}$/.test(cleanZipcode);
+    }
+    
+    return data === true;
+  } catch (error) {
+    console.error('Service area validation error:', error);
+    // Graceful fallback - assume coverage exists for valid ZIP format
+    return /^\d{5}$/.test(cleanZipcode);
+  }
 };
 
 export const formatZipcode = (value: string): string => {
