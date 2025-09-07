@@ -1648,7 +1648,6 @@ export type Database = {
         Args: { p_zipcode: string }
         Returns: {
           city: string
-          region_name: string
           state: string
           zipcode: string
         }[]
