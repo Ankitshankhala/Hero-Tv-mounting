@@ -53,46 +53,26 @@ export const validateUSZipcode = async (zipcode: string): Promise<ZipcodeData | 
       const zipcodeData: ZipcodeData = {
         zipcode: baseZipcode,
         city: locationData.city,
-        state: locationData.state,
-        stateAbbr: locationData.state,
-        // No lat/lng from our database currently
-        latitude: undefined,
-        longitude: undefined
+        state: locationData.state, // Full state name
+        stateAbbr: locationData.state_abbr, // State abbreviation
+        latitude: locationData.latitude,
+        longitude: locationData.longitude
       };
       
       zipcodeCache.set(baseZipcode, zipcodeData);
       return zipcodeData;
     }
     
-    // If not found in our database, still accept it as a valid format
-    // This allows for any properly formatted US ZIP codes
-    const genericData: ZipcodeData = {
-      zipcode: baseZipcode,
-      city: 'Unknown City',
-      state: 'US',
-      stateAbbr: 'US',
-      latitude: undefined,
-      longitude: undefined
-    };
-    
-    zipcodeCache.set(baseZipcode, genericData);
-    return genericData;
+    // If not found in our database, return null instead of fallback
+    zipcodeCache.set(baseZipcode, null);
+    return null;
     
   } catch (error) {
     console.error('Zipcode validation error:', error);
     
-    // Graceful fallback - accept valid ZIP format even if database lookup fails
-    const fallbackData: ZipcodeData = {
-      zipcode: baseZipcode,
-      city: 'Service Area',
-      state: 'US', 
-      stateAbbr: 'US',
-      latitude: undefined,
-      longitude: undefined
-    };
-    
-    zipcodeCache.set(baseZipcode, fallbackData);
-    return fallbackData;
+    // Return null on error instead of fallback data
+    zipcodeCache.set(baseZipcode, null);
+    return null;
   }
 };
 
@@ -178,4 +158,16 @@ export const formatZipcode = (value: string): string => {
   }
   
   return digits.substring(0, 5);
+};
+
+// Cache management utilities
+export const clearZipcodeCache = () => {
+  zipcodeCache.clear();
+  serviceCoverageCache.clear();
+};
+
+export const clearZipcodeFromCache = (zipcode: string) => {
+  const cleanZipcode = zipcode.replace(/[^\d]/g, '').substring(0, 5);
+  zipcodeCache.delete(cleanZipcode);
+  serviceCoverageCache.delete(cleanZipcode);
 };

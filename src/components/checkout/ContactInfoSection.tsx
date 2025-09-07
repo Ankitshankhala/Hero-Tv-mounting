@@ -3,7 +3,7 @@ import React from 'react';
 import { User, Mail, Phone, MapPin, CheckCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ValidatedInput } from '@/components/ui/ValidatedInput';
+import { ZipcodeInput } from '@/components/ui/ZipcodeInput';
 
 interface ContactInfoSectionProps {
   formData: {
@@ -103,18 +103,14 @@ export const ContactInfoSection = ({
         </div>
         
         <div className="space-y-2">
-          <Label htmlFor="zipcode" className="text-sm font-medium text-gray-700 flex items-center space-x-2">
-            <MapPin className="h-4 w-4 text-blue-600" />
-            <span>ZIP Code</span>
-            <span className="text-red-500">*</span>
-          </Label>
-          <Input
+          <ZipcodeInput
             id="zipcode"
+            label="ZIP Code"
             value={formData.zipcode}
-            onChange={(e) => onZipcodeChange(e.target.value)}
+            onChange={onZipcodeChange}
             placeholder="Enter 5-digit ZIP code"
-            maxLength={5}
-            className="text-black h-12 bg-white border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
+            required
+            className="[&_input]:h-12 [&_input]:bg-white [&_input]:border-gray-300 [&_input]:rounded-lg [&_input]:focus:border-blue-500 [&_input]:focus:ring-2 [&_input]:focus:ring-blue-500/20 [&_input]:transition-all [&_input]:duration-200 [&_input]:text-black"
           />
         </div>
       </div>
