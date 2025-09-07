@@ -48,9 +48,9 @@ export const AdminCoverageManager = () => {
     fetchWorkersWithServiceAreas();
   }, [fetchWorkersWithServiceAreas]);
 
-  // Set up real-time updates
+  // Set up real-time updates with forced fresh data
   useRealtimeServiceAreas(() => {
-    refreshData();
+    refreshData(true); // Force fresh data on real-time updates
   });
   const filteredWorkers = workers.filter(worker => {
     const matchesSearch = worker.name.toLowerCase().includes(searchTerm.toLowerCase()) || worker.email.toLowerCase().includes(searchTerm.toLowerCase()) || worker.id.toLowerCase().includes(searchTerm.toLowerCase());
@@ -111,7 +111,7 @@ export const AdminCoverageManager = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => refreshData()} disabled={loading}>
+          <Button variant="outline" size="sm" onClick={() => refreshData(true)} disabled={loading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>

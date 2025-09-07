@@ -35,7 +35,7 @@ interface ServiceAreaAuditLog {
   area_name: string;
 }
 
-export const useAdminServiceAreas = () => {
+export const useAdminServiceAreas = (forceFresh = false) => {
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [auditLogs, setAuditLogs] = useState<ServiceAreaAuditLog[]>([]);
   const [loading, setLoading] = useState(false);
@@ -147,40 +147,36 @@ export const useAdminServiceAreas = () => {
     }
   }, [toast, fetchWorkers, fetchAuditLogs]);
 
-  const fetchWorkersWithServiceAreas = useCallback(async () => {
+  const fetchWorkersWithServiceAreas = useCallback(async (bypassCache = false) => {
     setLoading(true);
     try {
       const data = await optimizedSupabaseCall(
         'workers-with-service-areas',
         async () => {
-          // Fetch essential columns only
-          const { data: workersData, error: workersError } = await supabase
-            .from('users')
-            .select('id, name, email, phone, is_active')
-            .eq('role', 'worker')
-            .order('name');
+          // Use Promise.all for parallel fetching - much faster
+          const [workersData, serviceAreasData, zipcodesData] = await Promise.all([
+            supabase
+              .from('users')
+              .select('id, name, email, phone, is_active')
+              .eq('role', 'worker')
+              .order('name'),
+            supabase
+              .from('worker_service_areas')
+              .select('id, worker_id, area_name, polygon_coordinates, is_active, created_at')
+              .order('created_at', { ascending: false }),
+            supabase
+              .from('worker_service_zipcodes')
+              .select('worker_id, zipcode, service_area_id')
+          ]);
 
-          if (workersError) throw workersError;
-
-          // Fetch only essential service area columns
-          const { data: serviceAreasData, error: areasError } = await supabase
-            .from('worker_service_areas')
-            .select('id, worker_id, area_name, is_active, created_at')
-            .order('created_at', { ascending: false });
-
-          if (areasError) throw areasError;
-
-          // Fetch zip code counts only
-          const { data: zipcodesData, error: zipcodesError } = await supabase
-            .from('worker_service_zipcodes')
-            .select('worker_id, zipcode, service_area_id');
-
-          if (zipcodesError) throw zipcodesError;
+          if (workersData.error) throw workersData.error;
+          if (serviceAreasData.error) throw serviceAreasData.error;
+          if (zipcodesData.error) throw zipcodesData.error;
 
           // Combine the data efficiently
-          const workersWithAreas: Worker[] = (workersData || []).map(worker => {
-            const workerAreas = (serviceAreasData || []).filter(area => area.worker_id === worker.id);
-            const workerZipcodes = (zipcodesData || []).filter(zip => zip.worker_id === worker.id);
+          const workersWithAreas: Worker[] = (workersData.data || []).map(worker => {
+            const workerAreas = (serviceAreasData.data || []).filter(area => area.worker_id === worker.id);
+            const workerZipcodes = (zipcodesData.data || []).filter(zip => zip.worker_id === worker.id);
 
             return {
               ...worker,
@@ -193,8 +189,8 @@ export const useAdminServiceAreas = () => {
 
           return workersWithAreas;
         },
-        true, // use cache
-        45000 // 45 second cache
+        !bypassCache && !forceFresh, // use cache unless bypassed or forced fresh
+        bypassCache || forceFresh ? 0 : 30000 // no cache if bypassed, otherwise 30 second cache
       );
 
       setWorkers(data);
@@ -210,8 +206,8 @@ export const useAdminServiceAreas = () => {
     }
   }, [toast]);
 
-  const refreshData = useCallback(() => {
-    fetchWorkersWithServiceAreas();
+  const refreshData = useCallback((forceFresh = false) => {
+    fetchWorkersWithServiceAreas(forceFresh);
   }, [fetchWorkersWithServiceAreas]);
 
   const updateWorkerServiceArea = useCallback(async (

@@ -4,8 +4,8 @@ import { throttle } from '@/utils/performanceOptimizer';
 
 export const useRealtimeServiceAreas = (onUpdate: () => void) => {
   useEffect(() => {
-    // Throttle updates to prevent excessive re-rendering
-    const throttledUpdate = throttle(onUpdate, 500);
+    // Reduce throttle time for faster updates (300ms instead of 500ms)
+    const throttledUpdate = throttle(onUpdate, 300);
     
     // Subscribe to changes in worker_service_areas table
     const serviceAreasChannel = supabase
