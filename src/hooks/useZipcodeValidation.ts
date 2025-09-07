@@ -27,8 +27,12 @@ export const useZipcodeValidation = () => {
     setValidationState(prev => ({ ...prev, isLoading: true, error: undefined }));
     
     try {
-      // First check basic format and get location data
-      const locationData = await validateUSZipcode(zipcode);
+      // Start both lookups in parallel for better performance
+      const locationPromise = validateUSZipcode(zipcode);
+      const coveragePromise = getServiceCoverageInfo(zipcode);
+      
+      // Wait for location data first (more critical)
+      const locationData = await locationPromise;
       
       if (!locationData) {
         const result = {
@@ -42,11 +46,11 @@ export const useZipcodeValidation = () => {
         return result;
       }
 
-      // Check service coverage and worker count - don't fail if RPC is down
+      // Get coverage data (non-blocking)
       let hasServiceCoverage = false;
       let workerCount = 0;
       try {
-        const coverageData = await getServiceCoverageInfo(zipcode);
+        const coverageData = await coveragePromise;
         hasServiceCoverage = coverageData.hasServiceCoverage;
         workerCount = coverageData.workerCount;
       } catch (serviceError) {

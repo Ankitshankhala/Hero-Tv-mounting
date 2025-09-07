@@ -37,16 +37,27 @@ export const ZipcodeInput: React.FC<ZipcodeInputProps> = ({
   const [validationError, setValidationError] = useState('');
 
   useEffect(() => {
+    let isStale = false;
+    
     const validateZipcode = async () => {
       if (value.length === 5) {
+        // Instantly set as valid for better UX
+        setValidationStatus('valid');
         setIsValidating(true);
         setValidationError('');
+        
+        // Immediately call validation for format
+        if (onValidation) {
+          onValidation(true, { zipcode: value, city: '', state: '', stateAbbr: '' });
+        }
         
         try {
           const zipcodeData = await validateUSZipcode(value);
           
+          // Check if this result is still relevant
+          if (isStale) return;
+          
           if (zipcodeData) {
-            setValidationStatus('valid');
             const locationText = `${zipcodeData.city}, ${zipcodeData.stateAbbr}`;
             setCityState(locationText);
             
@@ -57,33 +68,28 @@ export const ZipcodeInput: React.FC<ZipcodeInputProps> = ({
             // Auto-fill city/state if onChange callback supports it
             onChange(value, locationText);
           } else {
-            // For valid 5-digit ZIP format, treat as valid even if city not found
-            setValidationStatus('valid');
+            // Keep as valid even if city not found
             setCityState('');
-            setValidationError('');
-            
-            if (onValidation) {
-              onValidation(true, { zipcode: value, city: '', state: '', stateAbbr: '' });
-            }
-            
-            // Just pass the zipcode without city/state
             onChange(value);
           }
         } catch (err) {
-          setValidationStatus('invalid');
-          setCityState('');
-          setValidationError('Unable to validate zipcode');
+          if (isStale) return;
           
-          if (onValidation) {
-            onValidation(false);
-          }
+          // Only show error if it's a critical failure
+          console.warn('Zipcode lookup failed:', err);
+          // Don't change validation status - keep as valid for 5-digit format
+          setCityState('');
+          onChange(value);
         } finally {
-          setIsValidating(false);
+          if (!isStale) {
+            setIsValidating(false);
+          }
         }
       } else {
         setValidationStatus('idle');
         setCityState('');
         setValidationError('');
+        setIsValidating(false);
         
         if (onValidation) {
           onValidation(false);
@@ -91,9 +97,12 @@ export const ZipcodeInput: React.FC<ZipcodeInputProps> = ({
       }
     };
 
-    // Debounce validation
-    const timeoutId = setTimeout(validateZipcode, 500);
-    return () => clearTimeout(timeoutId);
+    // Reduced debounce for better UX
+    const timeoutId = setTimeout(validateZipcode, 300);
+    return () => {
+      isStale = true;
+      clearTimeout(timeoutId);
+    };
   }, [value, onChange, onValidation]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -10,10 +10,13 @@ interface ZipcodeData {
   longitude?: number;
 }
 
-// Fallback zipcode lookup using zippopotam.us API
+import { fetchWithTimeout, raceWithFallback } from './networkUtils';
+import { optimizedSupabaseCall } from './optimizedApi';
+
+// Optimized zipcode lookup using zippopotam.us API with timeout
 const fetchZipcodeFromZippopotam = async (zipcode: string): Promise<ZipcodeData | null> => {
   try {
-    const response = await fetch(`https://api.zippopotam.us/us/${zipcode}`);
+    const response = await fetchWithTimeout(`https://api.zippopotam.us/us/${zipcode}`, 800);
     if (!response.ok) {
       return null;
     }
@@ -71,6 +74,12 @@ export const validateUSZipcode = async (zipcode: string): Promise<ZipcodeData | 
     
     if (error) {
       console.error('Database zipcode lookup error:', error);
+      // Try fallback on DB error
+      const fallbackData = await fetchZipcodeFromZippopotam(baseZipcode);
+      if (fallbackData) {
+        zipcodeCache.set(baseZipcode, fallbackData);
+        return fallbackData;
+      }
       zipcodeCache.set(baseZipcode, null);
       return null;
     }
@@ -80,8 +89,8 @@ export const validateUSZipcode = async (zipcode: string): Promise<ZipcodeData | 
       const zipcodeData: ZipcodeData = {
         zipcode: baseZipcode,
         city: locationData.city,
-        state: locationData.state, // Full state name
-        stateAbbr: locationData.state_abbr, // State abbreviation
+        state: locationData.state,
+        stateAbbr: locationData.state_abbr,
         latitude: locationData.latitude,
         longitude: locationData.longitude
       };
@@ -104,7 +113,17 @@ export const validateUSZipcode = async (zipcode: string): Promise<ZipcodeData | 
   } catch (error) {
     console.error('Zipcode validation error:', error);
     
-    // Return null on error instead of fallback data
+    // Try one more fallback on error
+    try {
+      const fallbackData = await fetchZipcodeFromZippopotam(baseZipcode);
+      if (fallbackData) {
+        zipcodeCache.set(baseZipcode, fallbackData);
+        return fallbackData;
+      }
+    } catch (fallbackError) {
+      console.error('Fallback zipcode lookup failed:', fallbackError);
+    }
+    
     zipcodeCache.set(baseZipcode, null);
     return null;
   }

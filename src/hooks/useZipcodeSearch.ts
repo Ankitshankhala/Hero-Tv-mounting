@@ -1,6 +1,7 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { lookupZipcode, mapToRegion } from '@/services/zipcodeService';
+import { deduplicateRequest } from '@/utils/optimizedApi';
 
 interface UseZipcodeSearchProps {
   onLocationFound: (city: string, region: string) => void;
@@ -9,8 +10,9 @@ interface UseZipcodeSearchProps {
 export const useZipcodeSearch = ({ onLocationFound }: UseZipcodeSearchProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout>();
 
-  const searchZipcode = async (zipcode: string) => {
+  const searchZipcode = useCallback(async (zipcode: string) => {
     // Only search if zipcode is 5 digits
     if (!/^\d{5}$/.test(zipcode)) {
       setError(null);
@@ -21,7 +23,11 @@ export const useZipcodeSearch = ({ onLocationFound }: UseZipcodeSearchProps) => 
     setError(null);
 
     try {
-      const result = await lookupZipcode(zipcode);
+      const result = await deduplicateRequest(
+        `zipcode_search_${zipcode}`,
+        () => lookupZipcode(zipcode),
+        2000 // 2 second TTL for search deduplication
+      );
       
       if (result) {
         const region = mapToRegion(result.city, result.state);
@@ -35,26 +41,17 @@ export const useZipcodeSearch = ({ onLocationFound }: UseZipcodeSearchProps) => 
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [onLocationFound]);
 
-  // Debounce the search function
-  useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-
-    return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    };
-  }, []);
-
-  const debouncedSearch = (zipcode: string) => {
-    const timeoutId = setTimeout(() => {
+  const debouncedSearch = useCallback((zipcode: string) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    timeoutRef.current = setTimeout(() => {
       searchZipcode(zipcode);
-    }, 500); // 500ms delay
-
-    return () => clearTimeout(timeoutId);
-  };
+    }, 350); // Reduced delay for better UX
+  }, [searchZipcode]);
 
   return {
     searchZipcode: debouncedSearch,
