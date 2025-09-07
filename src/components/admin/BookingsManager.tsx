@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useBookingManager } from '@/hooks/useBookingManager';
 import { useRealtimeBookings } from '@/hooks/useRealtimeBookings';
+import { AuthGuard } from '@/components/AuthGuard';
 import { BookingFilters } from './BookingFilters';
 import { BookingTable } from './BookingTable';
 import { CreateBookingModal } from './CreateBookingModal';
@@ -11,17 +11,22 @@ import { AssignWorkerModal } from './AssignWorkerModal';
 import { EditBookingModal } from './EditBookingModal';
 import { BookingDetailsModal } from './BookingDetailsModal';
 import { DeleteBookingModal } from './DeleteBookingModal';
-import { useBookingManager } from '@/hooks/useBookingManager';
-import { AuthGuard } from '@/components/AuthGuard';
 import { Button } from '@/components/ui/button';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Calendar } from 'lucide-react';
+import { toast } from 'sonner';
+import { useSearchParams } from 'react-router-dom';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 
 export const BookingsManager = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [filteredBookings, setFilteredBookings] = useState([]);
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterRegion, setFilterRegion] = useState('all');
-  const [archiveFilter, setArchiveFilter] = useState('active');
+  // Initialize from URL param or default to 'new_bookings'
+  const [archiveFilter, setArchiveFilter] = useState(() => {
+    return searchParams.get('bview') || 'new_bookings';
+  });
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -134,6 +139,21 @@ export const BookingsManager = () => {
     fetchBookings(true); // Bypass cache for manual refresh
   };
 
+  // Handle archive filter change with URL parameter updates
+  const handleArchiveFilterChange = (value: string) => {
+    setArchiveFilter(value);
+    
+    // Update URL parameter
+    const newSearchParams = new URLSearchParams(searchParams);
+    if (value === 'new_bookings') {
+      // Remove the parameter if it's the default
+      newSearchParams.delete('bview');
+    } else {
+      newSearchParams.set('bview', value);
+    }
+    setSearchParams(newSearchParams);
+  };
+
   const handleBookingUpdated = () => {
     console.log('Booking updated from BookingTable, refreshing list');
     fetchBookings();
@@ -224,7 +244,7 @@ export const BookingsManager = () => {
                   onSearchChange={setSearchTerm}
                   onStatusChange={setFilterStatus}
                   onRegionChange={setFilterRegion}
-                  onArchiveFilterChange={setArchiveFilter}
+                  onArchiveFilterChange={handleArchiveFilterChange}
                 />
 
                 <BookingTable 
