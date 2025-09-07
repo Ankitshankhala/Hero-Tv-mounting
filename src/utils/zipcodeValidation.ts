@@ -13,10 +13,11 @@ interface ZipcodeData {
 import { fetchWithTimeout, raceWithFallback } from './networkUtils';
 import { optimizedSupabaseCall } from './optimizedApi';
 
-// Optimized zipcode lookup using zippopotam.us API with timeout
+// Optimized zipcode lookup using zippopotam.us API with increased timeout and retry
 const fetchZipcodeFromZippopotam = async (zipcode: string): Promise<ZipcodeData | null> => {
   try {
-    const response = await fetchWithTimeout(`https://api.zippopotam.us/us/${zipcode}`, 800);
+    // First attempt with 2 second timeout
+    const response = await fetchWithTimeout(`https://api.zippopotam.us/us/${zipcode}`, 2000);
     if (!response.ok) {
       return null;
     }
@@ -35,7 +36,29 @@ const fetchZipcodeFromZippopotam = async (zipcode: string): Promise<ZipcodeData 
     }
     return null;
   } catch (error) {
-    console.error('Zippopotam.us API error:', error);
+    // Retry with 3 second timeout if first attempt fails
+    try {
+      const response = await fetchWithTimeout(`https://api.zippopotam.us/us/${zipcode}`, 3000);
+      if (!response.ok) {
+        return null;
+      }
+      
+      const data = await response.json();
+      if (data.places && data.places.length > 0) {
+        const place = data.places[0];
+        return {
+          zipcode: zipcode,
+          city: place['place name'],
+          state: place['state'],
+          stateAbbr: place['state abbreviation'],
+          latitude: parseFloat(place.latitude),
+          longitude: parseFloat(place.longitude)
+        };
+      }
+    } catch (retryError) {
+      console.warn('Zippopotam.us API retry failed:', retryError);
+    }
+    
     return null;
   }
 };
@@ -67,43 +90,36 @@ export const validateUSZipcode = async (zipcode: string): Promise<ZipcodeData | 
   }
 
   try {
-    // Use database function to get zipcode location data
-    const { data, error } = await supabase.rpc('get_zipcode_location_data', {
+    // Parallelize database and API calls for better performance
+    const dbPromise = supabase.rpc('get_zipcode_location_data', {
       p_zipcode: baseZipcode
     });
     
-    if (error) {
-      console.error('Database zipcode lookup error:', error);
-      // Try fallback on DB error
-      const fallbackData = await fetchZipcodeFromZippopotam(baseZipcode);
-      if (fallbackData) {
-        zipcodeCache.set(baseZipcode, fallbackData);
-        return fallbackData;
-      }
-      zipcodeCache.set(baseZipcode, null);
-      return null;
-    }
+    const apiPromise = fetchZipcodeFromZippopotam(baseZipcode);
 
-    if (data && data.length > 0) {
-      const locationData = data[0];
-      const zipcodeData: ZipcodeData = {
-        zipcode: baseZipcode,
-        city: locationData.city,
-        state: locationData.state,
-        stateAbbr: locationData.state_abbr,
-        latitude: locationData.latitude,
-        longitude: locationData.longitude
-      };
-      
-      zipcodeCache.set(baseZipcode, zipcodeData);
-      return zipcodeData;
-    }
-    
-    // If not found in our database, try zippopotam.us as fallback
-    const fallbackData = await fetchZipcodeFromZippopotam(baseZipcode);
-    if (fallbackData) {
-      zipcodeCache.set(baseZipcode, fallbackData);
-      return fallbackData;
+    // Use raceWithFallback to get the first successful result
+    const result = await raceWithFallback([
+      Promise.resolve(dbPromise).then(({ data, error }) => {
+        if (error) throw error;
+        if (data && data.length > 0) {
+          const locationData = data[0];
+          return {
+            zipcode: baseZipcode,
+            city: locationData.city,
+            state: locationData.state,
+            stateAbbr: locationData.state_abbr,
+            latitude: locationData.latitude,
+            longitude: locationData.longitude
+          };
+        }
+        return null;
+      }),
+      apiPromise
+    ], 0); // Prefer database result (index 0)
+
+    if (result) {
+      zipcodeCache.set(baseZipcode, result);
+      return result;
     }
     
     // If no data found anywhere, return null
@@ -112,18 +128,6 @@ export const validateUSZipcode = async (zipcode: string): Promise<ZipcodeData | 
     
   } catch (error) {
     console.error('Zipcode validation error:', error);
-    
-    // Try one more fallback on error
-    try {
-      const fallbackData = await fetchZipcodeFromZippopotam(baseZipcode);
-      if (fallbackData) {
-        zipcodeCache.set(baseZipcode, fallbackData);
-        return fallbackData;
-      }
-    } catch (fallbackError) {
-      console.error('Fallback zipcode lookup failed:', fallbackError);
-    }
-    
     zipcodeCache.set(baseZipcode, null);
     return null;
   }

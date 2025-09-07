@@ -68,8 +68,8 @@ export const ZipcodeInput: React.FC<ZipcodeInputProps> = ({
             // Auto-fill city/state if onChange callback supports it
             onChange(value, locationText);
           } else {
-            // Keep as valid even if city not found
-            setCityState('');
+            // Keep as valid even if city not found, but show fallback text
+            setCityState('City not found');
             onChange(value);
           }
         } catch (err) {
