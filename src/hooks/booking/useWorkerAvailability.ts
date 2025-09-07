@@ -9,10 +9,39 @@ export const useWorkerAvailability = () => {
   const [blockedSlots, setBlockedSlots] = useState<string[]>([]);
   const [workerCount, setWorkerCount] = useState<number>(0);
   const [loading, setLoading] = useState(false);
+  const [nextAvailableDate, setNextAvailableDate] = useState<Date | null>(null);
 
   const timeSlots = [
     '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00'
   ];
+
+  const findNextAvailableDate = async (startDate: Date, zipcode: string) => {
+    if (!zipcode) return null;
+    
+    // Check next 30 days for availability
+    for (let i = 1; i <= 30; i++) {
+      const checkDate = new Date(startDate);
+      checkDate.setDate(startDate.getDate() + i);
+      
+      const dateStr = formatInTimeZone(checkDate, 'America/Chicago', 'yyyy-MM-dd');
+      
+      try {
+        const { data: availableSlots, error } = await supabase.rpc('get_available_time_slots', {
+          p_zipcode: zipcode,
+          p_date: dateStr,
+          p_service_duration_minutes: 60
+        });
+        
+        if (!error && availableSlots && availableSlots.length > 0) {
+          return checkDate;
+        }
+      } catch (error) {
+        console.error('Error checking date availability:', error);
+      }
+    }
+    
+    return null;
+  };
 
   const fetchWorkerAvailability = async (date: Date, zipcode: string) => {
     if (!zipcode || !date) return;
@@ -74,11 +103,20 @@ export const useWorkerAvailability = () => {
       setAvailableSlots(availableTimeSlots);
       setBlockedSlots(blockedSlots);
       setWorkerCount(totalWorkerIds.size);
+      
+      // If no workers or no available slots, find next available date
+      if (totalWorkerIds.size === 0 || availableTimeSlots.length === 0) {
+        const nextDate = await findNextAvailableDate(date, zipcode);
+        setNextAvailableDate(nextDate);
+      } else {
+        setNextAvailableDate(null);
+      }
     } catch (error) {
       console.error('Error fetching worker availability:', error);
       setAvailableSlots([]);
       setBlockedSlots([]);
       setWorkerCount(0);
+      setNextAvailableDate(null);
     } finally {
       setLoading(false);
     }
@@ -90,6 +128,8 @@ export const useWorkerAvailability = () => {
     workerCount,
     loading,
     timeSlots,
-    fetchWorkerAvailability
+    nextAvailableDate,
+    fetchWorkerAvailability,
+    findNextAvailableDate
   };
 };

@@ -152,6 +152,7 @@ export const BookingFlow = ({ onClose, initialServices = [] }: BookingFlowProps)
                 blockedSlots={[]}
                 workerCount={0}
                 loading={loading}
+                nextAvailableDate={null}
               />
             )}
             

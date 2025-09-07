@@ -22,6 +22,7 @@ interface ScheduleStepProps {
   blockedSlots: string[];
   workerCount: number;
   loading: boolean;
+  nextAvailableDate?: Date | null;
   hideActionButton?: boolean;
 }
 
@@ -32,6 +33,7 @@ export const ScheduleStep = ({
   blockedSlots,
   workerCount,
   loading,
+  nextAvailableDate,
   hideActionButton = false
 }: ScheduleStepProps) => {
   // Get current time in America/Chicago timezone to filter out past time slots for today
@@ -66,10 +68,19 @@ export const ScheduleStep = ({
       <div className="text-center">
         <h3 className="text-2xl font-bold text-white mb-2">Schedule Your Service</h3>
         <p className="text-slate-300">Choose your preferred date and time</p>
-        {workerCount > 0 && (
-          <div className="inline-flex items-center space-x-2 text-sm bg-green-900/30 text-green-300 px-3 py-1 rounded-full mt-2 border border-green-500/30">
-            <Users className="h-4 w-4" />
-            <span>{workerCount} workers available in your area</span>
+        {formData.selectedDate && !loading && (
+          <div className="mt-2">
+            {workerCount > 0 ? (
+              <div className="inline-flex items-center space-x-2 text-sm bg-green-900/30 text-green-300 px-3 py-1 rounded-full border border-green-500/30">
+                <Users className="h-4 w-4" />
+                <span>{workerCount} workers available in your area</span>
+              </div>
+            ) : (
+              <div className="inline-flex items-center space-x-2 text-sm bg-red-900/30 text-red-300 px-3 py-1 rounded-full border border-red-500/30">
+                <Users className="h-4 w-4" />
+                <span>No workers available for this date</span>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -170,11 +181,52 @@ export const ScheduleStep = ({
                 {filteredAvailableSlots.length === 0 ? (
                   <div className="text-center py-8 text-slate-400">
                     <Clock className="h-12 w-12 mx-auto text-slate-500 mb-3" />
-                    <p>No time slots available for this date</p>
-                    {formData.selectedDate && formData.selectedDate.toDateString() === today.toDateString() && (
-                      <p className="text-sm text-orange-400 mt-2">
-                        For same-day service, please allow at least 30 minutes advance notice
-                      </p>
+                    {workerCount === 0 ? (
+                      <div>
+                        <p className="text-red-300 font-medium mb-2">No workers available in your area</p>
+                        <p className="text-sm text-slate-400">
+                          We don't have technicians servicing ZIP code {formData.zipcode} on this date
+                        </p>
+                        {nextAvailableDate && (
+                          <div className="mt-4 p-3 bg-blue-900/30 rounded-lg border border-blue-500/30">
+                            <p className="text-blue-300 text-sm">
+                              Next available date: <strong>{nextAvailableDate.toLocaleDateString()}</strong>
+                            </p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="mt-2 text-blue-300 border-blue-500/30 hover:bg-blue-600/20"
+                              onClick={() => setFormData(prev => ({ ...prev, selectedDate: nextAvailableDate }))}
+                            >
+                              Select This Date
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div>
+                        <p>No time slots available for this date</p>
+                        {formData.selectedDate && formData.selectedDate.toDateString() === today.toDateString() && (
+                          <p className="text-sm text-orange-400 mt-2">
+                            For same-day service, please allow at least 30 minutes advance notice
+                          </p>
+                        )}
+                        {nextAvailableDate && (
+                          <div className="mt-4 p-3 bg-blue-900/30 rounded-lg border border-blue-500/30">
+                            <p className="text-blue-300 text-sm">
+                              Next available date: <strong>{nextAvailableDate.toLocaleDateString()}</strong>
+                            </p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="mt-2 text-blue-300 border-blue-500/30 hover:bg-blue-600/20"
+                              onClick={() => setFormData(prev => ({ ...prev, selectedDate: nextAvailableDate }))}
+                            >
+                              Select This Date
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                 ) : (
