@@ -60,6 +60,18 @@ export const BookingsManager = () => {
     if (archiveFilter === 'active') {
       // All non-archived bookings (including new ones with pending payments)
       filtered = filtered.filter(booking => !booking.is_archived);
+    } else if (archiveFilter === 'new_bookings') {
+      // Only bookings with payment authorized that are not archived
+      filtered = filtered.filter(booking => 
+        !booking.is_archived && 
+        (booking.payment_status === 'authorized' || booking.status === 'payment_authorized')
+      );
+      // Sort by newest first for new bookings
+      filtered = filtered.sort((a, b) => {
+        const aTime = new Date(a.created_at).getTime();
+        const bTime = new Date(b.created_at).getTime();
+        return bTime - aTime;
+      });
     } else if (archiveFilter === 'pending_payments') {
       // Only bookings with pending/missing payment authorization
       filtered = filtered.filter(booking => 
