@@ -13,6 +13,8 @@ import { BookingDetailsModal } from './BookingDetailsModal';
 import { DeleteBookingModal } from './DeleteBookingModal';
 import { useBookingManager } from '@/hooks/useBookingManager';
 import { AuthGuard } from '@/components/AuthGuard';
+import { Button } from '@/components/ui/button';
+import { RefreshCw } from 'lucide-react';
 
 
 export const BookingsManager = () => {
@@ -106,13 +108,18 @@ export const BookingsManager = () => {
 
   const handleBookingCreated = () => {
     console.log('Booking created, refreshing list');
-    fetchBookings();
+    fetchBookings(true); // Bypass cache to get fresh data
     
     // Also refresh after a short delay to ensure database consistency
     setTimeout(() => {
       console.log('Secondary refresh after booking creation');
-      fetchBookings();
+      fetchBookings(true);
     }, 1000);
+  };
+
+  const handleRefresh = () => {
+    console.log('Manual refresh triggered');
+    fetchBookings(true); // Bypass cache for manual refresh
   };
 
   const handleBookingUpdated = () => {
@@ -174,6 +181,16 @@ export const BookingsManager = () => {
                 <span>Bookings Management</span>
               </CardTitle>
               <div className="flex items-center space-x-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRefresh}
+                  disabled={loading}
+                  className="flex items-center space-x-2"
+                >
+                  <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                  <span>Refresh</span>
+                </Button>
                 {isConnected && (
                   <span className="text-sm text-green-600">● Live updates enabled</span>
                 )}

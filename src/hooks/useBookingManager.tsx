@@ -112,7 +112,7 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
     };
   };
 
-  const fetchBookings = async () => {
+  const fetchBookings = async (bypassCache: boolean = false) => {
     try {
       setLoading(true);
       console.log('Fetching bookings with two-phase strategy...');
@@ -122,7 +122,7 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
         'bookings-phase1',
         async () => {
           const result = await optimizedSupabaseCall(
-            'bookings-recent-25',
+            'bookings-recent-100',
             async () => {
               const response = await supabase
                 .from('bookings')
@@ -133,13 +133,13 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
                   payment_status, payment_intent_id, created_at,
                   guest_customer_info, location_notes, is_archived
                 `)
-                .order('start_time_utc', { ascending: false, nullsFirst: false })
                 .order('created_at', { ascending: false })
-                .limit(25);
+                .order('start_time_utc', { ascending: false, nullsFirst: false })
+                .limit(100);
               return response;
             },
-            true,
-            10000 // 10s cache for fast pagination
+            !bypassCache,
+            bypassCache ? 0 : 10000 // Use cache unless bypassed
           );
           return result;
         }
@@ -418,8 +418,14 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
           newBookings[existingIndex] = finalEnrichedBooking;
           return newBookings;
         } else {
-          // Add new booking if it doesn't exist
-          return [finalEnrichedBooking, ...prevBookings];
+          // Add new booking at the top (sorted by created_at DESC)
+          const newBookings = [finalEnrichedBooking, ...prevBookings];
+          // Re-sort by created_at DESC to maintain proper order
+          return newBookings.sort((a, b) => {
+            const aTime = new Date(a.created_at).getTime();
+            const bTime = new Date(b.created_at).getTime();
+            return bTime - aTime;
+          });
         }
       });
 
