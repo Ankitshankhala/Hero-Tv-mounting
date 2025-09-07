@@ -1644,6 +1644,15 @@ export type Database = {
           total_zipcodes: number
         }[]
       }
+      get_zipcode_location_data: {
+        Args: { p_zipcode: string }
+        Returns: {
+          city: string
+          region_name: string
+          state: string
+          zipcode: string
+        }[]
+      }
       import_application_availability: {
         Args: { worker_uuid: string }
         Returns: string
@@ -1713,6 +1722,10 @@ export type Database = {
           p_recipient_email: string
           p_subject: string
         }
+        Returns: boolean
+      }
+      zip_has_active_coverage: {
+        Args: { p_zipcode: string }
         Returns: boolean
       }
     }
