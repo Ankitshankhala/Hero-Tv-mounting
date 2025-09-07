@@ -195,7 +195,7 @@ export const ZipcodeInput: React.FC<ZipcodeInputProps> = ({
       
       {cityState && <p className="text-sm flex items-center space-x-1 text-gray-50">
           <MapPin className="h-3 w-3" />
-          <span className={cn(serviceArea && "text-primary font-medium")}>
+          <span className={cn("text-green-600", serviceArea && "font-medium")}>
             {cityState}
           </span>
         </p>}
