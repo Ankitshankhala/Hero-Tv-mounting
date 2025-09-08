@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ServiceItem, FormData } from './types';
 import { useTestingMode, getEffectiveMinimumAmount, getEffectiveServicePrice } from '@/contexts/TestingModeContext';
 
@@ -41,27 +41,28 @@ export const useBookingFormState = (selectedServices: ServiceItem[] = []) => {
     setServices(prev => prev.filter(service => service.id !== serviceId));
   };
 
-  const getTotalPrice = () => {
-    const serviceTotal = services.reduce((total, service, index) => {
+  // Memoized service total calculation
+  const serviceTotal = useMemo(() => {
+    return services.reduce((total, service, index) => {
       const effectivePrice = getEffectiveServicePrice(service.price, isTestingMode, index);
-      console.log(`Testing mode: ${isTestingMode}, Service: ${service.name}, Original: $${service.price}, Effective: $${effectivePrice}`);
       return total + (effectivePrice * service.quantity);
     }, 0);
-    
-    return serviceTotal; // Return service total only - tip is added separately in payment
-  };
+  }, [services, isTestingMode]);
+
+  const getTotalPrice = () => serviceTotal;
 
   const getTotalWithTip = () => {
-    return getTotalPrice() + (formData.tipAmount || 0);
+    return serviceTotal + (formData.tipAmount || 0);
   };
 
-  const isMinimumCartMet = () => {
-    return getTotalPrice() >= MINIMUM_BOOKING_AMOUNT;
-  };
+  // Memoized derived values
+  const isMinimumCartMet = useMemo(() => {
+    return serviceTotal >= MINIMUM_BOOKING_AMOUNT;
+  }, [serviceTotal, MINIMUM_BOOKING_AMOUNT]);
 
-  const getAmountNeeded = () => {
-    return Math.max(0, MINIMUM_BOOKING_AMOUNT - getTotalPrice());
-  };
+  const getAmountNeeded = useMemo(() => {
+    return Math.max(0, MINIMUM_BOOKING_AMOUNT - serviceTotal);
+  }, [MINIMUM_BOOKING_AMOUNT, serviceTotal]);
 
   const handleZipcodeChange = (zipcode: string, cityState?: string) => {
     setFormData(prev => ({ ...prev, zipcode }));
@@ -75,7 +76,7 @@ export const useBookingFormState = (selectedServices: ServiceItem[] = []) => {
     }
   };
 
-  const isStep1Valid = services.length > 0 && isMinimumCartMet();
+  const isStep1Valid = services.length > 0 && isMinimumCartMet;
   const isStep2Valid = formData.customerName && formData.customerEmail && formData.customerPhone && formData.address && formData.zipcode && formData.houseNumber;
   const isStep3Valid = formData.selectedDate && formData.selectedTime;
 
@@ -90,8 +91,8 @@ export const useBookingFormState = (selectedServices: ServiceItem[] = []) => {
     removeService,
     getTotalPrice,
     getTotalWithTip,
-    isMinimumCartMet,
-    getAmountNeeded,
+    isMinimumCartMet: () => isMinimumCartMet,
+    getAmountNeeded: () => getAmountNeeded,
     handleZipcodeChange,
     isStep1Valid,
     isStep2Valid,

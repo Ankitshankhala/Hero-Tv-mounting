@@ -108,14 +108,16 @@ export const EnhancedInlineBookingFlow = ({
     }
   });
   
-  const isMinimumCartMet = getTotalPrice() >= MINIMUM_BOOKING_AMOUNT;
-  const amountNeeded = MINIMUM_BOOKING_AMOUNT - getTotalPrice();
+  // Compute once per render
+  const totalPrice = getTotalPrice();
+  const isMinimumCartMet = totalPrice >= MINIMUM_BOOKING_AMOUNT;
+  const amountNeeded = MINIMUM_BOOKING_AMOUNT - totalPrice;
 
   const handleNextStep = () => {
     if (currentStep === 1 && !isMinimumCartMet) {
       toast({
         title: "Minimum Booking Amount Required",
-        description: `Your cart total is $${getTotalPrice()}. Please add $${amountNeeded} more to reach the minimum booking amount of $${MINIMUM_BOOKING_AMOUNT}.`,
+        description: `Your cart total is $${totalPrice}. Please add $${amountNeeded} more to reach the minimum booking amount of $${MINIMUM_BOOKING_AMOUNT}.`,
         variant: "destructive",
       });
       return;
@@ -152,14 +154,10 @@ export const EnhancedInlineBookingFlow = ({
   };
 
   const handleScheduleToPayment = async () => {
-    console.log('🔄 BOOKING FLOW: handleScheduleToPayment called');
-    console.log('🔄 BOOKING FLOW: isMinimumCartMet:', isMinimumCartMet);
-    console.log('🔄 BOOKING FLOW: amountNeeded:', amountNeeded);
-    console.log('🔄 BOOKING FLOW: getTotalPrice():', getTotalPrice());
     if (!isMinimumCartMet) {
       toast({
         title: "Minimum Booking Amount Required",
-        description: `Your cart total is $${getTotalPrice()}. Please add $${amountNeeded} more to reach the minimum booking amount of $${MINIMUM_BOOKING_AMOUNT}.`,
+        description: `Your cart total is $${totalPrice}. Please add $${amountNeeded} more to reach the minimum booking amount of $${MINIMUM_BOOKING_AMOUNT}.`,
         variant: "destructive",
       });
       return;
@@ -177,30 +175,18 @@ export const EnhancedInlineBookingFlow = ({
     }
 
     try {
-      console.log('🚀 BOOKING FLOW: Starting booking creation process');
-      // Create booking with payment_pending status
       optimizedLog('🚀 Creating booking and proceeding to payment...');
       
       // Validate minimum cart before booking creation
       if (!validateMinimumCart(services)) {
-        console.warn('❌ BOOKING FLOW: Minimum cart validation failed - stopping booking creation');
         return;
       }
       
-      console.log('✅ BOOKING FLOW: Minimum cart validation passed, calling createInitialBooking');
-      console.log('📦 BOOKING FLOW: Services data:', services);
-      console.log('📋 BOOKING FLOW: Form data:', formData);
-      
       const createdBookingId = await createInitialBooking(services, formData);
       
-      console.log('📝 BOOKING FLOW: createInitialBooking returned:', createdBookingId);
-      
       if (!createdBookingId) {
-        console.error('❌ BOOKING FLOW: No booking ID returned from booking creation');
         throw new Error('No booking ID returned from booking creation');
       }
-      
-      console.log('✅ BOOKING FLOW: Setting booking ID and success state:', createdBookingId);
       setBookingId(createdBookingId);
       setHasCreatedBooking(true);
       
@@ -273,7 +259,7 @@ export const EnhancedInlineBookingFlow = ({
           bookingId,
           services,
           formData,
-          totalAmount: getTotalPrice()
+          totalAmount: totalPrice
         });
       }, 5000);
     } catch (error) {
@@ -351,7 +337,7 @@ export const EnhancedInlineBookingFlow = ({
         onClose={onClose}
         successAnimation={successAnimation}
         formData={formData}
-        getTotalPrice={getTotalPrice}
+        getTotalPrice={() => totalPrice}
         bookingId={bookingId}
       />
 
@@ -403,7 +389,7 @@ export const EnhancedInlineBookingFlow = ({
                     services={services}
                     updateServiceQuantity={updateServiceQuantity}
                     removeService={removeService}
-                    getTotalPrice={getTotalPrice}
+                    getTotalPrice={() => totalPrice}
                   />
                   
                   {!isMinimumCartMet && services.length > 0 && (
@@ -413,7 +399,7 @@ export const EnhancedInlineBookingFlow = ({
                         <span className="font-medium text-orange-300">Minimum Booking Amount Required</span>
                       </div>
                       <p className="text-orange-200">
-                        Your cart total is ${getTotalPrice()}. Please add ${amountNeeded} more to reach the minimum booking amount of ${MINIMUM_BOOKING_AMOUNT}.
+                         Your cart total is ${totalPrice}. Please add ${amountNeeded} more to reach the minimum booking amount of ${MINIMUM_BOOKING_AMOUNT}.
                       </p>
                     </div>
                   )}
@@ -452,7 +438,7 @@ export const EnhancedInlineBookingFlow = ({
                 <TipStep
                   formData={formData}
                   setFormData={setFormData}
-                  serviceTotal={getTotalPrice()}
+                  serviceTotal={totalPrice}
                 />
               )}
 
