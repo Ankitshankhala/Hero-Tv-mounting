@@ -154,6 +154,7 @@ export type Database = {
           payment_intent_id: string | null
           payment_status: string | null
           pending_payment_amount: number | null
+          preferred_worker_id: string | null
           requires_manual_payment: boolean | null
           scheduled_date: string
           scheduled_start: string
@@ -184,6 +185,7 @@ export type Database = {
           payment_intent_id?: string | null
           payment_status?: string | null
           pending_payment_amount?: number | null
+          preferred_worker_id?: string | null
           requires_manual_payment?: boolean | null
           scheduled_date: string
           scheduled_start: string
@@ -214,6 +216,7 @@ export type Database = {
           payment_intent_id?: string | null
           payment_status?: string | null
           pending_payment_amount?: number | null
+          preferred_worker_id?: string | null
           requires_manual_payment?: boolean | null
           scheduled_date?: string
           scheduled_start?: string

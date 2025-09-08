@@ -10,6 +10,8 @@ export const useWorkerAvailability = () => {
   const [workerCount, setWorkerCount] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [nextAvailableDate, setNextAvailableDate] = useState<Date | null>(null);
+  const [availableWorkers, setAvailableWorkers] = useState<any[]>([]);
+  const [preferredWorkerAvailable, setPreferredWorkerAvailable] = useState(false);
 
   const timeSlots = [
     '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00'
@@ -43,7 +45,7 @@ export const useWorkerAvailability = () => {
     return null;
   };
 
-  const fetchWorkerAvailability = async (date: Date, zipcode: string) => {
+  const fetchWorkerAvailability = async (date: Date, zipcode: string, preferredWorkerId?: string) => {
     if (!zipcode || !date) return;
     
     setLoading(true);
@@ -100,9 +102,25 @@ export const useWorkerAvailability = () => {
       // Blocked slots are all time slots that are not available
       const blockedSlots = timeSlots.filter(slot => !slots.includes(slot));
 
+      // Check if preferred worker is available
+      let isPreferredWorkerAvailable = false;
+      if (preferredWorkerId) {
+        isPreferredWorkerAvailable = Array.from(totalWorkerIds).includes(preferredWorkerId);
+      }
+
       setAvailableSlots(availableTimeSlots);
       setBlockedSlots(blockedSlots);
       setWorkerCount(totalWorkerIds.size);
+      setPreferredWorkerAvailable(isPreferredWorkerAvailable);
+      
+      // Store available workers info for potential future use
+      const workersInfo = availableSlots?.flatMap(slot => 
+        slot.worker_ids?.map(workerId => ({ 
+          id: workerId, 
+          timeSlot: slot.time_slot.toString().substring(0, 5) 
+        })) || []
+      ) || [];
+      setAvailableWorkers(workersInfo);
       
       // If no workers or no available slots, find next available date
       if (totalWorkerIds.size === 0 || availableTimeSlots.length === 0) {
@@ -129,6 +147,8 @@ export const useWorkerAvailability = () => {
     loading,
     timeSlots,
     nextAvailableDate,
+    availableWorkers,
+    preferredWorkerAvailable,
     fetchWorkerAvailability,
     findNextAvailableDate
   };

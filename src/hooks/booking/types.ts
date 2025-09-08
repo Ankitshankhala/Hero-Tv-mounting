@@ -21,4 +21,5 @@ export interface FormData {
   specialInstructions: string;
   tipAmount: number;
   continueToPayment?: boolean;
+  preferredWorkerId?: string;
 }

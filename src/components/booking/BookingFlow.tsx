@@ -153,6 +153,7 @@ export const BookingFlow = ({ onClose, initialServices = [] }: BookingFlowProps)
                 workerCount={0}
                 loading={loading}
                 nextAvailableDate={null}
+                preferredWorkerAvailable={false}
               />
             )}
             

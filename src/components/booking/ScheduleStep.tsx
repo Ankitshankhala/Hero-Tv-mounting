@@ -13,6 +13,7 @@ interface FormData {
   selectedTime: string;
   zipcode: string;
   continueToPayment?: boolean;
+  preferredWorkerId?: string;
 }
 
 interface ScheduleStepProps {
@@ -23,6 +24,7 @@ interface ScheduleStepProps {
   workerCount: number;
   loading: boolean;
   nextAvailableDate?: Date | null;
+  preferredWorkerAvailable?: boolean;
   hideActionButton?: boolean;
 }
 
@@ -34,6 +36,7 @@ export const ScheduleStep = ({
   workerCount,
   loading,
   nextAvailableDate,
+  preferredWorkerAvailable = false,
   hideActionButton = false
 }: ScheduleStepProps) => {
   // Get current time in America/Chicago timezone to filter out past time slots for today
@@ -69,7 +72,7 @@ export const ScheduleStep = ({
         <h3 className="text-2xl font-bold text-white mb-2">Schedule Your Service</h3>
         <p className="text-slate-300">Choose your preferred date and time</p>
         {formData.selectedDate && !loading && (
-          <div className="mt-2">
+          <div className="mt-2 space-y-2">
             {workerCount > 0 ? (
               <div className="inline-flex items-center space-x-2 text-sm bg-green-900/30 text-green-300 px-3 py-1 rounded-full border border-green-500/30">
                 <Users className="h-4 w-4" />
@@ -79,6 +82,23 @@ export const ScheduleStep = ({
               <div className="inline-flex items-center space-x-2 text-sm bg-red-900/30 text-red-300 px-3 py-1 rounded-full border border-red-500/30">
                 <Users className="h-4 w-4" />
                 <span>No workers available for this date</span>
+              </div>
+            )}
+            
+            {/* Show preferred worker status if one is selected */}
+            {formData.preferredWorkerId && (
+              <div className="block">
+                {preferredWorkerAvailable ? (
+                  <div className="inline-flex items-center space-x-2 text-sm bg-blue-900/30 text-blue-300 px-3 py-1 rounded-full border border-blue-500/30">
+                    <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                    <span>Your selected worker is available</span>
+                  </div>
+                ) : (
+                  <div className="inline-flex items-center space-x-2 text-sm bg-orange-900/30 text-orange-300 px-3 py-1 rounded-full border border-orange-500/30">
+                    <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
+                    <span>Your selected worker is not available this date</span>
+                  </div>
+                )}
               </div>
             )}
           </div>

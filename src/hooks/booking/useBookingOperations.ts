@@ -192,6 +192,7 @@ export const useBookingOperations = () => {
         status: 'payment_pending' as const,
         payment_status: 'pending',
         requires_manual_payment: false,
+        preferred_worker_id: (formData as any).preferredWorkerId || null,
         guest_customer_info: !user ? {
           email: formData.customerEmail,
           name: formData.customerName,
@@ -202,6 +203,7 @@ export const useBookingOperations = () => {
           city: formData.city,
           zipcode: formData.zipcode,
           tip_amount: formData.tipAmount || 0,
+          preferred_worker_id: (formData as any).preferredWorkerId || null,
         } : null
       };
 

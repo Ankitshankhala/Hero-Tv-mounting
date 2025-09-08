@@ -99,6 +99,14 @@ serve(async (req) => {
       );
     }
 
+    // Check if there's a preferred worker for this booking
+    let preferredWorkerId = booking.preferred_worker_id;
+    if (!preferredWorkerId) {
+      // For guest bookings, check if preferred worker is in guest_customer_info
+      const guestInfo = booking.guest_customer_info as any;
+      preferredWorkerId = guestInfo?.preferred_worker_id;
+    }
+
     // Use strict ZIP-based assignment only - no fallback assignments
     const { data: candidates, error: workerError } = await supabase.rpc('find_available_workers_by_zip', {
       p_customer_zipcode: zipCode,
@@ -143,12 +151,50 @@ serve(async (req) => {
 
     logStep('Found workers with ZIP coverage', { 
       count: candidates.length,
-      zipcode: zipCode
+      zipcode: zipCode,
+      preferredWorkerId
     });
 
     let chosenWorker = candidates[0];
     let minBookings = Infinity;
 
+    // First, check if preferred worker is available and in ZIP coverage
+    if (preferredWorkerId) {
+      const preferredWorker = candidates.find(worker => worker.worker_id === preferredWorkerId);
+      if (preferredWorker) {
+        logStep('Preferred worker found and available', { 
+          preferred_worker_id: preferredWorkerId,
+          worker_name: preferredWorker.worker_name 
+        });
+        chosenWorker = preferredWorker;
+        
+        // Skip the load balancing logic and assign directly to preferred worker
+        logStep('Assigning to preferred worker', { booking_id: booking.id, worker_id: chosenWorker.worker_id });
+
+        const { error: updateError } = await supabase
+          .from('bookings')
+          .update({ worker_id: chosenWorker.worker_id })
+          .eq('id', booking.id);
+
+        if (updateError) {
+          throw new Error(`Failed to update booking: ${updateError.message}`);
+        }
+
+        // Send notifications and return success
+        await sendNotifications(booking, chosenWorker);
+        return new Response(
+          JSON.stringify({ success: true, booking_id: booking.id, worker_id: chosenWorker.worker_id }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } else {
+        logStep('Preferred worker not available or not in ZIP coverage', { 
+          preferred_worker_id: preferredWorkerId,
+          available_workers: candidates.map(w => w.worker_id)
+        });
+      }
+    }
+
+    // Fall back to load balancing if no preferred worker or preferred worker not available
     for (const worker of candidates) {
       const { count, error: countError } = await supabase
         .from('bookings')
@@ -175,7 +221,7 @@ serve(async (req) => {
       );
     }
 
-    logStep('Assigning worker', { booking_id: booking.id, worker_id: chosenWorker.worker_id });
+    logStep('Assigning worker via load balancing', { booking_id: booking.id, worker_id: chosenWorker.worker_id });
 
     const { error: updateError } = await supabase
       .from('bookings')
@@ -186,6 +232,26 @@ serve(async (req) => {
       throw new Error(`Failed to update booking: ${updateError.message}`);
     }
 
+    // Send notifications
+    await sendNotifications(booking, chosenWorker);
+
+    return new Response(
+      JSON.stringify({ success: true, booking_id: booking.id, worker_id: chosenWorker.worker_id }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logStep('ERROR', { error: errorMessage });
+    return new Response(JSON.stringify({ success: false, error: errorMessage }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+});
+
+// Helper function to send notifications
+async function sendNotifications(booking: any, chosenWorker: any) {
+  try {
     // Send worker assignment email and SMS
     try {
       // Send email notification with force to ensure delivery
@@ -242,17 +308,7 @@ serve(async (req) => {
         booking_id: booking.id,
       });
     }
-
-    return new Response(
-      JSON.stringify({ success: true, booking_id: booking.id, worker_id: chosenWorker.worker_id }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep('ERROR', { error: errorMessage });
-    return new Response(JSON.stringify({ success: false, error: errorMessage }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    logStep('Error in sendNotifications', { error });
   }
-});
+}

@@ -13,9 +13,13 @@ export const useBookingFlowState = (selectedServices: ServiceItem[] = []) => {
   // Fetch worker availability when date/zipcode changes
   useEffect(() => {
     if (formState.formData.selectedDate && formState.formData.zipcode) {
-      workerAvailability.fetchWorkerAvailability(formState.formData.selectedDate, formState.formData.zipcode);
+      workerAvailability.fetchWorkerAvailability(
+        formState.formData.selectedDate, 
+        formState.formData.zipcode,
+        formState.formData.preferredWorkerId
+      );
     }
-  }, [formState.formData.selectedDate, formState.formData.zipcode]);
+  }, [formState.formData.selectedDate, formState.formData.zipcode, formState.formData.preferredWorkerId]);
 
   // Trigger success animation
   useEffect(() => {

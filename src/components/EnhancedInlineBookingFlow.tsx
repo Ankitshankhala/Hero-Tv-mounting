@@ -63,6 +63,7 @@ export const EnhancedInlineBookingFlow = ({
     setSuccessAnimation,
     timeSlots,
     nextAvailableDate,
+    preferredWorkerAvailable,
     createInitialBooking,
     getTotalPrice,
     updateServiceQuantity,
@@ -426,6 +427,7 @@ export const EnhancedInlineBookingFlow = ({
                   workerCount={workerCount}
                   loading={loading}
                   nextAvailableDate={nextAvailableDate}
+                  preferredWorkerAvailable={preferredWorkerAvailable}
                   hideActionButton={true}
                 />
               )}
