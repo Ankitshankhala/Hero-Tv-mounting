@@ -128,14 +128,25 @@ serve(async (req) => {
         message: 'Strict ZIP enforcement - no fallback assignment'
       });
 
-      // Update booking to pending status for manual assignment
-      const { error: statusUpdateError } = await supabase
-        .from('bookings')
-        .update({ status: 'pending' })
-        .eq('id', booking.id);
+      // Only downgrade to pending if booking doesn't have authorized payment
+      // Check current payment/booking status first
+      const currentStatus = booking.status;
+      const shouldDowngrade = !['payment_authorized', 'confirmed'].includes(currentStatus);
+      
+      if (shouldDowngrade) {
+        const { error: statusUpdateError } = await supabase
+          .from('bookings')
+          .update({ status: 'pending' })
+          .eq('id', booking.id);
 
-      if (statusUpdateError) {
-        logStep('Failed to update booking status', { error: statusUpdateError.message });
+        if (statusUpdateError) {
+          logStep('Failed to update booking status', { error: statusUpdateError.message });
+        }
+      } else {
+        logStep('Preserving authorized booking status - no worker assignment required manual intervention', {
+          current_status: currentStatus,
+          booking_id: booking.id
+        });
       }
 
       return new Response(

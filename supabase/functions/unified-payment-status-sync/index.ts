@@ -19,10 +19,10 @@ serve(async (req) => {
   try {
     logStep('Starting unified payment status synchronization');
     
-    const { payment_intent_id, booking_id, transaction_status, force_sync = false } = await req.json();
+    const { payment_intent_id, booking_id, transaction_status, force_sync = false, trigger_backfill = false } = await req.json();
     
-    if (!payment_intent_id && !booking_id) {
-      throw new Error('Either payment_intent_id or booking_id is required');
+    if (!payment_intent_id && !booking_id && !trigger_backfill) {
+      throw new Error('Either payment_intent_id, booking_id, or trigger_backfill is required');
     }
 
     const supabase = createClient(
@@ -31,7 +31,43 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    logStep('Input validation passed', { payment_intent_id, booking_id, transaction_status, force_sync });
+    logStep('Input validation passed', { payment_intent_id, booking_id, transaction_status, force_sync, trigger_backfill });
+
+    // Handle backfill request
+    if (trigger_backfill) {
+      try {
+        const backfillResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/backfill-authorized-bookings`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+          },
+          body: JSON.stringify({})
+        });
+
+        if (backfillResponse.ok) {
+          const backfillResult = await backfillResponse.json();
+          return new Response(JSON.stringify({
+            success: true,
+            backfill_result: backfillResult,
+            message: `Backfill completed: ${backfillResult.updated_bookings} bookings synchronized`
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        } else {
+          throw new Error('Backfill function failed');
+        }
+      } catch (error) {
+        logStep('Backfill failed', { error: error.message });
+        return new Response(JSON.stringify({
+          success: false,
+          error: `Backfill failed: ${error.message}`
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
 
     // Step 1: Find related records
     let booking = null;

@@ -83,18 +83,21 @@ serve(async (req) => {
 
     // If booking has payment_intent but status is still pending
     if (booking.payment_intent_id && booking.status === 'pending') {
-      needsUpdate = true;
-      updates.status = 'payment_pending';
-      updates.payment_status = 'pending';
-      fixesApplied.push('Updated status from pending to payment_pending');
+      // Check if there's an authorized transaction first
+      if (!transaction || transaction.status !== 'authorized') {
+        needsUpdate = true;
+        updates.status = 'payment_pending';
+        updates.payment_status = 'pending';
+        fixesApplied.push('Updated status from pending to payment_pending');
+      }
     }
 
-    // If transaction is authorized but booking is not payment_authorized
-    if (transaction && transaction.status === 'authorized' && booking.status !== 'payment_authorized') {
+    // If transaction is authorized but booking is not confirmed (treat authorized as confirmed)
+    if (transaction && transaction.status === 'authorized' && !['confirmed', 'payment_authorized'].includes(booking.status)) {
       needsUpdate = true;
-      updates.status = 'payment_authorized';
+      updates.status = 'confirmed';
       updates.payment_status = 'authorized';
-      fixesApplied.push('Updated booking to match authorized transaction');
+      fixesApplied.push('Updated booking to confirmed status for authorized payment');
     }
 
     // If transaction is completed but booking is not confirmed
