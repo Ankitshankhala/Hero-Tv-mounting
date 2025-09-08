@@ -7,6 +7,7 @@ import { useTestingMode, getEffectiveMinimumAmount } from '@/contexts/TestingMod
 import { PaymentAuthorizationForm } from '@/components/payment/PaymentAuthorizationForm';
 import { TipStep } from '@/components/booking/TipStep';
 import { useBookingFlowState } from '@/hooks/booking/useBookingFlowState';
+import { useCompactLayout } from '@/hooks/use-compact-layout';
 import { BookingProgressSteps } from '@/components/booking/BookingProgressSteps';
 import { ServiceConfigurationStep } from '@/components/booking/ServiceConfigurationStep';
 import { ContactLocationStep } from '@/components/booking/ContactLocationStep';
@@ -44,6 +45,7 @@ export const EnhancedInlineBookingFlow = ({
   const [showCelebration, setShowCelebration] = useState(false);
   const [celebrationMessage, setCelebrationMessage] = useState('');
   const { isTestingMode } = useTestingMode();
+  const isCompact = useCompactLayout();
   const MINIMUM_BOOKING_AMOUNT = getEffectiveMinimumAmount(isTestingMode);
   const {
     currentStep,
@@ -355,9 +357,9 @@ export const EnhancedInlineBookingFlow = ({
 
       {!showSuccess && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-1 sm:p-2">
-          <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[100dvh] sm:max-h-[98dvh] overflow-hidden flex flex-col border border-slate-700/50 backdrop-blur-xl">
+          <div className={`bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col border border-slate-700/50 backdrop-blur-xl ${isCompact ? 'max-h-[90dvh]' : 'max-h-[100dvh] sm:max-h-[98dvh]'}`}>
             {/* Enhanced Header - Sticky */}
-            <div className="sticky top-0 z-10 bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 text-white px-4 sm:px-8 py-4 sm:py-6 rounded-t-2xl border-b border-slate-600/50">
+            <div className={`sticky top-0 z-10 bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 text-white rounded-t-2xl border-b border-slate-600/50 ${isCompact ? 'px-4 py-3' : 'px-4 sm:px-8 py-4 sm:py-6'}`}>
               <button
                 onClick={onClose}
                 className="absolute top-3 right-3 sm:top-4 sm:right-4 p-2 hover:bg-white/10 rounded-lg transition-all duration-200"
@@ -377,17 +379,23 @@ export const EnhancedInlineBookingFlow = ({
                     <p className="text-slate-300 text-xs sm:text-sm">Step {currentStep} of 5</p>
                   </div>
                 </div>
-                <HeroMascot message="Let's get started!" className="hidden sm:flex" />
+                {!isCompact && (
+                  <HeroMascot message="Let's get started!" className="hidden sm:flex" />
+                )}
               </div>
             </div>
 
             {/* Progress Steps */}
-            <div className="px-4 sm:px-6 pt-6">
-              <BookingProgressSteps currentStep={currentStep} />
+            <div className={`${isCompact ? 'px-4 pt-3' : 'px-4 sm:px-6 pt-6'}`}>
+              <BookingProgressSteps 
+                currentStep={currentStep} 
+                isCompact={isCompact}
+                defaultCollapsed={isCompact}
+              />
             </div>
 
             {/* Scrollable Content Area */}
-            <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-6 pb-24">
+            <div className={`flex-1 min-h-0 overflow-y-auto space-y-6 pb-24 ${isCompact ? 'p-4' : 'p-4 sm:p-6'}`}>
               {/* Step 1: Service Configuration */}
               {currentStep === 1 && (
                 <div className="space-y-6">
@@ -499,7 +507,7 @@ export const EnhancedInlineBookingFlow = ({
             </div>
             
             {/* Sticky Footer Navigation */}
-            <div className="sticky bottom-0 z-10 bg-gradient-to-r from-slate-800/95 to-slate-700/95 backdrop-blur-sm border-t border-slate-600/50 px-4 sm:px-6 py-4 rounded-b-2xl pb-safe">
+            <div className={`sticky bottom-0 z-10 bg-gradient-to-r from-slate-800/95 to-slate-700/95 backdrop-blur-sm border-t border-slate-600/50 rounded-b-2xl pb-safe ${isCompact ? 'px-4 py-3' : 'px-4 sm:px-6 py-4'}`}>
               <div className="flex justify-between items-center">
                 <Button
                   type="button"
