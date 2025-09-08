@@ -120,7 +120,7 @@ export const EnhancedInlineBookingFlow = ({
     }
     
     if (currentStep < 5) {
-      // Show celebration for completing steps
+      // Show celebration for completing steps (non-blocking)
       const celebrations = {
         1: "Perfect! Your services are ready!",
         2: "Awesome! We know where to find you!",
@@ -132,13 +132,14 @@ export const EnhancedInlineBookingFlow = ({
         setCelebrationMessage(celebrations[currentStep as keyof typeof celebrations]);
         setShowCelebration(true);
         
+        // Auto-hide celebration after 300ms (non-blocking)
         setTimeout(() => {
           setShowCelebration(false);
-          setCurrentStep(currentStep + 1);
-        }, 1500);
-      } else {
-        setCurrentStep(currentStep + 1);
+        }, 300);
       }
+      
+      // Move to next step immediately
+      setCurrentStep(currentStep + 1);
     }
   };
 
