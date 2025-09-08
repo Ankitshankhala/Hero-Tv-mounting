@@ -128,6 +128,34 @@ export const useWorkerAvailability = () => {
             }
             return true;
           });
+
+          // Filter worker-specific slots based on their weekly schedule
+          try {
+            const dayOfWeek = format(date, 'EEEE') as 'Sunday' | 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday';
+            const { data: weeklySchedule, error: scheduleError } = await supabase
+              .from('worker_availability')
+              .select('*')
+              .eq('worker_id', preferredWorkerId)
+              .eq('day_of_week', dayOfWeek);
+
+            if (!scheduleError && weeklySchedule && weeklySchedule.length > 0) {
+              const daySchedule = weeklySchedule[0];
+              const startTime = daySchedule.start_time;
+              const endTime = daySchedule.end_time;
+              
+              // Filter slots to only include those within the worker's schedule
+              workerSpecificTimeSlots = workerSpecificTimeSlots.filter(slot => {
+                const slotTime = slot + ':00'; // Convert HH:MM to HH:MM:SS for comparison
+                return slotTime >= startTime && slotTime < endTime;
+              });
+            } else {
+              // Worker is not available on this day according to their weekly schedule
+              workerSpecificTimeSlots = [];
+            }
+          } catch (scheduleError) {
+            console.error('Error fetching worker weekly schedule:', scheduleError);
+            // Continue with original slots if schedule fetch fails
+          }
         }
       }
 
