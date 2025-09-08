@@ -64,6 +64,9 @@ export const EnhancedInlineBookingFlow = ({
     timeSlots,
     nextAvailableDate,
     preferredWorkerAvailable,
+    workerSpecificSlots,
+    showAllWorkerSlots,
+    setShowAllWorkerSlots,
     createInitialBooking,
     getTotalPrice,
     updateServiceQuantity,
@@ -428,6 +431,9 @@ export const EnhancedInlineBookingFlow = ({
                   loading={loading}
                   nextAvailableDate={nextAvailableDate}
                   preferredWorkerAvailable={preferredWorkerAvailable}
+                  workerSpecificSlots={workerSpecificSlots}
+                  showAllWorkerSlots={showAllWorkerSlots}
+                  setShowAllWorkerSlots={setShowAllWorkerSlots}
                   hideActionButton={true}
                 />
               )}

@@ -12,6 +12,8 @@ export const useWorkerAvailability = () => {
   const [nextAvailableDate, setNextAvailableDate] = useState<Date | null>(null);
   const [availableWorkers, setAvailableWorkers] = useState<any[]>([]);
   const [preferredWorkerAvailable, setPreferredWorkerAvailable] = useState(false);
+  const [workerSpecificSlots, setWorkerSpecificSlots] = useState<string[]>([]);
+  const [showAllWorkerSlots, setShowAllWorkerSlots] = useState(false);
 
   const timeSlots = [
     '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00'
@@ -102,16 +104,38 @@ export const useWorkerAvailability = () => {
       // Blocked slots are all time slots that are not available
       const blockedSlots = timeSlots.filter(slot => !slots.includes(slot));
 
-      // Check if preferred worker is available
+      // Check if preferred worker is available and get their specific slots
       let isPreferredWorkerAvailable = false;
+      let workerSpecificTimeSlots: string[] = [];
+      
       if (preferredWorkerId) {
         isPreferredWorkerAvailable = Array.from(totalWorkerIds).includes(preferredWorkerId);
+        
+        // Get slots where the preferred worker is available
+        if (isPreferredWorkerAvailable) {
+          workerSpecificTimeSlots = availableSlots
+            ?.filter(slot => slot.worker_ids?.includes(preferredWorkerId))
+            .map(slot => slot.time_slot.toString().substring(0, 5)) || [];
+          
+          // Filter out past time slots for same-day booking
+          workerSpecificTimeSlots = workerSpecificTimeSlots.filter(slot => {
+            if (isToday) {
+              const [hours] = slot.split(':').map(Number);
+              const currentMinutes = nowInChicago.getMinutes();
+              const slotMinutes = hours * 60;
+              const nowMinutes = currentHour * 60 + currentMinutes;
+              return slotMinutes > nowMinutes + 30;
+            }
+            return true;
+          });
+        }
       }
 
       setAvailableSlots(availableTimeSlots);
       setBlockedSlots(blockedSlots);
       setWorkerCount(totalWorkerIds.size);
       setPreferredWorkerAvailable(isPreferredWorkerAvailable);
+      setWorkerSpecificSlots(workerSpecificTimeSlots);
       
       // Store available workers info for potential future use
       const workersInfo = availableSlots?.flatMap(slot => 
@@ -149,6 +173,9 @@ export const useWorkerAvailability = () => {
     nextAvailableDate,
     availableWorkers,
     preferredWorkerAvailable,
+    workerSpecificSlots,
+    showAllWorkerSlots,
+    setShowAllWorkerSlots,
     fetchWorkerAvailability,
     findNextAvailableDate
   };

@@ -25,6 +25,9 @@ interface ScheduleStepProps {
   loading: boolean;
   nextAvailableDate?: Date | null;
   preferredWorkerAvailable?: boolean;
+  workerSpecificSlots?: string[];
+  showAllWorkerSlots?: boolean;
+  setShowAllWorkerSlots?: (show: boolean) => void;
   hideActionButton?: boolean;
 }
 
@@ -37,6 +40,9 @@ export const ScheduleStep = ({
   loading,
   nextAvailableDate,
   preferredWorkerAvailable = false,
+  workerSpecificSlots = [],
+  showAllWorkerSlots = false,
+  setShowAllWorkerSlots,
   hideActionButton = false
 }: ScheduleStepProps) => {
   // Get current time in America/Chicago timezone to filter out past time slots for today
@@ -64,7 +70,18 @@ export const ScheduleStep = ({
   };
 
   const availableTimeSlots = getAvailableTimeSlots();
-  const filteredAvailableSlots = availableTimeSlots.filter(slot => !blockedSlots.includes(slot));
+  
+  // Determine which slots to show based on worker selection and preference
+  const getSlotsToDisplay = () => {
+    if (formData.preferredWorkerId && preferredWorkerAvailable && !showAllWorkerSlots) {
+      // Show only the preferred worker's available slots
+      return workerSpecificSlots.filter(slot => availableTimeSlots.includes(slot));
+    }
+    // Show all available slots (filtered by blocked slots)
+    return availableTimeSlots.filter(slot => !blockedSlots.includes(slot));
+  };
+  
+  const filteredAvailableSlots = getSlotsToDisplay();
 
   return (
     <div className="space-y-6">
@@ -87,16 +104,36 @@ export const ScheduleStep = ({
             
             {/* Show preferred worker status if one is selected */}
             {formData.preferredWorkerId && (
-              <div className="block">
+              <div className="block space-y-2">
                 {preferredWorkerAvailable ? (
                   <div className="inline-flex items-center space-x-2 text-sm bg-blue-900/30 text-blue-300 px-3 py-1 rounded-full border border-blue-500/30">
                     <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
                     <span>Your selected worker is available</span>
+                    {!showAllWorkerSlots && workerSpecificSlots.length > 0 && (
+                      <span className="text-xs">({workerSpecificSlots.length} time slots)</span>
+                    )}
                   </div>
                 ) : (
                   <div className="inline-flex items-center space-x-2 text-sm bg-orange-900/30 text-orange-300 px-3 py-1 rounded-full border border-orange-500/30">
                     <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
                     <span>Your selected worker is not available this date</span>
+                  </div>
+                )}
+                
+                {/* Show toggle for worker-specific vs all slots */}
+                {preferredWorkerAvailable && setShowAllWorkerSlots && workerSpecificSlots.length > 0 && (
+                  <div className="flex justify-center">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowAllWorkerSlots(!showAllWorkerSlots)}
+                      className="text-xs text-slate-300 hover:text-white hover:bg-slate-700/50 h-auto py-1 px-2"
+                    >
+                      {showAllWorkerSlots ? 
+                        `Show only your worker's times (${workerSpecificSlots.length})` : 
+                        `Show all available times (${availableTimeSlots.filter(slot => !blockedSlots.includes(slot)).length})`
+                      }
+                    </Button>
                   </div>
                 )}
               </div>
@@ -183,20 +220,23 @@ export const ScheduleStep = ({
               </div>
             ) : (
               <div className="space-y-3">
-                <div className="text-sm text-slate-300 p-3 bg-blue-900/30 rounded-lg border border-blue-500/30">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-                    <span>Available</span>
-                    <div className="w-3 h-3 bg-red-400 rounded-full ml-4"></div>
-                    <span>Booked</span>
+                  <div className="text-sm text-slate-300 p-3 bg-blue-900/30 rounded-lg border border-blue-500/30">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <div className="w-3 h-3 bg-green-400 rounded-full"></div>
+                      <span>Available</span>
+                      <div className="w-3 h-3 bg-red-400 rounded-full ml-4"></div>
+                      <span>Booked</span>
+                    </div>
+                    <p className="text-xs text-slate-400">
+                      {formData.preferredWorkerId && preferredWorkerAvailable && !showAllWorkerSlots ? 
+                        `Showing times for your selected worker (ZIP: ${formData.zipcode})` :
+                        `Times based on worker availability (ZIP: ${formData.zipcode})`
+                      }
+                      {formData.selectedDate && formData.selectedDate.toDateString() === today.toDateString() && 
+                        " • Same-day booking available! (30 min advance notice)"
+                      }
+                    </p>
                   </div>
-                  <p className="text-xs text-slate-400">
-                    Times based on worker availability (ZIP: {formData.zipcode})
-                    {formData.selectedDate && formData.selectedDate.toDateString() === today.toDateString() && 
-                      " • Same-day booking available! (30 min advance notice)"
-                    }
-                  </p>
-                </div>
                 
                 {filteredAvailableSlots.length === 0 ? (
                   <div className="text-center py-8 text-slate-400">
@@ -211,6 +251,38 @@ export const ScheduleStep = ({
                           <div className="mt-4 p-3 bg-blue-900/30 rounded-lg border border-blue-500/30">
                             <p className="text-blue-300 text-sm">
                               Next available date: <strong>{nextAvailableDate.toLocaleDateString()}</strong>
+                            </p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="mt-2 text-blue-300 border-blue-500/30 hover:bg-blue-600/20"
+                              onClick={() => setFormData(prev => ({ ...prev, selectedDate: nextAvailableDate }))}
+                            >
+                              Select This Date
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ) : formData.preferredWorkerId && preferredWorkerAvailable && !showAllWorkerSlots ? (
+                      <div>
+                        <p className="text-orange-300 font-medium mb-2">Your selected worker has no available times</p>
+                        <p className="text-sm text-slate-400">
+                          Your preferred worker is not available at any time on this date
+                        </p>
+                        {setShowAllWorkerSlots && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="mt-3 text-blue-300 border-blue-500/30 hover:bg-blue-600/20"
+                            onClick={() => setShowAllWorkerSlots(true)}
+                          >
+                            Show All Workers' Available Times
+                          </Button>
+                        )}
+                        {nextAvailableDate && (
+                          <div className="mt-4 p-3 bg-blue-900/30 rounded-lg border border-blue-500/30">
+                            <p className="text-blue-300 text-sm">
+                              Next date your worker is available: <strong>{nextAvailableDate.toLocaleDateString()}</strong>
                             </p>
                             <Button
                               variant="outline"
