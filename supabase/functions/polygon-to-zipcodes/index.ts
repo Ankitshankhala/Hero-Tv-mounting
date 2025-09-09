@@ -220,7 +220,6 @@ function getBounds(polygon: PolygonPoint[]) {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -231,173 +230,152 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { polygon, workerId, areaName = 'Service Area', zipcodesOnly } = await req.json();
+    // Parse request body
+    const { polygon, workerId, areaName, zipcodesOnly, mode = 'replace_all', areaId } = await req.json();
 
-    // Allow either polygon or zipcodesOnly
-    if (!zipcodesOnly && (!polygon || !Array.isArray(polygon) || polygon.length < 3)) {
-      throw new Error('Invalid polygon: must have at least 3 points');
-    }
+    console.log(`Processing request for worker ${workerId}`, { 
+      mode: polygon ? 'polygon' : 'zipcodesOnly', 
+      points: polygon?.length || 0,
+      zipcodesCount: zipcodesOnly?.length || 0,
+      assignmentMode: mode,
+      targetAreaId: areaId
+    });
 
-    if (!workerId) {
-      throw new Error('Worker ID is required');
-    }
+    let zipcodes: string[] = [];
 
-    console.log(
-      `Processing request for worker ${workerId}`,
-      { mode: zipcodesOnly ? 'zip-only' : 'polygon', points: Array.isArray(polygon) ? polygon.length : 0 }
-    );
-
-    // Find zipcodes within the polygon or use provided ZIP codes
-    let zipcodes: string[];
     if (zipcodesOnly && Array.isArray(zipcodesOnly)) {
-      zipcodes = zipcodesOnly.filter((zip: string) => /^\d{5}$/.test(zip));
-      console.log(`Using provided ZIP codes: ${zipcodes.length} valid ZIPs`);
-    } else {
+      console.log('Processing zipcodesOnly mode with', zipcodesOnly.length, 'ZIP codes');
+      zipcodes = zipcodesOnly;
+    } else if (polygon && polygon.length >= 3) {
+      console.log('Processing polygon with', polygon.length, 'points');
       zipcodes = await findZipcodesInPolygon(polygon, supabase);
-      console.log(`Found ${zipcodes.length} zipcodes in polygon`);
-    }
-    
-    if (zipcodes.length === 0) {
-      // Try to suggest a ZIP code based on polygon centroid
-      const bounds = getBounds(polygon);
-      const centroid = getPolygonCentroid(polygon);
-      
-      try {
-        const response = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${centroid.lat}&lon=${centroid.lng}&addressdetails=1&zoom=18`,
-          {
-            headers: {
-              'User-Agent': 'ServiceAreaMapper/1.0'
-            }
-          }
-        );
-        
-        if (response.ok) {
-          const data = await response.json();
-          const zipcode = data.address?.postcode;
-          let suggestedZip = '';
-          
-          if (zipcode && /^\d{5}(-\d{4})?$/.test(zipcode)) {
-            suggestedZip = zipcode.split('-')[0];
-          }
-          
-          return new Response(
-            JSON.stringify({
-              success: false,
-              error: 'NO_ZIPCODES_FOUND',
-              message: `No ZIP codes found in the selected area.${suggestedZip ? ` Try ZIP code ${suggestedZip} based on the center of your selection.` : ' You can manually add ZIP codes instead.'}`,
-              suggestManualMode: true,
-              suggestedZip: suggestedZip || null
-            }),
-            {
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-              status: 200,
-            }
-          );
-        }
-      } catch (error) {
-        console.warn('Failed to get suggested ZIP code:', error);
-      }
-      
-      // Fallback without suggestion
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'NO_ZIPCODES_FOUND',
-          message: 'No ZIP codes found in the selected area. You can manually add ZIP codes instead.',
-          suggestManualMode: true
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200,
-        }
-      );
+      console.log('Found', zipcodes.length, 'zipcodes:', zipcodes);
+    } else {
+      throw new Error('Either polygon or zipcodesOnly must be provided');
     }
 
-    console.log(`Found ${zipcodes.length} zipcodes:`, zipcodes);
+    // Handle service area management based on mode
+    let targetServiceArea;
 
-    // For polygon areas, deactivate existing areas. For ZIP-only areas, keep existing areas active
-    if (!zipcodesOnly) {
-      const { error: deactivateError } = await supabase
+    if (mode === 'replace_all') {
+      // Deactivate existing areas for this worker
+      await supabase
         .from('worker_service_areas')
         .update({ is_active: false })
         .eq('worker_id', workerId);
+      
+      console.log('Deactivated existing service areas for replace_all mode');
 
-      if (deactivateError) {
-        throw new Error(`Failed to deactivate existing areas: ${deactivateError.message}`);
+      // Create new service area
+      const { data: serviceArea, error: areaError } = await supabase
+        .from('worker_service_areas')
+        .insert({
+          worker_id: workerId,
+          area_name: areaName || `Service Area - ${new Date().toLocaleDateString()}`,
+          polygon_coordinates: polygon || [],
+          is_active: true
+        })
+        .select()
+        .single();
+
+      if (areaError) {
+        throw new Error(`Failed to create service area: ${areaError.message}`);
+      }
+      
+      targetServiceArea = serviceArea;
+    } else {
+      // Append mode - use existing area if provided, otherwise create new one
+      if (areaId) {
+        // Verify the area exists and belongs to this worker
+        const { data: existingArea, error: areaFetchError } = await supabase
+          .from('worker_service_areas')
+          .select('*')
+          .eq('id', areaId)
+          .eq('worker_id', workerId)
+          .eq('is_active', true)
+          .single();
+
+        if (areaFetchError || !existingArea) {
+          throw new Error(`Target service area not found or inaccessible`);
+        }
+        
+        targetServiceArea = existingArea;
+        console.log(`Using existing service area: ${existingArea.area_name}`);
+      } else {
+        // Create new service area for append
+        const { data: serviceArea, error: areaError } = await supabase
+          .from('worker_service_areas')
+          .insert({
+            worker_id: workerId,
+            area_name: areaName || `Additional Coverage - ${new Date().toLocaleDateString()}`,
+            polygon_coordinates: polygon || [],
+            is_active: true
+          })
+          .select()
+          .single();
+
+        if (areaError) {
+          throw new Error(`Failed to create service area: ${areaError.message}`);
+        }
+        
+        targetServiceArea = serviceArea;
+        console.log(`Created new service area for append mode: ${serviceArea.area_name}`);
       }
     }
 
-    // Create new service area
-    const { data: serviceArea, error: areaError } = await supabase
-      .from('worker_service_areas')
-      .insert({
-        worker_id: workerId,
-        area_name: areaName,
-        polygon_coordinates: zipcodesOnly ? [] : polygon,
-        is_active: true
-      })
-      .select()
-      .single();
-
-    if (areaError) {
-      throw new Error(`Failed to create service area: ${areaError.message}`);
-    }
-
-    // For polygon areas, delete all existing zipcode mappings. For ZIP-only areas, keep existing mappings
-    if (!zipcodesOnly) {
-      const { error: deleteZipError } = await supabase
+    // Insert zipcodes with comprehensive deduplication
+    if (zipcodes.length > 0) {
+      // Get existing zipcodes for this worker to avoid duplicates
+      const { data: existingZips } = await supabase
         .from('worker_service_zipcodes')
-        .delete()
+        .select('zipcode')
         .eq('worker_id', workerId);
+      
+      const existingZipSet = new Set(existingZips?.map(z => z.zipcode) || []);
+      const newZipcodes = zipcodes.filter(zip => !existingZipSet.has(zip));
+      
+      if (newZipcodes.length > 0) {
+        const zipcodeMappings = newZipcodes.map(zipcode => ({
+          worker_id: workerId,
+          service_area_id: targetServiceArea.id,
+          zipcode: zipcode.trim()
+        }));
 
-      if (deleteZipError) {
-        console.warn('Failed to delete existing zipcodes:', deleteZipError.message);
+        const { error: zipError } = await supabase
+          .from('worker_service_zipcodes')
+          .insert(zipcodeMappings);
+
+        if (zipError) {
+          throw new Error(`Failed to insert zipcodes: ${zipError.message}`);
+        }
+        
+        console.log(`Inserted ${newZipcodes.length} new ZIP codes, skipped ${zipcodes.length - newZipcodes.length} duplicates`);
+      } else {
+        console.log('All ZIP codes already existed, no new ones to insert');
       }
-    }
-
-    // Insert new zipcode mappings
-    const zipcodeInserts = zipcodes.map(zipcode => ({
-      worker_id: workerId,
-      service_area_id: serviceArea.id,
-      zipcode: zipcode
-    }));
-
-    const { error: insertError } = await supabase
-      .from('worker_service_zipcodes')
-      .insert(zipcodeInserts);
-
-    if (insertError) {
-      throw new Error(`Failed to save zipcodes: ${insertError.message}`);
     }
 
     console.log(`Successfully saved service area for worker ${workerId} with ${zipcodes.length} zipcodes`);
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        serviceAreaId: serviceArea.id,
-        zipcodes: zipcodes,
-        zipcodesCount: zipcodes.length,
-        areaName: areaName
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      }
-    );
+    return new Response(JSON.stringify({
+      success: true,
+      serviceAreaId: targetServiceArea.id,
+      zipcodesCount: zipcodes.length,
+      newZipcodesCount: zipcodes.length - (existingZips?.length || 0),
+      mode,
+      message: `Successfully ${mode === 'replace_all' ? 'replaced' : 'added'} ZIP codes`
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
 
   } catch (error) {
-    console.error('Error processing polygon:', error);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      }
-    );
+    console.error('Polygon processing error:', error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message
+    }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });
