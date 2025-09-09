@@ -54,23 +54,39 @@ export const AdminWorkerCoverageModal = ({ worker, isOpen, onClose, onSuccess }:
     
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('worker_service_zipcodes')
-        .select(`
-          zipcode,
-          service_area_id,
-          worker_service_areas!inner(area_name, is_active)
-        `)
+      // First, get active service areas for this worker
+      const { data: areas, error: areasError } = await supabase
+        .from('worker_service_areas')
+        .select('id, area_name')
         .eq('worker_id', worker.id)
-        .eq('worker_service_areas.is_active', true);
+        .eq('is_active', true);
 
-      if (error) throw error;
+      if (areasError) throw areasError;
 
-      const zips = data?.map(item => ({
-        zipcode: item.zipcode,
-        service_area_id: item.service_area_id,
-        area_name: (item.worker_service_areas as any)?.area_name || 'Unknown Area'
-      })) || [];
+      if (!areas || areas.length === 0) {
+        setCurrentZips([]);
+        return;
+      }
+
+      // Then, get ZIP codes for these areas
+      const areaIds = areas.map(area => area.id);
+      const { data: zipData, error: zipError } = await supabase
+        .from('worker_service_zipcodes')
+        .select('zipcode, service_area_id')
+        .eq('worker_id', worker.id)
+        .in('service_area_id', areaIds);
+
+      if (zipError) throw zipError;
+
+      // Merge the data
+      const zips = zipData?.map(zip => {
+        const area = areas.find(a => a.id === zip.service_area_id);
+        return {
+          zipcode: zip.zipcode,
+          service_area_id: zip.service_area_id,
+          area_name: area?.area_name || 'Unknown Area'
+        };
+      }) || [];
 
       setCurrentZips(zips);
     } catch (error) {
