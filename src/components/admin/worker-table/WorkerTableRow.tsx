@@ -3,7 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Phone, MapPin, Calendar, Clock } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Phone, MapPin, Calendar, Clock, Settings } from 'lucide-react';
 import { WorkerActionsDropdown } from './WorkerActionsDropdown';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -186,26 +187,61 @@ export const WorkerTableRow = ({
       </TableCell>
       <TableCell>
         <div className="flex space-x-2">
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => onViewCalendar(worker)}
-          >
-            <Calendar className="h-4 w-4" />
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => onViewCalendar(worker)}
+                >
+                  <Calendar className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>View Calendar</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           
-          <WorkerActionsDropdown
-            worker={worker}
-            onEditWorker={onEditWorker}
-            onManagePassword={onManagePassword}
-            onManageCoverage={onManageCoverage}
-            onRemoveWorker={onRemoveWorker}
-            onReactivateWorker={onReactivateWorker}
-            onPermanentlyDeleteWorker={onPermanentlyDeleteWorker}
-            removingWorkerId={removingWorkerId}
-            reactivatingWorkerId={reactivatingWorkerId}
-            deletingWorkerId={deletingWorkerId}
-          />
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => onManageCoverage(worker)}
+                >
+                  <MapPin className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Manage Coverage Areas</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <WorkerActionsDropdown
+                  worker={worker}
+                  onEditWorker={onEditWorker}
+                  onManagePassword={onManagePassword}
+                  onManageCoverage={onManageCoverage}
+                  onRemoveWorker={onRemoveWorker}
+                  onReactivateWorker={onReactivateWorker}
+                  onPermanentlyDeleteWorker={onPermanentlyDeleteWorker}
+                  removingWorkerId={removingWorkerId}
+                  reactivatingWorkerId={reactivatingWorkerId}
+                  deletingWorkerId={deletingWorkerId}
+                />
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>More Actions</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </TableCell>
     </TableRow>
