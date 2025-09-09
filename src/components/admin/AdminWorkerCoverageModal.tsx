@@ -161,21 +161,12 @@ export const AdminWorkerCoverageModal = ({ worker, isOpen, onClose, onSuccess }:
 
     setSaving(true);
     try {
-      // Get the most recent active service area for append mode
-      let targetAreaId = null;
-      if (mode === 'append' && currentZips.length > 0) {
-        // Use the most recent area ID from current zips
-        const sortedZips = [...currentZips].sort((a, b) => a.service_area_id.localeCompare(b.service_area_id));
-        targetAreaId = sortedZips[sortedZips.length - 1]?.service_area_id;
-      }
-
       const { data, error } = await supabase.functions.invoke('admin-service-area-manager', {
         body: {
           workerId: worker.id,
           areaName: areaName || `Admin Assigned - ${new Date().toLocaleDateString()}`,
           zipcodesOnly: newZips,
-          mode: mode,
-          areaId: targetAreaId
+          mode: mode
         }
       });
 

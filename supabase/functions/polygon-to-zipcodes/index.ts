@@ -11,38 +11,116 @@ interface PolygonPoint {
   lng: number;
 }
 
-// Function to get ZIP codes from Supabase database within bounds
-async function getZipCodesFromSupabase(supabase: any, bounds: any): Promise<Array<{ zipcode: string; lat: number; lng: number; city: string; state: string }>> {
-  try {
-    // Add small buffer to bounds to catch ZIP codes on edges (about 0.01 degrees ≈ 1km)
-    const buffer = 0.01;
-    const { data, error } = await supabase
-      .from('us_zip_codes')
-      .select('zipcode, latitude, longitude, city, state')
-      .gte('latitude', bounds.south - buffer)
-      .lte('latitude', bounds.north + buffer)
-      .gte('longitude', bounds.west - buffer)
-      .lte('longitude', bounds.east + buffer)
-      .not('latitude', 'is', null)
-      .not('longitude', 'is', null);
-
-    if (error) {
-      console.warn('Error fetching ZIP codes from Supabase:', error);
-      return [];
-    }
-
-    return data?.map((row: any) => ({
-      zipcode: row.zipcode,
-      lat: parseFloat(row.latitude),
-      lng: parseFloat(row.longitude),
-      city: row.city,
-      state: row.state
-    })) || [];
-  } catch (error) {
-    console.warn('Failed to fetch ZIP codes from Supabase:', error);
-    return [];
-  }
-}
+// Enhanced US ZIP code dataset with comprehensive Texas coverage
+const US_ZIPCODES = [
+  // Texas (Dallas-Fort Worth Metro)
+  { zipcode: '75001', lat: 32.8485, lng: -96.9155, city: 'Addison', state: 'TX' },
+  { zipcode: '75002', lat: 32.9312, lng: -96.9656, city: 'Allen', state: 'TX' },
+  { zipcode: '75006', lat: 32.9223, lng: -96.8227, city: 'Carrollton', state: 'TX' },
+  { zipcode: '75007', lat: 32.9268, lng: -96.8958, city: 'Carrollton', state: 'TX' },
+  { zipcode: '75010', lat: 32.8973, lng: -96.8489, city: 'Carrollton', state: 'TX' },
+  { zipcode: '75019', lat: 33.0151, lng: -96.8364, city: 'Coppell', state: 'TX' },
+  { zipcode: '75024', lat: 33.0526, lng: -96.8345, city: 'Plano', state: 'TX' },
+  { zipcode: '75025', lat: 33.0262, lng: -96.8051, city: 'Plano', state: 'TX' },
+  { zipcode: '75034', lat: 32.9537, lng: -96.7081, city: 'Frisco', state: 'TX' },
+  { zipcode: '75035', lat: 32.9387, lng: -96.6904, city: 'Frisco', state: 'TX' },
+  { zipcode: '75040', lat: 32.8657, lng: -96.6733, city: 'Garland', state: 'TX' },
+  { zipcode: '75041', lat: 32.9126, lng: -96.6758, city: 'Garland', state: 'TX' },
+  { zipcode: '75042', lat: 32.9262, lng: -96.7078, city: 'Garland', state: 'TX' },
+  { zipcode: '75043', lat: 32.8973, lng: -96.6283, city: 'Garland', state: 'TX' },
+  { zipcode: '75044', lat: 32.8451, lng: -96.6345, city: 'Garland', state: 'TX' },
+  { zipcode: '75048', lat: 32.7359, lng: -96.6753, city: 'Sachse', state: 'TX' },
+  { zipcode: '75080', lat: 32.9693, lng: -96.8364, city: 'Richardson', state: 'TX' },
+  { zipcode: '75081', lat: 32.9654, lng: -96.7303, city: 'Richardson', state: 'TX' },
+  { zipcode: '75082', lat: 32.9390, lng: -96.7831, city: 'Richardson', state: 'TX' },
+  { zipcode: '75083', lat: 32.9304, lng: -96.7445, city: 'Richardson', state: 'TX' },
+  { zipcode: '75093', lat: 33.0173, lng: -96.7303, city: 'Plano', state: 'TX' },
+  { zipcode: '75094', lat: 33.0368, lng: -96.7667, city: 'Plano', state: 'TX' },
+  { zipcode: '75201', lat: 32.7767, lng: -96.7970, city: 'Dallas', state: 'TX' },
+  { zipcode: '75202', lat: 32.7831, lng: -96.7907, city: 'Dallas', state: 'TX' },
+  { zipcode: '75203', lat: 32.7463, lng: -96.8124, city: 'Dallas', state: 'TX' },
+  { zipcode: '75204', lat: 32.7776, lng: -96.8045, city: 'Dallas', state: 'TX' },
+  { zipcode: '75205', lat: 32.8065, lng: -96.7947, city: 'Dallas', state: 'TX' },
+  { zipcode: '75206', lat: 32.7776, lng: -96.7656, city: 'Dallas', state: 'TX' },
+  { zipcode: '75207', lat: 32.7540, lng: -96.8498, city: 'Dallas', state: 'TX' },
+  { zipcode: '75208', lat: 32.7435, lng: -96.8568, city: 'Dallas', state: 'TX' },
+  { zipcode: '75209', lat: 32.8540, lng: -96.8124, city: 'Dallas', state: 'TX' },
+  { zipcode: '75210', lat: 32.7245, lng: -96.7656, city: 'Dallas', state: 'TX' },
+  { zipcode: '75211', lat: 32.7373, lng: -96.8498, city: 'Dallas', state: 'TX' },
+  { zipcode: '75212', lat: 32.7757, lng: -96.8498, city: 'Dallas', state: 'TX' },
+  { zipcode: '75214', lat: 32.7709, lng: -96.7342, city: 'Dallas', state: 'TX' },
+  { zipcode: '75215', lat: 32.7373, lng: -96.7810, city: 'Dallas', state: 'TX' },
+  { zipcode: '75216', lat: 32.7223, lng: -96.8263, city: 'Dallas', state: 'TX' },
+  { zipcode: '75217', lat: 32.7284, lng: -96.7263, city: 'Dallas', state: 'TX' },
+  { zipcode: '75218', lat: 32.8284, lng: -96.7419, city: 'Dallas', state: 'TX' },
+  { zipcode: '75219', lat: 32.7831, lng: -96.8170, city: 'Dallas', state: 'TX' },
+  { zipcode: '75220', lat: 32.8368, lng: -96.8498, city: 'Dallas', state: 'TX' },
+  { zipcode: '75221', lat: 32.7776, lng: -96.7732, city: 'Dallas', state: 'TX' },
+  { zipcode: '75222', lat: 32.7540, lng: -96.7732, city: 'Dallas', state: 'TX' },
+  { zipcode: '75223', lat: 32.7709, lng: -96.7419, city: 'Dallas', state: 'TX' },
+  { zipcode: '75224', lat: 32.7245, lng: -96.7732, city: 'Dallas', state: 'TX' },
+  { zipcode: '75225', lat: 32.8151, lng: -96.7732, city: 'Dallas', state: 'TX' },
+  { zipcode: '75226', lat: 32.7540, lng: -96.7576, city: 'Dallas', state: 'TX' },
+  { zipcode: '75227', lat: 32.7284, lng: -96.6889, city: 'Dallas', state: 'TX' },
+  { zipcode: '75228', lat: 32.7776, lng: -96.6889, city: 'Dallas', state: 'TX' },
+  { zipcode: '75229', lat: 32.8762, lng: -96.8170, city: 'Dallas', state: 'TX' },
+  { zipcode: '75230', lat: 32.8540, lng: -96.7732, city: 'Dallas', state: 'TX' },
+  { zipcode: '75231', lat: 32.8368, lng: -96.7263, city: 'Dallas', state: 'TX' },
+  { zipcode: '75232', lat: 32.6945, lng: -96.7732, city: 'Dallas', state: 'TX' },
+  { zipcode: '75233', lat: 32.7062, lng: -96.7419, city: 'Dallas', state: 'TX' },
+  { zipcode: '75234', lat: 32.9095, lng: -96.8498, city: 'Dallas', state: 'TX' },
+  { zipcode: '75235', lat: 32.7373, lng: -96.8342, city: 'Dallas', state: 'TX' },
+  { zipcode: '75236', lat: 32.6923, lng: -96.8032, city: 'Dallas', state: 'TX' },
+  { zipcode: '75237', lat: 32.6945, lng: -96.8342, city: 'Dallas', state: 'TX' },
+  { zipcode: '75238', lat: 32.7776, lng: -96.6576, city: 'Dallas', state: 'TX' },
+  { zipcode: '75240', lat: 32.9262, lng: -96.8032, city: 'Dallas', state: 'TX' },
+  { zipcode: '75244', lat: 32.9262, lng: -96.7419, city: 'Dallas', state: 'TX' },
+  { zipcode: '75246', lat: 32.7831, lng: -96.7576, city: 'Dallas', state: 'TX' },
+  { zipcode: '75247', lat: 32.7540, lng: -96.8342, city: 'Dallas', state: 'TX' },
+  { zipcode: '75248', lat: 32.9095, lng: -96.7732, city: 'Dallas', state: 'TX' },
+  { zipcode: '75249', lat: 32.7373, lng: -96.7889, city: 'Dallas', state: 'TX' },
+  { zipcode: '75251', lat: 32.9262, lng: -96.7889, city: 'Dallas', state: 'TX' },
+  { zipcode: '75252', lat: 32.9540, lng: -96.8342, city: 'Dallas', state: 'TX' },
+  { zipcode: '75253', lat: 32.9817, lng: -96.8032, city: 'Dallas', state: 'TX' },
+  // Fort Worth area
+  { zipcode: '76101', lat: 32.7555, lng: -97.3308, city: 'Fort Worth', state: 'TX' },
+  { zipcode: '76102', lat: 32.7357, lng: -97.3531, city: 'Fort Worth', state: 'TX' },
+  { zipcode: '76103', lat: 32.7817, lng: -97.3197, city: 'Fort Worth', state: 'TX' },
+  { zipcode: '76104', lat: 32.7357, lng: -97.3085, city: 'Fort Worth', state: 'TX' },
+  { zipcode: '76105', lat: 32.6951, lng: -97.3197, city: 'Fort Worth', state: 'TX' },
+  { zipcode: '76106', lat: 32.7357, lng: -97.3642, city: 'Fort Worth', state: 'TX' },
+  { zipcode: '76107', lat: 32.7555, lng: -97.3642, city: 'Fort Worth', state: 'TX' },
+  { zipcode: '76108', lat: 32.7094, lng: -97.3864, city: 'Fort Worth', state: 'TX' },
+  { zipcode: '76109', lat: 32.7555, lng: -97.3864, city: 'Fort Worth', state: 'TX' },
+  { zipcode: '76110', lat: 32.6951, lng: -97.3531, city: 'Fort Worth', state: 'TX' },
+  { zipcode: '76111', lat: 32.7817, lng: -97.3531, city: 'Fort Worth', state: 'TX' },
+  { zipcode: '76112', lat: 32.7357, lng: -97.2419, city: 'Fort Worth', state: 'TX' },
+  { zipcode: '76114', lat: 32.6951, lng: -97.3864, city: 'Fort Worth', state: 'TX' },
+  { zipcode: '76115', lat: 32.6647, lng: -97.3308, city: 'Fort Worth', state: 'TX' },
+  { zipcode: '76116', lat: 32.6647, lng: -97.4086, city: 'Fort Worth', state: 'TX' },
+  { zipcode: '76117', lat: 32.8323, lng: -97.4086, city: 'Fort Worth', state: 'TX' },
+  { zipcode: '76118', lat: 32.7817, lng: -97.3864, city: 'Fort Worth', state: 'TX' },
+  { zipcode: '76119', lat: 32.6647, lng: -97.3642, city: 'Fort Worth', state: 'TX' },
+  { zipcode: '76120', lat: 32.6344, lng: -97.3197, city: 'Fort Worth', state: 'TX' },
+  { zipcode: '76123', lat: 32.6647, lng: -97.4419, city: 'Fort Worth', state: 'TX' },
+  { zipcode: '76131', lat: 32.8323, lng: -97.3531, city: 'Fort Worth', state: 'TX' },
+  { zipcode: '76132', lat: 32.7817, lng: -97.4197, city: 'Fort Worth', state: 'TX' },
+  { zipcode: '76133', lat: 32.7555, lng: -97.4197, city: 'Fort Worth', state: 'TX' },
+  { zipcode: '76134', lat: 32.7094, lng: -97.4197, city: 'Fort Worth', state: 'TX' },
+  { zipcode: '76135', lat: 32.8323, lng: -97.3864, city: 'Fort Worth', state: 'TX' },
+  { zipcode: '76137', lat: 32.8323, lng: -97.3197, city: 'Fort Worth', state: 'TX' },
+  { zipcode: '76140', lat: 32.6344, lng: -97.3531, city: 'Fort Worth', state: 'TX' },
+  { zipcode: '76148', lat: 32.8323, lng: -97.2864, city: 'Fort Worth', state: 'TX' },
+  { zipcode: '76164', lat: 32.8829, lng: -97.3308, city: 'Fort Worth', state: 'TX' },
+  { zipcode: '76177', lat: 32.9543, lng: -97.3308, city: 'Fort Worth', state: 'TX' },
+  { zipcode: '76179', lat: 32.9137, lng: -97.3753, city: 'Fort Worth', state: 'TX' },
+  { zipcode: '76180', lat: 32.8626, lng: -97.1086, city: 'North Richland Hills', state: 'TX' },
+  { zipcode: '76182', lat: 32.8829, lng: -97.2086, city: 'North Richland Hills', state: 'TX' },
+  // Sample ZIP codes from other states for testing
+  { zipcode: '90210', lat: 34.0901, lng: -118.4065, city: 'Beverly Hills', state: 'CA' },
+  { zipcode: '10001', lat: 40.7506, lng: -73.9972, city: 'New York', state: 'NY' },
+  { zipcode: '33101', lat: 25.7617, lng: -80.1918, city: 'Miami', state: 'FL' },
+];
 
 // Point in polygon algorithm (ray casting)
 function isPointInPolygon(point: { lat: number; lng: number }, polygon: PolygonPoint[]): boolean {
@@ -64,35 +142,40 @@ function isPointInPolygon(point: { lat: number; lng: number }, polygon: PolygonP
   return inside;
 }
 
-// Enhanced zipcode lookup using Supabase database with reverse geocoding fallback
-async function findZipcodesInPolygon(polygon: PolygonPoint[], supabase: any): Promise<string[]> {
+// Enhanced zipcode lookup with Nominatim reverse geocoding fallback
+async function findZipcodesInPolygon(polygon: PolygonPoint[]): Promise<string[]> {
   console.log(`Processing polygon with ${polygon.length} points`);
   
-  // Get polygon bounds first
-  const bounds = getBounds(polygon);
-  console.log('Polygon bounds:', bounds);
-  
-  // Get ZIP codes from Supabase within the bounds
-  const supabaseZipcodes = await getZipCodesFromSupabase(supabase, bounds);
-  console.log(`Fetched ${supabaseZipcodes.length} ZIP codes from Supabase within bounds`);
-  
-  // Filter ZIP codes that are actually within the polygon
-  const polygonZipcodes = supabaseZipcodes
+  // First, use our local zipcode data
+  const localZipcodes = US_ZIPCODES
     .filter(zipData => isPointInPolygon({ lat: zipData.lat, lng: zipData.lng }, polygon))
     .map(zipData => zipData.zipcode);
   
-  console.log(`Found ${polygonZipcodes.length} ZIP codes within polygon from Supabase data`);
+  console.log(`Found ${localZipcodes.length} zipcodes in local data`);
   
-  // If we found ZIP codes from Supabase, return them (they should be comprehensive)
-  if (polygonZipcodes.length > 0) {
-    return [...new Set(polygonZipcodes)]; // Remove duplicates
+  // If we found fewer than 3 zipcodes, try reverse geocoding fallback
+  if (localZipcodes.length < 3) {
+    console.log('Trying reverse geocoding fallback...');
+    const geocodedZipcodes = await getZipcodesFromGeocoding(polygon);
+    localZipcodes.push(...geocodedZipcodes);
   }
   
-  // Only use reverse geocoding as last resort if no ZIP codes found in Supabase
-  console.log('No ZIP codes found in Supabase data, trying reverse geocoding fallback...');
-  const geocodedZipcodes = await getZipcodesFromGeocoding(polygon);
+  // If still fewer than 3, add some nearby ones based on bounds
+  if (localZipcodes.length < 3) {
+    const bounds = getBounds(polygon);
+    const nearbyZipcodes = US_ZIPCODES
+      .filter(zipData => 
+        zipData.lat >= bounds.south && zipData.lat <= bounds.north &&
+        zipData.lng >= bounds.west && zipData.lng <= bounds.east &&
+        !localZipcodes.includes(zipData.zipcode)
+      )
+      .map(zipData => zipData.zipcode)
+      .slice(0, 5); // Add up to 5 nearby zipcodes
+    
+    localZipcodes.push(...nearbyZipcodes);
+  }
   
-  return [...new Set(geocodedZipcodes)]; // Remove duplicates
+  return [...new Set(localZipcodes)]; // Remove duplicates
 }
 
 // Use Nominatim (OpenStreetMap) reverse geocoding to find ZIP codes
@@ -220,6 +303,7 @@ function getBounds(polygon: PolygonPoint[]) {
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -230,152 +314,173 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Parse request body
-    const { polygon, workerId, areaName, zipcodesOnly, mode = 'replace_all', areaId } = await req.json();
+    const { polygon, workerId, areaName = 'Service Area', zipcodesOnly } = await req.json();
 
-    console.log(`Processing request for worker ${workerId}`, { 
-      mode: polygon ? 'polygon' : 'zipcodesOnly', 
-      points: polygon?.length || 0,
-      zipcodesCount: zipcodesOnly?.length || 0,
-      assignmentMode: mode,
-      targetAreaId: areaId
-    });
-
-    let zipcodes: string[] = [];
-
-    if (zipcodesOnly && Array.isArray(zipcodesOnly)) {
-      console.log('Processing zipcodesOnly mode with', zipcodesOnly.length, 'ZIP codes');
-      zipcodes = zipcodesOnly;
-    } else if (polygon && polygon.length >= 3) {
-      console.log('Processing polygon with', polygon.length, 'points');
-      zipcodes = await findZipcodesInPolygon(polygon, supabase);
-      console.log('Found', zipcodes.length, 'zipcodes:', zipcodes);
-    } else {
-      throw new Error('Either polygon or zipcodesOnly must be provided');
+    // Allow either polygon or zipcodesOnly
+    if (!zipcodesOnly && (!polygon || !Array.isArray(polygon) || polygon.length < 3)) {
+      throw new Error('Invalid polygon: must have at least 3 points');
     }
 
-    // Handle service area management based on mode
-    let targetServiceArea;
+    if (!workerId) {
+      throw new Error('Worker ID is required');
+    }
 
-    if (mode === 'replace_all') {
-      // Deactivate existing areas for this worker
-      await supabase
+    console.log(
+      `Processing request for worker ${workerId}`,
+      { mode: zipcodesOnly ? 'zip-only' : 'polygon', points: Array.isArray(polygon) ? polygon.length : 0 }
+    );
+
+    // Find zipcodes within the polygon or use provided ZIP codes
+    let zipcodes: string[];
+    if (zipcodesOnly && Array.isArray(zipcodesOnly)) {
+      zipcodes = zipcodesOnly.filter((zip: string) => /^\d{5}$/.test(zip));
+      console.log(`Using provided ZIP codes: ${zipcodes.length} valid ZIPs`);
+    } else {
+      zipcodes = await findZipcodesInPolygon(polygon);
+      console.log(`Found ${zipcodes.length} zipcodes in polygon`);
+    }
+    
+    if (zipcodes.length === 0) {
+      // Try to suggest a ZIP code based on polygon centroid
+      const bounds = getBounds(polygon);
+      const centroid = getPolygonCentroid(polygon);
+      
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${centroid.lat}&lon=${centroid.lng}&addressdetails=1&zoom=18`,
+          {
+            headers: {
+              'User-Agent': 'ServiceAreaMapper/1.0'
+            }
+          }
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          const zipcode = data.address?.postcode;
+          let suggestedZip = '';
+          
+          if (zipcode && /^\d{5}(-\d{4})?$/.test(zipcode)) {
+            suggestedZip = zipcode.split('-')[0];
+          }
+          
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: 'NO_ZIPCODES_FOUND',
+              message: `No ZIP codes found in the selected area.${suggestedZip ? ` Try ZIP code ${suggestedZip} based on the center of your selection.` : ' You can manually add ZIP codes instead.'}`,
+              suggestManualMode: true,
+              suggestedZip: suggestedZip || null
+            }),
+            {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 200,
+            }
+          );
+        }
+      } catch (error) {
+        console.warn('Failed to get suggested ZIP code:', error);
+      }
+      
+      // Fallback without suggestion
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'NO_ZIPCODES_FOUND',
+          message: 'No ZIP codes found in the selected area. You can manually add ZIP codes instead.',
+          suggestManualMode: true
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      );
+    }
+
+    console.log(`Found ${zipcodes.length} zipcodes:`, zipcodes);
+
+    // For polygon areas, deactivate existing areas. For ZIP-only areas, keep existing areas active
+    if (!zipcodesOnly) {
+      const { error: deactivateError } = await supabase
         .from('worker_service_areas')
         .update({ is_active: false })
         .eq('worker_id', workerId);
-      
-      console.log('Deactivated existing service areas for replace_all mode');
 
-      // Create new service area
-      const { data: serviceArea, error: areaError } = await supabase
-        .from('worker_service_areas')
-        .insert({
-          worker_id: workerId,
-          area_name: areaName || `Service Area - ${new Date().toLocaleDateString()}`,
-          polygon_coordinates: polygon || [],
-          is_active: true
-        })
-        .select()
-        .single();
-
-      if (areaError) {
-        throw new Error(`Failed to create service area: ${areaError.message}`);
-      }
-      
-      targetServiceArea = serviceArea;
-    } else {
-      // Append mode - use existing area if provided, otherwise create new one
-      if (areaId) {
-        // Verify the area exists and belongs to this worker
-        const { data: existingArea, error: areaFetchError } = await supabase
-          .from('worker_service_areas')
-          .select('*')
-          .eq('id', areaId)
-          .eq('worker_id', workerId)
-          .eq('is_active', true)
-          .single();
-
-        if (areaFetchError || !existingArea) {
-          throw new Error(`Target service area not found or inaccessible`);
-        }
-        
-        targetServiceArea = existingArea;
-        console.log(`Using existing service area: ${existingArea.area_name}`);
-      } else {
-        // Create new service area for append
-        const { data: serviceArea, error: areaError } = await supabase
-          .from('worker_service_areas')
-          .insert({
-            worker_id: workerId,
-            area_name: areaName || `Additional Coverage - ${new Date().toLocaleDateString()}`,
-            polygon_coordinates: polygon || [],
-            is_active: true
-          })
-          .select()
-          .single();
-
-        if (areaError) {
-          throw new Error(`Failed to create service area: ${areaError.message}`);
-        }
-        
-        targetServiceArea = serviceArea;
-        console.log(`Created new service area for append mode: ${serviceArea.area_name}`);
+      if (deactivateError) {
+        throw new Error(`Failed to deactivate existing areas: ${deactivateError.message}`);
       }
     }
 
-    // Insert zipcodes with comprehensive deduplication
-    if (zipcodes.length > 0) {
-      // Get existing zipcodes for this worker to avoid duplicates
-      const { data: existingZips } = await supabase
+    // Create new service area
+    const { data: serviceArea, error: areaError } = await supabase
+      .from('worker_service_areas')
+      .insert({
+        worker_id: workerId,
+        area_name: areaName,
+        polygon_coordinates: zipcodesOnly ? [] : polygon,
+        is_active: true
+      })
+      .select()
+      .single();
+
+    if (areaError) {
+      throw new Error(`Failed to create service area: ${areaError.message}`);
+    }
+
+    // For polygon areas, delete all existing zipcode mappings. For ZIP-only areas, keep existing mappings
+    if (!zipcodesOnly) {
+      const { error: deleteZipError } = await supabase
         .from('worker_service_zipcodes')
-        .select('zipcode')
+        .delete()
         .eq('worker_id', workerId);
-      
-      const existingZipSet = new Set(existingZips?.map(z => z.zipcode) || []);
-      const newZipcodes = zipcodes.filter(zip => !existingZipSet.has(zip));
-      
-      if (newZipcodes.length > 0) {
-        const zipcodeMappings = newZipcodes.map(zipcode => ({
-          worker_id: workerId,
-          service_area_id: targetServiceArea.id,
-          zipcode: zipcode.trim()
-        }));
 
-        const { error: zipError } = await supabase
-          .from('worker_service_zipcodes')
-          .insert(zipcodeMappings);
-
-        if (zipError) {
-          throw new Error(`Failed to insert zipcodes: ${zipError.message}`);
-        }
-        
-        console.log(`Inserted ${newZipcodes.length} new ZIP codes, skipped ${zipcodes.length - newZipcodes.length} duplicates`);
-      } else {
-        console.log('All ZIP codes already existed, no new ones to insert');
+      if (deleteZipError) {
+        console.warn('Failed to delete existing zipcodes:', deleteZipError.message);
       }
+    }
+
+    // Insert new zipcode mappings
+    const zipcodeInserts = zipcodes.map(zipcode => ({
+      worker_id: workerId,
+      service_area_id: serviceArea.id,
+      zipcode: zipcode
+    }));
+
+    const { error: insertError } = await supabase
+      .from('worker_service_zipcodes')
+      .insert(zipcodeInserts);
+
+    if (insertError) {
+      throw new Error(`Failed to save zipcodes: ${insertError.message}`);
     }
 
     console.log(`Successfully saved service area for worker ${workerId} with ${zipcodes.length} zipcodes`);
 
-    return new Response(JSON.stringify({
-      success: true,
-      serviceAreaId: targetServiceArea.id,
-      zipcodesCount: zipcodes.length,
-      newZipcodesCount: zipcodes.length - (existingZips?.length || 0),
-      mode,
-      message: `Successfully ${mode === 'replace_all' ? 'replaced' : 'added'} ZIP codes`
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({
+        success: true,
+        serviceAreaId: serviceArea.id,
+        zipcodes: zipcodes,
+        zipcodesCount: zipcodes.length,
+        areaName: areaName
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      }
+    );
 
   } catch (error) {
-    console.error('Polygon processing error:', error);
-    return new Response(JSON.stringify({
-      success: false,
-      error: error.message
-    }), {
-      status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    console.error('Error processing polygon:', error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error.message
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      }
+    );
   }
 });
