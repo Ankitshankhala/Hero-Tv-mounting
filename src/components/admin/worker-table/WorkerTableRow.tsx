@@ -24,6 +24,7 @@ interface WorkerTableRowProps {
   onViewCalendar: (worker: Worker) => void;
   onEditWorker: (worker: Worker) => void;
   onManagePassword: (worker: Worker) => void;
+  onManageCoverage: (worker: Worker) => void;
   onRemoveWorker: (workerId: string) => void;
   onReactivateWorker: (workerId: string) => void;
   onPermanentlyDeleteWorker: (workerId: string) => void;
@@ -38,6 +39,7 @@ export const WorkerTableRow = ({
   onViewCalendar, 
   onEditWorker, 
   onManagePassword,
+  onManageCoverage,
   onRemoveWorker,
   onReactivateWorker,
   onPermanentlyDeleteWorker,
@@ -196,6 +198,7 @@ export const WorkerTableRow = ({
             worker={worker}
             onEditWorker={onEditWorker}
             onManagePassword={onManagePassword}
+            onManageCoverage={onManageCoverage}
             onRemoveWorker={onRemoveWorker}
             onReactivateWorker={onReactivateWorker}
             onPermanentlyDeleteWorker={onPermanentlyDeleteWorker}

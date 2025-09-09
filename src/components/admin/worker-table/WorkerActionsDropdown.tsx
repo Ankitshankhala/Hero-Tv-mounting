@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { Edit, MoreVertical, UserX, UserCheck, Trash2, MessageSquare, KeyRound } from 'lucide-react';
+import { Edit, MoreVertical, UserX, UserCheck, Trash2, MessageSquare, KeyRound, MapPin } from 'lucide-react';
 import { useSmsNotifications } from '@/hooks/useSmsNotifications';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -23,6 +23,7 @@ interface WorkerActionsDropdownProps {
   worker: Worker;
   onEditWorker: (worker: Worker) => void;
   onManagePassword: (worker: Worker) => void;
+  onManageCoverage?: (worker: Worker) => void;
   onRemoveWorker: (workerId: string) => void;
   onReactivateWorker: (workerId: string) => void;
   onPermanentlyDeleteWorker: (workerId: string) => void;
@@ -35,6 +36,7 @@ export const WorkerActionsDropdown = ({
   worker, 
   onEditWorker, 
   onManagePassword,
+  onManageCoverage,
   onRemoveWorker, 
   onReactivateWorker,
   onPermanentlyDeleteWorker,
@@ -113,8 +115,15 @@ export const WorkerActionsDropdown = ({
           <KeyRound className="h-4 w-4 mr-2" />
           Manage Password
         </DropdownMenuItem>
+
+        {onManageCoverage && (
+          <DropdownMenuItem onClick={() => onManageCoverage(worker)}>
+            <MapPin className="h-4 w-4 mr-2" />
+            Manage Coverage
+          </DropdownMenuItem>
+        )}
         
-        <DropdownMenuItem 
+        <DropdownMenuItem
           onClick={handleSendTestSms}
           disabled={sendingSms || !worker.phone}
           className="text-blue-600 hover:text-blue-700 focus:text-blue-700"

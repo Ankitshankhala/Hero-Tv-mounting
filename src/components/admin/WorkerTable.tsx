@@ -8,6 +8,7 @@ import { WorkerDetailsModal } from './worker-table/WorkerDetailsModal';
 import { WorkerCalendarModal } from './worker-table/WorkerCalendarModal';
 import { WorkerPasswordManager } from './WorkerPasswordManager';
 import { WorkerWeeklyAvailabilityModal } from './WorkerWeeklyAvailabilityModal';
+import { AdminWorkerCoverageModal } from './AdminWorkerCoverageModal';
 
 interface Worker {
   id: string;
@@ -32,6 +33,7 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPasswordManager, setShowPasswordManager] = useState(false);
   const [showWeeklyAvailability, setShowWeeklyAvailability] = useState(false);
+  const [showCoverageModal, setShowCoverageModal] = useState(false);
   const [removingWorkerId, setRemovingWorkerId] = useState<string | null>(null);
   const [reactivatingWorkerId, setReactivatingWorkerId] = useState<string | null>(null);
   const [deletingWorkerId, setDeletingWorkerId] = useState<string | null>(null);
@@ -55,6 +57,11 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
   const handleSetWeeklyAvailability = (worker: Worker) => {
     setSelectedWorker(worker);
     setShowWeeklyAvailability(true);
+  };
+
+  const handleManageCoverage = (worker: Worker) => {
+    setSelectedWorker(worker);
+    setShowCoverageModal(true);
   };
 
   const handleRemoveWorker = async (workerId: string) => {
@@ -168,6 +175,7 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
     setShowEditModal(false);
     setShowPasswordManager(false);
     setShowWeeklyAvailability(false);
+    setShowCoverageModal(false);
     setSelectedWorker(null);
   };
 
@@ -195,6 +203,7 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
                 onViewCalendar={handleViewCalendar}
                 onEditWorker={handleEditWorker}
                 onManagePassword={handleManagePassword}
+                onManageCoverage={handleManageCoverage}
                 onSetWeeklyAvailability={handleSetWeeklyAvailability}
                 onRemoveWorker={handleRemoveWorker}
                 onReactivateWorker={handleReactivateWorker}
@@ -237,6 +246,18 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
         isOpen={showWeeklyAvailability}
         onClose={closeModals}
         onWorkerUpdate={onWorkerUpdate}
+      />
+
+      <AdminWorkerCoverageModal
+        worker={selectedWorker}
+        isOpen={showCoverageModal}
+        onClose={closeModals}
+        onSuccess={() => {
+          closeModals();
+          if (onWorkerUpdate) {
+            onWorkerUpdate();
+          }
+        }}
       />
     </>
   );
