@@ -211,16 +211,11 @@ export const AdminCoverageManager = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
-                <WorkerServiceAreasMap 
-                  workers={filteredWorkers.map(w => ({
-                    ...w,
-                    service_areas: w.service_areas || [],
-                    service_zipcodes: w.service_zipcodes || []
-                  }))} 
-                  selectedWorkerId={selectedWorkerId} 
-                  showInactiveAreas={showInactiveAreas}
-                  adminMode={true}
-                />
+                <WorkerServiceAreasMap workers={filteredWorkers.map(w => ({
+                ...w,
+                service_areas: w.service_areas || [],
+                service_zipcodes: w.service_zipcodes || []
+              }))} selectedWorkerId={selectedWorkerId} showInactiveAreas={showInactiveAreas} />
               </CardContent>
             </Card>
           </div>

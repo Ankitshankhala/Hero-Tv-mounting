@@ -34,8 +34,7 @@ serve(async (req) => {
       areaName, 
       zipcodesOnly, 
       mode = 'replace_all',
-      areaId,
-      action = 'manage_service_area'
+      areaId 
     } = await req.json();
 
     // Get requesting user
@@ -64,15 +63,6 @@ serve(async (req) => {
 
     if (!isAdmin && !isWorkerSelf) {
       throw new Error('Unauthorized: Cannot manage service areas for other workers');
-    }
-
-    // Handle different actions
-    if (action === 'assign_zipcodes_to_area') {
-      return await handleAssignZipcodesToArea(supabase, user, workerId, areaId, zipcodesOnly);
-    }
-
-    if (action === 'assign_all_unassigned_in_polygon') {
-      return await handleAssignAllUnassignedInPolygon(supabase, user, workerId, areaId, polygon);
     }
 
     // Validate target worker exists
@@ -177,121 +167,3 @@ serve(async (req) => {
     });
   }
 });
-
-// Handle ZIP code assignment to existing area
-async function handleAssignZipcodesToArea(supabase: any, user: any, workerId: string, areaId: string, zipcodes: string[]) {
-  if (!zipcodes || !Array.isArray(zipcodes) || zipcodes.length === 0) {
-    throw new Error('Valid ZIP codes array required');
-  }
-
-  if (!areaId) {
-    throw new Error('Area ID required for ZIP assignment');
-  }
-
-  // Verify the area exists and belongs to the worker
-  const { data: area, error: areaError } = await supabase
-    .from('worker_service_areas')
-    .select('id, area_name, worker_id, is_active')
-    .eq('id', areaId)
-    .eq('worker_id', workerId)
-    .eq('is_active', true)
-    .single();
-
-  if (areaError || !area) {
-    throw new Error('Service area not found or not active');
-  }
-
-  // Remove duplicates and get existing assignments
-  const uniqueZipcodes = [...new Set(zipcodes.map(z => z.trim()))];
-  
-  const { data: existing, error: existingError } = await supabase
-    .from('worker_service_zipcodes')
-    .select('zipcode')
-    .eq('worker_id', workerId)
-    .in('zipcode', uniqueZipcodes);
-
-  if (existingError) {
-    console.warn('Error checking existing ZIP codes:', existingError);
-  }
-
-  // Filter out existing assignments
-  const existingZips = new Set(existing?.map(e => e.zipcode) || []);
-  const newZipcodes = uniqueZipcodes.filter(zip => !existingZips.has(zip));
-
-  if (newZipcodes.length === 0) {
-    return new Response(JSON.stringify({
-      success: true,
-      message: 'All ZIP codes were already assigned to this worker',
-      assignedCount: 0,
-      skippedCount: uniqueZipcodes.length
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-
-  // Insert new ZIP code assignments
-  const zipcodeMappings = newZipcodes.map(zipcode => ({
-    worker_id: workerId,
-    service_area_id: areaId,
-    zipcode
-  }));
-
-  const { error: insertError } = await supabase
-    .from('worker_service_zipcodes')
-    .insert(zipcodeMappings);
-
-  if (insertError) {
-    throw new Error(`Failed to assign ZIP codes: ${insertError.message}`);
-  }
-
-  console.log(`Admin ${user.email} assigned ${newZipcodes.length} ZIP codes to area ${area.area_name} for worker ${workerId}`);
-
-  return new Response(JSON.stringify({
-    success: true,
-    message: `Successfully assigned ${newZipcodes.length} ZIP codes to ${area.area_name}`,
-    assignedCount: newZipcodes.length,
-    skippedCount: uniqueZipcodes.length - newZipcodes.length
-  }), {
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  });
-}
-
-// Handle bulk assignment of all unassigned ZIP codes in polygon
-async function handleAssignAllUnassignedInPolygon(supabase: any, user: any, workerId: string, areaId: string, polygon: any[]) {
-  if (!polygon || !Array.isArray(polygon) || polygon.length < 3) {
-    throw new Error('Valid polygon coordinates required');
-  }
-
-  if (!areaId) {
-    throw new Error('Area ID required for bulk assignment');
-  }
-
-  // Get unassigned ZIP codes in polygon
-  const { data: zipResult, error: zipError } = await supabase.functions.invoke(
-    'zipcodes-in-area',
-    {
-      body: { polygon, selectedWorkerId: workerId }
-    }
-  );
-
-  if (zipError || !zipResult?.success) {
-    throw new Error(`Failed to get ZIP codes in polygon: ${zipError?.message || 'Unknown error'}`);
-  }
-
-  const unassignedZips = zipResult.zipcodes
-    .filter((zip: any) => zip.status === 'unassigned')
-    .map((zip: any) => zip.zipcode);
-
-  if (unassignedZips.length === 0) {
-    return new Response(JSON.stringify({
-      success: true,
-      message: 'No unassigned ZIP codes found in the area',
-      assignedCount: 0
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-
-  // Use the existing assignment function
-  return await handleAssignZipcodesToArea(supabase, user, workerId, areaId, unassignedZips);
-}

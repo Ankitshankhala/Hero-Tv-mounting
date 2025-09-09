@@ -3,12 +3,6 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { MapPin, Zap } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 
 // Fix Leaflet default marker icon issue
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -41,18 +35,6 @@ interface WorkerServiceAreasMapProps {
   workers: Worker[];
   selectedWorkerId: string | null;
   showInactiveAreas: boolean;
-  adminMode?: boolean;
-}
-
-interface ZipcodeMarker {
-  zipcode: string;
-  lat: number;
-  lng: number;
-  city: string;
-  state: string;
-  status: 'assigned_to_worker' | 'assigned_to_other' | 'unassigned';
-  assignedWorkerName?: string;
-  assignedWorkerEmail?: string;
 }
 
 // Color palette for different workers
@@ -72,21 +54,16 @@ const WORKER_COLORS = [
 export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
   workers,
   selectedWorkerId,
-  showInactiveAreas,
-  adminMode = false
+  showInactiveAreas
 }) => {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const polygonLayersRef = useRef<Map<string, L.Polygon>>(new Map());
-  const zipcodeMarkersRef = useRef<Map<string, L.CircleMarker>>(new Map());
   const [selectedAreaInfo, setSelectedAreaInfo] = useState<{
     worker: Worker;
     area: Worker['service_areas'][0];
     zipCodes: string[];
   } | null>(null);
-  const [showZipOverlays, setShowZipOverlays] = useState(false);
-  const [zipcodeMarkers, setZipcodeMarkers] = useState<ZipcodeMarker[]>([]);
-  const [loadingZips, setLoadingZips] = useState(false);
 
   // Initialize map
   useEffect(() => {
@@ -194,11 +171,6 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
               area,
               zipCodes: areaZipCodes
             });
-            
-            // Load ZIP overlays if enabled
-            if (adminMode && showZipOverlays && area.polygon_coordinates) {
-              loadZipCodesInPolygon(area.polygon_coordinates, worker.id);
-            }
           });
 
           polygon.addTo(mapRef.current!);
@@ -222,169 +194,8 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
     }
   }, [workers, selectedWorkerId, showInactiveAreas]);
 
-  // Update ZIP markers when overlay is toggled or markers change
-  useEffect(() => {
-    if (!mapRef.current) return;
-
-    // Clear existing ZIP markers
-    zipcodeMarkersRef.current.forEach(marker => {
-      mapRef.current?.removeLayer(marker);
-    });
-    zipcodeMarkersRef.current.clear();
-
-    if (!showZipOverlays || !adminMode) return;
-
-    // Add ZIP markers
-    zipcodeMarkers.forEach(zipMarker => {
-      let color = '#6B7280'; // gray for unassigned
-      let fillOpacity = 0.6;
-      
-      if (zipMarker.status === 'assigned_to_worker') {
-        color = '#10B981'; // green for assigned to selected worker
-        fillOpacity = 0.8;
-      } else if (zipMarker.status === 'assigned_to_other') {
-        color = '#EF4444'; // red for assigned to other worker
-        fillOpacity = 0.7;
-      } else {
-        color = '#F59E0B'; // yellow for unassigned
-        fillOpacity = 0.6;
-      }
-
-      const marker = L.circleMarker([zipMarker.lat, zipMarker.lng], {
-        radius: 4,
-        color: '#FFFFFF',
-        weight: 1,
-        fillColor: color,
-        fillOpacity,
-        className: zipMarker.status === 'unassigned' ? 'cursor-pointer' : ''
-      });
-
-      // Add popup
-      const popupContent = `
-        <div class="p-2 text-xs">
-          <div class="font-semibold">${zipMarker.zipcode}</div>
-          <div class="text-gray-600">${zipMarker.city}, ${zipMarker.state}</div>
-          <div class="mt-1">
-            <span class="inline-block px-2 py-1 rounded text-xs ${
-              zipMarker.status === 'assigned_to_worker' ? 'bg-green-100 text-green-800' :
-              zipMarker.status === 'assigned_to_other' ? 'bg-red-100 text-red-800' :
-              'bg-yellow-100 text-yellow-800'
-            }">
-              ${zipMarker.status === 'assigned_to_worker' ? 'Assigned to Worker' :
-                zipMarker.status === 'assigned_to_other' ? `Assigned to ${zipMarker.assignedWorkerName}` :
-                'Unassigned - Click to assign'
-              }
-            </span>
-          </div>
-        </div>
-      `;
-
-      marker.bindPopup(popupContent);
-
-      // Add click handler for unassigned ZIP codes
-      if (zipMarker.status === 'unassigned') {
-        marker.on('click', () => {
-          handleZipAssignment(zipMarker.zipcode);
-        });
-      }
-
-      marker.addTo(mapRef.current!);
-      zipcodeMarkersRef.current.set(zipMarker.zipcode, marker);
-    });
-  }, [showZipOverlays, zipcodeMarkers, adminMode]);
-
   const handleCloseAreaInfo = () => {
     setSelectedAreaInfo(null);
-  };
-
-  // Load ZIP codes for overlay
-  const loadZipCodesInPolygon = async (polygon: any[], workerId?: string) => {
-    if (!adminMode || !showZipOverlays) return;
-    
-    // Use provided workerId or the selected one from the area info
-    const targetWorkerId = workerId || selectedAreaInfo?.worker.id;
-    if (!targetWorkerId) {
-      toast.error('No worker selected for ZIP overlay');
-      return;
-    }
-    
-    setLoadingZips(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('zipcodes-in-area', {
-        body: { polygon, selectedWorkerId: targetWorkerId }
-      });
-
-      if (error) throw error;
-      if (data?.success) {
-        setZipcodeMarkers(data.zipcodes || []);
-      }
-    } catch (error) {
-      console.error('Error loading ZIP codes:', error);
-      toast.error('Failed to load ZIP codes');
-    } finally {
-      setLoadingZips(false);
-    }
-  };
-
-  // Handle ZIP code assignment
-  const handleZipAssignment = async (zipcode: string) => {
-    if (!selectedWorkerId || !selectedAreaInfo?.area.id) {
-      toast.error('No active service area selected');
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase.functions.invoke('admin-service-area-manager', {
-        body: {
-          action: 'assign_zipcodes_to_area',
-          workerId: selectedWorkerId,
-          areaId: selectedAreaInfo.area.id,
-          zipcodesOnly: [zipcode]
-        }
-      });
-
-      if (error) throw error;
-      if (data?.success) {
-        toast.success(`Assigned ZIP ${zipcode} to worker`);
-        // Refresh ZIP overlays
-        const selectedPolygon = selectedAreaInfo.area.polygon_coordinates;
-        if (selectedPolygon) {
-          await loadZipCodesInPolygon(selectedPolygon);
-        }
-      }
-    } catch (error) {
-      console.error('Error assigning ZIP code:', error);
-      toast.error('Failed to assign ZIP code');
-    }
-  };
-
-  // Handle bulk assignment
-  const handleBulkAssignment = async () => {
-    if (!selectedWorkerId || !selectedAreaInfo?.area.id || !selectedAreaInfo.area.polygon_coordinates) {
-      toast.error('No active service area selected');
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase.functions.invoke('admin-service-area-manager', {
-        body: {
-          action: 'assign_all_unassigned_in_polygon',
-          workerId: selectedWorkerId,
-          areaId: selectedAreaInfo.area.id,
-          polygon: selectedAreaInfo.area.polygon_coordinates
-        }
-      });
-
-      if (error) throw error;
-      if (data?.success) {
-        toast.success(data.message);
-        // Refresh ZIP overlays
-        await loadZipCodesInPolygon(selectedAreaInfo.area.polygon_coordinates);
-      }
-    } catch (error) {
-      console.error('Error bulk assigning ZIP codes:', error);
-      toast.error('Failed to assign ZIP codes');
-    }
   };
 
   return (
@@ -395,42 +206,6 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
         style={{ minHeight: '500px' }}
       />
       
-      {/* Admin ZIP Overlay Controls */}
-      {adminMode && (
-        <Card className="absolute top-4 left-4 z-[1000] shadow-lg">
-          <CardContent className="p-3">
-            <div className="flex items-center space-x-2 mb-2">
-              <Switch 
-                id="zip-overlay" 
-                checked={showZipOverlays}
-                onCheckedChange={setShowZipOverlays}
-                disabled={loadingZips}
-              />
-              <Label htmlFor="zip-overlay" className="text-sm font-medium">
-                Show ZIP overlays {loadingZips && '(loading...)'}
-              </Label>
-            </div>
-            
-            {showZipOverlays && (
-              <div className="space-y-2 text-xs">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                  <span>Assigned to worker</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                  <span>Assigned to others</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                  <span>Unassigned (clickable)</span>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
       {/* Selected Area Info Panel */}
       {selectedAreaInfo && (
         <Card className="absolute top-4 right-4 max-w-sm z-[1000] shadow-lg">
@@ -481,21 +256,6 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
                   {new Date(selectedAreaInfo.area.created_at).toLocaleDateString()}
                 </span>
               </div>
-
-              {/* Admin bulk assignment */}
-              {adminMode && showZipOverlays && selectedAreaInfo.area.is_active && (
-                <div className="pt-2 border-t">
-                  <Button 
-                    size="sm" 
-                    onClick={handleBulkAssignment}
-                    className="w-full"
-                    variant="outline"
-                  >
-                    <Zap className="h-3 w-3 mr-1" />
-                    Assign all unassigned in area
-                  </Button>
-                </div>
-              )}
             </div>
           </CardContent>
         </Card>
