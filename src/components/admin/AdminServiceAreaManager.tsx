@@ -160,7 +160,7 @@ export const AdminServiceAreaManager = () => {
                       </span>}
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="h-full p-0">
+                 <CardContent className="h-full p-0">
                   {selectedWorkerId ? <ServiceAreaMap 
                     workerId={selectedWorkerId} 
                     onServiceAreaCreated={() => {
@@ -171,6 +171,7 @@ export const AdminServiceAreaManager = () => {
                     }} 
                     adminMode={true} 
                     isActive={true} 
+                    
                     key={selectedWorkerId} // Force re-mount for new worker
                   /> : <div className="flex items-center justify-center h-full text-muted-foreground">
                       <div className="text-center">
