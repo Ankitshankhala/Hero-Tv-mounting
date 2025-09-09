@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useRealtimeServiceAreas } from '@/hooks/useRealtimeServiceAreas';
 import { X, Plus, MapPin, Loader2 } from 'lucide-react';
 
 interface Worker {
@@ -39,6 +40,13 @@ export const AdminWorkerCoverageModal = ({ worker, isOpen, onClose, onSuccess }:
   const [saving, setSaving] = useState(false);
   const [zipSuggestions, setZipSuggestions] = useState<{zipcode: string; city: string; state: string}[]>([]);
   const { toast } = useToast();
+
+  // Set up real-time updates for service areas
+  useRealtimeServiceAreas(() => {
+    if (isOpen && worker) {
+      fetchCurrentZips();
+    }
+  });
 
   // Fetch current ZIP codes for the worker
   const fetchCurrentZips = async () => {
@@ -171,6 +179,20 @@ export const AdminWorkerCoverageModal = ({ worker, isOpen, onClose, onSuccess }:
     }
   };
 
+  // Handle mode change to preload existing ZIPs in replace mode
+  const handleModeChange = (newMode: 'append' | 'replace_all') => {
+    setMode(newMode);
+    
+    if (newMode === 'replace_all') {
+      // Preload existing ZIP codes for editing
+      const existingZips = currentZips.map(zip => zip.zipcode);
+      setNewZips(existingZips);
+    } else {
+      // Clear new ZIPs in append mode
+      setNewZips([]);
+    }
+  };
+
   // Reset form when modal opens/closes
   useEffect(() => {
     if (isOpen && worker) {
@@ -198,7 +220,7 @@ export const AdminWorkerCoverageModal = ({ worker, isOpen, onClose, onSuccess }:
         <div className="space-y-6">
           {/* Current Coverage */}
           <div>
-            <Label className="text-sm font-medium">Current ZIP Code Coverage ({currentZips.length})</Label>
+            <Label className="text-sm font-medium">Current Coverage ({currentZips.length} ZIP codes)</Label>
             {loading ? (
               <div className="flex items-center gap-2 mt-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -283,7 +305,9 @@ export const AdminWorkerCoverageModal = ({ worker, isOpen, onClose, onSuccess }:
           {/* New ZIPs to be added */}
           {newZips.length > 0 && (
             <div>
-              <Label className="text-sm font-medium">New ZIP Codes to Add ({newZips.length})</Label>
+              <Label className="text-sm font-medium">
+                {mode === 'replace_all' ? 'All ZIP Codes (Editing)' : `ZIP Codes to Add`} ({newZips.length})
+              </Label>
               <div className="mt-2 border rounded-md p-3 max-h-32 overflow-y-auto">
                 <div className="flex flex-wrap gap-1">
                   {newZips.map((zip) => (
@@ -318,7 +342,7 @@ export const AdminWorkerCoverageModal = ({ worker, isOpen, onClose, onSuccess }:
 
               <div>
                 <Label className="text-sm font-medium">Action</Label>
-                <Select value={mode} onValueChange={(value: 'append' | 'replace_all') => setMode(value)}>
+                <Select value={mode} onValueChange={handleModeChange}>
                   <SelectTrigger className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
@@ -330,7 +354,7 @@ export const AdminWorkerCoverageModal = ({ worker, isOpen, onClose, onSuccess }:
                 <p className="text-xs text-muted-foreground mt-1">
                   {mode === 'append' 
                     ? 'New ZIP codes will be added alongside existing ones' 
-                    : 'All existing ZIP codes will be replaced with the new ones'}
+                    : 'Replace mode: Edit all ZIP codes above. Current coverage is preloaded for editing.'}
                 </p>
               </div>
             </div>
