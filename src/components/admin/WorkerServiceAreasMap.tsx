@@ -197,7 +197,7 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
             
             // Load ZIP overlays if enabled
             if (adminMode && showZipOverlays && area.polygon_coordinates) {
-              loadZipCodesInPolygon(area.polygon_coordinates);
+              loadZipCodesInPolygon(area.polygon_coordinates, worker.id);
             }
           });
 
@@ -298,13 +298,20 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
   };
 
   // Load ZIP codes for overlay
-  const loadZipCodesInPolygon = async (polygon: any[]) => {
-    if (!adminMode || !selectedWorkerId || !showZipOverlays) return;
+  const loadZipCodesInPolygon = async (polygon: any[], workerId?: string) => {
+    if (!adminMode || !showZipOverlays) return;
+    
+    // Use provided workerId or the selected one from the area info
+    const targetWorkerId = workerId || selectedAreaInfo?.worker.id;
+    if (!targetWorkerId) {
+      toast.error('No worker selected for ZIP overlay');
+      return;
+    }
     
     setLoadingZips(true);
     try {
       const { data, error } = await supabase.functions.invoke('zipcodes-in-area', {
-        body: { polygon, selectedWorkerId }
+        body: { polygon, selectedWorkerId: targetWorkerId }
       });
 
       if (error) throw error;
