@@ -34,6 +34,7 @@ interface CoverageWorker {
   email: string;
   phone: string;
   is_active: boolean;
+  total_zipcodes?: number;
   service_areas: Array<{
     id: string;
     area_name: string;
@@ -170,8 +171,18 @@ export const AdminServiceAreasUnified = () => {
   };
 
   const getWorkerStats = (worker: CoverageWorker) => {
+    // Use total_zipcodes if available from the RPC call, otherwise calculate from service_zipcodes
+    const totalZipCodes = worker.total_zipcodes || new Set(
+      (worker.service_zipcodes || [])
+        .filter(zip => {
+          const area = (worker.service_areas || []).find(a => a.id === zip.service_area_id);
+          return area && area.is_active;
+        })
+        .map(zip => zip.zipcode)
+    ).size;
+
     const activeAreas = (worker.service_areas || []).filter(area => area.is_active).length;
-    const totalZipCodes = (worker.service_zipcodes || []).length;
+    
     return { activeAreas, totalZipCodes };
   };
 

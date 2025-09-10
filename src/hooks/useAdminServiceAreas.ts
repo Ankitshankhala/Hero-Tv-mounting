@@ -174,18 +174,25 @@ export const useAdminServiceAreas = (forceFresh = false) => {
           if (zipcodesData.error) throw zipcodesData.error;
 
           // Combine the data efficiently
-          const workersWithAreas: Worker[] = (workersData.data || []).map(worker => {
+          const workersWithAreas: Worker[] = await Promise.all((workersData.data || []).map(async worker => {
             const workerAreas = (serviceAreasData.data || []).filter(area => area.worker_id === worker.id);
             const workerZipcodes = (zipcodesData.data || []).filter(zip => zip.worker_id === worker.id);
+            
+            // Get total zipcode count using the new function
+            const { data: stats } = await supabase.rpc('get_worker_zipcode_stats', {
+              p_worker_id: worker.id
+            });
+            
+            const total_zipcodes = stats?.[0]?.total_zipcodes || 0;
 
             return {
               ...worker,
               service_area_count: workerAreas.filter(area => area.is_active).length,
-              total_zipcodes: workerZipcodes.length,
+              total_zipcodes,
               service_areas: workerAreas,
               service_zipcodes: workerZipcodes
             };
-          });
+          }));
 
           return workersWithAreas;
         },
@@ -301,6 +308,40 @@ export const useAdminServiceAreas = (forceFresh = false) => {
     }
   }, [fetchWorkersWithServiceAreas]);
 
+  const mergeWorkerServiceAreas = useCallback(async (workerId: string, newAreaName: string) => {
+    try {
+      const { data, error } = await supabase.rpc('merge_worker_service_areas', {
+        p_worker_id: workerId,
+        p_new_area_name: newAreaName
+      });
+
+      if (error) throw error;
+
+      const result = data as any;
+      if (!result?.success) {
+        throw new Error(result?.error || 'Failed to merge service areas');
+      }
+
+      toast({
+        title: "Success",
+        description: result.message,
+      });
+
+      await fetchWorkers();
+      await fetchAuditLogs();
+      return result;
+
+    } catch (error) {
+      console.error('Error merging service areas:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to merge service areas",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  }, [fetchWorkers, fetchAuditLogs, toast]);
+
   return {
     workers,
     auditLogs,
@@ -312,6 +353,7 @@ export const useAdminServiceAreas = (forceFresh = false) => {
     refreshData,
     updateWorkerServiceArea,
     deleteWorkerServiceArea,
-    removeZipcodeFromWorker
+    removeZipcodeFromWorker,
+    mergeWorkerServiceAreas
   };
 };

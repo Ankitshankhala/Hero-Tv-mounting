@@ -2232,6 +2232,15 @@ export type Database = {
         Args: { p_worker_id: string }
         Returns: Json
       }
+      get_worker_zipcode_stats: {
+        Args: { p_worker_id: string }
+        Returns: {
+          active_areas: number
+          inactive_areas: number
+          total_zipcodes: number
+          worker_id: string
+        }[]
+      }
       get_workers_for_admin: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -2304,6 +2313,10 @@ export type Database = {
       longtransactionsenabled: {
         Args: Record<PropertyKey, never>
         Returns: boolean
+      }
+      merge_worker_service_areas: {
+        Args: { p_new_area_name: string; p_worker_id: string }
+        Returns: Json
       }
       path: {
         Args: { "": unknown }
