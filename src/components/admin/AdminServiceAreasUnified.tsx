@@ -101,17 +101,17 @@ export const AdminServiceAreasUnified = () => {
     fetchAuditLogs(workerId);
   }, 250);
 
-  const filteredWorkers = workers.filter(worker => {
-    const matchesSearch = worker.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         worker.email.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         worker.id.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredWorkers = (workers || []).filter(worker => {
+    const matchesSearch = worker.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                         worker.email?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                         worker.id?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesZipCode = !zipCodeFilter || 
-                          worker.service_zipcodes.some(zip => zip.zipcode.includes(zipCodeFilter));
+                          (worker.service_zipcodes || []).some(zip => zip.zipcode.includes(zipCodeFilter));
     const matchesActiveFilter = showInactiveWorkers || worker.is_active;
     return matchesSearch && matchesZipCode && matchesActiveFilter;
   });
 
-  const selectedWorker = selectedWorkerId ? workers.find(w => w.id === selectedWorkerId) : null;
+  const selectedWorker = selectedWorkerId ? (workers || []).find(w => w.id === selectedWorkerId) : null;
 
   const handleWorkerSelect = (workerId: string) => {
     if (viewMode === 'overview') {
@@ -130,15 +130,15 @@ export const AdminServiceAreasUnified = () => {
 
   const handleExportCSV = () => {
     const exportData = filteredWorkers.flatMap(worker =>
-      worker.service_areas
+      (worker.service_areas || [])
         .filter(area => showInactiveAreas || area.is_active)
         .map(area => ({
-          'Worker Name': worker.name,
-          'Worker Email': worker.email,
-          'Worker ID': worker.id,
-          'Area Name': area.area_name,
+          'Worker Name': worker.name || '',
+          'Worker Email': worker.email || '',
+          'Worker ID': worker.id || '',
+          'Area Name': area.area_name || '',
           'Area Status': area.is_active ? 'Active' : 'Inactive',
-          'Zip Codes': worker.service_zipcodes
+          'Zip Codes': (worker.service_zipcodes || [])
             .filter(zip => zip.service_area_id === area.id)
             .map(zip => zip.zipcode)
             .join(', '),
@@ -170,8 +170,8 @@ export const AdminServiceAreasUnified = () => {
   };
 
   const getWorkerStats = (worker: CoverageWorker) => {
-    const activeAreas = worker.service_areas.filter(area => area.is_active).length;
-    const totalZipCodes = worker.service_zipcodes.length;
+    const activeAreas = (worker.service_areas || []).filter(area => area.is_active).length;
+    const totalZipCodes = (worker.service_zipcodes || []).length;
     return { activeAreas, totalZipCodes };
   };
 
@@ -301,7 +301,7 @@ export const AdminServiceAreasUnified = () => {
                           <SelectValue placeholder="Choose a worker..." />
                         </SelectTrigger>
                         <SelectContent>
-                          {workers.map((worker) => (
+                          {(workers || []).map((worker) => (
                             <SelectItem key={worker.id} value={worker.id}>
                               <div className="flex items-center gap-2">
                                 <span>{worker.name}</span>
@@ -329,7 +329,7 @@ export const AdminServiceAreasUnified = () => {
                               {selectedWorker.is_active ? 'Active' : 'Inactive'}
                             </Badge>
                             <Badge variant="outline">
-                              {selectedWorker.service_areas.length} Areas
+                              {(selectedWorker.service_areas || []).length} Areas
                             </Badge>
                           </div>
                         </div>
@@ -457,18 +457,18 @@ export const AdminServiceAreasUnified = () => {
                           <p className="text-sm text-muted-foreground">{worker.phone}</p>
                         )}
                         <div className="flex gap-4 text-sm">
-                          <span>Areas: {stats.activeAreas}/{worker.service_areas.length}</span>
+                          <span>Areas: {stats.activeAreas}/{(worker.service_areas || []).length}</span>
                           <span>ZIP Codes: {stats.totalZipCodes}</span>
                         </div>
                         <div className="flex flex-wrap gap-1">
-                          {worker.service_zipcodes.slice(0, 5).map((zip, index) => (
+                          {(worker.service_zipcodes || []).slice(0, 5).map((zip, index) => (
                             <Badge key={index} variant="outline" className="text-xs">
                               {zip.zipcode}
                             </Badge>
                           ))}
-                          {worker.service_zipcodes.length > 5 && (
+                          {(worker.service_zipcodes || []).length > 5 && (
                             <Badge variant="outline" className="text-xs">
-                              +{worker.service_zipcodes.length - 5} more
+                              +{(worker.service_zipcodes || []).length - 5} more
                             </Badge>
                           )}
                         </div>
@@ -499,12 +499,12 @@ export const AdminServiceAreasUnified = () => {
             <CardContent>
               <ScrollArea className="h-96">
                 <div className="space-y-3">
-                  {auditLogs.length === 0 ? (
+                  {(auditLogs || []).length === 0 ? (
                     <p className="text-muted-foreground text-center py-8">
                       No activity logs found
                     </p>
                   ) : (
-                    auditLogs.map((log) => (
+                    (auditLogs || []).map((log) => (
                       <div key={log.id} className="border-l-2 border-muted pl-4 py-2">
                         <div className="flex items-center justify-between">
                           <div className="space-y-1">
