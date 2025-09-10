@@ -161,7 +161,7 @@ export const AdminWorkerCoverageModal = ({ worker, isOpen, onClose, onSuccess }:
 
     setSaving(true);
     try {
-      const { data, error } = await supabase.functions.invoke('admin-service-area-manager', {
+      const { data, error } = await supabase.functions.invoke('service-area-upsert', {
         body: {
           workerId: worker.id,
           areaName: areaName || `Admin Assigned - ${new Date().toLocaleDateString()}`,

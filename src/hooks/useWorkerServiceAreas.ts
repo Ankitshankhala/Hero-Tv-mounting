@@ -63,16 +63,18 @@ export const useWorkerServiceAreas = (workerId?: string) => {
 
   const createServiceArea = useCallback(async (
     areaName: string, 
-    polygon: Array<{ lat: number; lng: number }>
+    polygon: Array<{ lat: number; lng: number }>,
+    mode: 'append' | 'replace_all' = 'append'
   ) => {
     if (!workerId) return null;
 
     try {
-      const { data, error } = await supabase.functions.invoke('polygon-to-zipcodes', {
+      const { data, error } = await supabase.functions.invoke('service-area-upsert', {
         body: {
-          polygon,
           workerId,
-          areaName
+          areaName,
+          polygon,
+          mode
         }
       });
 
@@ -84,7 +86,7 @@ export const useWorkerServiceAreas = (workerId?: string) => {
 
       toast({
         title: "Success",
-        description: `Service area created with ${data.zipcodesCount} zip codes`,
+        description: `Service area ${mode === 'replace_all' ? 'replaced' : 'created'} with ${data.zipcodesCount} zip codes`,
       });
 
       await fetchServiceAreas();
@@ -95,6 +97,48 @@ export const useWorkerServiceAreas = (workerId?: string) => {
       toast({
         title: "Error",
         description: error.message || "Failed to create service area",
+        variant: "destructive",
+      });
+      return null;
+    }
+  }, [workerId, toast, fetchServiceAreas]);
+
+  const addZipCodes = useCallback(async (
+    zipCodes: string[],
+    areaName?: string,
+    mode: 'append' | 'replace_all' = 'append'
+  ) => {
+    if (!workerId) return null;
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('service-area-upsert', {
+        body: {
+          workerId,
+          areaName: areaName || `Manual Entry - ${new Date().toLocaleDateString()}`,
+          zipcodesOnly: zipCodes,
+          mode
+        }
+      });
+
+      if (error) throw error;
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to add ZIP codes');
+      }
+
+      toast({
+        title: "Success",
+        description: `ZIP codes ${mode === 'replace_all' ? 'replaced' : 'added'} - ${data.zipcodesCount} total`,
+      });
+
+      await fetchServiceAreas();
+      return data;
+
+    } catch (error) {
+      console.error('Error adding ZIP codes:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add ZIP codes",
         variant: "destructive",
       });
       return null;
@@ -174,6 +218,7 @@ export const useWorkerServiceAreas = (workerId?: string) => {
     loading,
     fetchServiceAreas,
     createServiceArea,
+    addZipCodes,
     deleteServiceArea,
     getActiveServiceAreas,
     getActiveZipcodes,

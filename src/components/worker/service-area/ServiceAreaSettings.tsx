@@ -34,6 +34,7 @@ export const ServiceAreaSettings: React.FC = () => {
     serviceZipcodes, 
     loading, 
     fetchServiceAreas,
+    addZipCodes,
     getActiveZipcodes,
     toggleServiceAreaStatus,
     deleteServiceArea
@@ -81,28 +82,9 @@ export const ServiceAreaSettings: React.FC = () => {
         throw new Error('Please enter valid 5-digit ZIP codes');
       }
 
-      // Create a new service area for these ZIP codes
-      const { data, error } = await supabase.functions.invoke('polygon-to-zipcodes', {
-        body: {
-          zipcodesOnly: zipList,
-          workerId: user.id,
-          areaName: `ZIP Codes Area (${zipList.length} ZIPs)`
-        }
-      });
-
-      if (error) throw error;
-
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to add ZIP codes');
-      }
-
-      toast({
-        title: "Success",
-        description: `Added ${zipList.length} ZIP codes to your service area`,
-      });
-
+      // Use the new unified addZipCodes function
+      await addZipCodes(zipList, `ZIP Codes Area (${zipList.length} ZIPs)`, 'append');
       setNewZipcodes('');
-      await fetchServiceAreas();
 
     } catch (error) {
       console.error('Error adding ZIP codes:', error);
@@ -129,26 +111,8 @@ export const ServiceAreaSettings: React.FC = () => {
     setSavingSingle(true);
     try {
       const zip = singleZipcode.trim();
-      const { data, error } = await supabase.functions.invoke('polygon-to-zipcodes', {
-        body: {
-          zipcodesOnly: [zip],
-          workerId: user.id,
-          areaName: `ZIP Code ${zip}`,
-        },
-      });
-
-      if (error) throw error;
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to add ZIP code');
-      }
-
-      toast({
-        title: 'Success',
-        description: `Added ZIP ${zip} to your coverage`,
-      });
-
+      await addZipCodes([zip], `ZIP Code ${zip}`, 'append');
       setSingleZipcode('');
-      await fetchServiceAreas();
     } catch (error) {
       console.error('Error adding ZIP code:', error);
       toast({

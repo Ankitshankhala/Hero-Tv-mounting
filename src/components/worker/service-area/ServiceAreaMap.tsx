@@ -417,11 +417,12 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
 
     setSaving(true);
     try {
-      const { data, error } = await supabase.functions.invoke('polygon-to-zipcodes', {
+      const { data, error } = await supabase.functions.invoke('service-area-upsert', {
         body: {
-          polygon: currentPolygon,
           workerId: workerId,
-          areaName: areaName.trim()
+          areaName: areaName.trim(),
+          polygon: currentPolygon,
+          mode: 'append'
         }
       });
 
@@ -606,11 +607,12 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
 
     setSaving(true);
     try {
-      const { data, error } = await supabase.functions.invoke('polygon-to-zipcodes', {
+      const { data, error } = await supabase.functions.invoke('service-area-upsert', {
         body: {
-          zipcodesOnly: zipArray,
           workerId: workerId,
-          areaName: areaName.trim() || 'Manual ZIP Codes'
+          areaName: areaName.trim() || 'Manual ZIP Codes',
+          zipcodesOnly: zipArray,
+          mode: 'append'
         }
       });
 
