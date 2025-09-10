@@ -92,24 +92,26 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
 
   // Update polygons when workers or filters change
   useEffect(() => {
-    if (!mapRef.current) return;
+    if (!mapRef.current || !polygonLayersRef.current) return;
 
     // Clear existing polygons
-    polygonLayersRef.current.forEach(polygon => {
-      mapRef.current?.removeLayer(polygon);
-    });
-    polygonLayersRef.current.clear();
+    if (polygonLayersRef.current instanceof Map) {
+      polygonLayersRef.current.forEach(polygon => {
+        mapRef.current?.removeLayer(polygon);
+      });
+      polygonLayersRef.current.clear();
+    }
 
     const workersToShow = selectedWorkerId 
-      ? workers.filter(w => w.id === selectedWorkerId)
-      : workers;
+      ? (workers || []).filter(w => w.id === selectedWorkerId)
+      : (workers || []);
 
     let bounds: L.LatLngBounds | null = null;
 
     workersToShow.forEach((worker, workerIndex) => {
       const workerColor = WORKER_COLORS[workerIndex % WORKER_COLORS.length];
       
-      worker.service_areas.forEach((area) => {
+      (worker.service_areas || []).forEach((area) => {
         // Skip inactive areas unless specifically shown
         if (!area.is_active && !showInactiveAreas) return;
 
@@ -158,7 +160,9 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
           });
 
           polygon.addTo(mapRef.current!);
-          polygonLayersRef.current.set(`${worker.id}-${area.id}`, polygon);
+          if (polygonLayersRef.current instanceof Map) {
+            polygonLayersRef.current.set(`${worker.id}-${area.id}`, polygon);
+          }
 
           // Add to bounds
           if (!bounds) {
