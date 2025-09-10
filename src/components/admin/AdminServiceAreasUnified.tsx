@@ -422,7 +422,11 @@ export const AdminServiceAreasUnified = () => {
                       showInactiveAreas={showInactiveAreas}
                     />
                   ) : selectedWorker ? (
-                    <ServiceAreaMap workerId={selectedWorkerId} />
+                    <ServiceAreaMap 
+                      workerId={selectedWorkerId} 
+                      isActive={true}
+                      adminMode={true}
+                    />
                   ) : (
                     <div className="flex items-center justify-center h-full text-muted-foreground">
                       Select a worker to manage their service areas
