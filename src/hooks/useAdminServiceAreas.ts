@@ -276,6 +276,31 @@ export const useAdminServiceAreas = (forceFresh = false) => {
     }
   }, [toast, refreshData]);
 
+  const removeZipcodeFromWorker = useCallback(async (
+    workerId: string, 
+    zipcode: string, 
+    serviceAreaId?: string
+  ) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-remove-worker-zip', {
+        body: { workerId, zipcode, serviceAreaId }
+      });
+
+      if (error) throw error;
+
+      // Refresh worker data to reflect changes
+      await fetchWorkersWithServiceAreas(true);
+      
+      return data;
+    } catch (error) {
+      console.error('Error removing ZIP code:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchWorkersWithServiceAreas]);
+
   return {
     workers,
     auditLogs,
@@ -286,6 +311,7 @@ export const useAdminServiceAreas = (forceFresh = false) => {
     fetchWorkersWithServiceAreas,
     refreshData,
     updateWorkerServiceArea,
-    deleteWorkerServiceArea
+    deleteWorkerServiceArea,
+    removeZipcodeFromWorker
   };
 };

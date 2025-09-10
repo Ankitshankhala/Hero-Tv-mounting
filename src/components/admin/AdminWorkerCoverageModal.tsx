@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeServiceAreas } from '@/hooks/useRealtimeServiceAreas';
@@ -39,6 +40,7 @@ export const AdminWorkerCoverageModal = ({ worker, isOpen, onClose, onSuccess }:
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [zipSuggestions, setZipSuggestions] = useState<{zipcode: string; city: string; state: string}[]>([]);
+  const [removingZip, setRemovingZip] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Set up real-time updates for service areas
@@ -119,6 +121,44 @@ export const AdminWorkerCoverageModal = ({ worker, isOpen, onClose, onSuccess }:
       setZipSuggestions(data || []);
     } catch (error) {
       console.error('Error searching ZIP codes:', error);
+    }
+  };
+
+  // Handle removing ZIP codes
+  const handleRemoveZip = async (zipcode: string, serviceAreaId?: string) => {
+    if (!worker) return;
+    
+    setRemovingZip(zipcode);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-remove-worker-zip', {
+        body: { 
+          workerId: worker.id, 
+          zipcode,
+          serviceAreaId 
+        }
+      });
+
+      if (error) throw error;
+
+      // Update local state
+      setCurrentZips(prev => prev.filter(zip => zip.zipcode !== zipcode));
+      
+      toast({
+        title: "ZIP Code Removed",
+        description: data.message || `Removed ZIP code ${zipcode}`,
+      });
+
+      // Trigger success callback to refresh parent data
+      onSuccess?.();
+    } catch (error: any) {
+      console.error('Error removing ZIP code:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to remove ZIP code",
+        variant: "destructive",
+      });
+    } finally {
+      setRemovingZip(null);
     }
   };
 
@@ -247,9 +287,40 @@ export const AdminWorkerCoverageModal = ({ worker, isOpen, onClose, onSuccess }:
                 {currentZips.length > 0 ? (
                   <div className="flex flex-wrap gap-1">
                     {currentZips.map((zip) => (
-                      <Badge key={`${zip.zipcode}-${zip.service_area_id}`} variant="secondary" className="text-xs">
-                        {zip.zipcode}
-                      </Badge>
+                      <div key={`${zip.zipcode}-${zip.service_area_id}`} className="relative group">
+                        <Badge variant="secondary" className="text-xs pr-6">
+                          {zip.zipcode}
+                        </Badge>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="absolute -top-1 -right-1 h-4 w-4 p-0 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/80 opacity-0 group-hover:opacity-100 transition-opacity"
+                              disabled={removingZip === zip.zipcode}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Remove ZIP Code</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to remove ZIP code {zip.zipcode} from {zip.area_name}? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleRemoveZip(zip.zipcode, zip.service_area_id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/80"
+                              >
+                                Remove
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     ))}
                   </div>
                 ) : (
