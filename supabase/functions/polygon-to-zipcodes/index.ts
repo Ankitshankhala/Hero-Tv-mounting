@@ -142,40 +142,76 @@ function isPointInPolygon(point: { lat: number; lng: number }, polygon: PolygonP
   return inside;
 }
 
-// Enhanced zipcode lookup with Nominatim reverse geocoding fallback
+// Enhanced zipcode lookup using PostGIS for spatial intersection
 async function findZipcodesInPolygon(polygon: PolygonPoint[]): Promise<string[]> {
   console.log(`Processing polygon with ${polygon.length} points`);
   
-  // First, use our local zipcode data
+  // Create Supabase client
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
+  
+  try {
+    // Convert polygon to GeoJSON format
+    const polygonGeoJSON = {
+      type: "Polygon",
+      coordinates: [[
+        ...polygon.map(p => [p.lng, p.lat]),
+        [polygon[0].lng, polygon[0].lat] // Close the polygon
+      ]]
+    };
+    
+    console.log('Calling PostGIS spatial intersection function...');
+    
+    // Use the PostGIS RPC function for spatial intersection
+    const { data, error } = await supabase.rpc('find_zipcodes_intersecting_polygon', {
+      polygon_geojson: polygonGeoJSON
+    });
+    
+    if (error) {
+      console.error('PostGIS spatial query failed:', error);
+      // Fallback to centroid-based approach
+      return await findZipcodesWithCentroidFallback(polygon);
+    }
+    
+    if (data && data.length > 0) {
+      const zipcodes = data.map((row: any) => row.zipcode);
+      console.log(`Found ${zipcodes.length} zipcodes via PostGIS intersection:`, zipcodes);
+      return zipcodes;
+    }
+    
+    console.log('No zipcodes found via PostGIS, trying fallback methods...');
+    // Fallback to centroid-based approach if no intersections found
+    return await findZipcodesWithCentroidFallback(polygon);
+    
+  } catch (error) {
+    console.error('PostGIS query error:', error);
+    // Fallback to centroid-based approach
+    return await findZipcodesWithCentroidFallback(polygon);
+  }
+}
+
+// Fallback method using centroids and reverse geocoding (original approach)
+async function findZipcodesWithCentroidFallback(polygon: PolygonPoint[]): Promise<string[]> {
+  console.log('Using centroid fallback method...');
+  
+  // Use our local zipcode data as fallback
   const localZipcodes = US_ZIPCODES
     .filter(zipData => isPointInPolygon({ lat: zipData.lat, lng: zipData.lng }, polygon))
     .map(zipData => zipData.zipcode);
   
-  console.log(`Found ${localZipcodes.length} zipcodes in local data`);
+  console.log(`Found ${localZipcodes.length} zipcodes in local centroid data`);
   
-  // If we found fewer than 3 zipcodes, try reverse geocoding fallback
-  if (localZipcodes.length < 3) {
+  // If we found fewer zipcodes, try reverse geocoding
+  if (localZipcodes.length < 5) {
     console.log('Trying reverse geocoding fallback...');
     const geocodedZipcodes = await getZipcodesFromGeocoding(polygon);
     localZipcodes.push(...geocodedZipcodes);
   }
   
-  // If still fewer than 3, add some nearby ones based on bounds
-  if (localZipcodes.length < 3) {
-    const bounds = getBounds(polygon);
-    const nearbyZipcodes = US_ZIPCODES
-      .filter(zipData => 
-        zipData.lat >= bounds.south && zipData.lat <= bounds.north &&
-        zipData.lng >= bounds.west && zipData.lng <= bounds.east &&
-        !localZipcodes.includes(zipData.zipcode)
-      )
-      .map(zipData => zipData.zipcode)
-      .slice(0, 5); // Add up to 5 nearby zipcodes
-    
-    localZipcodes.push(...nearbyZipcodes);
-  }
-  
-  return [...new Set(localZipcodes)]; // Remove duplicates
+  // Remove the artificial limit - return all found zipcodes
+  return [...new Set(localZipcodes)]; // Remove duplicates only
 }
 
 // Use Nominatim (OpenStreetMap) reverse geocoding to find ZIP codes
@@ -217,8 +253,7 @@ async function getZipcodesFromGeocoding(polygon: PolygonPoint[]): Promise<string
       console.warn('Reverse geocoding failed for point:', point, error);
     }
     
-    // Stop if we have enough ZIP codes
-    if (zipcodes.length >= 5) break;
+    // Continue until we exhaust sample points - no artificial limit
   }
   
   return zipcodes;
@@ -256,8 +291,8 @@ function generateSamplePoints(polygon: PolygonPoint[], bounds: any): PolygonPoin
     }
   }
   
-  // Limit to 8 points to avoid too many API calls but ensure good coverage
-  return points.slice(0, 8);
+  // Return all points for comprehensive coverage (no artificial limit)
+  return points;
 }
 
 // Calculate the centroid of a polygon (geometric center)
