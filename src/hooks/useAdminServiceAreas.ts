@@ -111,7 +111,7 @@ export const useAdminServiceAreas = (forceFresh = false) => {
     zipcodesOnly?: string[]
   ) => {
     try {
-      const { data, error } = await supabase.functions.invoke('admin-service-area-manager', {
+      const { data, error } = await supabase.functions.invoke('service-area-upsert', {
         body: {
           workerId,
           areaName,

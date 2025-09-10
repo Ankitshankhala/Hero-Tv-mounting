@@ -145,31 +145,15 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
             .filter(zip => zip.service_area_id === area.id)
             .map(zip => zip.zipcode);
 
-          // Add popup
-          const popupContent = `
-            <div class="p-2">
-              <h4 class="font-semibold text-sm">${worker.name}</h4>
-              <p class="text-xs text-gray-600">${area.area_name}</p>
-              <p class="text-xs mt-1">
-                <strong>Status:</strong> ${area.is_active ? 'Active' : 'Inactive'}
-              </p>
-              <p class="text-xs">
-                <strong>Zip Codes:</strong> ${areaZipCodes.join(', ') || 'None'}
-              </p>
-              <p class="text-xs">
-                <strong>Created:</strong> ${new Date(area.created_at).toLocaleDateString()}
-              </p>
-            </div>
-          `;
-
-          polygon.bindPopup(popupContent);
-
-          // Add click handler
+          // Add click handler (removed popup to avoid duplicate UI)
           polygon.on('click', () => {
+            // Get ALL zip codes for this worker, not just this area
+            const allWorkerZipCodes = worker.service_zipcodes.map(zip => zip.zipcode);
+            
             setSelectedAreaInfo({
               worker,
               area,
-              zipCodes: areaZipCodes
+              zipCodes: allWorkerZipCodes
             });
           });
 
@@ -241,10 +225,10 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
               </div>
               
               <div>
-                <span className="font-medium">Zip Codes ({selectedAreaInfo.zipCodes.length}):</span>
-                <div className="text-xs text-muted-foreground mt-1 max-h-20 overflow-y-auto">
+                <span className="font-medium">All Zip Codes for Worker ({selectedAreaInfo.zipCodes.length}):</span>
+                <div className="text-xs text-muted-foreground mt-1 max-h-32 overflow-y-auto">
                   {selectedAreaInfo.zipCodes.length > 0 
-                    ? selectedAreaInfo.zipCodes.join(', ')
+                    ? selectedAreaInfo.zipCodes.sort().join(', ')
                     : 'No zip codes assigned'
                   }
                 </div>
