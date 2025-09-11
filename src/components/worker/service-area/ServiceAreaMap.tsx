@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
 import { MapPin, Save, Trash2, Edit3, Search, MapPinCheck, Globe, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,6 +14,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
 import 'leaflet-draw';
+import concaveman from 'concaveman';
 
 // Fix Leaflet default marker icon issue
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -48,6 +50,7 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
   const [saving, setSaving] = useState(false);
   const [areaName, setAreaName] = useState('Service Area');
   const [currentPolygon, setCurrentPolygon] = useState<Array<{ lat: number; lng: number }> | null>(null);
+  const [drawnPolygon, setDrawnPolygon] = useState<Array<[number, number]> | null>(null);
   const [editingArea, setEditingArea] = useState<ServiceArea | null>(null);
   const [testZipcode, setTestZipcode] = useState('');
   const [zipcodeTesting, setZipcodeTesting] = useState(false);
@@ -332,6 +335,171 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
     }
   };
 
+  // Function to generate polygon from ZIP coordinates
+  const generatePolygonFromZips = async (zipcodes: string[]) => {
+    if (zipcodes.length < 3) {
+      toast({
+        title: "Need more ZIP codes",
+        description: "Need at least 3 ZIP codes to generate a polygon",
+        variant: "destructive",
+      });
+      return null;
+    }
+
+    const coordinates = [];
+    
+    for (const zipcode of zipcodes) {
+      try {
+        let coords = await getZipCoordinates(zipcode);
+        if (!coords) {
+          coords = await geocodeZipcode(zipcode);
+        }
+        if (coords?.latitude && coords?.longitude) {
+          coordinates.push(coords);
+        }
+      } catch (error) {
+        console.error(`Error getting coordinates for ZIP ${zipcode}:`, error);
+      }
+    }
+
+    if (coordinates.length < 3) {
+      toast({
+        title: "Insufficient coordinates",
+        description: "Could not get enough coordinates to generate polygon",
+        variant: "destructive",
+      });
+      return null;
+    }
+
+    try {
+      const points = coordinates.map(coord => [coord.longitude, coord.latitude]);
+      const concavity = points.length > 10 ? 2 : 1.5;
+      const hull = concaveman(points, concavity);
+      
+      // Convert back to lat/lng format for Leaflet
+      return hull.map(point => [point[1], point[0]]);
+    } catch (error) {
+      console.error('Error generating polygon:', error);
+      toast({
+        title: "Polygon generation failed",
+        description: "Failed to generate polygon from ZIP codes",
+        variant: "destructive",
+      });
+      return null;
+    }
+  };
+
+  // Function to get ZIP coordinates from database
+  const getZipCoordinates = async (zipcode: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('us_zip_codes')
+        .select('zipcode, latitude, longitude, city')
+        .eq('zipcode', zipcode)
+        .single();
+
+      if (error || !data) return null;
+      return data;
+    } catch (error) {
+      return null;
+    }
+  };
+
+  // Enhanced function to render ZIP markers with optional polygon generation
+  const renderZipMarkersWithPolygon = async (zipcodes: string[], showPolygon = false) => {
+    if (!mapRef.current || !zipcodes.length) return;
+
+    console.log(`Rendering ${zipcodes.length} ZIP markers`);
+    
+    const coordinates = [];
+    
+    // Clear existing ZIP markers
+    zipMarkersRef.current.forEach(marker => mapRef.current?.removeLayer(marker));
+    zipMarkersRef.current.clear();
+    
+    for (const zipcode of zipcodes) {
+      try {
+        let coords = await getZipCoordinates(zipcode);
+        
+        if (!coords) {
+          // Fallback to geocoding API
+          coords = await geocodeZipcode(zipcode);
+          if (coords) {
+            console.log(`Geocoded ${zipcode}:`, coords);
+          }
+        }
+        
+        if (coords?.latitude && coords?.longitude) {
+          coordinates.push(coords);
+          
+          const marker = L.circleMarker([coords.latitude, coords.longitude], {
+            radius: 5,
+            fillColor: '#10b981',
+            color: '#ffffff',
+            weight: 2,
+            opacity: 0.9,
+            fillOpacity: 0.8
+          });
+          
+          marker.bindTooltip(`${zipcode} - ${coords.city}`, {
+            permanent: false,
+            direction: 'top'
+          });
+
+          marker.addTo(mapRef.current!);
+          zipMarkersRef.current.set(zipcode, marker);
+        }
+      } catch (error) {
+        console.error(`Error rendering ZIP ${zipcode}:`, error);
+      }
+    }
+
+    // Generate and show polygon if requested
+    if (showPolygon && coordinates.length >= 3) {
+      try {
+        const points = coordinates.map(coord => [coord.longitude, coord.latitude]);
+        const concavity = points.length > 10 ? 2 : 1.5;
+        const hull = concaveman(points, concavity);
+        const polygonCoords = hull.map(point => [point[1], point[0]]);
+        
+        const polygon = L.polygon(polygonCoords, {
+          color: '#10b981',
+          weight: 2,
+          opacity: 0.8,
+          fillColor: '#10b981',
+          fillOpacity: 0.2
+        });
+
+        polygon.bindTooltip(`Generated Area<br>ZIP Codes: ${coordinates.length}`, {
+          permanent: false,
+          direction: 'center'
+        });
+        
+        polygon.addTo(mapRef.current!);
+        
+        // Store the generated polygon coordinates for potential saving
+        setDrawnPolygon(polygonCoords);
+        
+        // Fit map to show all markers and polygon
+        const bounds = L.latLngBounds(coordinates.map(c => [c.latitude, c.longitude]));
+        polygonCoords.forEach(coord => bounds.extend(coord));
+        mapRef.current.fitBounds(bounds, { padding: [20, 20] });
+        
+      } catch (error) {
+        console.error('Error generating polygon:', error);
+        toast({
+          title: "Polygon generation failed",
+          description: "Failed to generate polygon visualization",
+          variant: "destructive",
+        });
+      }
+    } else if (coordinates.length > 0) {
+      // Just fit to markers without polygon
+      const bounds = L.latLngBounds(coordinates.map(c => [c.latitude, c.longitude]));
+      mapRef.current.fitBounds(bounds, { padding: [20, 20] });
+    }
+  };
+
   // Render ZIP code markers for all service areas
   const renderZipMarkers = async () => {
     if (!mapRef.current || !showZipMarkers) {
@@ -350,63 +518,7 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
     
     if (allZipCodes.length === 0) return;
 
-    try {
-      // First try to get coordinates from database
-      const { data: zipData, error } = await supabase
-        .from('us_zip_codes')
-        .select('zipcode, latitude, longitude, city')
-        .in('zipcode', allZipCodes);
-
-      if (error) {
-        console.warn('Error fetching ZIP coordinates:', error);
-      }
-
-      const foundZips = zipData || [];
-      const missingZips = allZipCodes.filter(zip => 
-        !foundZips.some(found => found.zipcode === zip)
-      );
-
-      // Geocode missing ZIPs using external API (limit concurrency to 3)
-      const geocodedZips = [];
-      if (missingZips.length > 0) {
-        console.log(`Geocoding ${missingZips.length} missing ZIPs`);
-        for (let i = 0; i < missingZips.length; i += 3) {
-          const batch = missingZips.slice(i, i + 3);
-          const batchResults = await Promise.all(
-            batch.map(zip => geocodeZipcode(zip))
-          );
-          geocodedZips.push(...batchResults.filter(Boolean));
-        }
-      }
-
-      // Combine database and geocoded results
-      const allCoordinates = [
-        ...foundZips.filter(z => z.latitude && z.longitude),
-        ...geocodedZips
-      ];
-
-      allCoordinates.forEach(zip => {
-        if (zip.latitude && zip.longitude) {
-          const marker = L.circleMarker([zip.latitude, zip.longitude], {
-            color: '#3B82F6',
-            fillColor: '#3B82F6',
-            fillOpacity: 0.6,
-            radius: 5,
-            weight: 2
-          });
-
-          marker.bindTooltip(`${zip.zipcode} - ${zip.city}`, {
-            permanent: false,
-            direction: 'top'
-          });
-
-          marker.addTo(mapRef.current!);
-          zipMarkersRef.current.set(zip.zipcode, marker);
-        }
-      });
-    } catch (error) {
-      console.warn('Error rendering ZIP markers:', error);
-    }
+    await renderZipMarkersWithPolygon(allZipCodes, false);
   };
 
   const loadServiceAreas = async () => {
@@ -1007,15 +1119,34 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
                           Suggest from map center
                         </Button>
                       </div>
-                      <textarea
+                      <Textarea
                         id="manualZips"
                         value={manualZipcodes}
                         onChange={(e) => setManualZipcodes(e.target.value)}
                         placeholder="75201, 75202, 75203..."
-                        className="w-full h-20 p-2 border rounded-md resize-none"
+                        className="min-h-[100px]"
                       />
                     </div>
                     <div className="flex gap-2">
+                      <Button
+                        onClick={() => {
+                          const zips = manualZipcodes.split(/[,\s\n]+/).map(zip => zip.trim()).filter(Boolean);
+                          if (zips.length > 0) {
+                            renderZipMarkersWithPolygon(zips, true);
+                          } else {
+                            toast({
+                              title: "No ZIP codes",
+                              description: "Please enter some ZIP codes first",
+                              variant: "destructive",
+                            });
+                          }
+                        }}
+                        disabled={!manualZipcodes.trim()}
+                        variant="outline"
+                        className="flex-1"
+                      >
+                        Preview Polygon
+                      </Button>
                       <Button
                         onClick={saveZipcodesOnly}
                         disabled={saving || !manualZipcodes.trim()}
@@ -1029,17 +1160,35 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
                         ) : (
                           <>
                             <Save className="h-4 w-4 mr-2" />
-                            Save ZIP Codes
+                            Save ZIP Codes Only
                           </>
                         )}
                       </Button>
-                      <Button
-                        variant="outline"
-                        onClick={() => setShowZipFallback(false)}
-                      >
-                        Cancel
-                      </Button>
                     </div>
+                    {drawnPolygon && (
+                      <Button
+                        onClick={() => {
+                          // Convert drawn polygon to the format expected by saveServiceArea
+                          if (drawnPolygon) {
+                            const coordinates = drawnPolygon.map(coord => ({ lat: coord[0], lng: coord[1] }));
+                            setCurrentPolygon(coordinates);
+                            saveServiceArea();
+                          }
+                        }}
+                        className="w-full bg-green-600 hover:bg-green-700"
+                      >
+                        Save Generated Polygon
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowZipFallback(false);
+                        setDrawnPolygon(null);
+                      }}
+                    >
+                      Cancel
+                    </Button>
                   </div>
                 </CardContent>
               </Card>

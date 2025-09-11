@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
+import concaveman from 'concaveman';
 
 // Fix Leaflet default marker icon issue
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -122,6 +123,29 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
     }
   };
 
+  // Function to generate concave hull from ZIP coordinates
+  const generateConcaveHull = (zipCoordinates: ZipCoordinate[]) => {
+    if (zipCoordinates.length < 3) return null;
+    
+    const points = zipCoordinates
+      .filter(zip => zip.latitude && zip.longitude)
+      .map(zip => [zip.longitude, zip.latitude]);
+    
+    if (points.length < 3) return null;
+    
+    try {
+      // Generate concave hull with appropriate concavity
+      const concavity = points.length > 10 ? 2 : 1.5;
+      const hull = concaveman(points, concavity);
+      
+      // Convert back to lat/lng format for Leaflet
+      return hull.map(point => [point[1], point[0]]);
+    } catch (error) {
+      console.error('Error generating concave hull:', error);
+      return null;
+    }
+  };
+
   // Fetch ZIP coordinates from database and geocode missing ones
   const fetchZipCoordinatesAndRender = async (
     zipCodes: string[], 
@@ -169,14 +193,14 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
 
       let newBounds = currentBounds;
 
+      // Create individual ZIP markers
       allCoordinates.forEach((zip) => {
         if (zip.latitude && zip.longitude) {
-          // Create individual ZIP markers
           const zipMarker = L.circleMarker([zip.latitude, zip.longitude], {
-            color: workerColor,
+            color: '#ffffff',
             fillColor: workerColor,
-            fillOpacity: area.is_active ? 0.7 : 0.4,
-            radius: 6,
+            fillOpacity: area.is_active ? 0.8 : 0.4,
+            radius: 5,
             weight: 2,
             opacity: area.is_active ? 0.9 : 0.5
           });
@@ -209,6 +233,47 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
           }
         }
       });
+
+      // Generate and render polygon if we have enough coordinates
+      if (allCoordinates.length >= 3) {
+        const hullCoords = generateConcaveHull(allCoordinates);
+        if (hullCoords) {
+          const polygon = L.polygon(hullCoords, {
+            color: workerColor,
+            weight: 2,
+            opacity: 0.8,
+            fillColor: workerColor,
+            fillOpacity: area.is_active ? 0.25 : 0.1,
+            dashArray: area.is_active ? undefined : '5, 5'
+          });
+          
+          // Add click handler to polygon
+          polygon.on('click', () => {
+            setSelectedAreaInfo({
+              worker,
+              area,
+              zipCodes: zipCodes.sort()
+            });
+          });
+          
+          polygon.bindTooltip(`${area.area_name}<br>${allCoordinates.length} ZIP codes`, {
+            permanent: false,
+            direction: 'center'
+          });
+          
+          polygon.addTo(mapRef.current!);
+          if (polygonLayersRef.current instanceof Map) {
+            polygonLayersRef.current.set(`${worker.id}-${area.id}-polygon`, polygon);
+          }
+          
+          // Extend bounds to include polygon
+          if (!newBounds) {
+            newBounds = polygon.getBounds();
+          } else {
+            newBounds.extend(polygon.getBounds());
+          }
+        }
+      }
 
       return newBounds;
     } catch (error) {
