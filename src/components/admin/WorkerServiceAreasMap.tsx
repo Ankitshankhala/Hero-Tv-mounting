@@ -3,6 +3,8 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
 
 // Fix Leaflet default marker icon issue
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -37,6 +39,13 @@ interface WorkerServiceAreasMapProps {
   showInactiveAreas: boolean;
 }
 
+interface ZipCoordinate {
+  zipcode: string;
+  latitude: number;
+  longitude: number;
+  city: string;
+}
+
 // Color palette for different workers
 const WORKER_COLORS = [
   '#3B82F6', // Blue
@@ -64,6 +73,7 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
     area: Worker['service_areas'][0];
     zipCodes: string[];
   } | null>(null);
+  const [showZipOverlays, setShowZipOverlays] = useState<boolean>(true);
 
   // Initialize map
   useEffect(() => {
@@ -89,6 +99,168 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
       }
     };
   }, []);
+
+  // Fetch ZIP coordinates from database
+  const fetchZipCoordinatesAndRender = async (
+    zipCodes: string[], 
+    workerColor: string, 
+    area: Worker['service_areas'][0], 
+    worker: Worker,
+    currentBounds: L.LatLngBounds | null
+  ) => {
+    if (!mapRef.current || zipCodes.length === 0) return currentBounds;
+
+    try {
+      const { data: zipData, error } = await supabase
+        .from('us_zip_codes')
+        .select('zipcode, latitude, longitude, city')
+        .in('zipcode', zipCodes);
+
+      if (error) {
+        console.warn('Error fetching ZIP coordinates:', error);
+        return currentBounds;
+      }
+
+      const zipCoordinates: ZipCoordinate[] = zipData || [];
+      let newBounds = currentBounds;
+
+      zipCoordinates.forEach((zip) => {
+        if (zip.latitude && zip.longitude) {
+          // Create individual ZIP markers
+          const zipMarker = L.circleMarker([zip.latitude, zip.longitude], {
+            color: workerColor,
+            fillColor: workerColor,
+            fillOpacity: area.is_active ? 0.7 : 0.4,
+            radius: 6,
+            weight: 2,
+            opacity: area.is_active ? 0.9 : 0.5
+          });
+
+          // Add click handler
+          zipMarker.on('click', () => {
+            setSelectedAreaInfo({
+              worker,
+              area,
+              zipCodes: zipCodes.sort()
+            });
+          });
+
+          // Add tooltip
+          zipMarker.bindTooltip(`${zip.zipcode} - ${zip.city}`, {
+            permanent: false,
+            direction: 'top'
+          });
+
+          zipMarker.addTo(mapRef.current!);
+          if (polygonLayersRef.current instanceof Map) {
+            polygonLayersRef.current.set(`${worker.id}-${area.id}-${zip.zipcode}`, zipMarker);
+          }
+
+          // Add to bounds
+          if (!newBounds) {
+            newBounds = L.latLngBounds([zip.latitude, zip.longitude], [zip.latitude, zip.longitude]);
+          } else {
+            newBounds.extend([zip.latitude, zip.longitude]);
+          }
+        }
+      });
+
+      return newBounds;
+    } catch (error) {
+      console.warn('Error processing ZIP coordinates:', error);
+      return currentBounds;
+    }
+  };
+
+  // Generate convex hull polygon from ZIP coordinates  
+  const syncPolygonToZips = async (area: Worker['service_areas'][0], worker: Worker) => {
+    const areaZipCodes = worker.service_zipcodes
+      .filter(zip => zip.service_area_id === area.id)
+      .map(zip => zip.zipcode);
+
+    if (areaZipCodes.length < 3) {
+      alert('Need at least 3 ZIP codes to generate a polygon');
+      return;
+    }
+
+    try {
+      const { data: zipData, error } = await supabase
+        .from('us_zip_codes')
+        .select('zipcode, latitude, longitude')
+        .in('zipcode', areaZipCodes);
+
+      if (error || !zipData || zipData.length < 3) {
+        alert('Could not fetch enough ZIP coordinates to generate polygon');
+        return;
+      }
+
+      // Simple convex hull algorithm (gift wrapping)
+      const points = zipData.map(z => ({ lat: z.latitude, lng: z.longitude }));
+      const hull = calculateConvexHull(points);
+
+      if (hull.length >= 3) {
+        // Update the service area with the new polygon
+        const { error: updateError } = await supabase
+          .from('worker_service_areas')
+          .update({ 
+            polygon_coordinates: hull,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', area.id);
+
+        if (updateError) {
+          console.error('Error updating polygon:', updateError);
+          alert('Failed to update polygon');
+        } else {
+          alert('Polygon synced successfully!');
+          // Trigger a re-render by updating the worker data
+          window.location.reload();
+        }
+      }
+    } catch (error) {
+      console.error('Error syncing polygon:', error);
+      alert('Failed to sync polygon');
+    }
+  };
+
+  // Simple convex hull calculation
+  const calculateConvexHull = (points: { lat: number; lng: number }[]): { lat: number; lng: number }[] => {
+    if (points.length < 3) return points;
+
+    // Find the bottommost point (or leftmost in case of tie)
+    let start = 0;
+    for (let i = 1; i < points.length; i++) {
+      if (points[i].lat < points[start].lat || 
+         (points[i].lat === points[start].lat && points[i].lng < points[start].lng)) {
+        start = i;
+      }
+    }
+
+    const hull: { lat: number; lng: number }[] = [];
+    let current = start;
+
+    do {
+      hull.push(points[current]);
+      let next = (current + 1) % points.length;
+
+      for (let i = 0; i < points.length; i++) {
+        if (orientation(points[current], points[i], points[next]) === 2) {
+          next = i;
+        }
+      }
+
+      current = next;
+    } while (current !== start);
+
+    return hull;
+  };
+
+  // Helper function for convex hull
+  const orientation = (p: { lat: number; lng: number }, q: { lat: number; lng: number }, r: { lat: number; lng: number }): number => {
+    const val = (q.lng - p.lng) * (r.lat - q.lat) - (q.lat - p.lat) * (r.lng - q.lng);
+    if (val === 0) return 0;
+    return val > 0 ? 1 : 2;
+  };
 
   // Update polygons when workers or filters change
   useEffect(() => {
@@ -174,42 +346,8 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
               }
             }
           } else if (areaZipCodes.length > 0) {
-            // ZIP-only area: create a visual representation
-            // For now, we'll create a center marker for the area
-            // In a real implementation, you'd want to geocode the ZIP codes
-            const centerLat = 39.8283; // Center of US as fallback
-            const centerLng = -98.5795;
-            
-            // Create a circle marker to represent ZIP-only area
-            const zipMarker = L.circleMarker([centerLat, centerLng], {
-              color: workerColor,
-              fillColor: workerColor,
-              fillOpacity: area.is_active ? 0.6 : 0.3,
-              radius: 8,
-              weight: 2
-            });
-
-            // Add click handler
-            zipMarker.on('click', () => {
-              setSelectedAreaInfo({
-                worker,
-                area,
-                zipCodes: areaZipCodes.sort()
-              });
-            });
-
-            // Add popup to show this is a ZIP-only area
-            zipMarker.bindTooltip(`${area.area_name} (ZIP codes only: ${areaZipCodes.length} ZIPs)`, {
-              permanent: false,
-              direction: 'top'
-            });
-
-            zipMarker.addTo(mapRef.current!);
-            if (polygonLayersRef.current instanceof Map) {
-              polygonLayersRef.current.set(`${worker.id}-${area.id}`, zipMarker);
-            }
-
-            // For ZIP-only areas, we don't add to bounds since we don't have precise locations
+            // ZIP-only area: fetch actual ZIP coordinates and create markers
+            fetchZipCoordinatesAndRender(areaZipCodes, workerColor, area, worker, bounds);
           }
         } catch (error) {
           console.warn('Error processing service area:', error, area);
@@ -221,7 +359,7 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
     if (bounds && mapRef.current) {
       mapRef.current.fitBounds(bounds, { padding: [20, 20] });
     }
-  }, [workers, selectedWorkerId, showInactiveAreas]);
+  }, [workers, selectedWorkerId, showInactiveAreas, showZipOverlays]);
 
   const handleCloseAreaInfo = () => {
     setSelectedAreaInfo(null);
@@ -229,6 +367,17 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
 
   return (
     <div className="relative h-full min-h-[500px]">
+      {/* Map Controls */}
+      <div className="absolute top-4 left-4 z-[1000] space-y-2">
+        <Button
+          size="sm"
+          variant={showZipOverlays ? "default" : "outline"}
+          onClick={() => setShowZipOverlays(!showZipOverlays)}
+        >
+          {showZipOverlays ? 'Hide' : 'Show'} ZIP Overlays
+        </Button>
+      </div>
+
       <div 
         ref={mapContainerRef} 
         className="w-full h-full rounded-lg overflow-hidden"
@@ -285,6 +434,22 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
                   {new Date(selectedAreaInfo.area.created_at).toLocaleDateString()}
                 </span>
               </div>
+
+              {/* Sync Polygon Button - only show if area has ZIPs but no polygon or polygon exists */}
+              {selectedAreaInfo.zipCodes.length >= 3 && (
+                <div className="mt-3 pt-3 border-t">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => syncPolygonToZips(selectedAreaInfo.area, selectedAreaInfo.worker)}
+                  >
+                    Sync Polygon to ZIPs
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Generate polygon boundary from ZIP coordinates
+                  </p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

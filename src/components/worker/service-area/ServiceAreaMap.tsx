@@ -58,6 +58,8 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
   const [manualZipcodes, setManualZipcodes] = useState('');
   const [searchAddress, setSearchAddress] = useState('');
   const [searching, setSearching] = useState(false);
+  const [showZipMarkers, setShowZipMarkers] = useState<boolean>(true);
+  const zipMarkersRef = useRef<Map<string, L.CircleMarker>>(new Map());
   const { toast } = useToast();
   const { serviceZipcodes, getActiveZipcodes, fetchServiceAreas } = useWorkerServiceAreas(workerId);
 
@@ -294,12 +296,72 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
     }
   }, [isActive]);
 
-  // Load existing service areas with optimized caching
+  // Load existing service areas with optimized caching and ZIP markers
   useEffect(() => {
     if (!workerId) return;
     loadServiceAreas();
     // Remove redundant fetchServiceAreas call
   }, [workerId]);
+
+  // Update ZIP markers when dependencies change
+  useEffect(() => {
+    if (isActive) {
+      renderZipMarkers();
+    }
+  }, [showZipMarkers, serviceZipcodes, isActive]);
+
+  // Render ZIP code markers for all service areas
+  const renderZipMarkers = async () => {
+    if (!mapRef.current || !showZipMarkers) {
+      // Clear existing markers if hiding
+      zipMarkersRef.current.forEach(marker => mapRef.current?.removeLayer(marker));
+      zipMarkersRef.current.clear();
+      return;
+    }
+
+    // Clear existing markers
+    zipMarkersRef.current.forEach(marker => mapRef.current?.removeLayer(marker));
+    zipMarkersRef.current.clear();
+
+    // Get all ZIP codes from service areas
+    const allZipCodes = serviceZipcodes.map(z => z.zipcode);
+    
+    if (allZipCodes.length === 0) return;
+
+    try {
+      const { data: zipData, error } = await supabase
+        .from('us_zip_codes')
+        .select('zipcode, latitude, longitude, city')
+        .in('zipcode', allZipCodes);
+
+      if (error || !zipData) {
+        console.warn('Error fetching ZIP coordinates:', error);
+        return;
+      }
+
+      zipData.forEach(zip => {
+        if (zip.latitude && zip.longitude) {
+          const marker = L.circleMarker([zip.latitude, zip.longitude], {
+            color: '#3B82F6',
+            fillColor: '#3B82F6',
+            fillOpacity: 0.6,
+            radius: 5,
+            weight: 2
+          });
+
+          marker.bindTooltip(`${zip.zipcode} - ${zip.city}`, {
+            permanent: false,
+            direction: 'top'
+          });
+
+          marker.addTo(mapRef.current!);
+          zipMarkersRef.current.set(zip.zipcode, marker);
+        }
+      });
+    } catch (error) {
+      console.warn('Error rendering ZIP markers:', error);
+    }
+  };
 
   const loadServiceAreas = async () => {
     if (!workerId) return;
@@ -323,6 +385,9 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
       );
 
       setServiceAreas(data || []);
+      
+      // Render ZIP markers when service areas load
+      renderZipMarkers();
       
       // Display polygons on map but preserve existing layers if switching quickly
       if (data && data.length > 0 && mapRef.current && drawnItemsRef.current) {
@@ -811,10 +876,26 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
                 </div>
               )}
-            </div>
+             </div>
 
-            {/* Controls */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+             {/* ZIP Markers Toggle */}
+             <div className="space-y-2">
+               <label className="flex items-center space-x-2 text-sm">
+                 <input
+                   type="checkbox"
+                   checked={showZipMarkers}
+                   onChange={(e) => setShowZipMarkers(e.target.checked)}
+                   className="rounded"
+                 />
+                 <span>Show ZIP Code Markers</span>
+               </label>
+               <div className="text-xs text-muted-foreground">
+                 Display markers for assigned ZIP codes ({serviceZipcodes.length} total)
+               </div>
+             </div>
+
+             {/* Controls */}
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="areaName">Area Name</Label>
                 <Input
