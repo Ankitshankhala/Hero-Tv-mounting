@@ -193,7 +193,21 @@ export const AdminServiceAreasUnified = () => {
     
     // Count areas that need backfilling (have polygons but no ZIP codes)
     const areasNeedingBackfill = (worker.service_areas || []).filter(area => {
-      const hasPolygon = area.polygon_coordinates && Array.isArray(JSON.parse(area.polygon_coordinates || '[]'));
+      let hasPolygon = false;
+      
+      if (area.polygon_coordinates) {
+        try {
+          // Check if polygon_coordinates is already an object or needs parsing
+          const coords = typeof area.polygon_coordinates === 'string' 
+            ? JSON.parse(area.polygon_coordinates) 
+            : area.polygon_coordinates;
+          hasPolygon = Array.isArray(coords) && coords.length > 0;
+        } catch (error) {
+          console.warn('Error parsing polygon coordinates for area:', area.id, error);
+          hasPolygon = false;
+        }
+      }
+      
       const areaZipCodes = (worker.service_zipcodes || []).filter(zip => zip.service_area_id === area.id);
       return hasPolygon && areaZipCodes.length === 0 && area.is_active;
     }).length;
