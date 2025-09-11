@@ -2419,6 +2419,10 @@ export type Database = {
         Args: { "": unknown }
         Returns: string
       }
+      pick_best_area_for_worker_zip: {
+        Args: { p_worker: string; p_zip: string }
+        Returns: string
+      }
       point: {
         Args: { "": unknown }
         Returns: unknown
@@ -3714,6 +3718,10 @@ export type Database = {
           table_name: string
         }
         Returns: string
+      }
+      upsert_zip_coverage_for_area: {
+        Args: { p_area_id: string }
+        Returns: undefined
       }
       zip_has_active_coverage: {
         Args: { p_zipcode: string }
