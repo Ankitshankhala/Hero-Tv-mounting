@@ -106,6 +106,7 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
       ? (workers || []).filter(w => w.id === selectedWorkerId)
       : (workers || []);
 
+
     let bounds: L.LatLngBounds | null = null;
 
     workersToShow.forEach((worker, workerIndex) => {
@@ -123,8 +124,10 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
         try {
           const coordinates = area.polygon_coordinates;
           
+          
           // Check if we have valid polygon coordinates
           if (coordinates && Array.isArray(coordinates) && coordinates.length >= 3) {
+            
             // Convert coordinates to LatLng array
             const latLngs: L.LatLngExpression[] = coordinates.map((coord: any) => {
               if (coord.lat !== undefined && coord.lng !== undefined) {
