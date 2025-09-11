@@ -2317,6 +2317,14 @@ export type Database = {
           total_zipcodes: number
         }[]
       }
+      get_workers_for_zipcode: {
+        Args: { p_zipcode: string }
+        Returns: {
+          worker_email: string
+          worker_id: string
+          worker_name: string
+        }[]
+      }
       get_zip_area_info: {
         Args: { p_zipcode: string }
         Returns: {
