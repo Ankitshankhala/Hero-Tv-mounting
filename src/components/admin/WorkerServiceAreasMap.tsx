@@ -58,7 +58,7 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
 }) => {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
-  const polygonLayersRef = useRef<Map<string, L.Polygon>>(new Map());
+  const polygonLayersRef = useRef<Map<string, L.Layer>>(new Map());
   const [selectedAreaInfo, setSelectedAreaInfo] = useState<{
     worker: Worker;
     area: Worker['service_areas'][0];
@@ -94,10 +94,10 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
   useEffect(() => {
     if (!mapRef.current || !polygonLayersRef.current) return;
 
-    // Clear existing polygons
+    // Clear existing polygons and markers
     if (polygonLayersRef.current instanceof Map) {
-      polygonLayersRef.current.forEach(polygon => {
-        mapRef.current?.removeLayer(polygon);
+      polygonLayersRef.current.forEach(layer => {
+        mapRef.current?.removeLayer(layer);
       });
       polygonLayersRef.current.clear();
     }
@@ -115,63 +115,99 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
         // Skip inactive areas unless specifically shown
         if (!area.is_active && !showInactiveAreas) return;
 
+        // Get zip codes for this area
+        const areaZipCodes = worker.service_zipcodes
+          .filter(zip => zip.service_area_id === area.id)
+          .map(zip => zip.zipcode);
+
         try {
           const coordinates = area.polygon_coordinates;
-          if (!coordinates || !Array.isArray(coordinates)) return;
+          
+          // Check if we have valid polygon coordinates
+          if (coordinates && Array.isArray(coordinates) && coordinates.length >= 3) {
+            // Convert coordinates to LatLng array
+            const latLngs: L.LatLngExpression[] = coordinates.map((coord: any) => {
+              if (coord.lat !== undefined && coord.lng !== undefined) {
+                return [coord.lat, coord.lng] as L.LatLngTuple;
+              }
+              // Handle alternative coordinate formats
+              if (Array.isArray(coord) && coord.length >= 2) {
+                return [coord[0], coord[1]] as L.LatLngTuple;
+              }
+              return [0, 0] as L.LatLngTuple; // Fallback
+            }).filter((coord: L.LatLngTuple) => coord[0] !== 0 || coord[1] !== 0);
 
-          // Convert coordinates to LatLng array
-          const latLngs: L.LatLngExpression[] = coordinates.map((coord: any) => {
-            if (coord.lat !== undefined && coord.lng !== undefined) {
-              return [coord.lat, coord.lng] as L.LatLngTuple;
+            if (latLngs.length >= 3) {
+              const polygon = L.polygon(latLngs, {
+                color: workerColor,
+                fillColor: workerColor,
+                fillOpacity: area.is_active ? 0.3 : 0.1,
+                weight: area.is_active ? 2 : 1,
+                opacity: area.is_active ? 0.8 : 0.4,
+                dashArray: area.is_active ? undefined : '5, 5',
+              });
+
+              // Add click handler
+              polygon.on('click', () => {
+                setSelectedAreaInfo({
+                  worker,
+                  area,
+                  zipCodes: areaZipCodes.sort()
+                });
+              });
+
+              polygon.addTo(mapRef.current!);
+              if (polygonLayersRef.current instanceof Map) {
+                polygonLayersRef.current.set(`${worker.id}-${area.id}`, polygon);
+              }
+
+              // Add to bounds
+              if (!bounds) {
+                bounds = polygon.getBounds();
+              } else {
+                bounds.extend(polygon.getBounds());
+              }
             }
-            // Handle alternative coordinate formats
-            if (Array.isArray(coord) && coord.length >= 2) {
-              return [coord[0], coord[1]] as L.LatLngTuple;
-            }
-            return [0, 0] as L.LatLngTuple; // Fallback
-          }).filter((coord: L.LatLngTuple) => coord[0] !== 0 || coord[1] !== 0);
-
-          if (latLngs.length < 3) return; // Need at least 3 points for a polygon
-
-          const polygon = L.polygon(latLngs, {
-            color: workerColor,
-            fillColor: workerColor,
-            fillOpacity: area.is_active ? 0.3 : 0.1,
-            weight: area.is_active ? 2 : 1,
-            opacity: area.is_active ? 0.8 : 0.4,
-            dashArray: area.is_active ? undefined : '5, 5',
-          });
-
-          // Get zip codes for this area
-          const areaZipCodes = worker.service_zipcodes
-            .filter(zip => zip.service_area_id === area.id)
-            .map(zip => zip.zipcode);
-
-          // Add click handler (removed popup to avoid duplicate UI)
-          polygon.on('click', () => {
-            // Show only ZIP codes that belong to this area to avoid confusion
-            const zipCodesForArea = areaZipCodes.sort();
-
-            setSelectedAreaInfo({
-              worker,
-              area,
-              zipCodes: zipCodesForArea
+          } else if (areaZipCodes.length > 0) {
+            // ZIP-only area: create a visual representation
+            // For now, we'll create a center marker for the area
+            // In a real implementation, you'd want to geocode the ZIP codes
+            const centerLat = 39.8283; // Center of US as fallback
+            const centerLng = -98.5795;
+            
+            // Create a circle marker to represent ZIP-only area
+            const zipMarker = L.circleMarker([centerLat, centerLng], {
+              color: workerColor,
+              fillColor: workerColor,
+              fillOpacity: area.is_active ? 0.6 : 0.3,
+              radius: 8,
+              weight: 2
             });
-          });
 
-          polygon.addTo(mapRef.current!);
-          if (polygonLayersRef.current instanceof Map) {
-            polygonLayersRef.current.set(`${worker.id}-${area.id}`, polygon);
-          }
+            // Add click handler
+            zipMarker.on('click', () => {
+              setSelectedAreaInfo({
+                worker,
+                area,
+                zipCodes: areaZipCodes.sort()
+              });
+            });
 
-          // Add to bounds
-          if (!bounds) {
-            bounds = polygon.getBounds();
-          } else {
-            bounds.extend(polygon.getBounds());
+            // Add popup to show this is a ZIP-only area
+            zipMarker.bindTooltip(`${area.area_name} (ZIP codes only: ${areaZipCodes.length} ZIPs)`, {
+              permanent: false,
+              direction: 'top'
+            });
+
+            zipMarker.addTo(mapRef.current!);
+            if (polygonLayersRef.current instanceof Map) {
+              polygonLayersRef.current.set(`${worker.id}-${area.id}`, zipMarker);
+            }
+
+            // For ZIP-only areas, we don't add to bounds since we don't have precise locations
           }
         } catch (error) {
-          console.warn('Error processing polygon coordinates:', error, area);
+          console.warn('Error processing service area:', error, area);
         }
       });
     });

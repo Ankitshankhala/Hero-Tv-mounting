@@ -345,6 +345,30 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
               fillOpacity: 0.3
             });
             drawnItemsRef.current!.addLayer(polygon);
+          } else {
+            // Area exists but has no polygon coordinates - likely ZIP-only area
+            // Get ZIP codes for this area
+            const areaZipCodes = serviceZipcodes.filter(sz => sz.service_area_id === area.id);
+            if (areaZipCodes.length > 0) {
+              // Create a visual indicator for ZIP-only areas
+              const centerLat = 32.7767; // Default Dallas center
+              const centerLng = -96.7970;
+              
+              const zipMarker = L.circleMarker([centerLat, centerLng], {
+                color: '#10b981', // Green color for ZIP-only areas
+                fillColor: '#10b981',
+                fillOpacity: 0.6,
+                radius: 6,
+                weight: 2
+              });
+
+              zipMarker.bindTooltip(`${area.area_name} (${areaZipCodes.length} ZIP codes)`, {
+                permanent: false,
+                direction: 'top'
+              });
+
+              drawnItemsRef.current!.addLayer(zipMarker);
+            }
           }
         });
         
@@ -964,21 +988,26 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
                     <div className={`w-3 h-3 rounded-full ${
                       area.is_active ? 'bg-primary' : 'bg-muted-foreground'
                     }`} />
-                    <div>
-                      <p className="font-medium">{area.area_name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Created {new Date(area.created_at).toLocaleDateString()}
-                        {area.is_active && ' • Active'}
-                      </p>
-                      {area.is_active && (
-                        <div className="flex items-center gap-2 mt-1">
-                          <MapPinCheck className="h-3 w-3 text-primary" />
-                          <Badge variant="secondary" className="text-xs">
-                            {getActiveZipcodes().length} ZIP codes covered
-                          </Badge>
-                        </div>
-                      )}
-                    </div>
+                      <div>
+                        <p className="font-medium">{area.area_name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Created {new Date(area.created_at).toLocaleDateString()}
+                          {area.is_active && ' • Active'}
+                        </p>
+                        {area.is_active && (
+                          <div className="flex items-center gap-2 mt-1">
+                            <MapPinCheck className="h-3 w-3 text-primary" />
+                            <Badge variant="secondary" className="text-xs">
+                              {serviceZipcodes.filter(sz => sz.service_area_id === area.id).length} ZIP codes in this area
+                            </Badge>
+                            {(!area.polygon_coordinates || !Array.isArray(area.polygon_coordinates) || area.polygon_coordinates.length < 3) && (
+                              <Badge variant="outline" className="text-xs">
+                                ZIP codes only
+                              </Badge>
+                            )}
+                          </div>
+                        )}
+                      </div>
                   </div>
                   
                   <div className="flex items-center gap-2">
