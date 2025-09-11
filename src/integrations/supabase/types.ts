@@ -2508,6 +2508,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      reassign_bookings_for_zipcode: {
+        Args: { p_zipcode: string }
+        Returns: number
+      }
       reassign_expired_acknowledgments: {
         Args: Record<PropertyKey, never>
         Returns: Json
