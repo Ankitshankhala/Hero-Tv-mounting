@@ -622,6 +622,16 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
   const displayPolygonOnMap = (coordinates: Array<{ lat: number; lng: number }>, area: ServiceArea) => {
     if (!mapRef.current || !drawnItemsRef.current) return;
 
+    // Check if area has valid polygon coordinates
+    if (!coordinates || !Array.isArray(coordinates) || coordinates.length < 3) {
+      toast({
+        title: "Cannot edit area",
+        description: "This area only contains ZIP codes and has no editable polygon.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Clear existing polygons
     drawnItemsRef.current.clearLayers();
 
@@ -664,24 +674,31 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
 
     setSaving(true);
     try {
+      const requestBody: any = {
+        workerId: workerId,
+        areaName: areaName.trim(),
+        polygon: currentPolygon,
+        mode: editingArea ? 'append' : 'append'  // For edits, we'll use the areaIdToUpdate
+      };
+
+      // If editing an existing area, include the area ID
+      if (editingArea) {
+        requestBody.areaIdToUpdate = editingArea.id;
+      }
+
       const { data, error } = await supabase.functions.invoke('service-area-upsert', {
-        body: {
-          workerId: workerId,
-          areaName: areaName.trim(),
-          polygon: currentPolygon,
-          mode: 'append'
-        }
+        body: requestBody
       });
 
       if (error) throw error;
 
       if (!data.success) {
         // Handle the special case where no ZIP codes are found
-        if (data.error === 'NO_ZIPCODES_FOUND' && data.suggestManualMode) {
+        if (data.suggestManualMode) {
           setShowZipFallback(true);
           toast({
             title: "No ZIP codes found",
-            description: data.message,
+            description: data.error,
             variant: "destructive",
           });
           return;
@@ -689,12 +706,26 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
         throw new Error(data.error || 'Failed to process polygon');
       }
 
+      const zipCountText = data.data?.zipcode_count || data.zipcodesCount || 'some';
+      const skippedText = data.data?.skipped_count > 0 ? ` (${data.data.skipped_count} duplicates skipped)` : '';
+      const actionText = editingArea ? 'updated' : 'saved';
+
       toast({
         title: "Success",
-        description: `Service area saved with ${data.zipcodesCount} zip codes`,
+        description: `Service area ${actionText} with ${zipCountText} ZIP codes${skippedText}`,
       });
 
-      // Reload service areas - remove redundant fetchServiceAreas call
+      // Clear editing state
+      setEditingArea(null);
+      setCurrentPolygon(null);
+      setAreaName('Service Area');
+      
+      // Clear map layers
+      if (drawnItemsRef.current) {
+        drawnItemsRef.current.clearLayers();
+      }
+
+      // Reload service areas
       await loadServiceAreas();
       setShowZipFallback(false);
       
@@ -1073,12 +1104,12 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
                   {saving ? (
                     <>
                       <div className="h-4 w-4 mr-2 animate-spin rounded-full border-b-2 border-white" />
-                      Saving...
+                      {editingArea ? 'Updating...' : 'Saving...'}
                     </>
                   ) : (
                     <>
                       <Save className="h-4 w-4 mr-2" />
-                      Save Area
+                      {editingArea ? 'Update Area' : 'Save Area'}
                     </>
                   )}
                 </Button>
@@ -1287,13 +1318,26 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
                   </div>
                   
                   <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => displayPolygonOnMap(area.polygon_coordinates, area)}
-                    >
-                      <Edit3 className="h-4 w-4" />
-                    </Button>
+                    {area.polygon_coordinates && Array.isArray(area.polygon_coordinates) && area.polygon_coordinates.length >= 3 ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => displayPolygonOnMap(area.polygon_coordinates, area)}
+                        title="Edit polygon area"
+                      >
+                        <Edit3 className="h-4 w-4" />
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled
+                        title="Cannot edit ZIP-only areas"
+                        className="opacity-50 cursor-not-allowed"
+                      >
+                        <Edit3 className="h-4 w-4" />
+                      </Button>
+                    )}
                     <Button
                       variant="outline"
                       size="sm"
