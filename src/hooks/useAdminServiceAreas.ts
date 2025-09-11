@@ -44,18 +44,31 @@ export const useAdminServiceAreas = (forceFresh = false) => {
   const fetchWorkers = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await optimizedSupabaseCall(
-        'admin-workers-list',
-        async () => {
-          const { data, error } = await supabase.rpc('get_workers_for_admin');
-          if (error) throw error;
-          return data;
-        },
-        true, // use cache
-        60000 // 1 minute cache
-      );
-      
-      setWorkers(data || []);
+      // Use direct query to canonical worker_service_zipcodes table for accurate counts
+      const { data, error } = await supabase
+        .from('users')
+        .select(`
+          id,
+          name,
+          email,
+          phone,
+          is_active,
+          created_at,
+          worker_service_areas!inner(count),
+          worker_service_zipcodes!inner(count)
+        `)
+        .eq('role', 'worker')
+        .order('name');
+
+      if (error) throw error;
+
+      const workersWithStats = (data || []).map((worker) => ({
+        ...worker,
+        service_area_count: worker.worker_service_areas?.[0]?.count || 0,
+        total_zipcodes: worker.worker_service_zipcodes?.[0]?.count || 0  // Match interface property name
+      }));
+
+      setWorkers(workersWithStats);
     } catch (error) {
       console.error('Error fetching workers:', error);
       toast({
