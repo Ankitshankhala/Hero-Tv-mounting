@@ -1767,6 +1767,10 @@ export type Database = {
         Args: { p_booking_id: string; p_worker_id: string }
         Returns: boolean
       }
+      assign_zipcode_to_connor: {
+        Args: { p_zipcode: string }
+        Returns: Json
+      }
       auto_assign_worker_by_zip: {
         Args: { p_booking_id: string }
         Returns: boolean
@@ -1805,6 +1809,10 @@ export type Database = {
       backfill_worker_availability_from_applications: {
         Args: Record<PropertyKey, never>
         Returns: Json
+      }
+      backfill_worker_service_data: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       box: {
         Args: { "": unknown } | { "": unknown }
