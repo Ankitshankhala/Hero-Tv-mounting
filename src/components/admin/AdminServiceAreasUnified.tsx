@@ -593,7 +593,20 @@ export const AdminServiceAreasUnified = () => {
                               <p className="text-xs text-muted-foreground">Service Areas:</p>
                               {(worker.service_areas || []).map((area) => {
                                 const areaZipCodes = (worker.service_zipcodes || []).filter(zip => zip.service_area_id === area.id);
-                                const hasPolygon = area.polygon_coordinates && Array.isArray(JSON.parse(area.polygon_coordinates || '[]'));
+                                
+                                let hasPolygon = false;
+                                if (area.polygon_coordinates) {
+                                  try {
+                                    const coords = typeof area.polygon_coordinates === 'string' 
+                                      ? JSON.parse(area.polygon_coordinates) 
+                                      : area.polygon_coordinates;
+                                    hasPolygon = Array.isArray(coords) && coords.length > 0;
+                                  } catch (error) {
+                                    console.warn('Error parsing polygon coordinates for area:', area.id, error);
+                                    hasPolygon = false;
+                                  }
+                                }
+                                
                                 const needsBackfill = hasPolygon && areaZipCodes.length === 0;
                                 
                                 return (
