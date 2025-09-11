@@ -8,6 +8,28 @@ interface ZipCoordinate {
   city: string;
 }
 
+// Geocode a ZIP code using Zippopotam.us API
+const geocodeZipcode = async (zipcode: string): Promise<ZipCoordinate | null> => {
+  try {
+    const response = await fetch(`https://api.zippopotam.us/us/${zipcode}`);
+    if (!response.ok) return null;
+    
+    const data = await response.json();
+    const place = data.places?.[0];
+    if (!place) return null;
+    
+    return {
+      zipcode,
+      latitude: parseFloat(place.latitude),
+      longitude: parseFloat(place.longitude),
+      city: place['place name'] || 'Unknown'
+    };
+  } catch (error) {
+    console.warn(`Failed to geocode ZIP ${zipcode}:`, error);
+    return null;
+  }
+};
+
 export const useRealtimeZipMarkers = (workerId?: string) => {
   const [zipCoordinates, setZipCoordinates] = useState<ZipCoordinate[]>([]);
   const [loading, setLoading] = useState(false);
@@ -30,7 +52,7 @@ export const useRealtimeZipMarkers = (workerId?: string) => {
 
       const zipCodes = workerZips.map(z => z.zipcode);
 
-      // Get coordinates for these ZIP codes
+      // Get coordinates for these ZIP codes from database
       const { data: zipData, error: coordError } = await supabase
         .from('us_zip_codes')
         .select('zipcode, latitude, longitude, city')
@@ -42,7 +64,28 @@ export const useRealtimeZipMarkers = (workerId?: string) => {
         return;
       }
 
-      setZipCoordinates(zipData || []);
+      const foundZips = zipData || [];
+      const missingZips = zipCodes.filter(zip => 
+        !foundZips.some(found => found.zipcode === zip)
+      );
+
+      // Geocode missing ZIPs using external API (limit concurrency to 5)
+      const geocodedZips: ZipCoordinate[] = [];
+      for (let i = 0; i < missingZips.length; i += 5) {
+        const batch = missingZips.slice(i, i + 5);
+        const batchResults = await Promise.all(
+          batch.map(zip => geocodeZipcode(zip))
+        );
+        geocodedZips.push(...batchResults.filter(Boolean) as ZipCoordinate[]);
+      }
+
+      // Combine database and geocoded results
+      const allCoordinates = [
+        ...foundZips.filter(z => z.latitude && z.longitude),
+        ...geocodedZips
+      ];
+
+      setZipCoordinates(allCoordinates);
     } catch (error) {
       console.error('Error fetching ZIP coordinates:', error);
       setZipCoordinates([]);

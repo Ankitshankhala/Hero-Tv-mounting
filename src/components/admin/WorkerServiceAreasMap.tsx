@@ -100,7 +100,29 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
     };
   }, []);
 
-  // Fetch ZIP coordinates from database
+  // Geocode a ZIP code using Zippopotam.us API
+  const geocodeZipcode = async (zipcode: string): Promise<ZipCoordinate | null> => {
+    try {
+      const response = await fetch(`https://api.zippopotam.us/us/${zipcode}`);
+      if (!response.ok) return null;
+      
+      const data = await response.json();
+      const place = data.places?.[0];
+      if (!place) return null;
+      
+      return {
+        zipcode,
+        latitude: parseFloat(place.latitude),
+        longitude: parseFloat(place.longitude),
+        city: place['place name'] || 'Unknown'
+      };
+    } catch (error) {
+      console.warn(`Failed to geocode ZIP ${zipcode}:`, error);
+      return null;
+    }
+  };
+
+  // Fetch ZIP coordinates from database and geocode missing ones
   const fetchZipCoordinatesAndRender = async (
     zipCodes: string[], 
     workerColor: string, 
@@ -111,6 +133,7 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
     if (!mapRef.current || zipCodes.length === 0) return currentBounds;
 
     try {
+      // First try to get coordinates from database
       const { data: zipData, error } = await supabase
         .from('us_zip_codes')
         .select('zipcode, latitude, longitude, city')
@@ -118,13 +141,35 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
 
       if (error) {
         console.warn('Error fetching ZIP coordinates:', error);
-        return currentBounds;
       }
 
-      const zipCoordinates: ZipCoordinate[] = zipData || [];
+      const foundZips = zipData || [];
+      const missingZips = zipCodes.filter(zip => 
+        !foundZips.some(found => found.zipcode === zip)
+      );
+
+      // Geocode missing ZIPs using external API (limit concurrency to 3)
+      const geocodedZips: ZipCoordinate[] = [];
+      if (missingZips.length > 0) {
+        console.log(`Geocoding ${missingZips.length} missing ZIPs for ${area.area_name}`);
+        for (let i = 0; i < missingZips.length; i += 3) {
+          const batch = missingZips.slice(i, i + 3);
+          const batchResults = await Promise.all(
+            batch.map(zip => geocodeZipcode(zip))
+          );
+          geocodedZips.push(...batchResults.filter(Boolean) as ZipCoordinate[]);
+        }
+      }
+
+      // Combine database and geocoded results
+      const allCoordinates = [
+        ...foundZips.filter(z => z.latitude && z.longitude),
+        ...geocodedZips
+      ];
+
       let newBounds = currentBounds;
 
-      zipCoordinates.forEach((zip) => {
+      allCoordinates.forEach((zip) => {
         if (zip.latitude && zip.longitude) {
           // Create individual ZIP markers
           const zipMarker = L.circleMarker([zip.latitude, zip.longitude], {
@@ -189,13 +234,38 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
         .select('zipcode, latitude, longitude')
         .in('zipcode', areaZipCodes);
 
-      if (error || !zipData || zipData.length < 3) {
+      const foundZips = zipData || [];
+      const missingZips = areaZipCodes.filter(zip => 
+        !foundZips.some(found => found.zipcode === zip)
+      );
+
+      // Geocode missing ZIPs
+      const geocodedZips: { zipcode: string; latitude: number; longitude: number }[] = [];
+      if (missingZips.length > 0) {
+        for (let i = 0; i < missingZips.length; i += 3) {
+          const batch = missingZips.slice(i, i + 3);
+          const batchResults = await Promise.all(
+            batch.map(async (zip) => {
+              const result = await geocodeZipcode(zip);
+              return result ? { zipcode: zip, latitude: result.latitude, longitude: result.longitude } : null;
+            })
+          );
+          geocodedZips.push(...batchResults.filter(Boolean) as any[]);
+        }
+      }
+
+      const allZipData = [
+        ...foundZips.filter(z => z.latitude && z.longitude),
+        ...geocodedZips
+      ];
+
+      if (allZipData.length < 3) {
         alert('Could not fetch enough ZIP coordinates to generate polygon');
         return;
       }
 
       // Simple convex hull algorithm (gift wrapping)
-      const points = zipData.map(z => ({ lat: z.latitude, lng: z.longitude }));
+      const points = allZipData.map(z => ({ lat: z.latitude, lng: z.longitude }));
       const hull = calculateConvexHull(points);
 
       if (hull.length >= 3) {

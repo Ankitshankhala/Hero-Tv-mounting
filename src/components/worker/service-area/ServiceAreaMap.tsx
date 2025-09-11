@@ -310,6 +310,28 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
     }
   }, [showZipMarkers, serviceZipcodes, isActive]);
 
+  // Geocode a ZIP code using Zippopotam.us API
+  const geocodeZipcode = async (zipcode: string) => {
+    try {
+      const response = await fetch(`https://api.zippopotam.us/us/${zipcode}`);
+      if (!response.ok) return null;
+      
+      const data = await response.json();
+      const place = data.places?.[0];
+      if (!place) return null;
+      
+      return {
+        zipcode,
+        latitude: parseFloat(place.latitude),
+        longitude: parseFloat(place.longitude),
+        city: place['place name'] || 'Unknown'
+      };
+    } catch (error) {
+      console.warn(`Failed to geocode ZIP ${zipcode}:`, error);
+      return null;
+    }
+  };
+
   // Render ZIP code markers for all service areas
   const renderZipMarkers = async () => {
     if (!mapRef.current || !showZipMarkers) {
@@ -329,17 +351,41 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
     if (allZipCodes.length === 0) return;
 
     try {
+      // First try to get coordinates from database
       const { data: zipData, error } = await supabase
         .from('us_zip_codes')
         .select('zipcode, latitude, longitude, city')
         .in('zipcode', allZipCodes);
 
-      if (error || !zipData) {
+      if (error) {
         console.warn('Error fetching ZIP coordinates:', error);
-        return;
       }
 
-      zipData.forEach(zip => {
+      const foundZips = zipData || [];
+      const missingZips = allZipCodes.filter(zip => 
+        !foundZips.some(found => found.zipcode === zip)
+      );
+
+      // Geocode missing ZIPs using external API (limit concurrency to 3)
+      const geocodedZips = [];
+      if (missingZips.length > 0) {
+        console.log(`Geocoding ${missingZips.length} missing ZIPs`);
+        for (let i = 0; i < missingZips.length; i += 3) {
+          const batch = missingZips.slice(i, i + 3);
+          const batchResults = await Promise.all(
+            batch.map(zip => geocodeZipcode(zip))
+          );
+          geocodedZips.push(...batchResults.filter(Boolean));
+        }
+      }
+
+      // Combine database and geocoded results
+      const allCoordinates = [
+        ...foundZips.filter(z => z.latitude && z.longitude),
+        ...geocodedZips
+      ];
+
+      allCoordinates.forEach(zip => {
         if (zip.latitude && zip.longitude) {
           const marker = L.circleMarker([zip.latitude, zip.longitude], {
             color: '#3B82F6',
