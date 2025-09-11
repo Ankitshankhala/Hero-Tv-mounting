@@ -276,6 +276,43 @@ export const useAdminServiceAreas = (forceFresh = false) => {
     }
   }, [toast, refreshData]);
 
+  const updateServiceAreaName = useCallback(async (areaId: string, newName: string) => {
+    if (!newName.trim()) {
+      toast({
+        title: "Error",
+        description: "Service area name cannot be empty",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('worker_service_areas')
+        .update({ area_name: newName.trim() })
+        .eq('id', areaId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Service area name updated",
+      });
+
+      await refreshData(true);
+      return true;
+
+    } catch (error) {
+      console.error('Error updating service area name:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update service area name",
+        variant: "destructive",
+      });
+      return false;
+    }
+  }, [toast, refreshData]);
+
   const deleteWorkerServiceArea = useCallback(async (areaId: string) => {
     try {
       const { error } = await supabase
@@ -410,6 +447,7 @@ export const useAdminServiceAreas = (forceFresh = false) => {
     fetchWorkersWithServiceAreas,
     refreshData,
     updateWorkerServiceArea,
+    updateServiceAreaName,
     deleteWorkerServiceArea,
     removeZipcodeFromWorker,
     mergeWorkerServiceAreas,

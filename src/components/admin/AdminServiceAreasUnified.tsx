@@ -17,7 +17,10 @@ import {
   Filter, 
   RefreshCw, 
   Edit3,
-  ArrowLeft
+  ArrowLeft,
+  Edit2,
+  Check,
+  X as XIcon
 } from 'lucide-react';
 import { BulkZipcodeAssignment } from './BulkZipcodeAssignment';
 import { WorkerServiceAreasMap } from './WorkerServiceAreasMap';
@@ -59,6 +62,8 @@ export const AdminServiceAreasUnified = () => {
   // Service Area Manager states
   const [selectedWorkerId, setSelectedWorkerId] = useState<string>('');
   const [viewMode, setViewMode] = useState<'overview' | 'manage'>('overview');
+  const [editingArea, setEditingArea] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
   
   const {
     workers: adminWorkers,
@@ -68,7 +73,8 @@ export const AdminServiceAreasUnified = () => {
     fetchWorkers,
     fetchAuditLogs,
     refreshData,
-    addZipcodesToExistingArea
+    addZipcodesToExistingArea,
+    updateServiceAreaName
   } = useAdminServiceAreas();
 
   const workers = adminWorkers as CoverageWorker[];
@@ -183,6 +189,24 @@ export const AdminServiceAreasUnified = () => {
     const activeAreas = (worker.service_areas || []).filter(area => area.is_active).length;
     
     return { activeAreas, totalZipCodes };
+  };
+
+  const startEditing = (areaId: string, currentName: string) => {
+    setEditingArea(areaId);
+    setEditingName(currentName);
+  };
+
+  const cancelEditing = () => {
+    setEditingArea(null);
+    setEditingName('');
+  };
+
+  const saveAreaName = async (areaId: string) => {
+    const success = await updateServiceAreaName(areaId, editingName);
+    if (success) {
+      setEditingArea(null);
+      setEditingName('');
+    }
   };
 
   return (
@@ -482,16 +506,77 @@ export const AdminServiceAreasUnified = () => {
                           <span>Areas: {stats.activeAreas}/{(worker.service_areas || []).length}</span>
                           <span>ZIP Codes: {stats.totalZipCodes}</span>
                         </div>
-                        <div className="flex flex-wrap gap-1">
-                          {(worker.service_zipcodes || []).slice(0, 5).map((zip, index) => (
-                            <Badge key={index} variant="outline" className="text-xs">
-                              {zip.zipcode}
-                            </Badge>
-                          ))}
-                          {(worker.service_zipcodes || []).length > 5 && (
-                            <Badge variant="outline" className="text-xs">
-                              +{(worker.service_zipcodes || []).length - 5} more
-                            </Badge>
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap gap-1">
+                            {(worker.service_zipcodes || []).slice(0, 5).map((zip, index) => (
+                              <Badge key={index} variant="outline" className="text-xs">
+                                {zip.zipcode}
+                              </Badge>
+                            ))}
+                            {(worker.service_zipcodes || []).length > 5 && (
+                              <Badge variant="outline" className="text-xs">
+                                +{(worker.service_zipcodes || []).length - 5} more
+                              </Badge>
+                            )}
+                          </div>
+                          {(worker.service_areas || []).length > 0 && (
+                            <div className="space-y-1">
+                              <p className="text-xs text-muted-foreground">Service Areas:</p>
+                              {(worker.service_areas || []).map((area) => (
+                                <div key={area.id} className="flex items-center gap-2 group">
+                                  {editingArea === area.id ? (
+                                    <div className="flex items-center gap-2">
+                                      <Input
+                                        value={editingName}
+                                        onChange={(e) => setEditingName(e.target.value)}
+                                        className="h-6 text-xs"
+                                        autoFocus
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') {
+                                            saveAreaName(area.id);
+                                          } else if (e.key === 'Escape') {
+                                            cancelEditing();
+                                          }
+                                        }}
+                                      />
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => saveAreaName(area.id)}
+                                        className="h-6 w-6 p-0"
+                                      >
+                                        <Check className="h-3 w-3 text-green-600" />
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={cancelEditing}
+                                        className="h-6 w-6 p-0"
+                                      >
+                                        <XIcon className="h-3 w-3 text-red-600" />
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center gap-1">
+                                      <Badge 
+                                        variant={area.is_active ? "default" : "secondary"} 
+                                        className="text-xs"
+                                      >
+                                        {area.area_name}
+                                      </Badge>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => startEditing(area.id, area.area_name)}
+                                        className="h-4 w-4 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                      >
+                                        <Edit2 className="h-2 w-2" />
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
                           )}
                         </div>
                       </div>
