@@ -178,6 +178,27 @@ export const AdminServiceAreasUnified = () => {
     }
   };
 
+  // Helper function to safely parse polygon coordinates
+  const safeParsePolygonCoords = (coordinates: any): boolean => {
+    if (!coordinates) return false;
+    
+    try {
+      let coords;
+      if (typeof coordinates === 'string') {
+        coords = JSON.parse(coordinates);
+      } else if (typeof coordinates === 'object') {
+        coords = coordinates;
+      } else {
+        return false;
+      }
+      
+      return Array.isArray(coords) && coords.length > 0;
+    } catch (error) {
+      console.warn('Error parsing polygon coordinates:', error);
+      return false;
+    }
+  };
+
   const getWorkerStats = (worker: CoverageWorker) => {
     // Use total_zipcodes if available from the RPC call, otherwise calculate from service_zipcodes
     const totalZipCodes = worker.total_zipcodes || new Set(
@@ -193,21 +214,7 @@ export const AdminServiceAreasUnified = () => {
     
     // Count areas that need backfilling (have polygons but no ZIP codes)
     const areasNeedingBackfill = (worker.service_areas || []).filter(area => {
-      let hasPolygon = false;
-      
-      if (area.polygon_coordinates) {
-        try {
-          // Check if polygon_coordinates is already an object or needs parsing
-          const coords = typeof area.polygon_coordinates === 'string' 
-            ? JSON.parse(area.polygon_coordinates) 
-            : area.polygon_coordinates;
-          hasPolygon = Array.isArray(coords) && coords.length > 0;
-        } catch (error) {
-          console.warn('Error parsing polygon coordinates for area:', area.id, error);
-          hasPolygon = false;
-        }
-      }
-      
+      const hasPolygon = safeParsePolygonCoords(area.polygon_coordinates);
       const areaZipCodes = (worker.service_zipcodes || []).filter(zip => zip.service_area_id === area.id);
       return hasPolygon && areaZipCodes.length === 0 && area.is_active;
     }).length;
@@ -593,20 +600,7 @@ export const AdminServiceAreasUnified = () => {
                               <p className="text-xs text-muted-foreground">Service Areas:</p>
                               {(worker.service_areas || []).map((area) => {
                                 const areaZipCodes = (worker.service_zipcodes || []).filter(zip => zip.service_area_id === area.id);
-                                
-                                let hasPolygon = false;
-                                if (area.polygon_coordinates) {
-                                  try {
-                                    const coords = typeof area.polygon_coordinates === 'string' 
-                                      ? JSON.parse(area.polygon_coordinates) 
-                                      : area.polygon_coordinates;
-                                    hasPolygon = Array.isArray(coords) && coords.length > 0;
-                                  } catch (error) {
-                                    console.warn('Error parsing polygon coordinates for area:', area.id, error);
-                                    hasPolygon = false;
-                                  }
-                                }
-                                
+                                const hasPolygon = safeParsePolygonCoords(area.polygon_coordinates);
                                 const needsBackfill = hasPolygon && areaZipCodes.length === 0;
                                 
                                 return (
