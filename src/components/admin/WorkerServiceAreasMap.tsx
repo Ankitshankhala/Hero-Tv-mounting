@@ -116,6 +116,8 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
         // Skip inactive areas unless specifically shown
         if (!area.is_active && !showInactiveAreas) return;
 
+        
+
         // Get zip codes for this area
         const areaZipCodes = worker.service_zipcodes
           .filter(zip => zip.service_area_id === area.id)

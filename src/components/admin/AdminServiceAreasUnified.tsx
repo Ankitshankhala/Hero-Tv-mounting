@@ -73,7 +73,7 @@ export const AdminServiceAreasUnified = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchWorkersWithServiceAreas();
+    fetchWorkersWithServiceAreas(true); // Force fresh data
     fetchWorkers();
     fetchAuditLogs();
   }, [fetchWorkersWithServiceAreas, fetchWorkers, fetchAuditLogs]);
