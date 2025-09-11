@@ -63,7 +63,9 @@ export const ZipcodeInput: React.FC<ZipcodeInputProps> = ({
             if (serviceAreaResult.status === 'fulfilled' && serviceAreaResult.value) {
               const assignment = serviceAreaResult.value;
               setServiceArea(assignment);
-              const areaText = `${assignment.areaName} (${assignment.workerName})`;
+              const areaText = assignment.isActive 
+                ? `${assignment.areaName} - Worker: ${assignment.workerName}` 
+                : `${assignment.areaName} - Worker: ${assignment.workerName} (Inactive)`;
               setCityState(areaText);
               onChange(value, areaText);
             } else {
@@ -104,14 +106,19 @@ export const ZipcodeInput: React.FC<ZipcodeInputProps> = ({
           if (serviceAreaResult.status === 'fulfilled' && serviceAreaResult.value) {
             const assignment = serviceAreaResult.value;
             setServiceArea(assignment);
-            const areaText = `${assignment.areaName} (${assignment.workerName})`;
+            const areaText = assignment.isActive 
+              ? `${assignment.areaName} - Worker: ${assignment.workerName}` 
+              : `${assignment.areaName} - Worker: ${assignment.workerName} (Inactive)`;
             setCityState(areaText);
             if (onValidation) {
               onValidation(true, {
                 zipcode: value,
                 city: assignment.areaName,
                 state: '',
-                stateAbbr: ''
+                stateAbbr: '',
+                workerId: assignment.workerId,
+                workerName: assignment.workerName,
+                isActive: assignment.isActive
               });
             }
             onChange(value, areaText);
