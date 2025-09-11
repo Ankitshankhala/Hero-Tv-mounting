@@ -149,13 +149,13 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
 
           // Add click handler (removed popup to avoid duplicate UI)
           polygon.on('click', () => {
-            // Get ALL zip codes for this worker, not just this area
-            const allWorkerZipCodes = worker.service_zipcodes.map(zip => zip.zipcode);
-            
+            // Show only ZIP codes that belong to this area to avoid confusion
+            const zipCodesForArea = areaZipCodes.sort();
+
             setSelectedAreaInfo({
               worker,
               area,
-              zipCodes: allWorkerZipCodes
+              zipCodes: zipCodesForArea
             });
           });
 
@@ -229,11 +229,11 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
               </div>
               
               <div>
-                <span className="font-medium">All Zip Codes for Worker ({selectedAreaInfo.zipCodes.length}):</span>
+                <span className="font-medium">ZIP Codes in this Area ({selectedAreaInfo.zipCodes.length}):</span>
                 <div className="text-xs text-muted-foreground mt-1 max-h-32 overflow-y-auto">
                   {selectedAreaInfo.zipCodes.length > 0 
-                    ? selectedAreaInfo.zipCodes.sort().join(', ')
-                    : 'No zip codes assigned'
+                    ? selectedAreaInfo.zipCodes.join(', ')
+                    : 'No ZIP codes assigned to this area'
                   }
                 </div>
               </div>
