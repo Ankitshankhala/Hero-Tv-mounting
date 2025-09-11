@@ -188,22 +188,22 @@ serve(async (req) => {
         
         throw error;
       }
-    } else {
-      // Insert zipcodes to existing area
-      if (zipcodes.length > 0) {
-        const zipcodeMappings = zipcodes.map(zipcode => ({
-          worker_id: workerId,
-          service_area_id: serviceArea.id,
-          zipcode: zipcode.trim()
-        }));
+    }
 
-        const { error: zipError } = await supabase
-          .from('worker_service_zipcodes')
-          .insert(zipcodeMappings);
+    // Insert zipcodes to existing area (when existingAreaId is provided)
+    if (existingAreaId && zipcodes.length > 0) {
+      const zipcodeMappings = zipcodes.map(zipcode => ({
+        worker_id: workerId,
+        service_area_id: serviceArea.id,
+        zipcode: zipcode.trim()
+      }));
 
-        if (zipError) {
-          throw new Error(`Failed to insert zipcodes: ${zipError.message}`);
-        }
+      const { error: zipError } = await supabase
+        .from('worker_service_zipcodes')
+        .insert(zipcodeMappings);
+
+      if (zipError) {
+        throw new Error(`Failed to insert zipcodes: ${zipError.message}`);
       }
     }
 
