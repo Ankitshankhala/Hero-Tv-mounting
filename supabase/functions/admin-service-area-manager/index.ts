@@ -153,21 +153,22 @@ serve(async (req) => {
             zipcode: zipcode.trim()
           }));
 
-          const { data: upsertData, error: zipError } = await supabase
+          // Use insert with ON CONFLICT DO NOTHING to handle duplicates gracefully
+          const { data: insertData, error: zipError } = await supabase
             .from('worker_service_zipcodes')
-            .upsert(zipcodeMappings, { 
-              onConflict: 'worker_id,zipcode'
-            })
-            .select();
+            .insert(zipcodeMappings)
+            .select()
+            .onConflict('worker_id,zipcode')
+            .ignoreDuplicates();
 
-          if (zipError) {
-            throw new Error(`Failed to upsert zipcodes: ${zipError.message}`);
+          if (zipError && !zipError.message.includes('duplicate key')) {
+            throw new Error(`Failed to insert zipcodes: ${zipError.message}`);
           }
 
-          // Count how many were actually inserted vs updated
-          insertedCount = upsertData?.length || 0;
-          // For moved count, we'd need to check which ones already existed
-          // For now, we'll assume all are new unless we get a different count
+          // Count successful insertions (excluding duplicates)
+          insertedCount = insertData?.length || 0;
+          // Calculate skipped duplicates
+          const skippedCount = zipcodes.length - insertedCount;
         }
 
         // Step 3: Only after successful creation, handle replace_all cleanup

@@ -21,114 +21,129 @@ interface UpsertRequest {
   areaIdToUpdate?: string; // For editing existing areas
 }
 
-// Enhanced US ZIP codes database with broader coverage
+// Expanded US ZIP codes with their latitude and longitude
+// Covers major metropolitan areas across the US for better polygon coverage
 const US_ZIPCODES = [
-  // Dallas, TX area
-  { zipcode: '75201', lat: 32.7767, lng: -96.7970 }, { zipcode: '75202', lat: 32.7815, lng: -96.8047 },
-  { zipcode: '75203', lat: 32.7668, lng: -96.7836 }, { zipcode: '75204', lat: 32.7880, lng: -96.7849 },
-  { zipcode: '75205', lat: 32.8206, lng: -96.7869 }, { zipcode: '75206', lat: 32.8096, lng: -96.7516 },
-  { zipcode: '75207', lat: 32.7516, lng: -96.8326 }, { zipcode: '75208', lat: 32.7434, lng: -96.8516 },
-  { zipcode: '75209', lat: 32.8423, lng: -96.8103 }, { zipcode: '75210', lat: 32.7323, lng: -96.6877 },
-  { zipcode: '75211', lat: 32.7126, lng: -96.8516 }, { zipcode: '75212', lat: 32.7712, lng: -96.8516 },
-  { zipcode: '75214', lat: 32.7993, lng: -96.7336 }, { zipcode: '75215', lat: 32.7223, lng: -96.7516 },
-  { zipcode: '75216', lat: 32.6990, lng: -96.8103 }, { zipcode: '75217', lat: 32.6990, lng: -96.6877 },
-  { zipcode: '75218', lat: 32.8316, lng: -96.7516 }, { zipcode: '75219', lat: 32.7880, lng: -96.8103 },
-  { zipcode: '75220', lat: 32.8423, lng: -96.8516 }, { zipcode: '75221', lat: 32.7880, lng: -96.7336 },
-  { zipcode: '75222', lat: 32.7516, lng: -96.7516 }, { zipcode: '75223', lat: 32.7712, lng: -96.7103 },
-  { zipcode: '75224', lat: 32.7223, lng: -96.7103 }, { zipcode: '75225', lat: 32.8206, lng: -96.8103 },
-  { zipcode: '75226', lat: 32.7516, lng: -96.7103 }, { zipcode: '75227', lat: 32.6877, lng: -96.7103 },
-  { zipcode: '75228', lat: 32.7323, lng: -96.6516 }, { zipcode: '75229', lat: 32.8740, lng: -96.8103 },
-  { zipcode: '75230', lat: 32.8740, lng: -96.7516 }, { zipcode: '75231', lat: 32.8423, lng: -96.7103 },
-  { zipcode: '75232', lat: 32.6877, lng: -96.7516 }, { zipcode: '75233', lat: 32.6877, lng: -96.8103 },
-  { zipcode: '75234', lat: 32.9103, lng: -96.8103 }, { zipcode: '75235', lat: 32.7323, lng: -96.8103 },
-  { zipcode: '75236', lat: 32.6516, lng: -96.7516 }, { zipcode: '75237', lat: 32.6516, lng: -96.8103 },
-  { zipcode: '75238', lat: 32.8206, lng: -96.6877 }, { zipcode: '75240', lat: 32.9423, lng: -96.7516 },
-  { zipcode: '75241', lat: 32.6877, lng: -96.6877 }, { zipcode: '75243', lat: 32.9103, lng: -96.7103 },
-  { zipcode: '75244', lat: 32.9423, lng: -96.8103 }, { zipcode: '75246', lat: 32.7712, lng: -96.6877 },
-  { zipcode: '75247', lat: 32.7712, lng: -96.8879 }, { zipcode: '75248', lat: 32.9740, lng: -96.7516 },
-  { zipcode: '75249', lat: 32.6516, lng: -96.6877 }, { zipcode: '75251', lat: 32.9740, lng: -96.8103 },
-  
-  // Houston, TX area
-  { zipcode: '77001', lat: 29.7604, lng: -95.3698 }, { zipcode: '77002', lat: 29.7633, lng: -95.3633 },
-  { zipcode: '77003', lat: 29.7440, lng: -95.3466 }, { zipcode: '77004', lat: 29.7247, lng: -95.3927 },
-  { zipcode: '77005', lat: 29.7180, lng: -95.4103 }, { zipcode: '77006', lat: 29.7440, lng: -95.3927 },
-  { zipcode: '77007', lat: 29.7747, lng: -95.3927 }, { zipcode: '77008', lat: 29.8027, lng: -95.4103 },
-  { zipcode: '77009', lat: 29.8027, lng: -95.3698 }, { zipcode: '77010', lat: 29.7247, lng: -95.3698 },
-  { zipcode: '77011', lat: 29.7440, lng: -95.3103 }, { zipcode: '77012', lat: 29.7247, lng: -95.3103 },
-  { zipcode: '77013', lat: 29.7633, lng: -95.2879 }, { zipcode: '77014', lat: 29.8423, lng: -95.3698 },
-  { zipcode: '77015', lat: 29.7747, lng: -95.2516 }, { zipcode: '77016', lat: 29.8206, lng: -95.4516 },
-  { zipcode: '77017', lat: 29.6990, lng: -95.3466 }, { zipcode: '77018', lat: 29.8206, lng: -95.3927 },
-  { zipcode: '77019', lat: 29.7747, lng: -95.4516 }, { zipcode: '77020', lat: 29.7247, lng: -95.2879 },
-  
-  // Austin, TX area  
-  { zipcode: '78701', lat: 30.2672, lng: -97.7431 }, { zipcode: '78702', lat: 30.2515, lng: -97.7323 },
-  { zipcode: '78703', lat: 30.2711, lng: -97.7694 }, { zipcode: '78704', lat: 30.2370, lng: -97.7595 },
-  { zipcode: '78705', lat: 30.2849, lng: -97.7341 }, { zipcode: '78712', lat: 30.2849, lng: -97.7431 },
-  { zipcode: '78717', lat: 30.3880, lng: -97.8103 }, { zipcode: '78719', lat: 30.1323, lng: -97.7516 },
-  { zipcode: '78721', lat: 30.2712, lng: -97.6877 }, { zipcode: '78722', lat: 30.2712, lng: -97.7103 },
-  { zipcode: '78723', lat: 30.3103, lng: -97.6877 }, { zipcode: '78724', lat: 30.2323, lng: -97.6516 },
-  { zipcode: '78725', lat: 30.1990, lng: -97.6877 }, { zipcode: '78726', lat: 30.4423, lng: -97.8516 },
-  { zipcode: '78727', lat: 30.4103, lng: -97.7516 }, { zipcode: '78728', lat: 30.1323, lng: -97.8103 },
-  { zipcode: '78729', lat: 30.4103, lng: -97.8103 }, { zipcode: '78730', lat: 30.3516, lng: -97.8516 },
-  { zipcode: '78731', lat: 30.3516, lng: -97.7879 }, { zipcode: '78732', lat: 30.3516, lng: -97.9103 },
-  { zipcode: '78733', lat: 30.3103, lng: -97.9516 }, { zipcode: '78734', lat: 30.2712, lng: -97.9516 },
-  { zipcode: '78735', lat: 30.2323, lng: -97.8879 }, { zipcode: '78736', lat: 30.2712, lng: -97.8516 },
-  { zipcode: '78737', lat: 30.1990, lng: -97.8879 }, { zipcode: '78738', lat: 30.2323, lng: -97.9516 },
-  { zipcode: '78739', lat: 30.1516, lng: -97.8516 }, { zipcode: '78741', lat: 30.2323, lng: -97.7103 },
-  { zipcode: '78742', lat: 30.1990, lng: -97.7103 }, { zipcode: '78744', lat: 30.1516, lng: -97.7516 },
-  { zipcode: '78745', lat: 30.1516, lng: -97.7879 }, { zipcode: '78746', lat: 30.2323, lng: -97.8103 },
-  { zipcode: '78747', lat: 30.1516, lng: -97.8103 }, { zipcode: '78748', lat: 30.1990, lng: -97.8516 },
-  { zipcode: '78749', lat: 30.1516, lng: -97.8879 }, { zipcode: '78750', lat: 30.3880, lng: -97.7879 },
-  { zipcode: '78751', lat: 30.3103, lng: -97.7103 }, { zipcode: '78752', lat: 30.3103, lng: -97.6516 },
-  { zipcode: '78753', lat: 30.3516, lng: -97.6877 }, { zipcode: '78754', lat: 30.3516, lng: -97.6516 },
-  { zipcode: '78756', lat: 30.3516, lng: -97.7516 }, { zipcode: '78757', lat: 30.3880, lng: -97.7516 },
-  { zipcode: '78758', lat: 30.4423, lng: -97.6877 }, { zipcode: '78759', lat: 30.4103, lng: -97.7103 },
-  
-  // Fort Worth, TX area
-  { zipcode: '76101', lat: 32.7555, lng: -97.3308 }, { zipcode: '76102', lat: 32.7357, lng: -97.3547 },
-  { zipcode: '76103', lat: 32.7652, lng: -97.3595 }, { zipcode: '76104', lat: 32.7103, lng: -97.3516 },
-  { zipcode: '76105', lat: 32.6877, lng: -97.3103 }, { zipcode: '76106', lat: 32.7323, lng: -97.3879 },
-  { zipcode: '76107', lat: 32.7712, lng: -97.3879 }, { zipcode: '76108', lat: 32.6516, lng: -97.3516 },
-  { zipcode: '76109', lat: 32.7712, lng: -97.4103 }, { zipcode: '76110', lat: 32.7323, lng: -97.4516 },
-  { zipcode: '76111', lat: 32.7712, lng: -97.2879 }, { zipcode: '76112', lat: 32.7323, lng: -97.2516 },
-  { zipcode: '76114', lat: 32.6877, lng: -97.3879 }, { zipcode: '76115', lat: 32.6516, lng: -97.4103 },
-  { zipcode: '76116', lat: 32.6877, lng: -97.4516 }, { zipcode: '76117', lat: 32.8103, lng: -97.4103 },
-  { zipcode: '76118', lat: 32.6516, lng: -97.2879 }, { zipcode: '76119', lat: 32.6516, lng: -97.3103 },
-  { zipcode: '76120', lat: 32.6103, lng: -97.3516 }, { zipcode: '76123', lat: 32.6103, lng: -97.4103 },
-  { zipcode: '76131', lat: 32.8103, lng: -97.3516 }, { zipcode: '76132', lat: 32.8423, lng: -97.4103 },
-  { zipcode: '76133', lat: 32.8103, lng: -97.2879 }, { zipcode: '76134', lat: 32.6103, lng: -97.2879 },
-  { zipcode: '76135', lat: 32.8740, lng: -97.4516 }, { zipcode: '76137', lat: 32.8740, lng: -97.3103 },
-  { zipcode: '76140', lat: 32.5740, lng: -97.3879 }, { zipcode: '76148', lat: 32.8740, lng: -97.2516 },
-  
-  // San Antonio, TX area
-  { zipcode: '78201', lat: 29.4241, lng: -98.4936 }, { zipcode: '78202', lat: 29.4450, lng: -98.4731 },
-  { zipcode: '78203', lat: 29.3957, lng: -98.5226 }, { zipcode: '78204', lat: 29.3813, lng: -98.5342 },
-  { zipcode: '78205', lat: 29.4163, lng: -98.5014 }, { zipcode: '78207', lat: 29.4516, lng: -98.5516 },
-  { zipcode: '78208', lat: 29.5103, lng: -98.4516 }, { zipcode: '78209', lat: 29.4879, lng: -98.4516 },
-  { zipcode: '78210', lat: 29.3516, lng: -98.5516 }, { zipcode: '78211', lat: 29.3516, lng: -98.4879 },
-  { zipcode: '78212', lat: 29.4879, lng: -98.4879 }, { zipcode: '78213', lat: 29.5516, lng: -98.4879 },
-  { zipcode: '78214', lat: 29.3103, lng: -98.5516 }, { zipcode: '78215', lat: 29.4516, lng: -98.4103 },
-  { zipcode: '78216', lat: 29.5516, lng: -98.4516 }, { zipcode: '78217', lat: 29.5879, lng: -98.4879 },
-  { zipcode: '78218', lat: 29.5103, lng: -98.3879 }, { zipcode: '78219', lat: 29.4103, lng: -98.4103 },
-  { zipcode: '78220', lat: 29.3516, lng: -98.4103 }, { zipcode: '78221', lat: 29.3103, lng: -98.4516 },
-  { zipcode: '78222', lat: 29.3516, lng: -98.3879 }, { zipcode: '78223', lat: 29.2879, lng: -98.4516 },
-  { zipcode: '78224', lat: 29.2879, lng: -98.5103 }, { zipcode: '78225', lat: 29.2516, lng: -98.5516 },
-  { zipcode: '78226', lat: 29.2516, lng: -98.4879 }, { zipcode: '78227', lat: 29.2879, lng: -98.5879 },
-  { zipcode: '78228', lat: 29.3103, lng: -98.6103 }, { zipcode: '78229', lat: 29.5103, lng: -98.5516 },
-  { zipcode: '78230', lat: 29.5879, lng: -98.5516 }, { zipcode: '78231', lat: 29.5516, lng: -98.4103 },
-  { zipcode: '78232', lat: 29.6103, lng: -98.4516 }, { zipcode: '78233', lat: 29.4879, lng: -98.3516 },
-  { zipcode: '78234', lat: 29.5516, lng: -98.3516 }, { zipcode: '78235', lat: 29.6103, lng: -98.5103 },
-  { zipcode: '78236', lat: 29.2516, lng: -98.4103 }, { zipcode: '78237', lat: 29.2103, lng: -98.5103 },
-  { zipcode: '78238', lat: 29.6516, lng: -98.4879 }, { zipcode: '78239', lat: 29.4103, lng: -98.3516 },
-  { zipcode: '78240', lat: 29.6103, lng: -98.5516 }, { zipcode: '78242', lat: 29.3516, lng: -98.3516 },
-  { zipcode: '78244', lat: 29.2879, lng: -98.3879 }, { zipcode: '78245', lat: 29.2516, lng: -98.6516 },
-  { zipcode: '78247', lat: 29.6103, lng: -98.3879 }, { zipcode: '78248', lat: 29.6516, lng: -98.4103 },
-  { zipcode: '78249', lat: 29.6516, lng: -98.5516 }, { zipcode: '78250', lat: 29.6103, lng: -98.6103 },
-  { zipcode: '78251', lat: 29.5516, lng: -98.6103 }, { zipcode: '78252', lat: 29.6879, lng: -98.4516 },
-  { zipcode: '78253', lat: 29.6516, lng: -98.6103 }, { zipcode: '78254', lat: 29.5879, lng: -98.6516 },
-  { zipcode: '78255', lat: 29.7103, lng: -98.5103 }, { zipcode: '78256', lat: 29.7103, lng: -98.4516 },
-  { zipcode: '78257', lat: 29.7516, lng: -98.4879 }, { zipcode: '78258', lat: 29.6879, lng: -98.3879 },
-  { zipcode: '78259', lat: 29.7516, lng: -98.5516 }
+  // Dallas-Fort Worth, TX (expanded)
+  { zipcode: "75201", lat: 32.7767, lng: -96.7970 }, { zipcode: "75202", lat: 32.7767, lng: -96.7970 },
+  { zipcode: "75203", lat: 32.7555, lng: -96.7438 }, { zipcode: "75204", lat: 32.8045, lng: -96.7875 },
+  { zipcode: "75205", lat: 32.8317, lng: -96.7942 }, { zipcode: "75206", lat: 32.7889, lng: -96.7542 },
+  { zipcode: "75207", lat: 32.7722, lng: -96.8181 }, { zipcode: "75208", lat: 32.7403, lng: -96.8361 },
+  { zipcode: "75209", lat: 32.8403, lng: -96.8181 }, { zipcode: "75210", lat: 32.7325, lng: -96.6825 },
+  { zipcode: "75211", lat: 32.7542, lng: -96.8361 }, { zipcode: "75212", lat: 32.7944, lng: -96.8319 },
+  { zipcode: "75214", lat: 32.7722, lng: -96.7181 }, { zipcode: "75215", lat: 32.7542, lng: -96.7361 },
+  { zipcode: "75216", lat: 32.7325, lng: -96.7625 }, { zipcode: "75217", lat: 32.7014, lng: -96.7453 },
+  { zipcode: "75218", lat: 32.8153, lng: -96.7014 }, { zipcode: "75219", lat: 32.7931, lng: -96.8097 },
+  { zipcode: "75220", lat: 32.8542, lng: -96.8361 }, { zipcode: "75221", lat: 32.7542, lng: -96.7181 },
+  { zipcode: "75222", lat: 32.7767, lng: -96.7970 }, { zipcode: "75223", lat: 32.7722, lng: -96.7542 },
+  { zipcode: "75224", lat: 32.7325, lng: -96.7014 }, { zipcode: "75225", lat: 32.8403, lng: -96.7875 },
+  { zipcode: "75226", lat: 32.7889, lng: -96.7361 }, { zipcode: "75227", lat: 32.7014, lng: -96.7181 },
+  { zipcode: "75228", lat: 32.7542, lng: -96.6825 }, { zipcode: "75229", lat: 32.8542, lng: -96.7875 },
+  { zipcode: "75230", lat: 32.8653, lng: -96.7778 }, { zipcode: "75231", lat: 32.7944, lng: -96.7319 },
+  { zipcode: "75232", lat: 32.6903, lng: -96.7453 }, { zipcode: "75233", lat: 32.7222, lng: -96.7542 },
+  { zipcode: "75234", lat: 32.8542, lng: -96.7542 }, { zipcode: "75235", lat: 32.7667, lng: -96.8278 },
+  { zipcode: "75236", lat: 32.6903, lng: -96.7014 }, { zipcode: "75237", lat: 32.6903, lng: -96.7875 },
+  { zipcode: "75238", lat: 32.7944, lng: -96.6825 }, { zipcode: "75240", lat: 32.9264, lng: -96.8278 },
+  { zipcode: "75241", lat: 32.7125, lng: -96.7014 }, { zipcode: "75243", lat: 32.8153, lng: -96.6825 },
+  { zipcode: "75244", lat: 32.9264, lng: -96.7319 }, { zipcode: "75246", lat: 32.7889, lng: -96.7181 },
+  { zipcode: "75247", lat: 32.7667, lng: -96.8542 }, { zipcode: "75248", lat: 32.9264, lng: -96.7778 },
+  { zipcode: "75249", lat: 32.7667, lng: -96.8097 }, { zipcode: "75251", lat: 32.9264, lng: -96.8097 },
+  { zipcode: "75252", lat: 32.9486, lng: -96.8278 }, { zipcode: "75253", lat: 32.7667, lng: -96.7875 },
+  { zipcode: "75254", lat: 32.9264, lng: -96.7542 }, { zipcode: "75287", lat: 32.9597, lng: -96.8542 },
+
+  // Houston, TX (expanded)
+  { zipcode: "77001", lat: 29.7604, lng: -95.3698 }, { zipcode: "77002", lat: 29.7514, lng: -95.3624 },
+  { zipcode: "77003", lat: 29.7414, lng: -95.3524 }, { zipcode: "77004", lat: 29.7314, lng: -95.3424 },
+  { zipcode: "77005", lat: 29.7214, lng: -95.3324 }, { zipcode: "77006", lat: 29.7514, lng: -95.3824 },
+  { zipcode: "77007", lat: 29.7814, lng: -95.3924 }, { zipcode: "77008", lat: 29.8014, lng: -95.4024 },
+  { zipcode: "77009", lat: 29.8114, lng: -95.3824 }, { zipcode: "77010", lat: 29.7314, lng: -95.3624 },
+  { zipcode: "77011", lat: 29.7214, lng: -95.3124 }, { zipcode: "77012", lat: 29.7014, lng: -95.3024 },
+  { zipcode: "77013", lat: 29.7114, lng: -95.2824 }, { zipcode: "77014", lat: 29.8614, lng: -95.3324 },
+  { zipcode: "77015", lat: 29.7014, lng: -95.2524 }, { zipcode: "77016", lat: 29.8214, lng: -95.4124 },
+  { zipcode: "77017", lat: 29.6814, lng: -95.2824 }, { zipcode: "77018", lat: 29.8114, lng: -95.4224 },
+  { zipcode: "77019", lat: 29.7614, lng: -95.4124 }, { zipcode: "77020", lat: 29.7314, lng: -95.3024 },
+  { zipcode: "77021", lat: 29.6914, lng: -95.3324 }, { zipcode: "77022", lat: 29.8014, lng: -95.3524 },
+  { zipcode: "77023", lat: 29.7214, lng: -95.2924 }, { zipcode: "77024", lat: 29.7714, lng: -95.4324 },
+  { zipcode: "77025", lat: 29.7014, lng: -95.3724 }, { zipcode: "77026", lat: 29.8214, lng: -95.3724 },
+  { zipcode: "77027", lat: 29.7414, lng: -95.3924 }, { zipcode: "77028", lat: 29.8314, lng: -95.3424 },
+  { zipcode: "77029", lat: 29.7014, lng: -95.2724 }, { zipcode: "77030", lat: 29.7064, lng: -95.3924 },
+  { zipcode: "77031", lat: 29.6714, lng: -95.4124 }, { zipcode: "77032", lat: 29.8714, lng: -95.3624 },
+  { zipcode: "77033", lat: 29.6814, lng: -95.2424 }, { zipcode: "77034", lat: 29.6614, lng: -95.2324 },
+
+  // Austin, TX (expanded)
+  { zipcode: "78701", lat: 30.2672, lng: -97.7431 }, { zipcode: "78702", lat: 30.2572, lng: -97.7231 },
+  { zipcode: "78703", lat: 30.2772, lng: -97.7631 }, { zipcode: "78704", lat: 30.2472, lng: -97.7531 },
+  { zipcode: "78705", lat: 30.2872, lng: -97.7331 }, { zipcode: "78712", lat: 30.2864, lng: -97.7394 },
+  { zipcode: "78717", lat: 30.3833, lng: -97.8431 }, { zipcode: "78719", lat: 30.1833, lng: -97.7731 },
+  { zipcode: "78721", lat: 30.2597, lng: -97.7097 }, { zipcode: "78722", lat: 30.2789, lng: -97.7131 },
+  { zipcode: "78723", lat: 30.2972, lng: -97.6831 }, { zipcode: "78724", lat: 30.2372, lng: -97.6831 },
+  { zipcode: "78725", lat: 30.2172, lng: -97.6431 }, { zipcode: "78726", lat: 30.4072, lng: -97.7431 },
+  { zipcode: "78727", lat: 30.3672, lng: -97.7631 }, { zipcode: "78728", lat: 30.1772, lng: -97.8031 },
+  { zipcode: "78729", lat: 30.3972, lng: -97.8031 }, { zipcode: "78730", lat: 30.3772, lng: -97.8331 },
+  { zipcode: "78731", lat: 30.3372, lng: -97.7531 }, { zipcode: "78732", lat: 30.2872, lng: -97.8831 },
+  { zipcode: "78733", lat: 30.2672, lng: -97.9031 }, { zipcode: "78734", lat: 30.2872, lng: -97.9231 },
+  { zipcode: "78735", lat: 30.2172, lng: -97.8831 }, { zipcode: "78736", lat: 30.2272, lng: -97.9131 },
+  { zipcode: "78737", lat: 30.1872, lng: -97.8631 }, { zipcode: "78738", lat: 30.2772, lng: -97.9531 },
+  { zipcode: "78739", lat: 30.1472, lng: -97.8231 }, { zipcode: "78741", lat: 30.2272, lng: -97.7031 },
+  { zipcode: "78742", lat: 30.2072, lng: -97.6831 }, { zipcode: "78744", lat: 30.1672, lng: -97.7431 },
+  { zipcode: "78745", lat: 30.1772, lng: -97.7931 }, { zipcode: "78746", lat: 30.2772, lng: -97.8631 },
+  { zipcode: "78747", lat: 30.1572, lng: -97.8031 }, { zipcode: "78748", lat: 30.1472, lng: -97.7731 },
+  { zipcode: "78749", lat: 30.1772, lng: -97.8431 }, { zipcode: "78750", lat: 30.3972, lng: -97.7831 },
+  { zipcode: "78751", lat: 30.3172, lng: -97.7131 }, { zipcode: "78752", lat: 30.3072, lng: -97.6931 },
+  { zipcode: "78753", lat: 30.3272, lng: -97.6731 }, { zipcode: "78754", lat: 30.3472, lng: -97.6631 },
+  { zipcode: "78756", lat: 30.3272, lng: -97.7431 }, { zipcode: "78757", lat: 30.3372, lng: -97.7131 },
+  { zipcode: "78758", lat: 30.3772, lng: -97.6831 }, { zipcode: "78759", lat: 30.3672, lng: -97.7031 },
+
+  // Fort Worth, TX (expanded)
+  { zipcode: "76101", lat: 32.7555, lng: -97.3308 }, { zipcode: "76102", lat: 32.7455, lng: -97.3208 },
+  { zipcode: "76103", lat: 32.7355, lng: -97.3108 }, { zipcode: "76104", lat: 32.7255, lng: -97.3008 },
+  { zipcode: "76105", lat: 32.7155, lng: -97.2908 }, { zipcode: "76106", lat: 32.7242, lng: -97.3583 },
+  { zipcode: "76107", lat: 32.7453, lng: -97.3583 }, { zipcode: "76108", lat: 32.6781, lng: -97.4031 },
+  { zipcode: "76109", lat: 32.7675, lng: -97.3583 }, { zipcode: "76110", lat: 32.7047, lng: -97.4028 },
+  { zipcode: "76111", lat: 32.7983, lng: -97.3833 }, { zipcode: "76112", lat: 32.7492, lng: -97.2383 },
+  { zipcode: "76114", lat: 32.6958, lng: -97.3833 }, { zipcode: "76115", lat: 32.6681, lng: -97.3183 },
+  { zipcode: "76116", lat: 32.6958, lng: -97.4533 }, { zipcode: "76117", lat: 32.8103, lng: -97.4283 },
+  { zipcode: "76118", lat: 32.7492, lng: -97.4283 }, { zipcode: "76119", lat: 32.6847, lng: -97.2683 },
+  { zipcode: "76120", lat: 32.6569, lng: -97.3433 }, { zipcode: "76121", lat: 32.6847, lng: -97.3833 },
+  { zipcode: "76122", lat: 32.6958, lng: -97.4533 }, { zipcode: "76123", lat: 32.6458, lng: -97.3683 },
+  { zipcode: "76126", lat: 32.6236, lng: -97.4533 }, { zipcode: "76127", lat: 32.7675, lng: -97.4533 },
+  { zipcode: "76129", lat: 32.8103, lng: -97.4533 }, { zipcode: "76131", lat: 32.8325, lng: -97.4033 },
+  { zipcode: "76132", lat: 32.8214, lng: -97.4783 }, { zipcode: "76133", lat: 32.7575, lng: -97.4783 },
+  { zipcode: "76134", lat: 32.6958, lng: -97.4783 }, { zipcode: "76135", lat: 32.7242, lng: -97.5183 },
+  { zipcode: "76137", lat: 32.8325, lng: -97.4533 }, { zipcode: "76140", lat: 32.6236, lng: -97.3433 },
+  { zipcode: "76148", lat: 32.8603, lng: -97.3583 }, { zipcode: "76177", lat: 32.9036, lng: -97.4533 },
+
+  // San Antonio, TX (expanded)
+  { zipcode: "78201", lat: 29.4241, lng: -98.4936 }, { zipcode: "78202", lat: 29.4341, lng: -98.4836 },
+  { zipcode: "78203", lat: 29.4141, lng: -98.5036 }, { zipcode: "78204", lat: 29.4041, lng: -98.5136 },
+  { zipcode: "78205", lat: 29.3941, lng: -98.5236 }, { zipcode: "78207", lat: 29.4541, lng: -98.5336 },
+  { zipcode: "78208", lat: 29.4641, lng: -98.4736 }, { zipcode: "78209", lat: 29.4341, lng: -98.4536 },
+  { zipcode: "78210", lat: 29.3941, lng: -98.4536 }, { zipcode: "78211", lat: 29.3841, lng: -98.4436 },
+  { zipcode: "78212", lat: 29.4641, lng: -98.4636 }, { zipcode: "78213", lat: 29.4741, lng: -98.5236 },
+  { zipcode: "78214", lat: 29.3541, lng: -98.5436 }, { zipcode: "78215", lat: 29.4141, lng: -98.4336 },
+  { zipcode: "78216", lat: 29.4841, lng: -98.4636 }, { zipcode: "78217", lat: 29.5041, lng: -98.4436 },
+  { zipcode: "78218", lat: 29.4941, lng: -98.4236 }, { zipcode: "78219", lat: 29.4441, lng: -98.4036 },
+  { zipcode: "78220", lat: 29.4241, lng: -98.3836 }, { zipcode: "78221", lat: 29.3741, lng: -98.4936 },
+  { zipcode: "78222", lat: 29.3541, lng: -98.4136 }, { zipcode: "78223", lat: 29.3441, lng: -98.4536 },
+  { zipcode: "78224", lat: 29.3041, lng: -98.4536 }, { zipcode: "78225", lat: 29.3241, lng: -98.5236 },
+  { zipcode: "78226", lat: 29.3841, lng: -98.5636 }, { zipcode: "78227", lat: 29.4041, lng: -98.5836 },
+  { zipcode: "78228", lat: 29.4441, lng: -98.5636 }, { zipcode: "78229", lat: 29.5141, lng: -98.4836 },
+  { zipcode: "78230", lat: 29.5341, lng: -98.4636 }, { zipcode: "78231", lat: 29.5241, lng: -98.4336 },
+  { zipcode: "78232", lat: 29.5441, lng: -98.4436 }, { zipcode: "78233", lat: 29.5641, lng: -98.4636 },
+  { zipcode: "78234", lat: 29.5741, lng: -98.4836 }, { zipcode: "78235", lat: 29.4141, lng: -98.6036 },
+  { zipcode: "78236", lat: 29.3541, lng: -98.6236 }, { zipcode: "78237", lat: 29.3341, lng: -98.5836 },
+  { zipcode: "78238", lat: 29.4841, lng: -98.6036 }, { zipcode: "78239", lat: 29.4541, lng: -98.3836 },
+  { zipcode: "78240", lat: 29.5541, lng: -98.5236 }, { zipcode: "78242", lat: 29.3141, lng: -98.3836 },
+  { zipcode: "78244", lat: 29.3741, lng: -98.3336 }, { zipcode: "78245", lat: 29.4241, lng: -98.6236 },
+  { zipcode: "78247", lat: 29.5541, lng: -98.4236 }, { zipcode: "78248", lat: 29.5841, lng: -98.4536 },
+  { zipcode: "78249", lat: 29.5341, lng: -98.4036 }, { zipcode: "78250", lat: 29.5041, lng: -98.5536 },
+  { zipcode: "78251", lat: 29.4741, lng: -98.6036 }, { zipcode: "78252", lat: 29.5741, lng: -98.5036 },
+  { zipcode: "78253", lat: 29.5941, lng: -98.5536 }, { zipcode: "78254", lat: 29.5641, lng: -98.5836 },
+  { zipcode: "78255", lat: 29.6041, lng: -98.5336 }, { zipcode: "78256", lat: 29.6141, lng: -98.4836 },
+  { zipcode: "78257", lat: 29.6241, lng: -98.4436 }, { zipcode: "78258", lat: 29.6041, lng: -98.4036 },
+  { zipcode: "78259", lat: 29.5841, lng: -98.3836 }, { zipcode: "78260", lat: 29.6341, lng: -98.4636 },
+  { zipcode: "78261", lat: 29.6641, lng: -98.4236 }, { zipcode: "78263", lat: 29.5241, lng: -98.3636 },
+  { zipcode: "78264", lat: 29.6541, lng: -98.3836 }, { zipcode: "78266", lat: 29.6741, lng: -98.4836 },
 ];
 
 // Point-in-polygon algorithm using ray casting
@@ -204,13 +219,13 @@ async function findZipcodesWithCentroidFallback(polygon: PolygonPoint[], supabas
     const centroid = getPolygonCentroid(polygon);
     console.log('No ZIP codes found in polygon, finding nearest to centroid:', centroid);
     
-    // Find closest ZIP codes to centroid (return top 3)
+    // Find closest ZIP codes to centroid (return top 5)
     const distances = zipDatabase.map(zip => ({
       zipcode: zip.zipcode,
       distance: getDistance(centroid, { lat: zip.lat, lng: zip.lng })
     })).sort((a, b) => a.distance - b.distance);
     
-    const nearestZips = distances.slice(0, 3).map(d => d.zipcode);
+    const nearestZips = distances.slice(0, 5).map(d => d.zipcode);
     console.log(`Suggesting ${nearestZips.length} nearest ZIP codes:`, nearestZips);
     return nearestZips;
   }
@@ -344,32 +359,28 @@ serve(async (req) => {
         zipcodes = await findZipcodesWithCentroidFallback(polygon, supabase);
       }
     } else if (zipcodesOnly) {
-      zipcodes = zipcodesOnly;
+      zipcodes = zipcodesOnly.filter(zip => zip && zip.trim().length >= 5).map(zip => zip.trim());
     }
-
-    // Remove duplicates and validate
-    zipcodes = [...new Set(zipcodes.filter(zip => zip && zip.trim().length === 5))];
 
     if (zipcodes.length === 0) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'No valid ZIP codes found in the selected area',
-          suggestManualMode: true
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200, // Return 200 for business logic errors
-        }
-      );
+      throw new Error('No ZIP codes found for this area');
     }
 
+    console.log(`Processing ${zipcodes.length} ZIP codes for worker ${workerId}`);
+
+    // Get existing ZIP codes for this worker to handle duplicates
+    const { data: existingZips } = await supabase
+      .from('worker_service_zipcodes')
+      .select('zipcode')
+      .eq('worker_id', workerId);
+
+    const existingZipList = existingZips?.map(z => z.zipcode) || [];
+
     let newArea: any;
-    let existingZips: string[] = [];
-    
-    // Handle editing existing area
+
+    // Handle editing existing area vs creating new area
     if (areaIdToUpdate) {
-      // Verify area belongs to worker
+      // Verify area exists and belongs to worker
       const { data: existingArea, error: areaError } = await supabase
         .from('worker_service_areas')
         .select('*')
@@ -378,16 +389,7 @@ serve(async (req) => {
         .single();
 
       if (areaError || !existingArea) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: 'Service area not found or access denied'
-          }),
-          {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 200,
-          }
-        );
+        throw new Error('Service area not found or access denied');
       }
 
       // Update existing area
@@ -395,27 +397,18 @@ serve(async (req) => {
         .from('worker_service_areas')
         .update({
           area_name: areaName,
-          polygon_coordinates: polygon || [],
+          polygon_coordinates: polygon || existingArea.polygon_coordinates,
           updated_at: new Date().toISOString()
         })
         .eq('id', areaIdToUpdate)
         .select()
         .single();
 
-      if (updateError || !updatedArea) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: `Failed to update service area: ${updateError?.message}`
-          }),
-          {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 200,
-          }
-        );
+      if (updateError) {
+        throw new Error(`Failed to update service area: ${updateError.message}`);
       }
 
-      // Delete old ZIP codes for this area
+      // Delete existing ZIP codes for this area
       await supabase
         .from('worker_service_zipcodes')
         .delete()
@@ -423,18 +416,22 @@ serve(async (req) => {
 
       newArea = updatedArea;
     } else {
-      // Get existing ZIP codes for append mode
-      if (mode === 'append') {
-        const { data: existingZipData } = await supabase
-          .from('worker_service_zipcodes')
-          .select('zipcode')
-          .eq('worker_id', workerId);
-        
-        existingZips = existingZipData?.map(z => z.zipcode) || [];
-      }
-      
       // Create new service area
-      const { data: createdArea, error: areaError } = await supabase
+      if (mode === 'replace_all') {
+        // Deactivate existing areas first
+        await supabase
+          .from('worker_service_areas')
+          .update({ is_active: false })
+          .eq('worker_id', workerId);
+
+        // Delete existing ZIP codes
+        await supabase
+          .from('worker_service_zipcodes')
+          .delete()
+          .eq('worker_id', workerId);
+      }
+
+      const { data: createdArea, error: createError } = await supabase
         .from('worker_service_areas')
         .insert({
           worker_id: workerId,
@@ -445,29 +442,20 @@ serve(async (req) => {
         .select()
         .single();
 
-      if (areaError || !createdArea) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: `Failed to create service area: ${areaError?.message}`
-          }),
-          {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 200,
-          }
-        );
+      if (createError) {
+        throw new Error(`Failed to create service area: ${createError.message}`);
       }
 
       newArea = createdArea;
     }
 
+    // Insert ZIP codes (skip duplicates in append mode)
+    let zipcodesToInsert = zipcodes;
+    let skippedCount = 0;
+    
     try {
-      // Insert ZIP codes (skip duplicates in append mode)
-      let zipcodesToInsert = zipcodes;
-      let skippedCount = 0;
-      
       if (mode === 'append' && !areaIdToUpdate) {
-        zipcodesToInsert = zipcodes.filter(zip => !existingZips.includes(zip));
+        zipcodesToInsert = zipcodes.filter(zip => !existingZipList.includes(zip));
         skippedCount = zipcodes.length - zipcodesToInsert.length;
         console.log(`Append mode: ${zipcodesToInsert.length} new ZIPs, ${skippedCount} duplicates skipped`);
       }
@@ -484,50 +472,18 @@ serve(async (req) => {
           .insert(zipcodeInserts);
 
         if (zipcodesError) {
-          throw new Error(`Failed to insert zipcodes: ${zipcodesError.message}`);
+          console.error('Error inserting ZIP codes:', zipcodesError);
+          throw new Error(`Failed to insert ZIP codes: ${zipcodesError.message}`);
         }
       }
-
-      // Handle replace_all cleanup (only for new areas, not edits)
-      if (mode === 'replace_all' && !areaIdToUpdate) {
-        // Deactivate existing service areas for this worker (excluding the new one)
-        const { error: deactivateError } = await supabase
-          .from('worker_service_areas')
-          .update({ is_active: false, updated_at: new Date().toISOString() })
-          .eq('worker_id', workerId)
-          .eq('is_active', true)
-          .neq('id', newArea.id);
-
-        if (deactivateError) {
-          throw new Error(`Failed to deactivate existing areas: ${deactivateError.message}`);
-        }
-
-        // Delete existing zipcodes for other areas of this worker
-        const { error: deleteZipsError } = await supabase
-          .from('worker_service_zipcodes')
-          .delete()
-          .eq('worker_id', workerId)
-          .neq('service_area_id', newArea.id);
-
-        if (deleteZipsError) {
-          throw new Error(`Failed to delete existing zipcodes: ${deleteZipsError.message}`);
-        }
-      }
-
     } catch (error) {
-      // Rollback: delete the newly created area and its zipcodes on failure (only for new areas)
+      // Rollback on failure
       if (!areaIdToUpdate) {
-        await supabase
-          .from('worker_service_zipcodes')
-          .delete()
-          .eq('service_area_id', newArea.id);
-        
         await supabase
           .from('worker_service_areas')
           .delete()
           .eq('id', newArea.id);
       }
-      
       throw error;
     }
 
