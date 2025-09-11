@@ -20,7 +20,7 @@ interface Worker {
 
 interface BulkZipcodeAssignmentProps {
   workers: Worker[];
-  onAssignZipcodes: (workerId: string, existingAreaId: string, zipcodes: string[]) => Promise<void>;
+  onAssignZipcodes: (workerId: string, existingAreaId: string, zipcodes: string[], mode?: 'append' | 'replace_all') => Promise<void>;
 }
 
 export const BulkZipcodeAssignment: React.FC<BulkZipcodeAssignmentProps> = ({
@@ -31,6 +31,8 @@ export const BulkZipcodeAssignment: React.FC<BulkZipcodeAssignmentProps> = ({
   const [selectedWorkerId, setSelectedWorkerId] = useState<string>('');
   const [selectedAreaId, setSelectedAreaId] = useState<string>('');
   const [zipcodesText, setZipcodesText] = useState('');
+  const [mode, setMode] = useState<'append' | 'replace_all'>('append');
+  const [showConfirmation, setShowConfirmation] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -64,22 +66,35 @@ export const BulkZipcodeAssignment: React.FC<BulkZipcodeAssignmentProps> = ({
       return;
     }
 
+    // Require confirmation for replace_all mode
+    if (mode === 'replace_all' && !showConfirmation) {
+      setShowConfirmation(true);
+      return;
+    }
+
     setIsLoading(true);
     try {
-      await onAssignZipcodes(selectedWorkerId, selectedAreaId, zipcodes);
+      await onAssignZipcodes(selectedWorkerId, selectedAreaId, zipcodes, mode);
       setIsOpen(false);
       setSelectedWorkerId('');
       setSelectedAreaId('');
       setZipcodesText('');
+      setMode('append');
+      setShowConfirmation(false);
       toast({
         title: "Success",
-        description: `Successfully assigned ${zipcodes.length} ZIP codes`,
+        description: `Successfully ${mode === 'append' ? 'added' : 'replaced'} ${zipcodes.length} ZIP codes`,
       });
     } catch (error) {
       // Error is handled by the parent component
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleConfirmReplace = async () => {
+    setShowConfirmation(false);
+    handleSubmit();
   };
 
   const handleWorkerChange = (workerId: string) => {
@@ -155,30 +170,76 @@ export const BulkZipcodeAssignment: React.FC<BulkZipcodeAssignmentProps> = ({
               onChange={(e) => setZipcodesText(e.target.value)}
               rows={4}
             />
-            {zipcodesText && (
-              <p className="text-sm text-muted-foreground mt-1">
-                {parseZipcodes(zipcodesText).length} valid ZIP codes found
-              </p>
-            )}
-          </div>
+          {zipcodesText && (
+            <p className="text-sm text-muted-foreground mt-1">
+              {parseZipcodes(zipcodesText).length} valid ZIP codes found
+            </p>
+          )}
+        </div>
 
-          <div className="flex gap-2 pt-4">
-            <Button 
-              variant="outline" 
-              onClick={() => setIsOpen(false)}
-              disabled={isLoading}
-              className="flex-1"
-            >
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleSubmit}
-              disabled={isLoading || !selectedWorkerId || !selectedAreaId || !zipcodesText.trim()}
-              className="flex-1"
-            >
-              {isLoading ? 'Assigning...' : 'Assign ZIP Codes'}
-            </Button>
+        <div>
+          <Label htmlFor="mode">Assignment Mode</Label>
+          <Select value={mode} onValueChange={(value: 'append' | 'replace_all') => setMode(value)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="append">Add to existing ZIP codes</SelectItem>
+              <SelectItem value="replace_all">Replace all ZIP codes</SelectItem>
+            </SelectContent>
+          </Select>
+          {mode === 'replace_all' && (
+            <p className="text-sm text-amber-600 mt-1">
+              ⚠️ This will remove all existing ZIP codes for this worker
+            </p>
+          )}
+        </div>
+
+        {showConfirmation && mode === 'replace_all' && (
+          <div className="bg-amber-50 border border-amber-200 rounded p-3">
+            <p className="text-sm text-amber-800 font-medium">
+              Are you sure you want to replace all ZIP codes?
+            </p>
+            <p className="text-sm text-amber-700 mt-1">
+              This will remove all existing coverage and replace with {parseZipcodes(zipcodesText).length} new ZIP codes.
+            </p>
+            <div className="flex gap-2 mt-3">
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={() => setShowConfirmation(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                size="sm" 
+                onClick={handleConfirmReplace}
+                variant="destructive"
+              >
+                Confirm Replace
+              </Button>
+            </div>
           </div>
+        )}
+
+        <div className="flex gap-2 pt-4">
+          <Button 
+            variant="outline" 
+            onClick={() => setIsOpen(false)}
+            disabled={isLoading}
+            className="flex-1"
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleSubmit}
+            disabled={isLoading || !selectedWorkerId || !selectedAreaId || !zipcodesText.trim()}
+            className="flex-1"
+            variant={mode === 'replace_all' && !showConfirmation ? 'destructive' : 'default'}
+          >
+            {isLoading ? 'Assigning...' : mode === 'replace_all' && !showConfirmation ? 'Replace All ZIP Codes' : 'Assign ZIP Codes'}
+          </Button>
+        </div>
         </div>
       </DialogContent>
     </Dialog>

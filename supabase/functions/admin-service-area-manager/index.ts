@@ -120,16 +120,8 @@ serve(async (req) => {
 
       serviceArea = existingArea;
     } else {
-      // Handle zipcode-only mode for new areas
-      if (mode === 'replace_all') {
-        // Delete existing areas for this worker
-        await supabase
-          .from('worker_service_areas')
-          .update({ is_active: false })
-          .eq('worker_id', workerId);
-      }
-
-      // Create new service area
+      // Handle zipcode-only mode for new areas with safe atomic operation
+      // Step 1: Create new service area first
       const { data: newServiceArea, error: areaError } = await supabase
         .from('worker_service_areas')
         .insert({
@@ -146,23 +138,95 @@ serve(async (req) => {
       }
 
       serviceArea = newServiceArea;
+
+      try {
+        // Step 2: Insert zipcodes
+        if (zipcodes.length > 0) {
+          const zipcodeMappings = zipcodes.map(zipcode => ({
+            worker_id: workerId,
+            service_area_id: serviceArea.id,
+            zipcode: zipcode.trim()
+          }));
+
+          const { error: zipError } = await supabase
+            .from('worker_service_zipcodes')
+            .insert(zipcodeMappings);
+
+          if (zipError) {
+            throw new Error(`Failed to insert zipcodes: ${zipError.message}`);
+          }
+        }
+
+        // Step 3: Only after successful creation, handle replace_all cleanup
+        if (mode === 'replace_all') {
+          // Deactivate existing areas for this worker (excluding the new one)
+          await supabase
+            .from('worker_service_areas')
+            .update({ is_active: false })
+            .eq('worker_id', workerId)
+            .neq('id', serviceArea.id);
+
+          // Delete existing zipcodes for other areas of this worker
+          await supabase
+            .from('worker_service_zipcodes')
+            .delete()
+            .eq('worker_id', workerId)
+            .neq('service_area_id', serviceArea.id);
+        }
+
+      } catch (error) {
+        // Rollback: delete the newly created area and its zipcodes on failure
+        await supabase
+          .from('worker_service_zipcodes')
+          .delete()
+          .eq('service_area_id', serviceArea.id);
+        
+        await supabase
+          .from('worker_service_areas')
+          .delete()
+          .eq('id', serviceArea.id);
+        
+        throw error;
+      }
+    } else {
+      // Insert zipcodes to existing area
+      if (zipcodes.length > 0) {
+        const zipcodeMappings = zipcodes.map(zipcode => ({
+          worker_id: workerId,
+          service_area_id: serviceArea.id,
+          zipcode: zipcode.trim()
+        }));
+
+        const { error: zipError } = await supabase
+          .from('worker_service_zipcodes')
+          .insert(zipcodeMappings);
+
+        if (zipError) {
+          throw new Error(`Failed to insert zipcodes: ${zipError.message}`);
+        }
+      }
     }
 
-    // Insert zipcodes
-    if (zipcodes.length > 0) {
-      const zipcodeMappings = zipcodes.map(zipcode => ({
-        worker_id: workerId,
-        service_area_id: serviceArea.id,
-        zipcode: zipcode.trim()
-      }));
+    // Create audit log
+    const { error: auditError } = await supabase.rpc('create_service_area_audit_log', {
+      p_worker_id: workerId,
+      p_record_id: serviceArea.id,
+      p_operation: mode === 'replace_all' ? 'admin_replace' : 'admin_append',
+      p_table_name: 'worker_service_areas',
+      p_new_data: {
+        area_name: serviceArea.area_name,
+        zipcode_count: zipcodes.length,
+        mode
+      },
+      p_old_data: null,
+      p_changed_by: user.id,
+      p_area_name: serviceArea.area_name,
+      p_change_summary: `Admin ${mode === 'replace_all' ? 'replaced' : 'updated'} service areas with ${zipcodes.length} ZIP codes`
+    });
 
-      const { error: zipError } = await supabase
-        .from('worker_service_zipcodes')
-        .insert(zipcodeMappings);
-
-      if (zipError) {
-        throw new Error(`Failed to insert zipcodes: ${zipError.message}`);
-      }
+    if (auditError) {
+      console.error('Audit log creation failed:', auditError);
+      // Don't throw here as the main operation succeeded
     }
 
     // Log the action

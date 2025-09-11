@@ -287,6 +287,13 @@ export const useAdminServiceAreas = (forceFresh = false) => {
     }
 
     try {
+      // Get old area data and worker ID for audit log
+      const { data: oldAreaData } = await supabase
+        .from('worker_service_areas')
+        .select('area_name, worker_id')
+        .eq('id', areaId)
+        .single();
+
       const { error } = await supabase
         .from('worker_service_areas')
         .update({ area_name: newName.trim() })
@@ -294,9 +301,23 @@ export const useAdminServiceAreas = (forceFresh = false) => {
 
       if (error) throw error;
 
+      // Create audit log for rename operation
+      if (oldAreaData?.worker_id) {
+        await supabase.rpc('create_service_area_audit_log', {
+          p_worker_id: oldAreaData.worker_id,
+          p_record_id: areaId,
+          p_operation: 'admin_rename',
+          p_table_name: 'worker_service_areas',
+          p_new_data: { area_name: newName.trim() },
+          p_old_data: { area_name: oldAreaData.area_name },
+          p_area_name: newName.trim(),
+          p_change_summary: `Admin renamed area from "${oldAreaData.area_name}" to "${newName.trim()}"`
+        });
+      }
+
       toast({
         title: "Success",
-        description: "Service area name updated",
+        description: "Name updated. Coverage unchanged.",
       });
 
       await refreshData(true);

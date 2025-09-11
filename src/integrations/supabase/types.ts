@@ -1902,15 +1902,27 @@ export type Database = {
         Returns: undefined
       }
       create_service_area_audit_log: {
-        Args: {
-          p_area_name?: string
-          p_new_data?: Json
-          p_old_data?: Json
-          p_operation: string
-          p_record_id: string
-          p_table_name: string
-          p_worker_id?: string
-        }
+        Args:
+          | {
+              p_area_name?: string
+              p_change_summary?: string
+              p_changed_by?: string
+              p_new_data?: Json
+              p_old_data?: Json
+              p_operation: string
+              p_record_id: string
+              p_table_name: string
+              p_worker_id: string
+            }
+          | {
+              p_area_name?: string
+              p_new_data?: Json
+              p_old_data?: Json
+              p_operation: string
+              p_record_id: string
+              p_table_name: string
+              p_worker_id?: string
+            }
         Returns: string
       }
       delete_booking_with_cascade: {
@@ -2300,10 +2312,8 @@ export type Database = {
       get_worker_zipcode_stats: {
         Args: { p_worker_id: string }
         Returns: {
-          active_areas: number
-          inactive_areas: number
+          active_areas_count: number
           total_zipcodes: number
-          worker_id: string
         }[]
       }
       get_workers_for_admin: {

@@ -119,58 +119,82 @@ serve(async (req) => {
       throw new Error('No valid ZIP codes found');
     }
 
-    // Begin transaction-like operations
-    if (mode === 'replace_all') {
-      // Deactivate existing service areas for this worker
-      const { error: deactivateError } = await supabase
-        .from('worker_service_areas')
-        .update({ is_active: false, updated_at: new Date().toISOString() })
-        .eq('worker_id', workerId)
-        .eq('is_active', true);
-
-      if (deactivateError) {
-        throw new Error(`Failed to deactivate existing areas: ${deactivateError.message}`);
-      }
-
-      // Delete existing zipcodes for this worker
-      const { error: deleteZipsError } = await supabase
-        .from('worker_service_zipcodes')
-        .delete()
-        .eq('worker_id', workerId);
-
-      if (deleteZipsError) {
-        throw new Error(`Failed to delete existing zipcodes: ${deleteZipsError.message}`);
-      }
-    }
-
-    // Create new service area
-    const { data: newArea, error: areaError } = await supabase
+    // Safe atomic operation for replace_all mode
+    let newArea: any;
+    
+    // Step 1: Create new service area first
+    const { data: createdArea, error: areaError } = await supabase
       .from('worker_service_areas')
       .insert({
         worker_id: workerId,
         area_name: areaName,
+        polygon_coordinates: polygon || [],
         is_active: true
       })
       .select()
       .single();
 
-    if (areaError || !newArea) {
+    if (areaError || !createdArea) {
       throw new Error(`Failed to create service area: ${areaError?.message}`);
     }
 
-    // Insert zipcodes
-    const zipcodeInserts = zipcodes.map(zipcode => ({
-      worker_id: workerId,
-      service_area_id: newArea.id,
-      zipcode
-    }));
+    newArea = createdArea;
 
-    const { error: zipcodesError } = await supabase
-      .from('worker_service_zipcodes')
-      .insert(zipcodeInserts);
+    try {
+      // Step 2: Insert new zipcodes
+      const zipcodeInserts = zipcodes.map(zipcode => ({
+        worker_id: workerId,
+        service_area_id: newArea.id,
+        zipcode
+      }));
 
-    if (zipcodesError) {
-      throw new Error(`Failed to insert zipcodes: ${zipcodesError.message}`);
+      const { error: zipcodesError } = await supabase
+        .from('worker_service_zipcodes')
+        .insert(zipcodeInserts);
+
+      if (zipcodesError) {
+        throw new Error(`Failed to insert zipcodes: ${zipcodesError.message}`);
+      }
+
+      // Step 3: Only after successful creation, handle replace_all cleanup
+      if (mode === 'replace_all') {
+        // Deactivate existing service areas for this worker (excluding the new one)
+        const { error: deactivateError } = await supabase
+          .from('worker_service_areas')
+          .update({ is_active: false, updated_at: new Date().toISOString() })
+          .eq('worker_id', workerId)
+          .eq('is_active', true)
+          .neq('id', newArea.id);
+
+        if (deactivateError) {
+          throw new Error(`Failed to deactivate existing areas: ${deactivateError.message}`);
+        }
+
+        // Delete existing zipcodes for other areas of this worker
+        const { error: deleteZipsError } = await supabase
+          .from('worker_service_zipcodes')
+          .delete()
+          .eq('worker_id', workerId)
+          .neq('service_area_id', newArea.id);
+
+        if (deleteZipsError) {
+          throw new Error(`Failed to delete existing zipcodes: ${deleteZipsError.message}`);
+        }
+      }
+
+    } catch (error) {
+      // Rollback: delete the newly created area and its zipcodes on failure
+      await supabase
+        .from('worker_service_zipcodes')
+        .delete()
+        .eq('service_area_id', newArea.id);
+      
+      await supabase
+        .from('worker_service_areas')
+        .delete()
+        .eq('id', newArea.id);
+      
+      throw error;
     }
 
     // Create audit log
