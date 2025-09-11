@@ -1347,6 +1347,35 @@ export type Database = {
           },
         ]
       }
+      worker_coverage_overlays: {
+        Row: {
+          overlay_geom: unknown | null
+          updated_at: string
+          worker_id: string
+          zip_count: number
+        }
+        Insert: {
+          overlay_geom?: unknown | null
+          updated_at?: string
+          worker_id: string
+          zip_count?: number
+        }
+        Update: {
+          overlay_geom?: unknown | null
+          updated_at?: string
+          worker_id?: string
+          zip_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "worker_coverage_overlays_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       worker_notifications: {
         Row: {
           body: string
@@ -1424,6 +1453,7 @@ export type Database = {
         Row: {
           area_name: string
           created_at: string
+          geom: unknown | null
           id: string
           is_active: boolean
           polygon_coordinates: Json
@@ -1433,6 +1463,7 @@ export type Database = {
         Insert: {
           area_name?: string
           created_at?: string
+          geom?: unknown | null
           id?: string
           is_active?: boolean
           polygon_coordinates: Json
@@ -1442,6 +1473,7 @@ export type Database = {
         Update: {
           area_name?: string
           created_at?: string
+          geom?: unknown | null
           id?: string
           is_active?: boolean
           polygon_coordinates?: Json
@@ -1453,26 +1485,47 @@ export type Database = {
       worker_service_zipcodes: {
         Row: {
           created_at: string
+          from_manual: boolean
+          from_polygon: boolean
           id: string
-          service_area_id: string
+          service_area_id: string | null
           worker_id: string
           zipcode: string
         }
         Insert: {
           created_at?: string
+          from_manual?: boolean
+          from_polygon?: boolean
           id?: string
-          service_area_id: string
+          service_area_id?: string | null
           worker_id: string
           zipcode: string
         }
         Update: {
           created_at?: string
+          from_manual?: boolean
+          from_polygon?: boolean
           id?: string
-          service_area_id?: string
+          service_area_id?: string | null
           worker_id?: string
           zipcode?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_wsz_service_area"
+            columns: ["service_area_id"]
+            isOneToOne: false
+            referencedRelation: "worker_service_areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_wsz_worker"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       zip_polygons: {
         Row: {
