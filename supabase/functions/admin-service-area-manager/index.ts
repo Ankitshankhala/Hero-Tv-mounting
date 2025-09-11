@@ -84,11 +84,14 @@ serve(async (req) => {
     if (zipcodesOnly && Array.isArray(zipcodesOnly)) {
       zipcodes = zipcodesOnly;
     } else if (polygon && polygon.length >= 3) {
-      // Call the existing polygon-to-zipcodes function
+      // Call the existing polygon-to-zipcodes function with auth header
       const { data: polygonResult, error: polygonError } = await supabase.functions.invoke(
         'polygon-to-zipcodes',
         {
-          body: { polygon, workerId, areaName, mode }
+          body: { polygon, workerId, areaName, mode },
+          headers: {
+            Authorization: authHeader
+          }
         }
       );
 

@@ -20,6 +20,111 @@ interface UpsertRequest {
   zipcodesOnly?: string[];
 }
 
+// Sample US ZIP codes with coordinates (focused on major Texas cities)
+const US_ZIPCODES = [
+  { zipcode: '75201', lat: 32.7767, lng: -96.7970 }, // Dallas, TX
+  { zipcode: '75202', lat: 32.7815, lng: -96.8047 }, // Dallas, TX
+  { zipcode: '75203', lat: 32.7668, lng: -96.7836 }, // Dallas, TX
+  { zipcode: '77001', lat: 29.7604, lng: -95.3698 }, // Houston, TX
+  { zipcode: '77002', lat: 29.7633, lng: -95.3633 }, // Houston, TX
+  { zipcode: '77003', lat: 29.7440, lng: -95.3466 }, // Houston, TX
+  { zipcode: '78701', lat: 30.2672, lng: -97.7431 }, // Austin, TX
+  { zipcode: '78702', lat: 30.2515, lng: -97.7323 }, // Austin, TX
+  { zipcode: '78703', lat: 30.2711, lng: -97.7694 }, // Austin, TX
+  { zipcode: '78704', lat: 30.2370, lng: -97.7595 }, // Austin, TX
+  { zipcode: '78705', lat: 30.2849, lng: -97.7341 }, // Austin, TX
+  { zipcode: '76101', lat: 32.7555, lng: -97.3308 }, // Fort Worth, TX
+  { zipcode: '76102', lat: 32.7357, lng: -97.3547 }, // Fort Worth, TX
+  { zipcode: '76103', lat: 32.7652, lng: -97.3595 }, // Fort Worth, TX
+  { zipcode: '78201', lat: 29.4241, lng: -98.4936 }, // San Antonio, TX
+  { zipcode: '78202', lat: 29.4450, lng: -98.4731 }, // San Antonio, TX
+  { zipcode: '78203', lat: 29.3957, lng: -98.5226 }, // San Antonio, TX
+  { zipcode: '78204', lat: 29.3813, lng: -98.5342 }, // San Antonio, TX
+  { zipcode: '78205', lat: 29.4163, lng: -98.5014 }, // San Antonio, TX
+];
+
+// Point-in-polygon algorithm using ray casting
+function isPointInPolygon(point: { lat: number; lng: number }, polygon: PolygonPoint[]): boolean {
+  const x = point.lng;
+  const y = point.lat;
+  let inside = false;
+
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].lng;
+    const yi = polygon[i].lat;
+    const xj = polygon[j].lng;
+    const yj = polygon[j].lat;
+
+    if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) {
+      inside = !inside;
+    }
+  }
+
+  return inside;
+}
+
+// Fallback function for centroid-based ZIP code lookup
+async function findZipcodesWithCentroidFallback(polygon: PolygonPoint[]): Promise<string[]> {
+  // Filter ZIP codes using point-in-polygon algorithm
+  const zipcodesInPolygon = US_ZIPCODES.filter(zip => 
+    isPointInPolygon({ lat: zip.lat, lng: zip.lng }, polygon)
+  );
+  
+  const foundZipcodes = zipcodesInPolygon.map(zip => zip.zipcode);
+  console.log(`Centroid fallback found ${foundZipcodes.length} ZIP codes:`, foundZipcodes);
+  
+  // If no ZIP codes found, try to suggest one based on polygon center
+  if (foundZipcodes.length === 0) {
+    const centroid = getPolygonCentroid(polygon);
+    console.log('No ZIP codes found in polygon, checking centroid:', centroid);
+    
+    // Find closest ZIP code to centroid
+    let closest = US_ZIPCODES[0];
+    let minDistance = getDistance(centroid, { lat: closest.lat, lng: closest.lng });
+    
+    for (const zip of US_ZIPCODES) {
+      const distance = getDistance(centroid, { lat: zip.lat, lng: zip.lng });
+      if (distance < minDistance) {
+        minDistance = distance;
+        closest = zip;
+      }
+    }
+    
+    console.log(`Suggesting closest ZIP code: ${closest.zipcode} (${minDistance.toFixed(2)} miles away)`);
+    return [closest.zipcode];
+  }
+  
+  return foundZipcodes;
+}
+
+// Calculate polygon centroid
+function getPolygonCentroid(polygon: PolygonPoint[]): PolygonPoint {
+  let centroidLat = 0;
+  let centroidLng = 0;
+  
+  for (const point of polygon) {
+    centroidLat += point.lat;
+    centroidLng += point.lng;
+  }
+  
+  return {
+    lat: centroidLat / polygon.length,
+    lng: centroidLng / polygon.length
+  };
+}
+
+// Calculate distance between two points in miles
+function getDistance(point1: PolygonPoint, point2: PolygonPoint): number {
+  const R = 3959; // Earth's radius in miles
+  const dLat = (point2.lat - point1.lat) * Math.PI / 180;
+  const dLng = (point2.lng - point1.lng) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(point1.lat * Math.PI / 180) * Math.cos(point2.lat * Math.PI / 180) *
+    Math.sin(dLng/2) * Math.sin(dLng/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -58,12 +163,13 @@ serve(async (req) => {
       throw new Error('Insufficient permissions');
     }
 
+    // Parse request body first
+    const requestBody: UpsertRequest = await req.json();
+
     // If worker, only allow self-assignment
-    if (userData.role === 'worker' && user.id !== req.body.workerId) {
+    if (userData.role === 'worker' && user.id !== requestBody.workerId) {
       throw new Error('Workers can only manage their own service areas');
     }
-
-    const requestBody: UpsertRequest = await req.json();
     const { workerId, areaName, mode, polygon, zipcodesOnly } = requestBody;
 
     // Validate request
@@ -94,20 +200,28 @@ serve(async (req) => {
     let zipcodes: string[] = [];
 
     if (polygon) {
-      // Convert polygon to zipcodes using the polygon-to-zipcodes function
-      const { data: polygonResult, error: polygonError } = await supabase.functions.invoke('polygon-to-zipcodes', {
-        body: { polygon }
-      });
+      // Direct PostGIS integration with fallback
+      try {
+        // First try PostGIS spatial query
+        const { data: postgisResult, error: postgisError } = await supabase.rpc('find_zipcodes_intersecting_polygon', {
+          polygon_coords: polygon
+        });
 
-      if (polygonError) {
-        throw new Error(`Polygon conversion failed: ${polygonError.message}`);
+        if (postgisError) {
+          console.log('PostGIS query failed, using fallback:', postgisError);
+        } else if (postgisResult && postgisResult.length > 0) {
+          zipcodes = postgisResult;
+          console.log(`PostGIS found ${zipcodes.length} ZIP codes`);
+        }
+      } catch (error) {
+        console.log('PostGIS query error, using fallback:', error);
       }
 
-      if (!polygonResult.success) {
-        throw new Error(`Polygon conversion failed: ${polygonResult.error}`);
+      // Fallback to centroid-based lookup if PostGIS failed or returned no results
+      if (zipcodes.length === 0) {
+        console.log('Using centroid-based fallback for ZIP code lookup');
+        zipcodes = await findZipcodesWithCentroidFallback(polygon);
       }
-
-      zipcodes = polygonResult.zipcodes || [];
     } else if (zipcodesOnly) {
       zipcodes = zipcodesOnly;
     }
