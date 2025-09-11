@@ -44,28 +44,35 @@ export const useAdminServiceAreas = (forceFresh = false) => {
   const fetchWorkers = useCallback(async () => {
     setLoading(true);
     try {
-      // Use direct query to canonical worker_service_zipcodes table for accurate counts
-      const { data, error } = await supabase
+      // Get basic worker info first
+      const { data: workers, error: workersError } = await supabase
         .from('users')
-        .select(`
-          id,
-          name,
-          email,
-          phone,
-          is_active,
-          created_at,
-          worker_service_areas!inner(count),
-          worker_service_zipcodes!inner(count)
-        `)
+        .select('id, name, email, phone, is_active, created_at')
         .eq('role', 'worker')
         .order('name');
 
-      if (error) throw error;
+      if (workersError) throw workersError;
 
-      const workersWithStats = (data || []).map((worker) => ({
-        ...worker,
-        service_area_count: worker.worker_service_areas?.[0]?.count || 0,
-        total_zipcodes: worker.worker_service_zipcodes?.[0]?.count || 0  // Match interface property name
+      // Get counts from canonical tables for each worker
+      const workersWithStats = await Promise.all((workers || []).map(async (worker) => {
+        // Count service areas for this worker
+        const { count: serviceAreaCount } = await supabase
+          .from('worker_service_areas')
+          .select('*', { count: 'exact', head: true })
+          .eq('worker_id', worker.id)
+          .eq('is_active', true);
+
+        // Count ZIP codes from canonical table
+        const { count: zipCodeCount } = await supabase
+          .from('worker_service_zipcodes')
+          .select('*', { count: 'exact', head: true })
+          .eq('worker_id', worker.id);
+
+        return {
+          ...worker,
+          service_area_count: serviceAreaCount || 0,
+          total_zipcodes: zipCodeCount || 0
+        };
       }));
 
       setWorkers(workersWithStats);
