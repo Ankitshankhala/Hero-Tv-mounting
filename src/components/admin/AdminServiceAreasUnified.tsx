@@ -73,10 +73,9 @@ export const AdminServiceAreasUnified = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchWorkersWithServiceAreas(true); // Force fresh data
-    fetchWorkers();
+    fetchWorkersWithServiceAreas(true); // Force fresh data with service areas
     fetchAuditLogs();
-  }, [fetchWorkersWithServiceAreas, fetchWorkers, fetchAuditLogs]);
+  }, [fetchWorkersWithServiceAreas, fetchAuditLogs]);
 
   // Auto-select first worker when in manage mode
   useEffect(() => {
@@ -91,8 +90,7 @@ export const AdminServiceAreasUnified = () => {
 
   // Set up real-time updates
   useRealtimeServiceAreas(() => {
-    refreshData(true);
-    fetchWorkers();
+    refreshData(true); // This calls fetchWorkersWithServiceAreas internally
     fetchAuditLogs(selectedWorkerId || undefined);
   });
 
@@ -124,8 +122,7 @@ export const AdminServiceAreasUnified = () => {
   };
 
   const handleRefresh = () => {
-    refreshData(true);
-    fetchWorkers();
+    refreshData(true); // This calls fetchWorkersWithServiceAreas internally
     fetchAuditLogs(selectedWorkerId || undefined);
   };
 
@@ -428,7 +425,11 @@ export const AdminServiceAreasUnified = () => {
                 <CardContent className="p-0 h-full">
                   {viewMode === 'overview' ? (
                     <WorkerServiceAreasMap
-                      workers={filteredWorkers}
+                      workers={filteredWorkers.map(worker => ({
+                        ...worker,
+                        service_areas: worker.service_areas || [],
+                        service_zipcodes: worker.service_zipcodes || []
+                      }))}
                       selectedWorkerId={selectedWorkerId}
                       showInactiveAreas={showInactiveAreas}
                     />
