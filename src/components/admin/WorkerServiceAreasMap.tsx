@@ -90,6 +90,35 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
       attribution: '© OpenStreetMap contributors',
     }).addTo(map);
 
+    // Add zoom event listener for dynamic ZIP labels
+    map.on('zoomend', () => {
+      const currentZoom = map.getZoom();
+      
+      // Update ZIP marker visibility and labels based on zoom
+      if (polygonLayersRef.current instanceof Map) {
+        polygonLayersRef.current.forEach((layer, key) => {
+          if (key.includes('-zipcode') && layer instanceof L.CircleMarker) {
+            const baseRadius = currentZoom > 8 ? 12 : 8;
+            layer.setStyle({ radius: baseRadius });
+            
+            // Toggle permanent labels based on zoom level
+            const tooltip = layer.getTooltip();
+            if (tooltip) {
+              layer.unbindTooltip();
+              const zipcode = key.split('-').pop();
+              const content = tooltip.getContent() as string;
+              layer.bindTooltip(content, {
+                permanent: currentZoom > 11,
+                direction: 'top',
+                className: 'zip-label-tooltip',
+                offset: [0, -8]
+              });
+            }
+          }
+        });
+      }
+    });
+
     mapRef.current = map;
 
     // Cleanup function
@@ -193,16 +222,36 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
 
       let newBounds = currentBounds;
 
-      // Create individual ZIP markers
+      // Create enhanced ZIP markers with better visibility
       allCoordinates.forEach((zip) => {
         if (zip.latitude && zip.longitude) {
+          const currentZoom = mapRef.current!.getZoom();
+          const baseRadius = currentZoom > 8 ? 10 : 8;
+          
           const zipMarker = L.circleMarker([zip.latitude, zip.longitude], {
-            color: '#ffffff',
+            color: '#000000', // Dark border for better contrast
             fillColor: workerColor,
-            fillOpacity: area.is_active ? 0.8 : 0.4,
-            radius: 5,
+            fillOpacity: area.is_active ? 0.9 : 0.5,
+            radius: baseRadius,
             weight: 2,
-            opacity: area.is_active ? 0.9 : 0.5
+            opacity: 1
+          });
+
+          // Enhanced hover effects
+          zipMarker.on('mouseover', () => {
+            zipMarker.setStyle({
+              radius: baseRadius + 3,
+              fillOpacity: 1,
+              weight: 3
+            });
+          });
+
+          zipMarker.on('mouseout', () => {
+            zipMarker.setStyle({
+              radius: baseRadius,
+              fillOpacity: area.is_active ? 0.9 : 0.5,
+              weight: 2
+            });
           });
 
           // Add click handler
@@ -214,10 +263,13 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
             });
           });
 
-          // Add tooltip
-          zipMarker.bindTooltip(`${zip.zipcode} - ${zip.city}`, {
-            permanent: false,
-            direction: 'top'
+          // Enhanced tooltip with permanent label at high zoom
+          const showPermanentLabel = currentZoom > 10;
+          zipMarker.bindTooltip(`${zip.zipcode}<br>${zip.city}`, {
+            permanent: showPermanentLabel,
+            direction: 'top',
+            className: 'zip-label-tooltip',
+            offset: [0, -5]
           });
 
           zipMarker.addTo(mapRef.current!);
@@ -501,17 +553,56 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
   };
 
   return (
-    <div className="relative h-full min-h-[500px]">
-      {/* Map Controls */}
-      <div className="absolute top-4 left-4 z-[1000] space-y-2">
-        <Button
-          size="sm"
-          variant={showZipOverlays ? "default" : "outline"}
-          onClick={() => setShowZipOverlays(!showZipOverlays)}
-        >
-          {showZipOverlays ? 'Hide' : 'Show'} ZIP Overlays
-        </Button>
-      </div>
+    <>
+      {/* Enhanced ZIP tooltip styles */}
+      <style>{`
+        .zip-label-tooltip {
+          background: rgba(0, 0, 0, 0.85) !important;
+          border: 1px solid #333 !important;
+          border-radius: 4px !important;
+          color: white !important;
+          font-weight: 600 !important;
+          font-size: 11px !important;
+          padding: 4px 8px !important;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+          text-align: center !important;
+          line-height: 1.2 !important;
+        }
+        .zip-label-tooltip:before {
+          border-top-color: rgba(0, 0, 0, 0.85) !important;
+        }
+        .leaflet-tooltip-top:before {
+          border-top-color: rgba(0, 0, 0, 0.85) !important;
+        }
+      `}</style>
+      
+      <div className="relative h-full min-h-[500px]">
+        {/* Enhanced Map Controls */}
+        <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-2">
+          <div className="bg-white/95 backdrop-blur-sm rounded-lg p-2 shadow-lg border">
+            <Button
+              size="sm"
+              variant={showZipOverlays ? "default" : "outline"}
+              onClick={() => setShowZipOverlays(!showZipOverlays)}
+              className="w-full"
+            >
+              {showZipOverlays ? 'Hide ZIP Markers' : 'Show ZIP Markers'}
+            </Button>
+            
+            {/* ZIP status indicator */}
+            {showZipOverlays && (
+              <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                <span>ZIP markers active</span>
+              </div>
+            )}
+          </div>
+          
+          {/* Zoom hint */}
+          <div className="bg-blue-50/90 text-blue-700 text-xs px-2 py-1 rounded backdrop-blur-sm border border-blue-200">
+            Zoom in to see ZIP labels
+          </div>
+        </div>
 
       <div 
         ref={mapContainerRef} 
@@ -617,8 +708,9 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
               )}
             </div>
           </CardContent>
-        </Card>
-      )}
-    </div>
-  );
-};
+         </Card>
+       )}
+     </div>
+    </>
+   );
+ };

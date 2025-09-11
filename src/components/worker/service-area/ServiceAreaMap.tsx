@@ -80,6 +80,30 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
       attribution: '© OpenStreetMap contributors'
     }).addTo(map);
 
+    // Add zoom event listener for dynamic ZIP labels
+    map.on('zoomend', () => {
+      const currentZoom = map.getZoom();
+      
+      // Update ZIP marker visibility and labels based on zoom
+      zipMarkersRef.current.forEach((marker, zipcode) => {
+        const baseRadius = currentZoom > 8 ? 12 : 8;
+        marker.setStyle({ radius: baseRadius });
+        
+        // Toggle permanent labels based on zoom level
+        const tooltip = marker.getTooltip();
+        if (tooltip) {
+          marker.unbindTooltip();
+          const content = tooltip.getContent() as string;
+          marker.bindTooltip(content, {
+            permanent: currentZoom > 11,
+            direction: 'top',
+            className: 'zip-label-tooltip',
+            offset: [0, -8]
+          });
+        }
+      });
+    });
+
     // Create feature group for drawn items
     const drawnItems = new L.FeatureGroup();
     drawnItemsRef.current = drawnItems;
@@ -432,18 +456,42 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
         if (coords?.latitude && coords?.longitude) {
           coordinates.push(coords);
           
+          const currentZoom = mapRef.current!.getZoom();
+          const baseRadius = currentZoom > 8 ? 12 : 8;
+          
           const marker = L.circleMarker([coords.latitude, coords.longitude], {
-            radius: 5,
+            radius: baseRadius,
             fillColor: '#10b981',
-            color: '#ffffff',
+            color: '#000000', // Dark border for better contrast
             weight: 2,
-            opacity: 0.9,
-            fillOpacity: 0.8
+            opacity: 1,
+            fillOpacity: 0.9
           });
           
-          marker.bindTooltip(`${zipcode} - ${coords.city}`, {
-            permanent: false,
-            direction: 'top'
+          // Enhanced hover effects
+          marker.on('mouseover', () => {
+            marker.setStyle({
+              radius: baseRadius + 3,
+              fillOpacity: 1,
+              weight: 3
+            });
+          });
+
+          marker.on('mouseout', () => {
+            marker.setStyle({
+              radius: baseRadius,
+              fillOpacity: 0.9,
+              weight: 2
+            });
+          });
+          
+          // Enhanced tooltip with dynamic visibility
+          const showPermanentLabel = currentZoom > 11;
+          marker.bindTooltip(`${zipcode}<br>${coords.city}`, {
+            permanent: showPermanentLabel,
+            direction: 'top',
+            className: 'zip-label-tooltip',
+            offset: [0, -8]
           });
 
           marker.addTo(mapRef.current!);
@@ -1004,7 +1052,30 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
 
 
   return (
-    <div className="space-y-6">
+    <>
+      {/* Enhanced ZIP tooltip styles */}
+      <style>{`
+        .zip-label-tooltip {
+          background: rgba(0, 0, 0, 0.85) !important;
+          border: 1px solid #333 !important;
+          border-radius: 4px !important;
+          color: white !important;
+          font-weight: 600 !important;
+          font-size: 11px !important;
+          padding: 4px 8px !important;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+          text-align: center !important;
+          line-height: 1.2 !important;
+        }
+        .zip-label-tooltip:before {
+          border-top-color: rgba(0, 0, 0, 0.85) !important;
+        }
+        .leaflet-tooltip-top:before {
+          border-top-color: rgba(0, 0, 0, 0.85) !important;
+        }
+      `}</style>
+      
+      <div className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -1352,8 +1423,9 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
           </CardContent>
         </Card>
       )}
-    </div>
-  );
-};
+     </div>
+    </>
+   );
+ };
 
-export default ServiceAreaMap;
+ export default ServiceAreaMap;
