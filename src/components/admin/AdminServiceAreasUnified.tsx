@@ -20,7 +20,8 @@ import {
   ArrowLeft,
   Edit2,
   Check,
-  X as XIcon
+  X as XIcon,
+  Zap
 } from 'lucide-react';
 import { BulkZipcodeAssignment } from './BulkZipcodeAssignment';
 import { WorkerServiceAreasMap } from './WorkerServiceAreasMap';
@@ -31,6 +32,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { useToast } from '@/hooks/use-toast';
 import { exportToCSV, exportToPDF } from '@/utils/exportUtils';
 import { formatDistanceToNow } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
 
 interface CoverageWorker {
   id: string;
@@ -64,6 +66,7 @@ export const AdminServiceAreasUnified = () => {
   const [viewMode, setViewMode] = useState<'overview' | 'manage'>('overview');
   const [editingArea, setEditingArea] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
+  const [isBackfilling, setIsBackfilling] = useState(false);
   
   const {
     workers: adminWorkers,
@@ -188,7 +191,14 @@ export const AdminServiceAreasUnified = () => {
 
     const activeAreas = (worker.service_areas || []).filter(area => area.is_active).length;
     
-    return { activeAreas, totalZipCodes };
+    // Count areas that need backfilling (have polygons but no ZIP codes)
+    const areasNeedingBackfill = (worker.service_areas || []).filter(area => {
+      const hasPolygon = area.polygon_coordinates && Array.isArray(JSON.parse(area.polygon_coordinates || '[]'));
+      const areaZipCodes = (worker.service_zipcodes || []).filter(zip => zip.service_area_id === area.id);
+      return hasPolygon && areaZipCodes.length === 0 && area.is_active;
+    }).length;
+    
+    return { activeAreas, totalZipCodes, areasNeedingBackfill };
   };
 
   const startEditing = (areaId: string, currentName: string) => {
@@ -206,6 +216,36 @@ export const AdminServiceAreasUnified = () => {
     if (success) {
       setEditingArea(null);
       setEditingName('');
+    }
+  };
+
+  const handleBackfillZipcodes = async () => {
+    setIsBackfilling(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('backfill-service-area-zipcodes', {
+        body: {}
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Backfill Complete",
+        description: `${data.processed} service areas processed, ${data.errors} errors. Found ZIP codes for existing polygon areas.`,
+      });
+
+      // Refresh data to show updated ZIP codes
+      refreshData(true);
+    } catch (error) {
+      console.error('Backfill error:', error);
+      toast({
+        title: "Backfill Failed",
+        description: error.message || "Failed to backfill ZIP codes",
+        variant: "destructive"
+      });
+    } finally {
+      setIsBackfilling(false);
     }
   };
 
@@ -239,6 +279,15 @@ export const AdminServiceAreasUnified = () => {
             workers={filteredWorkers}
             onAssignZipcodes={addZipcodesToExistingArea}
           />
+          <Button 
+            onClick={handleBackfillZipcodes} 
+            disabled={isBackfilling || loading} 
+            variant="outline"
+            className="bg-amber-600/10 border-amber-600/20 text-amber-400 hover:bg-amber-600/20"
+          >
+            <Zap className={`h-4 w-4 mr-2 ${isBackfilling ? 'animate-pulse' : ''}`} />
+            {isBackfilling ? 'Processing...' : 'Backfill ZIP Codes'}
+          </Button>
           <Button onClick={handleRefresh} disabled={loading} variant="outline">
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh
@@ -506,6 +555,11 @@ export const AdminServiceAreasUnified = () => {
                         <div className="flex gap-4 text-sm">
                           <span>Areas: {stats.activeAreas}/{(worker.service_areas || []).length}</span>
                           <span>ZIP Codes: {stats.totalZipCodes}</span>
+                          {stats.areasNeedingBackfill > 0 && (
+                            <span className="text-amber-400">
+                              {stats.areasNeedingBackfill} areas need ZIP codes
+                            </span>
+                          )}
                         </div>
                         <div className="space-y-2">
                           <div className="flex flex-wrap gap-1">
@@ -523,7 +577,12 @@ export const AdminServiceAreasUnified = () => {
                           {(worker.service_areas || []).length > 0 && (
                             <div className="space-y-1">
                               <p className="text-xs text-muted-foreground">Service Areas:</p>
-                              {(worker.service_areas || []).map((area) => (
+                              {(worker.service_areas || []).map((area) => {
+                                const areaZipCodes = (worker.service_zipcodes || []).filter(zip => zip.service_area_id === area.id);
+                                const hasPolygon = area.polygon_coordinates && Array.isArray(JSON.parse(area.polygon_coordinates || '[]'));
+                                const needsBackfill = hasPolygon && areaZipCodes.length === 0;
+                                
+                                return (
                                 <div key={area.id} className="flex items-center gap-2 group">
                                   {editingArea === area.id ? (
                                     <div className="flex items-center gap-2">
@@ -558,13 +617,26 @@ export const AdminServiceAreasUnified = () => {
                                       </Button>
                                     </div>
                                   ) : (
-                                    <div className="flex items-center gap-1">
-                                      <Badge 
-                                        variant={area.is_active ? "default" : "secondary"} 
-                                        className="text-xs"
-                                      >
-                                        {area.area_name}
-                                      </Badge>
+                                     <div className="flex items-center gap-1">
+                                       <Badge 
+                                         variant={area.is_active ? "default" : "secondary"} 
+                                         className="text-xs"
+                                       >
+                                         {area.area_name}
+                                       </Badge>
+                                       {needsBackfill && (
+                                         <Badge 
+                                           variant="outline" 
+                                           className="text-xs bg-amber-600/10 border-amber-600/20 text-amber-400"
+                                         >
+                                           Missing ZIPs
+                                         </Badge>
+                                       )}
+                                       {areaZipCodes.length > 0 && (
+                                         <Badge variant="outline" className="text-xs text-green-400">
+                                           {areaZipCodes.length} ZIPs
+                                         </Badge>
+                                       )}
                                       <Button
                                         size="sm"
                                         variant="ghost"
@@ -574,9 +646,10 @@ export const AdminServiceAreasUnified = () => {
                                         <Edit2 className="h-2 w-2" />
                                       </Button>
                                     </div>
-                                  )}
-                                </div>
-                              ))}
+                                   )}
+                                 </div>
+                                )
+                               })}
                             </div>
                           )}
                         </div>
