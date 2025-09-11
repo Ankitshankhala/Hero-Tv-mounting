@@ -184,6 +184,43 @@ export const useWorkerServiceAreas = (workerId?: string) => {
       .map(zip => zip.zipcode);
   }, [serviceAreas, serviceZipcodes, getActiveServiceAreas]);
 
+  const updateServiceAreaName = useCallback(async (areaId: string, newName: string) => {
+    if (!newName.trim()) {
+      toast({
+        title: "Error",
+        description: "Service area name cannot be empty",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('worker_service_areas')
+        .update({ area_name: newName.trim() })
+        .eq('id', areaId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Service area name updated",
+      });
+
+      await fetchServiceAreas();
+      return true;
+
+    } catch (error) {
+      console.error('Error updating service area name:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update service area name",
+        variant: "destructive",
+      });
+      return false;
+    }
+  }, [toast, fetchServiceAreas]);
+
   const toggleServiceAreaStatus = useCallback(async (areaId: string, isActive: boolean) => {
     try {
       const { error } = await supabase.rpc('toggle_service_area_status', {
@@ -222,6 +259,7 @@ export const useWorkerServiceAreas = (workerId?: string) => {
     deleteServiceArea,
     getActiveServiceAreas,
     getActiveZipcodes,
-    toggleServiceAreaStatus
+    toggleServiceAreaStatus,
+    updateServiceAreaName
   };
 };

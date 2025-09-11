@@ -18,7 +18,10 @@ import {
   Search,
   X,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Edit2,
+  Check,
+  X as XIcon
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useWorkerServiceAreas } from '@/hooks/useWorkerServiceAreas';
@@ -37,7 +40,8 @@ export const ServiceAreaSettings: React.FC = () => {
     addZipCodes,
     getActiveZipcodes,
     toggleServiceAreaStatus,
-    deleteServiceArea
+    deleteServiceArea,
+    updateServiceAreaName
   } = useWorkerServiceAreas(user?.id);
   
   const [newZipcodes, setNewZipcodes] = useState<string>('');
@@ -47,6 +51,8 @@ export const ServiceAreaSettings: React.FC = () => {
   const [savingSingle, setSavingSingle] = useState(false);
   const [activeTab, setActiveTab] = useState('areas');
   const [expandedAreas, setExpandedAreas] = useState<Record<string, boolean>>({});
+  const [editingArea, setEditingArea] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -147,6 +153,24 @@ export const ServiceAreaSettings: React.FC = () => {
     }));
   };
 
+  const startEditing = (areaId: string, currentName: string) => {
+    setEditingArea(areaId);
+    setEditingName(currentName);
+  };
+
+  const cancelEditing = () => {
+    setEditingArea(null);
+    setEditingName('');
+  };
+
+  const saveAreaName = async (areaId: string) => {
+    const success = await updateServiceAreaName(areaId, editingName);
+    if (success) {
+      setEditingArea(null);
+      setEditingName('');
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -206,10 +230,56 @@ export const ServiceAreaSettings: React.FC = () => {
                                 onCheckedChange={(checked) => toggleServiceAreaStatus(area.id, checked)}
                               />
                               <div className="flex-1">
-                                <div className="font-medium">{area.area_name}</div>
-                                <div className="text-sm text-muted-foreground">
-                                  {getServiceAreaZipCount(area.id)} ZIP codes
-                                </div>
+                                {editingArea === area.id ? (
+                                  <div className="flex items-center gap-2">
+                                    <Input
+                                      value={editingName}
+                                      onChange={(e) => setEditingName(e.target.value)}
+                                      className="h-8 text-sm"
+                                      autoFocus
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                          saveAreaName(area.id);
+                                        } else if (e.key === 'Escape') {
+                                          cancelEditing();
+                                        }
+                                      }}
+                                    />
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => saveAreaName(area.id)}
+                                      className="h-8 w-8 p-0"
+                                    >
+                                      <Check className="h-4 w-4 text-green-600" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={cancelEditing}
+                                      className="h-8 w-8 p-0"
+                                    >
+                                      <XIcon className="h-4 w-4 text-red-600" />
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-2 group">
+                                    <div>
+                                      <div className="font-medium">{area.area_name}</div>
+                                      <div className="text-sm text-muted-foreground">
+                                        {getServiceAreaZipCount(area.id)} ZIP codes
+                                      </div>
+                                    </div>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => startEditing(area.id, area.area_name)}
+                                      className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                      <Edit2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                )}
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
