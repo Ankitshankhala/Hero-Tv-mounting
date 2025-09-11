@@ -136,6 +136,9 @@ verify_jwt = false
 [functions.get-eligible-workers]
 verify_jwt = true
 
+[functions.reverse-geocode]
+verify_jwt = false
+
 [functions.handle-payment-success]
 verify_jwt = false
 
