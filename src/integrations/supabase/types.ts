@@ -1889,6 +1889,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: number
       }
+      clear_polygon_flag_for_area: {
+        Args: { p_area_id: string }
+        Returns: undefined
+      }
       create_service_area_audit_log: {
         Args: {
           p_area_name?: string
@@ -2572,6 +2576,14 @@ export type Database = {
       reassign_expired_acknowledgments: {
         Args: Record<PropertyKey, never>
         Returns: Json
+      }
+      rebuild_overlays_for_area_workers: {
+        Args: { p_area_id: string }
+        Returns: undefined
+      }
+      rebuild_worker_overlay: {
+        Args: { p_worker: string }
+        Returns: undefined
       }
       repair_payment_inconsistencies: {
         Args: Record<PropertyKey, never>
@@ -3718,6 +3730,10 @@ export type Database = {
           table_name: string
         }
         Returns: string
+      }
+      upsert_manual_zip_coverage: {
+        Args: { p_add?: boolean; p_worker_id: string; p_zipcode: string }
+        Returns: undefined
       }
       upsert_zip_coverage_for_area: {
         Args: { p_area_id: string }
