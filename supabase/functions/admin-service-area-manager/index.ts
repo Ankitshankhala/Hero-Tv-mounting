@@ -140,7 +140,9 @@ serve(async (req) => {
       serviceArea = newServiceArea;
 
       try {
-        // Step 2: Insert zipcodes
+        // Step 2: Upsert zipcodes (handle duplicates by reassigning to new area)
+        let insertedCount = 0;
+        let movedCount = 0;
         if (zipcodes.length > 0) {
           const zipcodeMappings = zipcodes.map(zipcode => ({
             worker_id: workerId,
@@ -148,13 +150,22 @@ serve(async (req) => {
             zipcode: zipcode.trim()
           }));
 
-          const { error: zipError } = await supabase
+          const { data: upsertData, error: zipError } = await supabase
             .from('worker_service_zipcodes')
-            .insert(zipcodeMappings);
+            .upsert(zipcodeMappings, { 
+              onConflict: 'worker_id,zipcode',
+              count: 'exact'
+            })
+            .select();
 
           if (zipError) {
-            throw new Error(`Failed to insert zipcodes: ${zipError.message}`);
+            throw new Error(`Failed to upsert zipcodes: ${zipError.message}`);
           }
+
+          // Count how many were actually inserted vs updated
+          insertedCount = upsertData?.length || 0;
+          // For moved count, we'd need to check which ones already existed
+          // For now, we'll assume all are new unless we get a different count
         }
 
         // Step 3: Only after successful creation, handle replace_all cleanup
@@ -190,21 +201,54 @@ serve(async (req) => {
       }
     }
 
-    // Insert zipcodes to existing area (when existingAreaId is provided)
+    // Upsert zipcodes to existing area (when existingAreaId is provided)
+    let insertedCount = 0;
+    let movedCount = 0;
+    let skippedCount = 0;
+    
     if (existingAreaId && zipcodes.length > 0) {
+      // First, check which zipcodes already exist for this worker
+      const { data: existingZips } = await supabase
+        .from('worker_service_zipcodes')
+        .select('zipcode, service_area_id')
+        .eq('worker_id', workerId)
+        .in('zipcode', zipcodes.map(z => z.trim()));
+
+      const existingZipMap = new Map(
+        existingZips?.map(z => [z.zipcode, z.service_area_id]) || []
+      );
+
       const zipcodeMappings = zipcodes.map(zipcode => ({
         worker_id: workerId,
         service_area_id: serviceArea.id,
         zipcode: zipcode.trim()
       }));
 
-      const { error: zipError } = await supabase
+      const { data: upsertData, error: zipError } = await supabase
         .from('worker_service_zipcodes')
-        .insert(zipcodeMappings);
+        .upsert(zipcodeMappings, { 
+          onConflict: 'worker_id,zipcode',
+          count: 'exact'
+        })
+        .select();
 
       if (zipError) {
-        throw new Error(`Failed to insert zipcodes: ${zipError.message}`);
+        throw new Error(`Failed to upsert zipcodes: ${zipError.message}`);
       }
+
+      // Calculate counts
+      zipcodes.forEach(zipcode => {
+        const trimmedZip = zipcode.trim();
+        const existingAreaId = existingZipMap.get(trimmedZip);
+        
+        if (!existingAreaId) {
+          insertedCount++;
+        } else if (existingAreaId !== serviceArea.id) {
+          movedCount++;
+        } else {
+          skippedCount++;
+        }
+      });
     }
 
     // Create audit log
@@ -236,8 +280,14 @@ serve(async (req) => {
       success: true,
       serviceAreaId: serviceArea.id,
       zipcodesCount: zipcodes.length,
+      insertedCount: insertedCount || 0,
+      movedCount: movedCount || 0,
+      skippedCount: skippedCount || 0,
       mode,
-      message: `Successfully ${mode === 'replace_all' ? 'replaced' : 'updated'} service areas for ${targetWorker.name}`
+      message: `Successfully ${mode === 'replace_all' ? 'replaced' : 'updated'} service areas for ${targetWorker.name}`,
+      details: existingAreaId 
+        ? `${insertedCount} new ZIP codes added, ${movedCount} moved from other areas, ${skippedCount} already in this area`
+        : `${zipcodes.length} ZIP codes processed`
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

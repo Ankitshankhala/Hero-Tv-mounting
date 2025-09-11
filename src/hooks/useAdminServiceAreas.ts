@@ -437,10 +437,18 @@ export const useAdminServiceAreas = (forceFresh = false) => {
 
       if (error) throw error;
 
-      toast({
-        title: "Success",
-        description: `Added ${zipcodes.length} ZIP codes to existing service area`,
-      });
+      // Show detailed success message based on the response
+      if (data?.details) {
+        toast({
+          title: "Success",
+          description: data.details,
+        });
+      } else {
+        toast({
+          title: "Success", 
+          description: `Added ${zipcodes.length} ZIP codes to existing service area`,
+        });
+      }
 
       // Refresh data
       await fetchWorkersWithServiceAreas(true);
