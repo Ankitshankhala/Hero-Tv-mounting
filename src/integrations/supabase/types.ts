@@ -1033,6 +1033,33 @@ export type Database = {
           },
         ]
       }
+      us_zcta_polygons: {
+        Row: {
+          created_at: string | null
+          geom: unknown
+          id: string
+          land_area: number | null
+          water_area: number | null
+          zcta5ce: string
+        }
+        Insert: {
+          created_at?: string | null
+          geom: unknown
+          id?: string
+          land_area?: number | null
+          water_area?: number | null
+          zcta5ce: string
+        }
+        Update: {
+          created_at?: string | null
+          geom?: unknown
+          id?: string
+          land_area?: number | null
+          water_area?: number | null
+          zcta5ce?: string
+        }
+        Relationships: []
+      }
       us_zip_codes: {
         Row: {
           city: string
@@ -1872,6 +1899,10 @@ export type Database = {
           recommended_action: string
         }[]
       }
+      check_spatial_health: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       cleanup_booking_inconsistencies: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -2030,12 +2061,8 @@ export type Database = {
         }[]
       }
       find_zipcodes_intersecting_polygon: {
-        Args: { polygon_geojson: Json }
-        Returns: {
-          city: string
-          state_code: string
-          zipcode: string
-        }[]
+        Args: { polygon_coords: Json }
+        Returns: string[]
       }
       fix_booking_payment_status: {
         Args: { p_booking_id: string; p_payment_intent_id: string }
