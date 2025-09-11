@@ -240,6 +240,36 @@ export const AdminServiceAreasUnified = () => {
     }
   };
 
+  // Quick assignment function for bulk ZIP code assignment
+  const assignZipcodesToAyden = async () => {
+    const aydenWorkerId = '7a09f6e8-c068-400f-88c4-321b400a6bb0';
+    const sanAntonioAreaId = '120cf1ca-925d-4185-bad0-64c88f108042';
+    const zipCodes = [
+      '78023', '78108', '78109', '78148', '78150', '78154', '78201', '78202', '78203', '78204', 
+      '78205', '78207', '78208', '78209', '78210', '78211', '78212', '78213', '78215', '78216', 
+      '78217', '78218', '78219', '78220', '78221', '78222', '78223', '78224', '78225', '78226', 
+      '78227', '78228', '78229', '78230', '78231', '78232', '78233', '78234', '78235', '78236', 
+      '78237', '78238', '78239', '78240', '78242', '78243', '78244', '78245', '78247', '78248', 
+      '78249', '78250', '78251', '78253', '78254', '78255', '78257', '78258', '78259', '78260', 
+      '78261', '78266', '78284'
+    ];
+
+    try {
+      await addZipcodesToExistingArea(aydenWorkerId, sanAntonioAreaId, zipCodes);
+      toast({
+        title: "Success",
+        description: `Successfully assigned ${zipCodes.length} ZIP codes to Ayden Alexander Alexander's San Antonio service area`,
+      });
+      refreshData(true);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to assign ZIP codes",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleBackfillZipcodes = async () => {
     setIsBackfilling(true);
     try {
@@ -300,6 +330,15 @@ export const AdminServiceAreasUnified = () => {
             workers={filteredWorkers}
             onAssignZipcodes={addZipcodesToExistingArea}
           />
+          <Button 
+            onClick={assignZipcodesToAyden}
+            variant="default"
+            size="sm"
+            className="bg-green-600 hover:bg-green-700"
+          >
+            <MapPin className="h-4 w-4 mr-2" />
+            Assign to Ayden (63 ZIPs)
+          </Button>
           <Button 
             onClick={handleBackfillZipcodes} 
             disabled={isBackfilling || loading} 
