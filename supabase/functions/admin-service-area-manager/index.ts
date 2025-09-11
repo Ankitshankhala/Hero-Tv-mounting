@@ -34,7 +34,8 @@ serve(async (req) => {
       areaName, 
       zipcodesOnly, 
       mode = 'replace_all',
-      areaId 
+      areaId,
+      existingAreaId 
     } = await req.json();
 
     // Get requesting user
@@ -78,6 +79,7 @@ serve(async (req) => {
     }
 
     let zipcodes: string[] = [];
+    let serviceArea: any;
 
     if (zipcodesOnly && Array.isArray(zipcodesOnly)) {
       zipcodes = zipcodesOnly;
@@ -97,33 +99,53 @@ serve(async (req) => {
       return new Response(JSON.stringify(polygonResult), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
-    } else {
-      throw new Error('Either polygon or zipcodesOnly must be provided');
+    } else if (!existingAreaId) {
+      throw new Error('Either polygon, zipcodesOnly, or existingAreaId must be provided');
     }
 
-    // Handle zipcode-only mode
-    if (mode === 'replace_all') {
-      // Delete existing areas for this worker
-      await supabase
+    // Handle adding to existing area
+    if (existingAreaId) {
+      // Verify the area exists and belongs to the worker
+      const { data: existingArea, error: existingAreaError } = await supabase
         .from('worker_service_areas')
-        .update({ is_active: false })
-        .eq('worker_id', workerId);
-    }
+        .select('*')
+        .eq('id', existingAreaId)
+        .eq('worker_id', workerId)
+        .eq('is_active', true)
+        .single();
 
-    // Create new service area
-    const { data: serviceArea, error: areaError } = await supabase
-      .from('worker_service_areas')
-      .insert({
-        worker_id: workerId,
-        area_name: areaName || `Admin Assigned - ${new Date().toLocaleDateString()}`,
-        polygon_coordinates: polygon || [],
-        is_active: true
-      })
-      .select()
-      .single();
+      if (existingAreaError || !existingArea) {
+        throw new Error('Existing service area not found or not accessible');
+      }
 
-    if (areaError) {
-      throw new Error(`Failed to create service area: ${areaError.message}`);
+      serviceArea = existingArea;
+    } else {
+      // Handle zipcode-only mode for new areas
+      if (mode === 'replace_all') {
+        // Delete existing areas for this worker
+        await supabase
+          .from('worker_service_areas')
+          .update({ is_active: false })
+          .eq('worker_id', workerId);
+      }
+
+      // Create new service area
+      const { data: newServiceArea, error: areaError } = await supabase
+        .from('worker_service_areas')
+        .insert({
+          worker_id: workerId,
+          area_name: areaName || `Admin Assigned - ${new Date().toLocaleDateString()}`,
+          polygon_coordinates: polygon || [],
+          is_active: true
+        })
+        .select()
+        .single();
+
+      if (areaError) {
+        throw new Error(`Failed to create service area: ${areaError.message}`);
+      }
+
+      serviceArea = newServiceArea;
     }
 
     // Insert zipcodes

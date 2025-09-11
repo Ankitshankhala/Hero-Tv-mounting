@@ -362,6 +362,44 @@ export const useAdminServiceAreas = (forceFresh = false) => {
     }
   }, [fetchWorkers, fetchAuditLogs, toast]);
 
+  const addZipcodesToExistingArea = useCallback(async (
+    workerId: string, 
+    existingAreaId: string, 
+    zipcodes: string[]
+  ) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-service-area-manager', {
+        body: {
+          workerId,
+          existingAreaId,
+          zipcodesOnly: zipcodes,
+          mode: 'append'
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: `Added ${zipcodes.length} ZIP codes to existing service area`,
+      });
+
+      // Refresh data
+      await fetchWorkersWithServiceAreas(true);
+      await fetchAuditLogs();
+      return data;
+
+    } catch (error) {
+      console.error('Error adding ZIP codes to existing area:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to add ZIP codes",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  }, [fetchWorkersWithServiceAreas, fetchAuditLogs, toast]);
+
   return {
     workers,
     auditLogs,
@@ -374,6 +412,7 @@ export const useAdminServiceAreas = (forceFresh = false) => {
     updateWorkerServiceArea,
     deleteWorkerServiceArea,
     removeZipcodeFromWorker,
-    mergeWorkerServiceAreas
+    mergeWorkerServiceAreas,
+    addZipcodesToExistingArea
   };
 };

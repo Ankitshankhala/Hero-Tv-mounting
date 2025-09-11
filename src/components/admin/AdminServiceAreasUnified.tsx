@@ -19,6 +19,7 @@ import {
   Edit3,
   ArrowLeft
 } from 'lucide-react';
+import { BulkZipcodeAssignment } from './BulkZipcodeAssignment';
 import { WorkerServiceAreasMap } from './WorkerServiceAreasMap';
 import ServiceAreaMap from '@/components/worker/service-area/ServiceAreaMap';
 import { useAdminServiceAreas } from '@/hooks/useAdminServiceAreas';
@@ -66,7 +67,8 @@ export const AdminServiceAreasUnified = () => {
     fetchWorkersWithServiceAreas,
     fetchWorkers,
     fetchAuditLogs,
-    refreshData
+    refreshData,
+    addZipcodesToExistingArea
   } = useAdminServiceAreas();
 
   const workers = adminWorkers as CoverageWorker[];
@@ -209,6 +211,10 @@ export const AdminServiceAreasUnified = () => {
               Back to Overview
             </Button>
           )}
+          <BulkZipcodeAssignment
+            workers={filteredWorkers}
+            onAssignZipcodes={addZipcodesToExistingArea}
+          />
           <Button onClick={handleRefresh} disabled={loading} variant="outline">
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh
