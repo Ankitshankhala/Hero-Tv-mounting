@@ -5,13 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { RefreshCw, MapPin, Users } from 'lucide-react';
+import { RefreshCw, MapPin, Users, Activity } from 'lucide-react';
 import ServiceAreaMap from '@/components/worker/service-area/ServiceAreaMap';
 import { useAdminServiceAreas } from '@/hooks/useAdminServiceAreas';
 import { useRealtimeServiceAreas } from '@/hooks/useRealtimeServiceAreas';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDistanceToNow } from 'date-fns';
 import { apiCache } from '@/utils/optimizedApi';
+import { useSpatialHealthCheck } from '@/hooks/useSpatialHealthCheck';
 export const AdminServiceAreaManager = () => {
   const [selectedWorkerId, setSelectedWorkerId] = useState<string>('');
   const {
@@ -22,6 +23,8 @@ export const AdminServiceAreaManager = () => {
     fetchAuditLogs,
     createServiceAreaForWorker
   } = useAdminServiceAreas();
+  
+  const { runHealthCheck, isLoading: healthCheckLoading, healthData } = useSpatialHealthCheck();
   const selectedWorker = workers.find(w => w.id === selectedWorkerId);
   useEffect(() => {
     fetchWorkers();
@@ -80,6 +83,7 @@ export const AdminServiceAreaManager = () => {
         <TabsList>
           <TabsTrigger value="map">Interactive Map</TabsTrigger>
           <TabsTrigger value="audit">Activity Log</TabsTrigger>
+          <TabsTrigger value="health">System Health</TabsTrigger>
         </TabsList>
 
         <TabsContent value="map" className="space-y-4">
@@ -210,6 +214,98 @@ export const AdminServiceAreaManager = () => {
                     No activity logs found
                   </div>}
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="health" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Activity className="h-5 w-5 mr-2" />
+                Spatial System Health Check
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center space-x-4">
+                <Button
+                  onClick={runHealthCheck}
+                  disabled={healthCheckLoading}
+                  variant="outline"
+                >
+                  <Activity className={`h-4 w-4 mr-2 ${healthCheckLoading ? 'animate-spin' : ''}`} />
+                  {healthCheckLoading ? 'Running Check...' : 'Run Health Check'}
+                </Button>
+                
+                {healthData && (
+                  <Badge 
+                    variant={
+                      healthData.health_data.overall_health === 'healthy' 
+                        ? 'default' 
+                        : healthData.health_data.overall_health === 'degraded_no_polygons'
+                        ? 'secondary'
+                        : 'destructive'
+                    }
+                  >
+                    {healthData.health_data.overall_health.toUpperCase()}
+                  </Badge>
+                )}
+              </div>
+
+              {healthData && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="p-4 border rounded-lg">
+                    <div className="text-sm font-medium">PostGIS Version</div>
+                    <div className="text-lg">{healthData.health_data.postgis_version}</div>
+                  </div>
+                  
+                  <div className="p-4 border rounded-lg">
+                    <div className="text-sm font-medium">ZCTA Polygons</div>
+                    <div className="text-lg">{healthData.health_data.zcta_polygons_count.toLocaleString()}</div>
+                  </div>
+                  
+                  <div className="p-4 border rounded-lg">
+                    <div className="text-sm font-medium">US ZIP Codes</div>
+                    <div className="text-lg">{healthData.health_data.us_zip_codes_count.toLocaleString()}</div>
+                  </div>
+                  
+                  <div className="p-4 border rounded-lg">
+                    <div className="text-sm font-medium">Sample Test</div>
+                    <div className="flex items-center space-x-2">
+                      <Badge variant={healthData.health_data.sample_test_success ? 'default' : 'destructive'}>
+                        {healthData.health_data.sample_test_success ? 'PASS' : 'FAIL'}
+                      </Badge>
+                      {healthData.health_data.sample_test_zipcode_count > 0 && (
+                        <span className="text-sm">{healthData.health_data.sample_test_zipcode_count} ZIPs</span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="p-4 border rounded-lg">
+                    <div className="text-sm font-medium">Last Check</div>
+                    <div className="text-sm">{new Date(healthData.timestamp).toLocaleString()}</div>
+                  </div>
+                </div>
+              )}
+
+              {healthData?.recommendations && (
+                <div className="space-y-2">
+                  <div className="font-medium">Recommendations:</div>
+                  <div className="space-y-1">
+                    {healthData.recommendations.map((rec, index) => (
+                      <div key={index} className="text-sm p-2 bg-muted rounded">
+                        {rec}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {!healthData && (
+                <div className="text-center text-muted-foreground py-8">
+                  Run a health check to see spatial system status and diagnostics
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

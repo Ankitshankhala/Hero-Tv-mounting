@@ -153,8 +153,7 @@ serve(async (req) => {
           const { data: upsertData, error: zipError } = await supabase
             .from('worker_service_zipcodes')
             .upsert(zipcodeMappings, { 
-              onConflict: 'worker_id,zipcode',
-              count: 'exact'
+              onConflict: 'worker_id,zipcode'
             })
             .select();
 
@@ -227,8 +226,7 @@ serve(async (req) => {
       const { data: upsertData, error: zipError } = await supabase
         .from('worker_service_zipcodes')
         .upsert(zipcodeMappings, { 
-          onConflict: 'worker_id,zipcode',
-          count: 'exact'
+          onConflict: 'worker_id,zipcode'
         })
         .select();
 

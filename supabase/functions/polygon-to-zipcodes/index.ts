@@ -166,7 +166,7 @@ async function findZipcodesInPolygon(polygon: PolygonPoint[]): Promise<string[]>
     
     // Use the PostGIS RPC function for spatial intersection
     const { data, error } = await supabase.rpc('find_zipcodes_intersecting_polygon', {
-      polygon_geojson: polygonGeoJSON
+      polygon_coords: polygon
     });
     
     if (error) {
@@ -176,9 +176,8 @@ async function findZipcodesInPolygon(polygon: PolygonPoint[]): Promise<string[]>
     }
     
     if (data && data.length > 0) {
-      const zipcodes = data.map((row: any) => row.zipcode);
-      console.log(`Found ${zipcodes.length} zipcodes via PostGIS intersection:`, zipcodes);
-      return zipcodes;
+      console.log(`Found ${data.length} zipcodes via PostGIS intersection:`, data);
+      return data;
     }
     
     console.log('No zipcodes found via PostGIS, trying fallback methods...');
