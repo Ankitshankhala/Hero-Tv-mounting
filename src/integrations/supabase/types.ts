@@ -1901,7 +1901,15 @@ export type Database = {
       }
       check_spatial_health: {
         Args: Record<PropertyKey, never>
-        Returns: Json
+        Returns: {
+          overall_health: string
+          postgis_version: string
+          sample_test_error: string
+          sample_test_success: boolean
+          sample_test_zipcode_count: number
+          us_zip_codes_count: number
+          zcta_polygons_count: number
+        }[]
       }
       cleanup_booking_inconsistencies: {
         Args: Record<PropertyKey, never>
@@ -2350,11 +2358,13 @@ export type Database = {
         }[]
       }
       get_service_area_zipcodes_with_boundaries_enhanced: {
-        Args: {
-          include_boundaries?: boolean
-          min_overlap_percent?: number
-          polygon_coords: Json
-        }
+        Args:
+          | {
+              include_boundaries?: boolean
+              min_overlap_percent?: number
+              polygon_coords: Json
+            }
+          | { include_boundaries?: boolean; polygon_coords: Json }
         Returns: {
           boundary_geojson: Json
           city: string
@@ -3854,7 +3864,12 @@ export type Database = {
       }
       validate_polygon_coverage_enhanced: {
         Args: { polygon_coords: Json }
-        Returns: Json
+        Returns: {
+          coverage_percentage: number
+          has_coverage: boolean
+          missing_zipcodes: string[]
+          zipcode_count: number
+        }[]
       }
       zip_has_active_coverage: {
         Args: { p_zipcode: string }
