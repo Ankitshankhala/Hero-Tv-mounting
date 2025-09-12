@@ -63,6 +63,9 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
   const [searching, setSearching] = useState(false);
   const [showZipMarkers, setShowZipMarkers] = useState<boolean>(true);
   const zipMarkersRef = useRef<Map<string, L.CircleMarker>>(new Map());
+  const [areaSelectionMode, setAreaSelectionMode] = useState<'existing' | 'new'>('new');
+  const [selectedExistingArea, setSelectedExistingArea] = useState<ServiceArea | null>(null);
+  const [showAreaSelection, setShowAreaSelection] = useState(false);
   const { toast } = useToast();
   const { serviceZipcodes, getActiveZipcodes, fetchServiceAreas } = useWorkerServiceAreas(workerId);
 
@@ -158,6 +161,24 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
           lng: point.lng
         }));
         setCurrentPolygon(coordinates);
+        
+        // Show area selection interface instead of just the name input
+        setShowAreaSelection(true);
+        
+        // Set default selection based on existing areas
+        if (serviceAreas.length > 0) {
+          const activeAreas = serviceAreas.filter(area => area.is_active);
+          if (activeAreas.length > 0) {
+            setAreaSelectionMode('existing');
+            setSelectedExistingArea(activeAreas[0]);
+          } else {
+            setAreaSelectionMode('new');
+            setSelectedExistingArea(null);
+          }
+        } else {
+          setAreaSelectionMode('new');
+          setSelectedExistingArea(null);
+        }
       }
     });
 
@@ -699,6 +720,112 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
     setCurrentPolygon(coordinates);
     setEditingArea(area);
     setAreaName(area.area_name);
+    
+    // Show area selection interface for editing
+    setShowAreaSelection(true);
+    setAreaSelectionMode('existing');
+    setSelectedExistingArea(area);
+  };
+
+  const handleSaveWithSelection = async () => {
+    if (!currentPolygon || currentPolygon.length < 3) {
+      toast({
+        title: "Error",
+        description: "Please draw a polygon with at least 3 points",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (areaSelectionMode === 'new' && !areaName.trim()) {
+      toast({
+        title: "Error", 
+        description: "Please enter an area name for the new area",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const requestBody: any = {
+        workerId: workerId,
+        polygon: currentPolygon,
+      };
+
+      if (areaSelectionMode === 'existing' && selectedExistingArea) {
+        // Add to existing area
+        requestBody.areaIdToUpdate = selectedExistingArea.id;
+        requestBody.areaName = selectedExistingArea.area_name;
+        requestBody.mode = 'append';
+      } else {
+        // Create new area
+        requestBody.areaName = areaName.trim();
+        requestBody.mode = 'append';
+      }
+
+      const { data, error } = await supabase.functions.invoke('service-area-upsert', {
+        body: requestBody
+      });
+
+      if (error) throw error;
+
+      if (!data.success) {
+        if (data.suggestManualMode) {
+          setShowZipFallback(true);
+          toast({
+            title: "No ZIP codes found",
+            description: data.error,
+            variant: "destructive",
+          });
+          return;
+        }
+        throw new Error(data.error || 'Failed to process polygon');
+      }
+
+      const zipCountText = data.data?.zipcode_count || data.zipcodesCount || 'some';
+      const actionText = areaSelectionMode === 'existing' ? 'added to' : 'created';
+      const areaText = areaSelectionMode === 'existing' ? selectedExistingArea?.area_name : areaName;
+
+      toast({
+        title: "Success",
+        description: `Polygon ${actionText} "${areaText}" with ${zipCountText} ZIP codes`,
+      });
+
+      // Clear state
+      setCurrentPolygon(null);
+      setShowAreaSelection(false);
+      setAreaSelectionMode('new');
+      setSelectedExistingArea(null);
+      setAreaName('Service Area');
+      setEditingArea(null);
+      
+      // Clear map layers
+      if (drawnItemsRef.current) {
+        drawnItemsRef.current.clearLayers();
+      }
+
+      // Reload service areas
+      await loadServiceAreas();
+      setShowZipFallback(false);
+      
+      if (onServiceAreaUpdate) {
+        onServiceAreaUpdate();
+      }
+      if (onServiceAreaCreated) {
+        onServiceAreaCreated();
+      }
+
+    } catch (error) {
+      console.error('Error saving service area:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save service area",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const saveServiceArea = async () => {
@@ -842,6 +969,9 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
     setAreaName('Service Area');
     setShowZipFallback(false);
     setManualZipcodes('');
+    setShowAreaSelection(false);
+    setAreaSelectionMode('new');
+    setSelectedExistingArea(null);
   };
 
   const searchForLocation = async () => {
@@ -1050,6 +1180,135 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
     }
   };
 
+  // Area Selection Interface Component
+  const AreaSelectionInterface = () => {
+    if (!showAreaSelection || !currentPolygon) return null;
+    
+    return (
+      <Card className="border-blue-200 bg-blue-50">
+        <CardContent className="pt-4">
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-blue-600" />
+              <Label className="font-medium text-blue-800">Choose where to save this area</Label>
+            </div>
+            
+            {/* Existing Areas */}
+            {serviceAreas.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Add to existing area:</Label>
+                {serviceAreas.map(area => (
+                  <div
+                    key={area.id}
+                    className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                      selectedExistingArea?.id === area.id
+                        ? 'border-blue-500 bg-blue-100'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    onClick={() => {
+                      setSelectedExistingArea(area);
+                      setAreaSelectionMode('existing');
+                    }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="radio"
+                        checked={selectedExistingArea?.id === area.id}
+                        onChange={() => {
+                          setSelectedExistingArea(area);
+                          setAreaSelectionMode('existing');
+                        }}
+                      />
+                      <div>
+                        <p className="font-medium">{area.area_name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {serviceZipcodes.filter(sz => sz.service_area_id === area.id).length} ZIP codes
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {/* Create New Area Option */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Or create new area:</Label>
+              <div
+                className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                  areaSelectionMode === 'new'
+                    ? 'border-blue-500 bg-blue-100'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+                onClick={() => {
+                  setAreaSelectionMode('new');
+                  setSelectedExistingArea(null);
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <input
+                    type="radio"
+                    checked={areaSelectionMode === 'new'}
+                    onChange={() => {
+                      setAreaSelectionMode('new');
+                      setSelectedExistingArea(null);
+                    }}
+                  />
+                  <div className="flex-1">
+                    <p className="font-medium">Create new area</p>
+                    <Input
+                      placeholder="Enter new area name"
+                      value={areaName}
+                      onChange={(e) => setAreaName(e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="mt-2"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="flex gap-2">
+              <Button
+                onClick={handleSaveWithSelection}
+                disabled={saving || (areaSelectionMode === 'new' && !areaName.trim())}
+                className="flex-1"
+              >
+                {saving ? (
+                  <>
+                    <div className="h-4 w-4 mr-2 animate-spin rounded-full border-b-2 border-white" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    {areaSelectionMode === 'existing' 
+                      ? `Add to ${selectedExistingArea?.area_name}` 
+                      : 'Create New Area'
+                    }
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowAreaSelection(false);
+                  setCurrentPolygon(null);
+                  if (drawnItemsRef.current) {
+                    drawnItemsRef.current.clearLayers();
+                  }
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
 
   return (
     <>
@@ -1154,46 +1413,16 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
                </div>
              </div>
 
-             {/* Controls */}
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="areaName">Area Name</Label>
-                <Input
-                  id="areaName"
-                  value={areaName}
-                  onChange={(e) => setAreaName(e.target.value)}
-                  placeholder="Enter area name"
-                />
-              </div>
-              
-              <div className="flex items-end gap-2">
-                <Button
-                  onClick={saveServiceArea}
-                  disabled={saving || !currentPolygon}
-                  className="flex-1"
-                >
-                  {saving ? (
-                    <>
-                      <div className="h-4 w-4 mr-2 animate-spin rounded-full border-b-2 border-white" />
-                      {editingArea ? 'Updating...' : 'Saving...'}
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4 mr-2" />
-                      {editingArea ? 'Update Area' : 'Save Area'}
-                    </>
-                  )}
-                </Button>
-                
-                <Button
-                  variant="outline"
-                  onClick={clearMap}
-                  disabled={!currentPolygon}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
+             {/* Area Selection Interface */}
+             <AreaSelectionInterface />
+             
+             {/* Show simple controls when no polygon is drawn and not in area selection mode */}
+             {!currentPolygon && !showAreaSelection && (
+               <div className="text-center text-muted-foreground py-8">
+                 <MapPin className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                 <p>Draw a polygon on the map to get started</p>
+               </div>
+             )}
 
             {/* ZIP Code Fallback Mode */}
             {showZipFallback && (

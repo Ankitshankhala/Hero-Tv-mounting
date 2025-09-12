@@ -261,291 +261,119 @@ function getDistance(point1: PolygonPoint, point2: PolygonPoint): number {
   return R * c;
 }
 
-serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+// Enhanced ZIP code synchronization function
+async function synchronizeZipcodes(
+  supabase: any,
+  workerId: string,
+  newZipcodes: string[],
+  areaId: string,
+  source: 'polygon' | 'manual',
+  mode: 'replace_all' | 'append'
+): Promise<{ inserted: number; updated: number; skipped: number; conflicts: any[] }> {
+  console.log(`Synchronizing ${newZipcodes.length} ZIP codes from ${source} source for area ${areaId}`);
+  
+  const conflicts: any[] = [];
+  let inserted = 0;
+  let updated = 0;
+  let skipped = 0;
 
-  try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Authenticate user
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      throw new Error('Missing authorization header');
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser(authHeader.split(' ')[1]);
-    if (authError || !user) {
-      throw new Error('Authentication failed');
-    }
-
-    // Check user permissions
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (userError || !userData) {
-      throw new Error('User not found');
-    }
-
-    if (userData.role !== 'admin' && userData.role !== 'worker') {
-      throw new Error('Insufficient permissions');
-    }
-
-    // Parse request body first
-    const requestBody: UpsertRequest = await req.json();
-
-    // If worker, only allow self-assignment
-    if (userData.role === 'worker' && user.id !== requestBody.workerId) {
-      throw new Error('Workers can only manage their own service areas');
-    }
-    const { workerId, areaName, mode, polygon, zipcodesOnly, areaIdToUpdate } = requestBody;
-
-    // Validate request
-    if (!workerId || !areaName) {
-      throw new Error('Worker ID and area name are required');
-    }
-
-    if (!polygon && !zipcodesOnly) {
-      throw new Error('Either polygon or zipcodesOnly must be provided');
-    }
-
-    if (polygon && zipcodesOnly) {
-      throw new Error('Cannot provide both polygon and zipcodesOnly');
-    }
-
-    // Verify worker exists
-    const { data: workerData, error: workerError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('id', workerId)
-      .eq('role', 'worker')
-      .single();
-
-    if (workerError || !workerData) {
-      throw new Error('Worker not found');
-    }
-
-    let zipcodes: string[] = [];
-
-    if (polygon) {
-      // Direct PostGIS integration with fallback
-      try {
-        // First try PostGIS spatial query
-        const { data: postgisResult, error: postgisError } = await supabase.rpc('find_zipcodes_intersecting_polygon', {
-          polygon_coords: polygon
-        });
-
-        if (postgisError) {
-          console.log('PostGIS query failed, using fallback:', postgisError);
-        } else if (postgisResult && postgisResult.length > 0) {
-          zipcodes = postgisResult;
-          console.log(`PostGIS found ${zipcodes.length} ZIP codes`);
-        }
-      } catch (error) {
-        console.log('PostGIS query error, using fallback:', error);
-      }
-
-      // Fallback to enhanced lookup if PostGIS failed or returned no results
-      if (zipcodes.length === 0) {
-        console.log('Using enhanced fallback for ZIP code lookup');
-        zipcodes = await findZipcodesWithCentroidFallback(polygon, supabase);
-      }
-    } else if (zipcodesOnly) {
-      zipcodes = zipcodesOnly.filter(zip => zip && zip.trim().length >= 5).map(zip => zip.trim());
-    }
-
-    if (zipcodes.length === 0) {
-      throw new Error('No ZIP codes found for this area');
-    }
-
-    console.log(`Processing ${zipcodes.length} ZIP codes for worker ${workerId}`);
-
-    // Get existing ZIP codes for this worker to handle duplicates
-    const { data: existingZips } = await supabase
-      .from('worker_service_zipcodes')
-      .select('zipcode')
-      .eq('worker_id', workerId);
-
-    const existingZipList = existingZips?.map(z => z.zipcode) || [];
-
-    let newArea: any;
-
-    // Handle editing existing area vs creating new area
-    if (areaIdToUpdate) {
-      // Verify area exists and belongs to worker
-      const { data: existingArea, error: areaError } = await supabase
-        .from('worker_service_areas')
-        .select('*')
-        .eq('id', areaIdToUpdate)
-        .eq('worker_id', workerId)
-        .single();
-
-      if (areaError || !existingArea) {
-        throw new Error('Service area not found or access denied');
-      }
-
-      // Update existing area
-      const { data: updatedArea, error: updateError } = await supabase
-        .from('worker_service_areas')
-        .update({
-          area_name: areaName,
-          polygon_coordinates: polygon || existingArea.polygon_coordinates,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', areaIdToUpdate)
-        .select()
-        .single();
-
-      if (updateError) {
-        throw new Error(`Failed to update service area: ${updateError.message}`);
-      }
-
-      // Delete existing ZIP codes for this area
-      await supabase
-        .from('worker_service_zipcodes')
-        .delete()
-        .eq('service_area_id', areaIdToUpdate);
-
-      newArea = updatedArea;
-    } else {
-      // Create new service area
-      if (mode === 'replace_all') {
-        // Deactivate existing areas first
-        await supabase
-          .from('worker_service_areas')
-          .update({ is_active: false })
-          .eq('worker_id', workerId);
-
-        // Delete existing ZIP codes
-        await supabase
-          .from('worker_service_zipcodes')
-          .delete()
-          .eq('worker_id', workerId);
-      }
-
-      const { data: createdArea, error: createError } = await supabase
-        .from('worker_service_areas')
-        .insert({
-          worker_id: workerId,
-          area_name: areaName,
-          polygon_coordinates: polygon || [],
-          is_active: true
-        })
-        .select()
-        .single();
-
-      if (createError) {
-        throw new Error(`Failed to create service area: ${createError.message}`);
-      }
-
-      newArea = createdArea;
-    }
-
-    // Insert ZIP codes (skip duplicates in append mode)
-    let zipcodesToInsert = zipcodes;
-    let skippedCount = 0;
-    
+  for (const zipcode of newZipcodes) {
     try {
-      if (mode === 'append' && !areaIdToUpdate) {
-        zipcodesToInsert = zipcodes.filter(zip => !existingZipList.includes(zip));
-        skippedCount = zipcodes.length - zipcodesToInsert.length;
-        console.log(`Append mode: ${zipcodesToInsert.length} new ZIPs, ${skippedCount} duplicates skipped`);
+      // Check if ZIP already exists for this worker
+      const { data: existingZip, error: checkError } = await supabase
+        .from('worker_service_zipcodes')
+        .select('*')
+        .eq('worker_id', workerId)
+        .eq('zipcode', zipcode)
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error(`Error checking existing ZIP ${zipcode}:`, checkError);
+        continue;
       }
 
-      if (zipcodesToInsert.length > 0) {
-        const zipcodeInserts = zipcodesToInsert.map(zipcode => ({
-          worker_id: workerId,
-          service_area_id: newArea.id,
-          zipcode
-        }));
+      if (existingZip) {
+        // ZIP exists - update flags intelligently
+        const newFlags = {
+          from_manual: source === 'manual' || existingZip.from_manual,
+          from_polygon: source === 'polygon' || existingZip.from_polygon,
+          service_area_id: areaId // Update to current area
+        };
 
-        const { error: zipcodesError } = await supabase
+        const { error: updateError } = await supabase
           .from('worker_service_zipcodes')
-          .insert(zipcodeInserts);
+          .update(newFlags)
+          .eq('worker_id', workerId)
+          .eq('zipcode', zipcode);
 
-        if (zipcodesError) {
-          console.error('Error inserting ZIP codes:', zipcodesError);
-          throw new Error(`Failed to insert ZIP codes: ${zipcodesError.message}`);
+        if (updateError) {
+          console.error(`Error updating ZIP ${zipcode}:`, updateError);
+          conflicts.push({ zipcode, error: updateError.message });
+        } else {
+          updated++;
+          console.log(`Updated ZIP ${zipcode} with flags:`, newFlags);
+        }
+      } else {
+        // ZIP doesn't exist - insert new
+        const newZipData = {
+          worker_id: workerId,
+          service_area_id: areaId,
+          zipcode,
+          from_manual: source === 'manual',
+          from_polygon: source === 'polygon'
+        };
+
+        const { error: insertError } = await supabase
+          .from('worker_service_zipcodes')
+          .insert(newZipData);
+
+        if (insertError) {
+          console.error(`Error inserting ZIP ${zipcode}:`, insertError);
+          conflicts.push({ zipcode, error: insertError.message });
+        } else {
+          inserted++;
+          console.log(`Inserted new ZIP ${zipcode} with flags:`, newZipData);
         }
       }
     } catch (error) {
-      // Rollback on failure
-      if (!areaIdToUpdate) {
-        await supabase
-          .from('worker_service_areas')
-          .delete()
-          .eq('id', newArea.id);
-      }
-      throw error;
+      console.error(`Unexpected error processing ZIP ${zipcode}:`, error);
+      conflicts.push({ zipcode, error: error.message });
     }
-
-    // Create audit log
-    const operation = areaIdToUpdate ? 'update' : (mode === 'replace_all' ? 'upsert_replace' : 'upsert_append');
-    const { error: auditError } = await supabase.rpc('create_service_area_audit_log', {
-      p_worker_id: workerId,
-      p_record_id: newArea.id,
-      p_operation: operation,
-      p_table_name: 'worker_service_areas',
-      p_new_data: {
-        area_name: areaName,
-        zipcode_count: zipcodesToInsert?.length || zipcodes.length,
-        mode: areaIdToUpdate ? 'edit' : mode,
-        skipped_duplicates: skippedCount || 0
-      },
-      p_old_data: null,
-      p_changed_by: user.id
-    });
-
-    if (auditError) {
-      console.error('Audit log creation failed:', auditError);
-      // Don't throw here as the main operation succeeded
-    }
-
-    const finalZipCount = zipcodesToInsert?.length || zipcodes.length;
-    const actionText = areaIdToUpdate ? 'updated' : 'created';
-    
-    let message = `Service area '${areaName}' ${actionText} with ${finalZipCount} ZIP codes`;
-    if (skippedCount > 0) {
-      message += ` (${skippedCount} duplicates skipped)`;
-    }
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message,
-        data: {
-          area_id: newArea.id,
-          zipcode_count: finalZipCount,
-          zipcodes: zipcodesToInsert || zipcodes,
-          skipped_count: skippedCount || 0,
-          operation: areaIdToUpdate ? 'updated' : 'created'
-        }
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      }
-    );
-
-  } catch (error) {
-    console.error('Service area upsert error:', error);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message || 'An unexpected error occurred'
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200, // Return 200 for business logic errors
-      }
-    );
   }
-});
+
+  return { inserted, updated, skipped, conflicts };
+}
+
+// Function to clean up orphaned ZIPs (no longer from any source)
+async function cleanupOrphanedZipcodes(supabase: any, workerId: string): Promise<number> {
+  const { data: orphanedZips, error: orphanedError } = await supabase
+    .from('worker_service_zipcodes')
+    .select('zipcode')
+    .eq('worker_id', workerId)
+    .eq('from_manual', false)
+    .eq('from_polygon', false);
+
+  if (orphanedError) {
+    console.error('Error finding orphaned ZIPs:', orphanedError);
+    return 0;
+  }
+
+  if (orphanedZips && orphanedZips.length > 0) {
+    const { error: deleteError } = await supabase
+      .from('worker_service_zipcodes')
+      .delete()
+      .eq('worker_id', workerId)
+      .eq('from_manual', false)
+      .eq('from_polygon', false);
+
+    if (deleteError) {
+      console.error('Error deleting orphaned ZIPs:', deleteError);
+      return 0;
+    }
+
+    console.log(`Cleaned up ${orphanedZips.length} orphaned ZIP codes`);
+    return orphanedZips.length;
+  }
+
+  return 0;
+}

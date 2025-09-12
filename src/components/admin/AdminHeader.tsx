@@ -3,9 +3,10 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Calendar, ArrowLeft, TestTube, Clock, DollarSign, AlertTriangle } from 'lucide-react';
+import { Calendar, ArrowLeft, TestTube, Clock, DollarSign, AlertTriangle, RotateCcw } from 'lucide-react';
 import { useTestingMode } from '@/contexts/TestingModeContext';
 import { useToast } from '@/hooks/use-toast';
+import { useTour } from '@/contexts/TourContext';
 import { AssignWorkerModal } from './AssignWorkerModal';
 import { TodaysJobsModal } from './TodaysJobsModal';
 import { supabase } from '@/integrations/supabase/client';
@@ -30,6 +31,7 @@ export const AdminHeader = ({ onNavigate }: AdminHeaderProps = {}) => {
   const {
     toast
   } = useToast();
+  const { resetTourCompletion } = useTour();
 
   // Check Stripe configuration on mount
   React.useEffect(() => {
@@ -64,6 +66,32 @@ export const AdminHeader = ({ onNavigate }: AdminHeaderProps = {}) => {
       description: "Payment minimum restored to $75",
       variant: "default"
     });
+  };
+
+  const handleResetTour = async () => {
+    try {
+      const success = await resetTourCompletion();
+      if (success) {
+        toast({
+          title: "Tour Reset",
+          description: "Admin tour completion status has been reset. Refresh the page to see the tour again.",
+          variant: "default"
+        });
+      } else {
+        toast({
+          title: "Reset Failed",
+          description: "Failed to reset tour completion status.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error resetting tour:', error);
+      toast({
+        title: "Reset Failed",
+        description: "An error occurred while resetting the tour.",
+        variant: "destructive"
+      });
+    }
   };
   const formatTimeRemaining = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -150,6 +178,18 @@ export const AdminHeader = ({ onNavigate }: AdminHeaderProps = {}) => {
             <Button variant="outline" onClick={() => setShowTodaysJobs(true)} className="bg-slate-700/50 text-slate-300 border-slate-600 hover:bg-white hover:text-slate-900 transition-colors">
               <Calendar className="h-4 w-4 mr-2" />
               Today's Jobs
+            </Button>
+            
+            {/* Tour Reset Button */}
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleResetTour}
+              className="bg-blue-900/20 text-blue-400 border-blue-600/50 hover:bg-blue-600 hover:text-white transition-colors"
+              title="Reset admin tour completion status"
+            >
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Reset Tour
             </Button>
           </div>
         </div>

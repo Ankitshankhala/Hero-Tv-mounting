@@ -182,7 +182,7 @@ export const useAdminServiceAreas = (forceFresh = false) => {
               .order('name'),
             supabase
               .from('worker_service_areas')
-              .select('id, worker_id, area_name, polygon_coordinates, is_active, created_at')
+              .select('id, worker_id, area_name, polygon_coordinates, geom, is_active, created_at')
               .order('created_at', { ascending: false }),
             supabase
               .from('worker_service_zipcodes')
@@ -467,6 +467,35 @@ export const useAdminServiceAreas = (forceFresh = false) => {
     }
   }, [fetchWorkersWithServiceAreas, fetchAuditLogs, toast]);
 
+  const updateServiceAreaForWorker = useCallback(async (areaId: string, updates: { polygon_coordinates?: any; area_name?: string; is_active?: boolean }) => {
+    try {
+      const { data, error } = await supabase
+        .from('worker_service_areas')
+        .update(updates)
+        .eq('id', areaId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Service area updated successfully",
+      });
+
+      await refreshData();
+      return data;
+    } catch (error) {
+      console.error('Error updating service area:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update service area",
+        variant: "destructive",
+      });
+      return null;
+    }
+  }, [toast, refreshData]);
+
   return {
     workers,
     auditLogs,
@@ -477,6 +506,7 @@ export const useAdminServiceAreas = (forceFresh = false) => {
     fetchWorkersWithServiceAreas,
     refreshData,
     updateWorkerServiceArea,
+    updateServiceAreaForWorker,
     updateServiceAreaName,
     deleteWorkerServiceArea,
     removeZipcodeFromWorker,
