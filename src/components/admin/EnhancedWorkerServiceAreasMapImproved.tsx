@@ -238,7 +238,7 @@ export const EnhancedWorkerServiceAreasMapImproved: React.FC<EnhancedWorkerServi
         )}
 
         {/* Compact Worker Legend - Always Visible */}
-        <Card className="absolute top-4 left-4 w-64 max-h-56 bg-background/95 backdrop-blur-md shadow-xl border-2 z-[1100]">
+        <Card className="absolute top-4 right-4 w-64 max-h-56 bg-background/95 backdrop-blur-md shadow-xl border-2 z-[1100]">
           <CardHeader className="pb-2 px-3 py-2">
             <CardTitle className="text-xs flex items-center gap-2">
               <Users className="h-3 w-3" />
