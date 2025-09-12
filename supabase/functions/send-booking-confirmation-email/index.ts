@@ -206,8 +206,8 @@ serve(async (req) => {
     <div style="text-align: center; margin-top: 30px; padding-top: 25px; border-top: 1px solid #eee;">
       <p style="margin: 0 0 15px; color: #666;">Need to contact us?</p>
       <p style="margin: 0; font-size: 16px;"><strong>Hero TV Mounting</strong></p>
-      <p style="margin: 5px 0; color: #666;">Email: support@herotvmounting.com</p>
-      <p style="margin: 5px 0; color: #666;">Phone: (555) 123-4567</p>
+      <p style="margin: 5px 0; color: #666;">Email: Captain@herotvmounting.com</p>
+      <p style="margin: 5px 0; color: #666;">Phone: +1 737-272-9971</p>
     </div>
   </div>
 </body>

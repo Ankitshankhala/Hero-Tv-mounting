@@ -28,3 +28,4 @@ CREATE POLICY "Admins can view all tour completion" ON public.tour_completion
       AND role = 'admin'
     )
   );
+

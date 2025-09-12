@@ -228,7 +228,7 @@ serve(async (req) => {
 
     <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
       <h3 style="color: #2c3e50; margin: 0 0 10px; font-size: 16px;">❓ Have Questions?</h3>
-      <p style="margin: 0; color: #666; font-size: 14px;">Contact our customer service team at support@herotvmounting.com or call (555) 123-4567. We're here to help!</p>
+      <p style="margin: 0; color: #666; font-size: 14px;">Contact our customer service team at Captain@herotvmounting.com or call +1 737-272-9971. We're here to help!</p>
     </div>
 
     <div style="text-align: center; margin-top: 30px; padding-top: 25px; border-top: 1px solid #eee;">
