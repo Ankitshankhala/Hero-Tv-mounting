@@ -2312,6 +2312,14 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_nearby_zip_boundaries: {
+        Args: { center_lat: number; center_lng: number; radius_km?: number }
+        Returns: {
+          boundary_geojson: Json
+          distance_km: number
+          zipcode: string
+        }[]
+      }
       get_proj4_from_srid: {
         Args: { "": number }
         Returns: string
@@ -2319,6 +2327,13 @@ export type Database = {
       get_secret: {
         Args: { secret_name: string }
         Returns: string
+      }
+      get_service_area_zipcodes_with_boundaries: {
+        Args: { include_boundaries?: boolean; polygon_coords: Json }
+        Returns: {
+          boundary_geojson: Json
+          zipcode: string
+        }[]
       }
       get_tax_rate_by_state: {
         Args: { state_abbreviation: string }
@@ -2381,6 +2396,10 @@ export type Database = {
           worker_id: string
           worker_name: string
         }[]
+      }
+      get_zipcode_boundary_geojson: {
+        Args: { zipcode_param: string }
+        Returns: Json
       }
       get_zipcode_location_data: {
         Args: { p_zipcode: string }
@@ -3791,6 +3810,10 @@ export type Database = {
       upsert_zip_coverage_for_area: {
         Args: { p_area_id: string }
         Returns: undefined
+      }
+      validate_polygon_coverage: {
+        Args: { polygon_coords: Json }
+        Returns: Json
       }
       zip_has_active_coverage: {
         Args: { p_zipcode: string }
