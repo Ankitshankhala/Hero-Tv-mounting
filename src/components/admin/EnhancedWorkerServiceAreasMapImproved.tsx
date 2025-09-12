@@ -48,7 +48,6 @@ export const EnhancedWorkerServiceAreasMapImproved: React.FC<EnhancedWorkerServi
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const [selectedArea, setSelectedArea] = useState<any>(null);
-  const [legendVisible, setLegendVisible] = useState(true);
   const [loading, setLoading] = useState(false);
 
   // Initialize map
@@ -217,20 +216,20 @@ export const EnhancedWorkerServiceAreasMapImproved: React.FC<EnhancedWorkerServi
   }, [workers, selectedWorkerId, showInactiveAreas]);
 
   return (
-    <div className="relative h-full flex">
+    <div className="relative h-full flex isolate">
       <div className="flex-1 relative z-0">
         <div ref={mapContainerRef} className="w-full h-full" />
         
         {loading && (
-          <div className="absolute top-4 right-4 bg-background/90 backdrop-blur-sm px-3 py-2 rounded-lg border z-20">
+          <div className="absolute top-4 right-4 bg-background/95 backdrop-blur-md px-3 py-2 rounded-lg border shadow-lg z-[1100]">
             <RefreshCw className="h-4 w-4 animate-spin inline mr-2" />
             Loading coverage areas...
           </div>
         )}
 
         {!loading && workers.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-20">
-            <div className="text-center p-6 bg-background/90 backdrop-blur-sm rounded-lg border">
+          <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-[1100]">
+            <div className="text-center p-6 bg-background/95 backdrop-blur-md rounded-lg border shadow-lg">
               <MapPin className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-lg font-semibold mb-2">No Workers Found</h3>
               <p className="text-muted-foreground">No workers with service areas are available to display.</p>
@@ -238,81 +237,61 @@ export const EnhancedWorkerServiceAreasMapImproved: React.FC<EnhancedWorkerServi
           </div>
         )}
 
-        <div className="absolute top-4 left-4 space-y-2 z-20">
-          <Button
-            variant={legendVisible ? "default" : "outline"}
-            size="sm"
-            onClick={() => setLegendVisible(!legendVisible)}
-          >
-            <Users className="h-4 w-4 mr-2" />
-            {legendVisible ? 'Hide Legend' : 'Show Legend'}
-          </Button>
-        </div>
-
-        {/* Enhanced Worker Legend */}
-        {legendVisible && (
-          <Card className="absolute bottom-4 left-4 w-80 max-h-80 bg-background/95 backdrop-blur-sm shadow-lg z-20">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                Coverage Legend ({workers.length} workers)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="max-h-64">
-                <div className="space-y-2">
-                  {workers.map((worker, index) => {
-                    const workerColor = WORKER_COLORS[index % WORKER_COLORS.length];
-                    const activeAreas = worker.service_areas?.filter(area => area.is_active).length || 0;
-                    const totalZipCodes = worker.service_zipcodes?.length || 0;
-                    const isSelected = selectedWorkerId === worker.id;
-                    
-                    return (
+        {/* Compact Worker Legend - Always Visible */}
+        <Card className="absolute top-4 left-4 w-64 max-h-56 bg-background/95 backdrop-blur-md shadow-xl border-2 z-[1100]">
+          <CardHeader className="pb-2 px-3 py-2">
+            <CardTitle className="text-xs flex items-center gap-2">
+              <Users className="h-3 w-3" />
+              Workers ({workers.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-3 py-0 pb-3">
+            <ScrollArea className="max-h-40">
+              <div className="grid grid-cols-2 gap-1">
+                {workers.map((worker, index) => {
+                  const workerColor = WORKER_COLORS[index % WORKER_COLORS.length];
+                  const activeAreas = worker.service_areas?.filter(area => area.is_active).length || 0;
+                  const totalZipCodes = worker.service_zipcodes?.length || 0;
+                  const isSelected = selectedWorkerId === worker.id;
+                  
+                  return (
+                    <div 
+                      key={worker.id} 
+                      className={`flex items-center gap-1 text-xs p-1.5 rounded-sm transition-colors ${
+                        isSelected ? 'bg-primary/20 border border-primary/30' : 'hover:bg-muted/70'
+                      }`}
+                      title={`${worker.name} - ${activeAreas} areas, ${totalZipCodes} ZIPs`}
+                    >
                       <div 
-                        key={worker.id} 
-                        className={`flex items-center gap-3 text-xs p-2 rounded transition-colors ${
-                          isSelected ? 'bg-primary/10 border border-primary/20' : 'hover:bg-muted/50'
-                        }`}
-                      >
-                        <div 
-                          className="w-4 h-4 rounded-sm border-2 border-white shadow-sm flex-shrink-0" 
-                          style={{ backgroundColor: workerColor }}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className={`font-medium truncate ${isSelected ? 'text-primary' : ''}`}>
-                            {worker.name}
-                          </div>
-                          <div className="text-muted-foreground flex items-center gap-2">
-                            <span>{activeAreas} areas</span>
-                            <span>•</span>
-                            <span>{totalZipCodes} ZIPs</span>
-                            <Badge 
-                              variant={worker.is_active ? "default" : "secondary"} 
-                              className="ml-auto h-4 text-xs"
-                            >
-                              {worker.is_active ? 'Active' : 'Inactive'}
-                            </Badge>
-                          </div>
+                        className="w-2.5 h-2.5 rounded-sm border border-white shadow-sm flex-shrink-0" 
+                        style={{ backgroundColor: workerColor }}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className={`font-medium truncate text-xs leading-tight ${isSelected ? 'text-primary' : ''}`}>
+                          {worker.name.split(' ')[0]}
+                        </div>
+                        <div className="text-muted-foreground text-xs leading-tight">
+                          {activeAreas}a•{totalZipCodes}z
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              </ScrollArea>
-              {workers.length === 0 && (
-                <div className="text-center py-4 text-muted-foreground">
-                  <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>No workers found</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
+                    </div>
+                  );
+                })}
+              </div>
+            </ScrollArea>
+            {workers.length === 0 && (
+              <div className="text-center py-3 text-muted-foreground">
+                <Users className="h-6 w-6 mx-auto mb-1 opacity-50" />
+                <p className="text-xs">No workers</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Side Panel for Selected Area */}
       {selectedArea && (
-        <Card className="w-80 h-full bg-background/95 backdrop-blur-sm border-l z-10">
+        <Card className="w-80 h-full bg-background/95 backdrop-blur-md border-l shadow-xl z-[1000]">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-base">{selectedArea.area_name}</CardTitle>
