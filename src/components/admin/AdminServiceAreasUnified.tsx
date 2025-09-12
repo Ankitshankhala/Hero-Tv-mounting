@@ -269,6 +269,87 @@ export const AdminServiceAreasUnified = () => {
       setIsBackfilling(false);
     }
   };
+
+  const handleFortWorthAssignment = async () => {
+    const warrenWorkerId = 'c6870057-c0bb-45f9-82b7-319dcf6ad84a';
+    const fortWorthZips = [
+      '75050', '75051', '75052', '75054', '76001', '76002', '76006', '76010', '76011', '76012',
+      '76013', '76014', '76015', '76016', '76017', '76018', '76021', '76022', '76028', '76034',
+      '76036', '76039', '76040', '76051', '76052', '76053', '76054', '76060', '76063', '76092',
+      '76102', '76103', '76104', '76105', '76106', '76107', '76108', '76109', '76110', '76111',
+      '76112', '76114', '76115', '76116', '76117', '76118', '76119', '76120', '76123', '76126',
+      '76131', '76132', '76133', '76134', '76135', '76137', '76140', '76148', '76155', '76164',
+      '76177', '76179', '76180', '76182', '76244', '76248', '76262'
+    ];
+    
+    setIsBackfilling(true);
+    try {
+      const result = await addZipcodesToExistingArea(
+        warrenWorkerId,
+        'e90382e5-7de8-449e-948e-e23b360d4fcc', // Warren's Fort Worth area ID
+        fortWorthZips,
+        'replace_all'
+      );
+      
+      if (result) {
+        toast({
+          title: "Fort Worth Assignment Complete",
+          description: `Assigned ${fortWorthZips.length} ZIP codes to Warren Kenneth Joe's Fort Worth area.`
+        });
+        refreshData(true);
+      }
+    } catch (error) {
+      console.error('Fort Worth assignment error:', error);
+      toast({
+        title: "Assignment Failed",
+        description: error.message || "Failed to assign Fort Worth ZIP codes",
+        variant: "destructive"
+      });
+    } finally {
+      setIsBackfilling(false);
+    }
+  };
+
+  const handleDallasAssignment = async () => {
+    const chadWorkerId = 'bf62889f-4fba-47bd-94d5-362a475f995e';
+    const dallasZips = [
+      '75001', '75006', '75007', '75019', '75038', '75039', '75041', '75043', '75060', '75061',
+      '75062', '75063', '75099', '75104', '75115', '75116', '75134', '75137', '75141', '75149',
+      '75150', '75180', '75181', '75182', '75201', '75202', '75203', '75204', '75205', '75206',
+      '75207', '75208', '75209', '75210', '75211', '75212', '75214', '75215', '75216', '75217',
+      '75218', '75219', '75220', '75223', '75224', '75225', '75226', '75227', '75228', '75229',
+      '75230', '75231', '75232', '75233', '75234', '75235', '75236', '75237', '75238', '75240',
+      '75241', '75243', '75244', '75246', '75247', '75248', '75249', '75251', '75252', '75253',
+      '75254', '75261', '75287', '75390'
+    ];
+    
+    setIsBackfilling(true);
+    try {
+      const result = await addZipcodesToExistingArea(
+        chadWorkerId,
+        'd592e40a-28e4-442d-ab33-bf8c52e3fceb', // Chad's Dallas area ID
+        dallasZips,
+        'replace_all'
+      );
+      
+      if (result) {
+        toast({
+          title: "Dallas Assignment Complete",
+          description: `Assigned ${dallasZips.length} ZIP codes to Chad Walls's Dallas area.`
+        });
+        refreshData(true);
+      }
+    } catch (error) {
+      console.error('Dallas assignment error:', error);
+      toast({
+        title: "Assignment Failed",
+        description: error.message || "Failed to assign Dallas ZIP codes",
+        variant: "destructive"
+      });
+    } finally {
+      setIsBackfilling(false);
+    }
+  };
   return <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -289,6 +370,14 @@ export const AdminServiceAreasUnified = () => {
           <Button onClick={handleSanAntonioAssignment} disabled={isBackfilling || loading} variant="outline" className="bg-emerald-600/10 border-emerald-600/20 text-emerald-400 hover:bg-emerald-600/20">
             <MapPin className={`h-4 w-4 mr-2 ${isBackfilling ? 'animate-pulse' : ''}`} />
             {isBackfilling ? 'Assigning...' : 'Assign San Antonio ZIPs'}
+          </Button>
+          <Button onClick={handleFortWorthAssignment} disabled={isBackfilling || loading} variant="outline" className="bg-blue-600/10 border-blue-600/20 text-blue-400 hover:bg-blue-600/20">
+            <MapPin className={`h-4 w-4 mr-2 ${isBackfilling ? 'animate-pulse' : ''}`} />
+            {isBackfilling ? 'Assigning...' : 'Assign Fort Worth ZIPs'}
+          </Button>
+          <Button onClick={handleDallasAssignment} disabled={isBackfilling || loading} variant="outline" className="bg-purple-600/10 border-purple-600/20 text-purple-400 hover:bg-purple-600/20">
+            <MapPin className={`h-4 w-4 mr-2 ${isBackfilling ? 'animate-pulse' : ''}`} />
+            {isBackfilling ? 'Assigning...' : 'Assign Dallas ZIPs'}
           </Button>
           <Button onClick={handleBackfillZipcodes} disabled={isBackfilling || loading} variant="outline" className="bg-amber-600/10 border-amber-600/20 text-amber-400 hover:bg-amber-600/20">
             <Zap className={`h-4 w-4 mr-2 ${isBackfilling ? 'animate-pulse' : ''}`} />
