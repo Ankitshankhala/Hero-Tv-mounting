@@ -218,18 +218,18 @@ export const EnhancedWorkerServiceAreasMapImproved: React.FC<EnhancedWorkerServi
 
   return (
     <div className="relative h-full flex">
-      <div className="flex-1">
+      <div className="flex-1 relative z-0">
         <div ref={mapContainerRef} className="w-full h-full" />
         
         {loading && (
-          <div className="absolute top-4 right-4 bg-background/90 backdrop-blur-sm px-3 py-2 rounded-lg border">
+          <div className="absolute top-4 right-4 bg-background/90 backdrop-blur-sm px-3 py-2 rounded-lg border z-20">
             <RefreshCw className="h-4 w-4 animate-spin inline mr-2" />
             Loading coverage areas...
           </div>
         )}
 
         {!loading && workers.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/50">
+          <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-20">
             <div className="text-center p-6 bg-background/90 backdrop-blur-sm rounded-lg border">
               <MapPin className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-lg font-semibold mb-2">No Workers Found</h3>
@@ -238,7 +238,7 @@ export const EnhancedWorkerServiceAreasMapImproved: React.FC<EnhancedWorkerServi
           </div>
         )}
 
-        <div className="absolute top-4 left-4 space-y-2">
+        <div className="absolute top-4 left-4 space-y-2 z-20">
           <Button
             variant={legendVisible ? "default" : "outline"}
             size="sm"
@@ -251,7 +251,7 @@ export const EnhancedWorkerServiceAreasMapImproved: React.FC<EnhancedWorkerServi
 
         {/* Enhanced Worker Legend */}
         {legendVisible && (
-          <Card className="absolute bottom-4 left-4 w-80 max-h-80 bg-background/95 backdrop-blur-sm shadow-lg">
+          <Card className="absolute bottom-4 left-4 w-80 max-h-80 bg-background/95 backdrop-blur-sm shadow-lg z-20">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
                 <Users className="h-4 w-4" />
@@ -312,7 +312,7 @@ export const EnhancedWorkerServiceAreasMapImproved: React.FC<EnhancedWorkerServi
 
       {/* Side Panel for Selected Area */}
       {selectedArea && (
-        <Card className="w-80 h-full bg-background border-l">
+        <Card className="w-80 h-full bg-background/95 backdrop-blur-sm border-l z-10">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-base">{selectedArea.area_name}</CardTitle>

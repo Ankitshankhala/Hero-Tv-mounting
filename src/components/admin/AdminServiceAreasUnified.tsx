@@ -332,9 +332,9 @@ export const AdminServiceAreasUnified = () => {
         </TabsList>
 
         <TabsContent value="map" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 relative">
             {/* Left Panel - Worker Selection & Filters */}
-            <div className="lg:col-span-2 space-y-4">
+            <div className="lg:col-span-2 space-y-4 relative z-10">
               <Card>
                 
                 <CardContent className="space-y-4">
@@ -415,21 +415,21 @@ export const AdminServiceAreasUnified = () => {
               </Card>
 
               {/* Worker List in Overview Mode */}
-              {viewMode === 'overview' && <Card>
+              {viewMode === 'overview' && <Card className="bg-background/95 backdrop-blur-sm shadow-lg">
                   <CardHeader>
                     <CardTitle className="text-sm">Workers ({filteredWorkers.length})</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <ScrollArea className="h-[400px]">
+                    <ScrollArea className="h-[500px]">
                       <div className="space-y-2">
                         {filteredWorkers.map(worker => {
                           const stats = getWorkerStats(worker);
                           return (
                             <div 
                               key={worker.id} 
-                              className={`p-3 rounded-lg border cursor-pointer transition-all duration-200 hover:shadow-sm ${
+                              className={`p-3 rounded-lg border cursor-pointer transition-all duration-200 hover:shadow-sm bg-background shadow-sm ${
                                 selectedWorkerId === worker.id 
-                                  ? 'bg-primary/10 border-primary shadow-sm' 
+                                  ? 'bg-primary/10 border-primary shadow-md' 
                                   : 'hover:bg-muted/50 hover:border-muted-foreground/20'
                               }`} 
                               onClick={() => handleWorkerSelect(worker.id)}
@@ -476,8 +476,8 @@ export const AdminServiceAreasUnified = () => {
             </div>
 
             {/* Main Map Area */}
-            <div className="lg:col-span-4">
-              <Card className="h-[600px]">
+            <div className="lg:col-span-3 relative z-0">
+              <Card className="h-[600px] bg-background/95 backdrop-blur-sm">
                 <CardContent className="p-0 h-full">
                   {viewMode === 'overview' ? (() => {
                     const mappedWorkers = workers.map(worker => ({
