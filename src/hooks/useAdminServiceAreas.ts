@@ -423,7 +423,8 @@ export const useAdminServiceAreas = (forceFresh = false) => {
   const addZipcodesToExistingArea = useCallback(async (
     workerId: string, 
     existingAreaId: string, 
-    zipcodes: string[]
+    zipcodes: string[],
+    mode: 'append' | 'replace_all' = 'append'
   ) => {
     try {
       const { data, error } = await supabase.functions.invoke('admin-service-area-manager', {
@@ -431,7 +432,7 @@ export const useAdminServiceAreas = (forceFresh = false) => {
           workerId,
           existingAreaId,
           zipcodesOnly: zipcodes,
-          mode: 'append'
+          mode
         }
       });
 
