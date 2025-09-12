@@ -182,10 +182,12 @@ export const EnhancedWorkerServiceAreasMap: React.FC<EnhancedWorkerServiceAreasM
             });
 
             const bounds = polygon.getBounds();
-            if (allBounds) {
-              allBounds.extend(bounds);
-            } else {
-              allBounds = bounds;
+            if (bounds.isValid()) {
+              if (allBounds) {
+                allBounds.extend(bounds);
+              } else {
+                allBounds = bounds;
+              }
             }
 
           } catch (error) {
@@ -196,8 +198,12 @@ export const EnhancedWorkerServiceAreasMap: React.FC<EnhancedWorkerServiceAreasM
     });
 
     // Fit map to all service areas
-    if (allBounds && mapRef.current) {
-      mapRef.current.fitBounds(allBounds, { padding: [20, 20] });
+    if (allBounds && allBounds.isValid() && mapRef.current) {
+      try {
+        mapRef.current.fitBounds(allBounds, { padding: [20, 20] });
+      } catch (e) {
+        console.warn('Skipping fitBounds due to invalid bounds', e);
+      }
     }
 
   }, [workers, selectedWorkerId, showInactiveAreas, validatePolygonCoverage]);
