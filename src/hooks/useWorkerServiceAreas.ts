@@ -184,6 +184,36 @@ export const useWorkerServiceAreas = (workerId?: string) => {
       .map(zip => zip.zipcode);
   }, [serviceAreas, serviceZipcodes, getActiveServiceAreas]);
 
+  // Function to get ZIP code count for a specific service area
+  const getServiceAreaZipCount = useCallback((areaId: string) => {
+    // First, count ZIP codes directly associated with this area
+    const directlyAssociated = serviceZipcodes.filter(zip => zip.service_area_id === areaId).length;
+    
+    // If we have directly associated ZIP codes, return that count
+    if (directlyAssociated > 0) {
+      return directlyAssociated;
+    }
+    
+    // If no directly associated ZIP codes, check if this is a ZIP-only area
+    const area = serviceAreas.find(a => a.id === areaId);
+    if (area && (!area.polygon_coordinates || !Array.isArray(area.polygon_coordinates) || area.polygon_coordinates.length < 3)) {
+      // This appears to be a ZIP-only area, count ZIP codes with null service_area_id
+      // This is a fallback for cases where service_area_id associations are missing
+      const nullAreaZips = serviceZipcodes.filter(zip => !zip.service_area_id);
+      
+      // If there's only one ZIP-only area, assign all null ZIP codes to it
+      const zipOnlyAreas = serviceAreas.filter(a => 
+        !a.polygon_coordinates || !Array.isArray(a.polygon_coordinates) || a.polygon_coordinates.length < 3
+      );
+      
+      if (zipOnlyAreas.length === 1 && zipOnlyAreas[0].id === areaId) {
+        return nullAreaZips.length;
+      }
+    }
+    
+    return directlyAssociated;
+  }, [serviceZipcodes, serviceAreas]);
+
   const updateServiceAreaName = useCallback(async (areaId: string, newName: string) => {
     if (!newName.trim()) {
       toast({
@@ -280,6 +310,7 @@ export const useWorkerServiceAreas = (workerId?: string) => {
     deleteServiceArea,
     getActiveServiceAreas,
     getActiveZipcodes,
+    getServiceAreaZipCount,
     toggleServiceAreaStatus,
     updateServiceAreaName
   };

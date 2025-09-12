@@ -67,7 +67,7 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
   const [selectedExistingArea, setSelectedExistingArea] = useState<ServiceArea | null>(null);
   const [showAreaSelection, setShowAreaSelection] = useState(false);
   const { toast } = useToast();
-  const { serviceZipcodes, getActiveZipcodes, fetchServiceAreas } = useWorkerServiceAreas(workerId);
+  const { serviceZipcodes, getActiveZipcodes, getServiceAreaZipCount, fetchServiceAreas } = useWorkerServiceAreas(workerId);
 
   // Initialize map
   useEffect(() => {
@@ -1605,7 +1605,7 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
                           <div className="flex items-center gap-2 mt-1">
                             <MapPinCheck className="h-3 w-3 text-primary" />
                             <Badge variant="secondary" className="text-xs">
-                              {serviceZipcodes.filter(sz => sz.service_area_id === area.id).length} ZIP codes in this area
+                              {getServiceAreaZipCount(area.id)} ZIP codes in this area
                             </Badge>
                             {(!area.polygon_coordinates || !Array.isArray(area.polygon_coordinates) || area.polygon_coordinates.length < 3) && (
                               <Badge variant="outline" className="text-xs">

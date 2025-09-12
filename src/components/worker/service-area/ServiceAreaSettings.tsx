@@ -39,6 +39,7 @@ export const ServiceAreaSettings: React.FC = () => {
     fetchServiceAreas,
     addZipCodes,
     getActiveZipcodes,
+    getServiceAreaZipCount,
     toggleServiceAreaStatus,
     deleteServiceArea,
     updateServiceAreaName
@@ -129,10 +130,6 @@ export const ServiceAreaSettings: React.FC = () => {
     } finally {
       setSavingSingle(false);
     }
-  };
-
-  const getServiceAreaZipCount = (areaId: string) => {
-    return serviceZipcodes.filter(zip => zip.service_area_id === areaId).length;
   };
 
   const getServiceAreaZipcodes = (areaId: string) => {
