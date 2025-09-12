@@ -2061,8 +2061,14 @@ export type Database = {
         }[]
       }
       find_zipcodes_intersecting_polygon: {
-        Args: { polygon_coords: Json }
-        Returns: string[]
+        Args:
+          | { min_overlap_percent?: number; polygon_coords: Json }
+          | { polygon_coords: Json }
+        Returns: {
+          boundary_geojson: Json
+          overlap_percent: number
+          zipcode: string
+        }[]
       }
       fix_booking_payment_status: {
         Args: { p_booking_id: string; p_payment_intent_id: string }
@@ -2320,6 +2326,14 @@ export type Database = {
           zipcode: string
         }[]
       }
+      get_nearby_zip_boundaries_enhanced: {
+        Args: { center_lat: number; center_lng: number; radius_km?: number }
+        Returns: {
+          boundary_geojson: Json
+          distance_km: number
+          zipcode: string
+        }[]
+      }
       get_proj4_from_srid: {
         Args: { "": number }
         Returns: string
@@ -2332,6 +2346,21 @@ export type Database = {
         Args: { include_boundaries?: boolean; polygon_coords: Json }
         Returns: {
           boundary_geojson: Json
+          zipcode: string
+        }[]
+      }
+      get_service_area_zipcodes_with_boundaries_enhanced: {
+        Args: {
+          include_boundaries?: boolean
+          min_overlap_percent?: number
+          polygon_coords: Json
+        }
+        Returns: {
+          boundary_geojson: Json
+          city: string
+          overlap_percent: number
+          state: string
+          state_abbr: string
           zipcode: string
         }[]
       }
@@ -2401,6 +2430,10 @@ export type Database = {
         Args: { zipcode_param: string }
         Returns: Json
       }
+      get_zipcode_boundary_geojson_enhanced: {
+        Args: { zipcode_param: string }
+        Returns: Json
+      }
       get_zipcode_location_data: {
         Args: { p_zipcode: string }
         Returns: {
@@ -2426,6 +2459,10 @@ export type Database = {
       import_application_availability: {
         Args: { worker_uuid: string }
         Returns: string
+      }
+      import_zipcode_data_batch: {
+        Args: { zipcode_data: Json }
+        Returns: number
       }
       is_sms_enabled: {
         Args: Record<PropertyKey, never>
@@ -3812,6 +3849,10 @@ export type Database = {
         Returns: undefined
       }
       validate_polygon_coverage: {
+        Args: { polygon_coords: Json }
+        Returns: Json
+      }
+      validate_polygon_coverage_enhanced: {
         Args: { polygon_coords: Json }
         Returns: Json
       }
