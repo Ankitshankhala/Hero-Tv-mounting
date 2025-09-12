@@ -9,7 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Search, MapPin, Users, Download, Eye, EyeOff, Filter, RefreshCw, Edit3, ArrowLeft, Edit2, Check, X as XIcon, Zap } from 'lucide-react';
 import { BulkZipcodeAssignment } from './BulkZipcodeAssignment';
-import { WorkerServiceAreasMap } from './WorkerServiceAreasMap';
+import { EnhancedWorkerServiceAreasMap } from './EnhancedWorkerServiceAreasMap';
 import ServiceAreaMap from '@/components/worker/service-area/ServiceAreaMap';
 import { useAdminServiceAreas } from '@/hooks/useAdminServiceAreas';
 import { useRealtimeServiceAreas } from '@/hooks/useRealtimeServiceAreas';
@@ -529,11 +529,21 @@ export const AdminServiceAreasUnified = () => {
             <div className="lg:col-span-3">
               <Card className="h-[600px]">
                 <CardContent className="p-0 h-full">
-                  {viewMode === 'overview' ? <WorkerServiceAreasMap workers={filteredWorkers.map(worker => ({
-                  ...worker,
-                  service_areas: worker.service_areas || [],
-                  service_zipcodes: worker.service_zipcodes || []
-                }))} selectedWorkerId={selectedWorkerId} showInactiveAreas={showInactiveAreas} /> : selectedWorker ? <ServiceAreaMap workerId={selectedWorkerId} isActive={true} adminMode={true} onServiceAreaUpdate={refreshData} /> : <div className="flex items-center justify-center h-full text-muted-foreground">
+                  {viewMode === 'overview' ? <EnhancedWorkerServiceAreasMap 
+                    workers={filteredWorkers.map(worker => ({
+                      ...worker,
+                      service_areas: (worker.service_areas || []).map(area => ({
+                        ...area,
+                        zipcode_list: worker.service_zipcodes
+                          ?.filter(sz => sz.service_area_id === area.id)
+                          ?.map(sz => sz.zipcode) || []
+                      })),
+                      service_zipcodes: worker.service_zipcodes || []
+                    }))} 
+                    selectedWorkerId={selectedWorkerId} 
+                    showInactiveAreas={showInactiveAreas}
+                    showZipBoundaries={true}
+                  /> : selectedWorker ? <ServiceAreaMap workerId={selectedWorkerId} isActive={true} adminMode={true} onServiceAreaUpdate={refreshData} /> : <div className="flex items-center justify-center h-full text-muted-foreground">
                       Select a worker to manage their service areas
                     </div>}
                 </CardContent>

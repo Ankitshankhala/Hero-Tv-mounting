@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Search, MapPin, Users, Download, Eye, EyeOff, Filter, RefreshCw } from 'lucide-react';
-import { WorkerServiceAreasMap } from './WorkerServiceAreasMap';
+import { EnhancedWorkerServiceAreasMap } from './EnhancedWorkerServiceAreasMap';
 import { useAdminServiceAreas } from '@/hooks/useAdminServiceAreas';
 import { useRealtimeServiceAreas } from '@/hooks/useRealtimeServiceAreas';
 import { useToast } from '@/hooks/use-toast';
@@ -211,11 +211,21 @@ export const AdminCoverageManager = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
-                <WorkerServiceAreasMap workers={filteredWorkers.map(w => ({
-                ...w,
-                service_areas: w.service_areas || [],
-                service_zipcodes: w.service_zipcodes || []
-              }))} selectedWorkerId={selectedWorkerId} showInactiveAreas={showInactiveAreas} />
+                <EnhancedWorkerServiceAreasMap 
+                  workers={filteredWorkers.map(w => ({
+                    ...w,
+                    service_areas: (w.service_areas || []).map(area => ({
+                      ...area,
+                      zipcode_list: w.service_zipcodes
+                        ?.filter(sz => sz.service_area_id === area.id)
+                        ?.map(sz => sz.zipcode) || []
+                    })),
+                    service_zipcodes: w.service_zipcodes || []
+                  }))} 
+                  selectedWorkerId={selectedWorkerId} 
+                  showInactiveAreas={showInactiveAreas}
+                  showZipBoundaries={true}
+                />
               </CardContent>
             </Card>
           </div>
