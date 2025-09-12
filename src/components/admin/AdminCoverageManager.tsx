@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Search, MapPin, Users, Download, Eye, EyeOff, Filter, RefreshCw } from 'lucide-react';
 import { EnhancedWorkerServiceAreasMap } from './EnhancedWorkerServiceAreasMap';
+import { SpatialHealthDashboard } from './SpatialHealthDashboard';
+import { SpatialDataImporter } from './SpatialDataImporter';
 import { useAdminServiceAreas } from '@/hooks/useAdminServiceAreas';
 import { useRealtimeServiceAreas } from '@/hooks/useRealtimeServiceAreas';
 import { useToast } from '@/hooks/use-toast';
@@ -133,7 +135,13 @@ export const AdminCoverageManager = () => {
         </TabsList>
 
         <TabsContent value="map" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-300px)]">
+          {/* Spatial Health Dashboard */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+            <SpatialHealthDashboard />
+            <SpatialDataImporter />
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-400px)]">
             {/* Workers Panel */}
             <Card className="lg:col-span-1">
               <CardHeader className="pb-3">

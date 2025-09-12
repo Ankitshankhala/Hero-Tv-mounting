@@ -23,7 +23,7 @@ export const ServiceCoverageMapEnhanced = ({
   const [selectedZip, setSelectedZip] = useState<string | null>(null);
   const [zipInfo, setZipInfo] = useState<any>(null);
   
-  const { getNearbyZipBoundaries, loading: boundariesLoading } = useZipBoundaries();
+  const { getNearbyZipBoundaries, loading: boundariesLoading, error } = useZipBoundaries();
   const { validateZipcode } = useZipcodeValidation();
 
   useEffect(() => {
@@ -117,6 +117,12 @@ export const ServiceCoverageMapEnhanced = ({
       {boundariesLoading && (
         <div className="absolute top-4 right-4 bg-background/90 backdrop-blur-sm px-3 py-2 rounded-lg border">
           Loading ZIP boundaries...
+        </div>
+      )}
+
+      {error && (
+        <div className="absolute top-4 right-4 bg-destructive/90 backdrop-blur-sm px-3 py-2 rounded-lg border text-destructive-foreground text-sm">
+          Error loading boundaries: {error}
         </div>
       )}
 
