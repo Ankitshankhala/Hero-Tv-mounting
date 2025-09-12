@@ -17,8 +17,9 @@ import { QuickStatsRibbon } from './QuickStatsRibbon';
 interface AdminHeaderProps {
   onNavigate?: (section: string) => void;
 }
-
-export const AdminHeader = ({ onNavigate }: AdminHeaderProps = {}) => {
+export const AdminHeader = ({
+  onNavigate
+}: AdminHeaderProps = {}) => {
   const [showAssignWorker, setShowAssignWorker] = useState(false);
   const [showTodaysJobs, setShowTodaysJobs] = useState(false);
   const [stripeStatus, setStripeStatus] = useState<'checking' | 'live' | 'test' | 'error'>('checking');
@@ -31,7 +32,9 @@ export const AdminHeader = ({ onNavigate }: AdminHeaderProps = {}) => {
   const {
     toast
   } = useToast();
-  const { resetTourCompletion } = useTour();
+  const {
+    resetTourCompletion
+  } = useTour();
 
   // Check Stripe configuration on mount
   React.useEffect(() => {
@@ -67,7 +70,6 @@ export const AdminHeader = ({ onNavigate }: AdminHeaderProps = {}) => {
       variant: "default"
     });
   };
-
   const handleResetTour = async () => {
     try {
       const success = await resetTourCompletion();
@@ -145,10 +147,7 @@ export const AdminHeader = ({ onNavigate }: AdminHeaderProps = {}) => {
                 </Button>
               </div> : <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="bg-orange-900/20 text-orange-400 border-orange-600/50 hover:bg-orange-600 hover:text-white transition-colors">
-                    <TestTube className="h-4 w-4 mr-2" />
-                    10-Min Test Mode
-                  </Button>
+                  
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
@@ -181,13 +180,7 @@ export const AdminHeader = ({ onNavigate }: AdminHeaderProps = {}) => {
             </Button>
             
             {/* Tour Reset Button */}
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleResetTour}
-              className="bg-blue-900/20 text-blue-400 border-blue-600/50 hover:bg-blue-600 hover:text-white transition-colors"
-              title="Reset admin tour completion status"
-            >
+            <Button variant="outline" size="sm" onClick={handleResetTour} className="bg-blue-900/20 text-blue-400 border-blue-600/50 hover:bg-blue-600 hover:text-white transition-colors" title="Reset admin tour completion status">
               <RotateCcw className="h-4 w-4 mr-2" />
               Reset Tour
             </Button>
