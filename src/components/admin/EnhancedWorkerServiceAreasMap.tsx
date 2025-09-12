@@ -341,16 +341,23 @@ export const EnhancedWorkerServiceAreasMap: React.FC<EnhancedWorkerServiceAreasM
       }
     }
 
-    // Fit map to all service areas
+    // Fit map to all service areas or center appropriately
     if (allBounds && allBounds.isValid() && mapRef.current) {
       try {
-        mapRef.current.fitBounds(allBounds, { padding: [20, 20] });
-        console.log('Map fitted to bounds');
+        mapRef.current.fitBounds(allBounds, { 
+          padding: [30, 30], 
+          maxZoom: 12 // Prevent zooming in too much
+        });
+        console.log('Map fitted to bounds with padding');
       } catch (e) {
         console.warn('Skipping fitBounds due to invalid bounds', e);
       }
-    } else if (renderedAreas === 0 && mapRef.current) {
-      // If no service areas were rendered, center on Texas
+    } else if (filteredWorkers.length > 0 && renderedAreas === 0 && mapRef.current) {
+      // If we have workers but no rendered areas, stay centered on Dallas/Texas for better UX
+      console.log('Workers found but no service areas rendered, centering on Dallas');
+      mapRef.current.setView([32.7767, -96.7970], 10); // Dallas area
+    } else if (mapRef.current && renderedAreas === 0) {
+      // Fallback to Texas center
       console.log('No service areas found, centering on Texas');
       mapRef.current.setView([31.9686, -99.9018], 6); // Center of Texas
     }

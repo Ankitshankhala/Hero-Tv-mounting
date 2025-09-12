@@ -30,7 +30,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { BulkZipcodeAssignment } from './BulkZipcodeAssignment';
-import { EnhancedWorkerServiceAreasMap } from './EnhancedWorkerServiceAreasMap';
+import { EnhancedWorkerServiceAreasMapImproved } from './EnhancedWorkerServiceAreasMapImproved';
 import AdminServiceAreaMap from './AdminServiceAreaMap';
 import AdminZipCodeManager from './AdminZipCodeManager';
 import ServiceAreaMap from '@/components/worker/service-area/ServiceAreaMap';
@@ -332,9 +332,9 @@ export const AdminServiceAreasUnified = () => {
         </TabsList>
 
         <TabsContent value="map" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-6 gap-4">
             {/* Left Panel - Worker Selection & Filters */}
-            <div className="space-y-4">
+            <div className="lg:col-span-2 space-y-4">
               <Card>
                 
                 <CardContent className="space-y-4">
@@ -420,37 +420,55 @@ export const AdminServiceAreasUnified = () => {
                     <CardTitle className="text-sm">Workers ({filteredWorkers.length})</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <ScrollArea className="h-64">
+                    <ScrollArea className="h-[400px]">
                       <div className="space-y-2">
                         {filteredWorkers.map(worker => {
-                      const stats = getWorkerStats(worker);
-                      return <div key={worker.id} className={`p-3 rounded-lg border cursor-pointer transition-colors ${selectedWorkerId === worker.id ? 'bg-accent border-accent-foreground' : 'hover:bg-muted/50'}`} onClick={() => handleWorkerSelect(worker.id)}>
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <p className="font-medium text-sm">{worker.name}</p>
-                                  <p className="text-xs text-muted-foreground">{worker.email}</p>
+                          const stats = getWorkerStats(worker);
+                          return (
+                            <div 
+                              key={worker.id} 
+                              className={`p-3 rounded-lg border cursor-pointer transition-all duration-200 hover:shadow-sm ${
+                                selectedWorkerId === worker.id 
+                                  ? 'bg-primary/10 border-primary shadow-sm' 
+                                  : 'hover:bg-muted/50 hover:border-muted-foreground/20'
+                              }`} 
+                              onClick={() => handleWorkerSelect(worker.id)}
+                            >
+                              <div className="flex items-start justify-between mb-2">
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-medium text-sm truncate">{worker.name}</p>
+                                  <p className="text-xs text-muted-foreground truncate">{worker.email}</p>
                                 </div>
-                                <Button size="sm" variant="ghost" onClick={e => {
-                            e.stopPropagation();
-                            setSelectedWorkerId(worker.id);
-                            setViewMode('manage');
-                          }} className="h-6 w-6 p-0">
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost" 
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    setSelectedWorkerId(worker.id);
+                                    setViewMode('manage');
+                                  }} 
+                                  className="h-6 w-6 p-0 ml-2 flex-shrink-0"
+                                >
                                   <Edit3 className="h-3 w-3" />
                                 </Button>
                               </div>
-                              <div className="flex gap-1 mt-2">
-                                <Badge variant={worker.is_active ? 'default' : 'secondary'} className="text-xs">
+                              <div className="flex flex-wrap gap-1">
+                                <Badge 
+                                  variant={worker.is_active ? 'default' : 'secondary'} 
+                                  className="text-xs h-5"
+                                >
                                   {worker.is_active ? 'Active' : 'Inactive'}
                                 </Badge>
-                                <Badge variant="outline" className="text-xs">
+                                <Badge variant="outline" className="text-xs h-5">
                                   {stats.activeAreas} Areas
                                 </Badge>
-                                <Badge variant="outline" className="text-xs">
+                                <Badge variant="outline" className="text-xs h-5">
                                   {stats.totalZipCodes} ZIPs
                                 </Badge>
                               </div>
-                            </div>;
-                    })}
+                            </div>
+                          );
+                        })}
                       </div>
                     </ScrollArea>
                   </CardContent>
@@ -458,7 +476,7 @@ export const AdminServiceAreasUnified = () => {
             </div>
 
             {/* Main Map Area */}
-            <div className="lg:col-span-3">
+            <div className="lg:col-span-4">
               <Card className="h-[600px]">
                 <CardContent className="p-0 h-full">
                   {viewMode === 'overview' ? (() => {
@@ -475,9 +493,9 @@ export const AdminServiceAreasUnified = () => {
                     console.log('Passing workers to map:', mappedWorkers.length, 'workers');
                     console.log('Workers data:', mappedWorkers);
                     return (
-                      <EnhancedWorkerServiceAreasMap 
+                      <EnhancedWorkerServiceAreasMapImproved 
                         workers={mappedWorkers} 
-                        selectedWorkerId={null} 
+                        selectedWorkerId={selectedWorkerId} 
                         showInactiveAreas={showInactiveAreas}
                         showZipBoundaries={true}
                       />
