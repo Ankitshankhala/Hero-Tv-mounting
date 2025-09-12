@@ -30,9 +30,12 @@ import {
   Loader2
 } from 'lucide-react';
 import { BulkZipcodeAssignment } from './BulkZipcodeAssignment';
-import { EnhancedWorkerServiceAreasMapImproved } from './EnhancedWorkerServiceAreasMapImproved';
-import AdminServiceAreaMap from './AdminServiceAreaMap';
-import AdminZipCodeManager from './AdminZipCodeManager';
+import { 
+  LazyEnhancedWorkerServiceAreasMapImproved, 
+  LazyAdminServiceAreaMap,
+  LazyAdminZipCodeManager,
+  withLazyLoading 
+} from './LazyAdminComponents';
 import ServiceAreaMap from '@/components/worker/service-area/ServiceAreaMap';
 import { useAdminServiceAreas } from '@/hooks/useAdminServiceAreas';
 import { useRealtimeServiceAreas } from '@/hooks/useRealtimeServiceAreas';
@@ -60,6 +63,7 @@ interface CoverageWorker {
     service_area_id: string;
   }>;
 }
+
 export const AdminServiceAreasUnified = () => {
   // Coverage Manager states
   const [searchTerm, setSearchTerm] = useState('');
@@ -73,6 +77,8 @@ export const AdminServiceAreasUnified = () => {
   const [editingArea, setEditingArea] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [activeTab, setActiveTab] = useState<'coverage' | 'map' | 'zips' | 'audit'>('coverage');
+  const [initialLoaded, setInitialLoaded] = useState(false);
+
   const {
     workers: adminWorkers,
     auditLogs,
@@ -85,44 +91,53 @@ export const AdminServiceAreasUnified = () => {
     updateServiceAreaName
   } = useAdminServiceAreas();
   const workers = adminWorkers as CoverageWorker[];
-  const {
-    toast
-  } = useToast();
-  useEffect(() => {
-    console.log('AdminServiceAreasUnified: Fetching workers with service areas...');
-    fetchWorkersWithServiceAreas(true); // Force fresh data with service areas
-    fetchAuditLogs();
-  }, [fetchWorkersWithServiceAreas, fetchAuditLogs]);
+  const { toast } = useToast();
 
-  // Debug workers data
+  // Optimized initial data loading - only fetch when component mounts
   useEffect(() => {
-    console.log('AdminServiceAreasUnified: Workers data updated:', workers.length, 'workers');
-    workers.forEach(worker => {
-      console.log(`Worker: ${worker.name}, Service Areas: ${worker.service_areas?.length || 0}, ZIP Codes: ${worker.service_zipcodes?.length || 0}`);
-      if (worker.service_areas && worker.service_areas.length > 0) {
-        worker.service_areas.forEach(area => {
-          console.log(`  Area: ${area.area_name}, Has Polygon: ${!!area.polygon_coordinates}, Active: ${area.is_active}`);
-        });
-      }
-    });
-  }, [workers]);
+    if (!initialLoaded) {
+      console.log('AdminServiceAreasUnified: Initial loading...');
+      // Only load basic data initially, defer heavy operations
+      fetchWorkersWithServiceAreas(false); // Use cache
+      setInitialLoaded(true);
+    }
+  }, [fetchWorkersWithServiceAreas, initialLoaded]);
 
-  // Auto-select first worker when in manage mode
+  // Defer audit logs loading until needed
   useEffect(() => {
-    if (viewMode === 'manage' && workers.length > 0 && !selectedWorkerId) {
+    if (activeTab === 'audit' && initialLoaded) {
+      fetchAuditLogs();
+    }
+  }, [activeTab, initialLoaded, fetchAuditLogs]);
+
+  // Optimized debug logging - only log when data changes significantly
+  useEffect(() => {
+    if (workers.length > 0) {
+      console.log('AdminServiceAreasUnified: Workers loaded:', workers.length, 'workers');
+    }
+  }, [workers.length]);
+
+  // Auto-select first worker when in manage mode - optimized
+  useEffect(() => {
+    if (viewMode === 'manage' && workers.length > 0 && !selectedWorkerId && initialLoaded) {
       const firstActiveWorker = workers.find(w => w.is_active) || workers[0];
       if (firstActiveWorker) {
         setSelectedWorkerId(firstActiveWorker.id);
-        fetchAuditLogs(firstActiveWorker.id);
+        // Defer audit log loading
+        setTimeout(() => fetchAuditLogs(firstActiveWorker.id), 100);
       }
     }
-  }, [workers, selectedWorkerId, viewMode, fetchAuditLogs]);
+  }, [workers, selectedWorkerId, viewMode, fetchAuditLogs, initialLoaded]);
 
-  // Set up enhanced real-time updates
+  // Optimized real-time updates - only enable after initial load
   useRealtimeServiceAreas({
     onUpdate: () => {
-      refreshData(true); // This calls fetchWorkersWithServiceAreas internally
-      fetchAuditLogs(selectedWorkerId || undefined);
+      if (initialLoaded) {
+        refreshData(false); // Use cache for real-time updates
+        if (selectedWorkerId && activeTab === 'audit') {
+          fetchAuditLogs(selectedWorkerId);
+        }
+      }
     },
     onError: (error) => {
       console.error('Realtime sync error:', error);
@@ -133,7 +148,7 @@ export const AdminServiceAreasUnified = () => {
       });
     },
     enableCacheInvalidation: true,
-    throttleMs: 200
+    throttleMs: 500 // Increased throttle to reduce load
   });
 
   // Debounce worker selection
@@ -159,8 +174,10 @@ export const AdminServiceAreasUnified = () => {
     }
   };
   const handleRefresh = () => {
-    refreshData(true); // This calls fetchWorkersWithServiceAreas internally
-    fetchAuditLogs(selectedWorkerId || undefined);
+    refreshData(true); // Force fresh data only on manual refresh
+    if (activeTab === 'audit') {
+      fetchAuditLogs(selectedWorkerId || undefined);
+    }
   };
   const handleExportCSV = () => {
     const exportData = filteredWorkers.flatMap(worker => (worker.service_areas || []).filter(area => showInactiveAreas || area.is_active).map(area => ({
@@ -493,7 +510,7 @@ export const AdminServiceAreasUnified = () => {
                     console.log('Passing workers to map:', mappedWorkers.length, 'workers');
                     console.log('Workers data:', mappedWorkers);
                     return (
-                      <EnhancedWorkerServiceAreasMapImproved 
+                      <LazyEnhancedWorkerServiceAreasMapImproved 
                         workers={mappedWorkers} 
                         selectedWorkerId={selectedWorkerId} 
                         showInactiveAreas={showInactiveAreas}
@@ -726,7 +743,7 @@ export const AdminServiceAreasUnified = () => {
               {/* Main Drawing Interface */}
               <div className="lg:col-span-2">
                 {activeTab === 'coverage' && (
-                  <AdminServiceAreaMap
+                  <LazyAdminServiceAreaMap
                     workerId={selectedWorkerId}
                     workerName={selectedWorker?.name || 'Unknown Worker'}
                     onServiceAreaUpdate={() => {
@@ -742,7 +759,7 @@ export const AdminServiceAreasUnified = () => {
                 )}
 
                 {activeTab === 'zips' && selectedWorker && (
-                  <AdminZipCodeManager
+                  <LazyAdminZipCodeManager
                     workerId={selectedWorkerId}
                     workerName={selectedWorker.name}
                     onZipCodeUpdate={() => {

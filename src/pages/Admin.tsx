@@ -1,33 +1,45 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { AdminLogin } from '@/components/admin/AdminLogin';
 import { DashboardStats } from '@/components/admin/DashboardStats';
-import { BookingsManager } from '@/components/admin/BookingsManager';
-import { WorkersManager } from '@/components/admin/WorkersManager';
-import { CustomersManager } from '@/components/admin/CustomersManager';
-import { ServicesManager } from '@/components/admin/ServicesManager';
-import { PaymentsManager } from '@/components/admin/PaymentsManager';
-import { ReviewsManager } from '@/components/admin/ReviewsManager';
-import PendingWorkersManager from '@/components/admin/PendingWorkersManager';
-import { SMSLogsManager } from '@/components/admin/SMSLogsManager';
-import { BlogManager } from '@/components/admin/BlogManager';
-import { AdminCalendarView } from '@/components/admin/AdminCalendarView';
-import { CoverageRequestsManager } from '@/components/admin/CoverageRequestsManager';
-import { AdminServiceAreasUnified } from '@/components/admin/AdminServiceAreasUnified';
-import { InvoicesManager } from '@/components/admin/InvoicesManager';
-import { InvoiceMonitoringPanel } from '@/components/admin/InvoiceMonitoringPanel';
-import { EmailLogsManager } from '@/components/admin/EmailLogsManager';
 import { SEO } from '@/components/SEO';
-import { NotificationsSettings } from '@/components/admin/NotificationsSettings';
-import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarTrigger } from '@/components/ui/sidebar';
+import { SidebarProvider } from '@/components/ui/sidebar';
 import { TourProvider } from '@/contexts/TourContext';
 import { TourManager } from '@/components/tour/TourManager';
+
+// Lazy load heavy admin components for better performance
+const LazyBookingsManager = lazy(() => import('@/components/admin/BookingsManager').then(m => ({ default: m.BookingsManager })));
+const LazyWorkersManager = lazy(() => import('@/components/admin/WorkersManager').then(m => ({ default: m.WorkersManager })));
+const LazyCustomersManager = lazy(() => import('@/components/admin/CustomersManager').then(m => ({ default: m.CustomersManager })));
+const LazyServicesManager = lazy(() => import('@/components/admin/ServicesManager').then(m => ({ default: m.ServicesManager })));
+const LazyPaymentsManager = lazy(() => import('@/components/admin/PaymentsManager').then(m => ({ default: m.PaymentsManager })));
+const LazyReviewsManager = lazy(() => import('@/components/admin/ReviewsManager').then(m => ({ default: m.ReviewsManager })));
+const LazyPendingWorkersManager = lazy(() => import('@/components/admin/PendingWorkersManager'));
+const LazySMSLogsManager = lazy(() => import('@/components/admin/SMSLogsManager').then(m => ({ default: m.SMSLogsManager })));
+const LazyBlogManager = lazy(() => import('@/components/admin/BlogManager').then(m => ({ default: m.BlogManager })));
+const LazyAdminCalendarView = lazy(() => import('@/components/admin/AdminCalendarView').then(m => ({ default: m.AdminCalendarView })));
+const LazyCoverageRequestsManager = lazy(() => import('@/components/admin/CoverageRequestsManager').then(m => ({ default: m.CoverageRequestsManager })));
+const LazyAdminServiceAreasUnified = lazy(() => import('@/components/admin/AdminServiceAreasUnified').then(m => ({ default: m.AdminServiceAreasUnified })));
+const LazyInvoicesManager = lazy(() => import('@/components/admin/InvoicesManager').then(m => ({ default: m.InvoicesManager })));
+const LazyInvoiceMonitoringPanel = lazy(() => import('@/components/admin/InvoiceMonitoringPanel').then(m => ({ default: m.InvoiceMonitoringPanel })));
+const LazyEmailLogsManager = lazy(() => import('@/components/admin/EmailLogsManager').then(m => ({ default: m.EmailLogsManager })));
+const LazyNotificationsSettings = lazy(() => import('@/components/admin/NotificationsSettings').then(m => ({ default: m.NotificationsSettings })));
+
+// Loading component for lazy-loaded components
+const ComponentLoader = () => (
+  <div className="flex items-center justify-center min-h-[400px]">
+    <div className="flex items-center gap-3 text-muted-foreground">
+      <Loader2 className="h-6 w-6 animate-spin" />
+      <span>Loading...</span>
+    </div>
+  </div>
+);
 
 const Admin = () => {
   const { user, profile, loading } = useAuth();
@@ -103,39 +115,47 @@ const Admin = () => {
   console.log('Rendering admin dashboard for:', user.email);
 
   const renderContent = () => {
+    const wrapWithSuspense = (Component: React.ComponentType) => (
+      <Suspense fallback={<ComponentLoader />}>
+        <Component />
+      </Suspense>
+    );
+
     switch (activeTab) {
       case 'dashboard':
         return <DashboardStats />;
       case 'bookings':
-        return <BookingsManager />;
+        return wrapWithSuspense(LazyBookingsManager);
       case 'customers':
-        return <CustomersManager />;
+        return wrapWithSuspense(LazyCustomersManager);
       case 'workers':
-        return <WorkersManager />;
+        return wrapWithSuspense(LazyWorkersManager);
       case 'services':
-        return <ServicesManager />;
+        return wrapWithSuspense(LazyServicesManager);
       case 'reviews':
-        return <ReviewsManager />;
+        return wrapWithSuspense(LazyReviewsManager);
       case 'payments':
-        return <PaymentsManager />;
+        return wrapWithSuspense(LazyPaymentsManager);
       case 'invoices':
         return (
-          <div className="space-y-6">
-            <InvoiceMonitoringPanel />
-            <InvoicesManager />
-          </div>
+          <Suspense fallback={<ComponentLoader />}>
+            <div className="space-y-6">
+              <LazyInvoiceMonitoringPanel />
+              <LazyInvoicesManager />
+            </div>
+          </Suspense>
         );
       case 'sms':
-        return <SMSLogsManager />;
+        return wrapWithSuspense(LazySMSLogsManager);
       case 'email':
-        return <EmailLogsManager />;
+        return wrapWithSuspense(LazyEmailLogsManager);
       case 'blog':
-        return <BlogManager />;
+        return wrapWithSuspense(LazyBlogManager);
       case 'coverage':
       case 'service-areas':
-        return <AdminServiceAreasUnified />;
+        return wrapWithSuspense(LazyAdminServiceAreasUnified);
       case 'settings':
-        return <NotificationsSettings />;
+        return wrapWithSuspense(LazyNotificationsSettings);
       case 'invoice-monitoring':
       case 'email-notifications':
         // Redirect to dashboard for hidden tabs
