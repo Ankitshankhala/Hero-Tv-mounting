@@ -13,7 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { ArrowSidebarToggle } from './ArrowSidebarToggle';
 import { NotificationBell } from './NotificationBell';
 import { GlobalSearch } from './GlobalSearch';
-import { QuickStatsRibbon } from './QuickStatsRibbon';
+
 interface AdminHeaderProps {
   onNavigate?: (section: string) => void;
 }
@@ -101,7 +101,6 @@ export const AdminHeader = ({
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
   return <>
-      <QuickStatsRibbon />
       <header className="bg-slate-800/30 backdrop-blur-sm border-b border-slate-700 px-6 py-4">
         <div className="flex justify-between items-center">
           <div className="flex items-center space-x-4">
