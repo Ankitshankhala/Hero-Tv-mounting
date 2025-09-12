@@ -107,19 +107,9 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
   // Check tour completion status from database
   const checkTourCompletionFromDB = useCallback(async (userId: string, tourType: string): Promise<boolean> => {
     try {
-      const { data, error } = await supabase
-        .from('tour_completion')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('tour_type', tourType)
-        .maybeSingle();
-
-      if (error) {
-        console.error('Error checking tour completion from DB:', error);
-        return false;
-      }
-
-      return !!data;
+      // Use localStorage as fallback since tour_completion table doesn't exist in current schema
+      const completed = localStorage.getItem(`tour_completed_${userId}_${tourType}`);
+      return completed === 'true';
     } catch (error) {
       console.error('Error in checkTourCompletionFromDB:', error);
       return false;
@@ -129,18 +119,11 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
   // Save tour completion to database
   const saveTourCompletionToDB = useCallback(async (userId: string, tourType: string): Promise<boolean> => {
     try {
-      const { error } = await supabase
-        .from('tour_completion')
-        .upsert({
-          user_id: userId,
-          tour_type: tourType,
-          completed_at: new Date().toISOString()
-        });
+      // Use localStorage as fallback since tour_completion table doesn't exist in current schema
+      localStorage.setItem(`tour_completed_${userId}_${tourType}`, 'true');
+      localStorage.setItem(`tour_completed_${userId}_${tourType}_timestamp`, new Date().toISOString());
 
-      if (error) {
-        console.error('Error saving tour completion to DB:', error);
-        return false;
-      }
+      return true;
 
       return true;
     } catch (error) {
@@ -296,17 +279,9 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       // Remove from localStorage
       localStorage.removeItem(tourKey);
       
-      // Remove from database
-      const { error } = await supabase
-        .from('tour_completion')
-        .delete()
-        .eq('user_id', targetUserId)
-        .eq('tour_type', targetTourType);
-      
-      if (error) {
-        console.error('Error resetting tour completion:', error);
-        return false;
-      }
+      // Remove from localStorage (no database operations needed)
+      // Since tour_completion table doesn't exist, just handle localStorage
+      return true;
       
       console.log('Tour completion reset:', { targetUserId, targetTourType });
       return true;

@@ -483,7 +483,12 @@ const AdminZipCodeManager = ({ workerId, workerName, onZipCodeUpdate }: AdminZip
                 <Checkbox
                   checked={allSelected}
                   ref={(el) => {
-                    if (el) el.indeterminate = someSelected;
+                    if (el) {
+                      const checkbox = el.querySelector('button[role="checkbox"]') as HTMLElement;
+                      if (checkbox) {
+                        (checkbox as any).indeterminate = someSelected;
+                      }
+                    }
                   }}
                   onCheckedChange={handleSelectAll}
                 />

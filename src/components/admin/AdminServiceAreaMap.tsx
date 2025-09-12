@@ -228,15 +228,13 @@ const AdminServiceAreaMap = ({
 
     setSaving(true);
     try {
-      const polygonData = {
-        type: 'Polygon',
-        coordinates: [[...currentPolygon.map(p => [p.lng, p.lat]), [currentPolygon[0].lng, currentPolygon[0].lat]]]
-      };
+      // Keep currentPolygon as array of {lat, lng} for the functions
+      const polygonCoordinates = currentPolygon;
 
       if (areaSelectionMode === 'existing' && selectedExistingArea) {
         // Update existing area
         await updateServiceAreaForWorker(selectedExistingArea.id, {
-          polygon_coordinates: polygonData
+          polygon_coordinates: polygonCoordinates
         });
         toast({
           title: "Success",
@@ -244,7 +242,7 @@ const AdminServiceAreaMap = ({
         });
       } else {
         // Create new area
-        await createServiceAreaForWorker(workerId, areaName, polygonData);
+        await createServiceAreaForWorker(workerId, areaName, polygonCoordinates);
         toast({
           title: "Success",
           description: `Created ${areaName}`,
