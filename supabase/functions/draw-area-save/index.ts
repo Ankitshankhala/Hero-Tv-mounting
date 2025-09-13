@@ -10,6 +10,7 @@ interface DrawAreaRequest {
   workerId: string;
   areaName: string;
   polygon: Array<{ lat: number; lng: number }>;
+  polygonGeoJSON?: any;
   mode: 'create' | 'update';
   areaIdToUpdate?: string;
 }
@@ -25,14 +26,15 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { workerId, areaName, polygon, mode, areaIdToUpdate }: DrawAreaRequest = await req.json();
+    const { workerId, areaName, polygon, polygonGeoJSON, mode, areaIdToUpdate }: DrawAreaRequest = await req.json();
 
     console.log('🎨 Draw Area Save - Request received:', {
       workerId,
       areaName,
       mode,
       areaIdToUpdate,
-      polygonPoints: polygon?.length || 0
+      polygonPoints: polygon?.length || 0,
+      hasGeoJSON: !!polygonGeoJSON
     });
 
     // Validate inputs
@@ -89,8 +91,21 @@ serve(async (req) => {
 
     console.log('✅ Worker validated:', worker.id);
 
+    // Generate GeoJSON if not provided
+    let geoJSON = polygonGeoJSON;
+    if (!geoJSON) {
+      geoJSON = {
+        type: "Polygon",
+        coordinates: [
+          [...polygon.map(p => [p.lng, p.lat]), [polygon[0].lng, polygon[0].lat]]
+        ]
+      };
+      console.log('🗺️ Generated GeoJSON from polygon coordinates');
+    }
+
     let result;
     let areaId;
+    let zipCodes: string[] = [];
 
     if (mode === 'update' && areaIdToUpdate) {
       // Update existing area
@@ -98,6 +113,7 @@ serve(async (req) => {
       
       const updateData: any = {
         polygon_coordinates: polygon,
+        polygon_geojson: geoJSON,
         updated_at: new Date().toISOString()
       };
 
@@ -132,6 +148,7 @@ serve(async (req) => {
           worker_id: workerId,
           area_name: areaName,
           polygon_coordinates: polygon,
+          polygon_geojson: geoJSON,
           is_active: true,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
@@ -147,6 +164,49 @@ serve(async (req) => {
       result = newArea;
       areaId = newArea.id;
       console.log('✅ Area created successfully:', areaId);
+    }
+
+    // Compute ZIP codes using the new unified function
+    console.log('🔍 Computing ZIP codes for saved area...');
+    try {
+      const { data: zipResults, error: zipError } = await supabase
+        .rpc('find_zipcodes_in_polygon_geojson', { 
+          polygon_geojson: geoJSON,
+          min_overlap_percent: 0.1 
+        });
+
+      if (zipError) {
+        console.error('❌ ZIP code computation failed:', zipError);
+      } else if (zipResults && zipResults.length > 0) {
+        zipCodes = zipResults.map(r => r.zipcode);
+        console.log(`✅ Found ${zipCodes.length} ZIP codes:`, zipCodes.slice(0, 10));
+        
+        // Insert ZIP codes efficiently
+        for (const zipcode of zipCodes.slice(0, 50)) { // Limit to prevent overwhelming
+          try {
+            await supabase
+              .from('worker_service_zipcodes')
+              .upsert({
+                worker_id: workerId,
+                zipcode: zipcode,
+                service_area_id: areaId,
+                from_polygon: true,
+                from_manual: false
+              }, { 
+                onConflict: 'worker_id,zipcode',
+                ignoreDuplicates: false 
+              });
+          } catch (zipInsertError) {
+            // Silently continue on duplicates
+          }
+        }
+        console.log('📍 ZIP codes synchronized successfully');
+      } else {
+        console.log('⚠️ No ZIP codes found for polygon');
+      }
+    } catch (zipComputeError) {
+      console.error('❌ ZIP computation failed:', zipComputeError);
+      // Continue without failing the entire operation
     }
 
     // Log the operation for audit trail
@@ -172,6 +232,8 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         area: result,
+        zipCodes: zipCodes,
+        zipCodeCount: zipCodes.length,
         message: mode === 'create' ? 'Service area created successfully' : 'Service area updated successfully'
       }),
       { 

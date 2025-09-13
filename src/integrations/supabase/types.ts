@@ -2068,6 +2068,12 @@ export type Database = {
           worker_phone: string
         }[]
       }
+      find_zipcodes_in_polygon_geojson: {
+        Args: { min_overlap_percent?: number; polygon_geojson: Json }
+        Returns: {
+          zipcode: string
+        }[]
+      }
       find_zipcodes_intersecting_polygon: {
         Args:
           | { min_overlap_percent?: number; polygon_coords: Json }
@@ -3857,6 +3863,10 @@ export type Database = {
       upsert_zip_coverage_for_area: {
         Args: { p_area_id: string }
         Returns: undefined
+      }
+      validate_and_clean_polygon: {
+        Args: { polygon_input: Json }
+        Returns: Json
       }
       validate_polygon_coverage: {
         Args: { polygon_coords: Json }
