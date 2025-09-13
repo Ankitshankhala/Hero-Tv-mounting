@@ -33,10 +33,11 @@ async function findZipcodesInPolygon(polygon: PolygonPoint[]): Promise<string[]>
     
     console.log('Calling canonical spatial intersection function...');
     
-    // Use the new canonical function for spatial intersection
-    const { data, error } = await supabase.rpc('compute_zipcodes_for_polygon', {
+    // Use the canonical function with a lower default overlap threshold
+    let minOverlap = 0.005; // 0.5% minimum overlap (was 2%)
+    let { data, error } = await supabase.rpc('compute_zipcodes_for_polygon', {
       polygon_geojson: polygonGeoJSON,
-      min_overlap_percent: 0.02 // 2% minimum overlap
+      min_overlap_percent: minOverlap
     });
     
     if (error) {
@@ -45,13 +46,38 @@ async function findZipcodesInPolygon(polygon: PolygonPoint[]): Promise<string[]>
     }
     
     if (data && data.length > 0) {
-      console.log(`Found ${data.length} zipcodes via canonical function:`, data.slice(0, 10));
+      console.log(`Found ${data.length} zipcodes via canonical function (min_overlap=${minOverlap}):`, data.slice(0, 10));
+      // If too few results, try a more permissive threshold once
+      if (data.length < 5) {
+        console.log('Few ZIP codes found, retrying with more permissive threshold 0.001...');
+        minOverlap = 0.001;
+        const retry = await supabase.rpc('compute_zipcodes_for_polygon', {
+          polygon_geojson: polygonGeoJSON,
+          min_overlap_percent: minOverlap
+        });
+        if (retry.error) {
+          console.warn('Retry spatial query failed, returning initial results:', retry.error);
+          return data;
+        }
+        if (retry.data && retry.data.length > data.length) {
+          console.log(`Retry improved ZIP count to ${retry.data.length} (min_overlap=${minOverlap})`);
+          return retry.data;
+        }
+      }
       return data;
     }
-    
-    console.log('No zipcodes found via canonical function');
-    return [];
-    
+
+    console.log('No zipcodes found via canonical function, retrying with 0.001...');
+    const retryEmpty = await supabase.rpc('compute_zipcodes_for_polygon', {
+      polygon_geojson: polygonGeoJSON,
+      min_overlap_percent: 0.001
+    });
+    if (retryEmpty.error) {
+      console.warn('Retry after empty result failed:', retryEmpty.error);
+      return [];
+    }
+    return retryEmpty.data || [];
+
   } catch (error) {
     console.error('Canonical function query error:', error);
     throw error;

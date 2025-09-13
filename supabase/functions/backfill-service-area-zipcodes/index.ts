@@ -66,7 +66,7 @@ serve(async (req) => {
         // Use the new canonical function to compute ZIP codes
         const { data: zipCodes, error: zipError } = await supabase.rpc('compute_zipcodes_for_service_area', {
           service_area_id: area.id,
-          min_overlap_percent: 0.02 // 2% minimum overlap
+          min_overlap_percent: 0.005 // 0.5% minimum overlap (was 2%)
         });
 
         if (zipError) {
