@@ -1833,14 +1833,6 @@ export type Database = {
           notifications_sent: number
         }[]
       }
-      backfill_worker_availability_from_applications: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
-      backfill_worker_service_data: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
       box: {
         Args: { "": unknown } | { "": unknown }
         Returns: unknown
