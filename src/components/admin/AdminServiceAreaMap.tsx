@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { MapPin, Save, Trash2, Edit3, Search, MapPinCheck, Globe, Loader2, Plus, X, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -396,16 +397,20 @@ const AdminServiceAreaMap = ({
         </CardContent>
       </Card>
 
-      {/* Area Selection Modal */}
-      {showAreaSelection && currentPolygon && (
-        <Card className="border-blue-200 bg-blue-50">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <MapPinCheck className="h-5 w-5 text-blue-600" />
+      {/* Save Service Area Dialog */}
+      <Dialog open={showAreaSelection && !!currentPolygon} onOpenChange={(open) => {
+        if (!open) {
+          cancelDrawing();
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MapPinCheck className="h-5 w-5 text-primary" />
               Save Service Area
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
             <div className="space-y-2">
               <Label>Area Selection</Label>
               <div className="flex gap-2">
@@ -480,9 +485,9 @@ const AdminServiceAreaMap = ({
                 Cancel
               </Button>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Service Areas List */}
       <Card>
