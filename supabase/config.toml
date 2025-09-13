@@ -46,95 +46,17 @@ enable_signup = true
 enable_confirmations = false
 template = "Your code is {{ .Code }}"
 
-[functions.create-payment-intent]
+[functions.polygon-to-zipcodes]
 verify_jwt = false
 
-[functions.process-payment]
-verify_jwt = false
-
-[functions.capture-payment-intent]
-verify_jwt = false
-
-[functions.notify-workers-coverage]
-verify_jwt = false
-
-[functions.test-email-sending]
-verify_jwt = false
-
-[functions.test-resend-config]
-verify_jwt = false
-
-[functions.send-customer-booking-confirmation-email]
-verify_jwt = false
-
-[functions.email-deduplication-service]
-verify_jwt = false
-
-[functions.smart-email-dispatcher]
-verify_jwt = false
-
-[functions.send-worker-assignment-email]
-verify_jwt = false
-
-[functions.debug-resend]
-verify_jwt = false
-
-[functions.simple-email-test]
-verify_jwt = false
-
-[functions.test-e2e-booking-capture]
-verify_jwt = false
-
-[functions.alert-metrics]
-verify_jwt = false
-
-[functions.send-customer-booking-confirmation]
-verify_jwt = false
-
-[functions.send-worker-assignment-notification]
-verify_jwt = false
-
-[functions.send-sms-notification]
-verify_jwt = false
-
-[functions.send-customer-worker-sms]
-verify_jwt = false
-
-[functions.booking-notification-watchdog]
-verify_jwt = false
-
-[functions.update-transaction-status]
-verify_jwt = false
-
-[functions.booking-status-consistency-check]
-verify_jwt = false
-
-[functions.unified-payment-status-sync]
-verify_jwt = false
-
-[functions.verify-payment-intent]
-verify_jwt = false
-
-[functions.get-eligible-workers]
-verify_jwt = true
-
-[functions.reverse-geocode]
-verify_jwt = false
-
-[functions.handle-payment-success]
-verify_jwt = false
-
-[functions.auto-invoice]
-verify_jwt = false
-
-[functions.enhanced-invoice-generator]
-verify_jwt = false
-
-[functions.generate-invoice-pdf]
-verify_jwt = false
-
-[functions.update-invoice]
+[functions.backfill-service-area-zipcodes]
 verify_jwt = false
 
 [functions.draw-area-save]
 verify_jwt = true
+
+[functions.spatial-health-check]
+verify_jwt = false
+
+[functions.service-area-upsert]
+verify_jwt = false
