@@ -66,7 +66,6 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
   const [areaSelectionMode, setAreaSelectionMode] = useState<'existing' | 'new'>('new');
   const [selectedExistingArea, setSelectedExistingArea] = useState<ServiceArea | null>(null);
   const [showAreaSelection, setShowAreaSelection] = useState(false);
-  const [previewZipCount, setPreviewZipCount] = useState<number | null>(null);
   const { toast } = useToast();
   const { serviceZipcodes, getActiveZipcodes, getServiceAreaZipCount, fetchServiceAreas } = useWorkerServiceAreas(workerId);
 
@@ -352,43 +351,12 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
     // Remove redundant fetchServiceAreas call
   }, [workerId]);
 
-  // Load ZIP codes on worker change
-  useEffect(() => {
-    if (workerId) {
-      fetchServiceAreas();
-    }
-  }, [workerId, fetchServiceAreas]);
-
   // Update ZIP markers when dependencies change
   useEffect(() => {
     if (isActive) {
       renderZipMarkers();
     }
   }, [showZipMarkers, serviceZipcodes, isActive]);
-
-  // Calculate preview ZIP count for drawn polygon
-  useEffect(() => {
-    if (!currentPolygon || currentPolygon.length < 3) {
-      setPreviewZipCount(null);
-      return;
-    }
-
-    let cancelled = false;
-    (async () => {
-      try {
-        const { data, error } = await supabase.rpc('find_zipcodes_intersecting_polygon', {
-          polygon_coords: currentPolygon,
-        });
-        if (!cancelled) {
-          setPreviewZipCount(Array.isArray(data) ? data.length : 0);
-        }
-      } catch {
-        if (!cancelled) setPreviewZipCount(0);
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, [currentPolygon]);
 
   // Geocode a ZIP code using Zippopotam.us API
   const geocodeZipcode = async (zipcode: string) => {
@@ -615,7 +583,7 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
     zipMarkersRef.current.clear();
 
     // Get all ZIP codes from service areas
-    const allZipCodes = getActiveZipcodes();
+    const allZipCodes = serviceZipcodes.map(z => z.zipcode);
     
     if (allZipCodes.length === 0) return;
 
@@ -1441,7 +1409,7 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
                  <span>Show ZIP Code Markers</span>
                </label>
                <div className="text-xs text-muted-foreground">
-                 Display markers for assigned ZIP codes ({previewZipCount ?? getActiveZipcodes().length} total)
+                 Display markers for assigned ZIP codes ({serviceZipcodes.length} total)
                </div>
              </div>
 
