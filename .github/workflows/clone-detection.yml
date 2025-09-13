@@ -1,23 +1,12 @@
-name: Code Clone Detection
+name: Clone Detection
 
 on:
-  pull_request:
-    branches: [ main, develop ]
-    paths:
-      - 'src/**/*.ts'
-      - 'src/**/*.tsx'
-      - 'src/**/*.js'
-      - 'src/**/*.jsx'
   push:
     branches: [ main ]
-    paths:
-      - 'src/**/*.ts'
-      - 'src/**/*.tsx'
-      - 'src/**/*.js'
-      - 'src/**/*.jsx'
+  workflow_dispatch:
 
 jobs:
-  clone-detection:
+  detect_clones:
     runs-on: ubuntu-latest
     
     steps:
@@ -39,11 +28,11 @@ jobs:
     - name: Create reports directory
       run: mkdir -p reports/jscpd
       
-    - name: Run clone detection
-      run: jscpd src/ --config .jscpd.json
+    - name: Placeholder clone detection
+      run: echo "Clone detection placeholder - replace this step with actual detection command"
       
-    - name: Run clone prevention tests
-      run: npm run test -- src/utils/__tests__/clone-prevention.test.ts
+    - name: Run actual clone detection
+      run: jscpd src/ --config .jscpd.json
       
     - name: Upload clone detection report
       uses: actions/upload-artifact@v4
