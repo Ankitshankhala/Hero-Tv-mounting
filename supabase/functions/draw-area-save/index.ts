@@ -13,6 +13,28 @@ interface DrawAreaRequest {
   polygonGeoJSON?: any;
   mode: 'create' | 'update';
   areaIdToUpdate?: string;
+  overlapThreshold?: number;
+}
+
+// Convert polygon coordinates to proper GeoJSON format
+function normalizeToGeoJSON(polygon: Array<{ lat: number; lng: number }>): any {
+  if (!polygon || polygon.length < 3) {
+    throw new Error('Polygon must have at least 3 points');
+  }
+  
+  // Convert to [lng, lat] format and ensure polygon is closed
+  const coordinates = polygon.map(p => [p.lng, p.lat]);
+  
+  // Close the polygon if not already closed
+  if (coordinates[0][0] !== coordinates[coordinates.length - 1][0] || 
+      coordinates[0][1] !== coordinates[coordinates.length - 1][1]) {
+    coordinates.push([coordinates[0][0], coordinates[0][1]]);
+  }
+  
+  return {
+    type: "Polygon",
+    coordinates: [coordinates]
+  };
 }
 
 serve(async (req) => {
@@ -26,7 +48,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { workerId, areaName, polygon, polygonGeoJSON, mode, areaIdToUpdate }: DrawAreaRequest = await req.json();
+    const { workerId, areaName, polygon, polygonGeoJSON, mode, areaIdToUpdate, overlapThreshold = 2 }: DrawAreaRequest = await req.json();
 
     console.log('🎨 Draw Area Save - Request received:', {
       workerId,
@@ -34,7 +56,8 @@ serve(async (req) => {
       mode,
       areaIdToUpdate,
       polygonPoints: polygon?.length || 0,
-      hasGeoJSON: !!polygonGeoJSON
+      hasGeoJSON: !!polygonGeoJSON,
+      overlapThreshold
     });
 
     // Validate inputs
@@ -91,17 +114,9 @@ serve(async (req) => {
 
     console.log('✅ Worker validated:', worker.id);
 
-    // Generate GeoJSON if not provided
-    let geoJSON = polygonGeoJSON;
-    if (!geoJSON) {
-      geoJSON = {
-        type: "Polygon",
-        coordinates: [
-          [...polygon.map(p => [p.lng, p.lat]), [polygon[0].lng, polygon[0].lat]]
-        ]
-      };
-      console.log('🗺️ Generated GeoJSON from polygon coordinates');
-    }
+    // Normalize polygon to proper GeoJSON format
+    const geoJSON = polygonGeoJSON || normalizeToGeoJSON(polygon);
+    console.log('🗺️ Normalized GeoJSON polygon');
 
     let result;
     let areaId;
@@ -112,8 +127,7 @@ serve(async (req) => {
       console.log('🔄 Updating existing area:', areaIdToUpdate);
       
       const updateData: any = {
-        polygon_coordinates: polygon,
-        polygon_geojson: geoJSON,
+        polygon_coordinates: geoJSON, // Store as GeoJSON now
         updated_at: new Date().toISOString()
       };
 
@@ -147,8 +161,7 @@ serve(async (req) => {
         .insert({
           worker_id: workerId,
           area_name: areaName,
-          polygon_coordinates: polygon,
-          polygon_geojson: geoJSON,
+          polygon_coordinates: geoJSON, // Store as GeoJSON now
           is_active: true,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
@@ -166,74 +179,64 @@ serve(async (req) => {
       console.log('✅ Area created successfully:', areaId);
     }
 
-    // Compute ZIP codes using the new unified function
-    console.log('🔍 Computing ZIP codes for saved area...');
+    // Compute ZIP codes using the new canonical function
+    console.log(`🔍 Computing ZIP codes with ${overlapThreshold}% minimum overlap...`);
     try {
-      const { data: zipResults, error: zipError } = await supabase
-        .rpc('find_zipcodes_in_polygon_geojson', { 
-          polygon_geojson: geoJSON,
-          min_overlap_percent: 0.1 
-        });
+      const { data: computedZips, error: zipError } = await supabase.rpc('compute_zipcodes_for_service_area', {
+        service_area_id: areaId,
+        min_overlap_percent: overlapThreshold
+      });
 
       if (zipError) {
         console.error('❌ ZIP code computation failed:', zipError);
-      } else if (zipResults && zipResults.length > 0) {
-        zipCodes = zipResults.map(r => r.zipcode);
-        console.log(`✅ Found ${zipCodes.length} ZIP codes:`, zipCodes.slice(0, 10));
+        // Fallback to direct polygon computation
+        const { data: fallbackZips, error: fallbackError } = await supabase.rpc('compute_zipcodes_for_polygon', {
+          polygon_geojson: geoJSON,
+          min_overlap_percent: overlapThreshold
+        });
         
-        // Insert ZIP codes efficiently
-        for (const zipcode of zipCodes.slice(0, 50)) { // Limit to prevent overwhelming
-          try {
+        if (fallbackError) {
+          console.error('❌ Fallback ZIP code computation also failed:', fallbackError);
+        } else {
+          zipCodes = fallbackZips || [];
+          console.log(`✅ Fallback found ${zipCodes.length} ZIP codes:`, zipCodes.slice(0, 10));
+          
+          // Manually insert ZIP codes since service area function failed
+          if (zipCodes.length > 0) {
             await supabase
               .from('worker_service_zipcodes')
-              .upsert({
-                worker_id: workerId,
-                zipcode: zipcode,
-                service_area_id: areaId,
-                from_polygon: true,
-                from_manual: false
-              }, { 
-                onConflict: 'worker_id,zipcode',
-                ignoreDuplicates: false 
-              });
-          } catch (zipInsertError) {
-            // Silently continue on duplicates
+              .delete()
+              .eq('service_area_id', areaId);
+              
+            const zipInserts = zipCodes.map(zipcode => ({
+              worker_id: workerId,
+              service_area_id: areaId,
+              zipcode
+            }));
+            
+            await supabase
+              .from('worker_service_zipcodes')
+              .insert(zipInserts);
           }
         }
-        console.log('📍 ZIP codes synchronized successfully');
       } else {
-        console.log('⚠️ No ZIP codes found for polygon');
+        zipCodes = computedZips || [];
+        console.log(`✅ Successfully computed ${zipCodes.length} ZIP codes:`, zipCodes.slice(0, 10));
       }
     } catch (zipComputeError) {
-      console.error('❌ ZIP computation failed:', zipComputeError);
-      // Continue without failing the entire operation
+      console.error('❌ Unexpected error during ZIP code computation:', zipComputeError);
     }
 
-    // Log the operation for audit trail
-    await supabase
-      .from('service_area_audit_logs')
-      .insert({
-        worker_id: workerId,
-        service_area_id: areaId,
-        action: mode === 'create' ? 'area_created' : 'area_updated',
-        old_data: mode === 'update' ? { polygon_updated: true } : null,
-        new_data: { 
-          area_name: areaName, 
-          polygon_points: polygon.length,
-          method: 'drawing_tool'
-        },
-        admin_user_id: null, // This could be passed from the frontend if needed
-        created_at: new Date().toISOString()
-      });
-
-    console.log('📝 Audit log created');
+    console.log('📝 Service area operation completed successfully');
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         area: result,
-        zipCodes: zipCodes,
+        areaId: areaId,
+        zipCodes: zipCodes.slice(0, 20), // Return first 20 for verification
         zipCodeCount: zipCodes.length,
+        overlapThreshold,
         message: mode === 'create' ? 'Service area created successfully' : 'Service area updated successfully'
       }),
       { 

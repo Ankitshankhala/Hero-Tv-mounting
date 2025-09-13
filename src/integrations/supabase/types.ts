@@ -1893,15 +1893,7 @@ export type Database = {
       }
       check_spatial_health: {
         Args: Record<PropertyKey, never>
-        Returns: {
-          overall_health: string
-          postgis_version: string
-          sample_test_error: string
-          sample_test_success: boolean
-          sample_test_zipcode_count: number
-          us_zip_codes_count: number
-          zcta_polygons_count: number
-        }[]
+        Returns: Json
       }
       cleanup_booking_inconsistencies: {
         Args: Record<PropertyKey, never>
@@ -1931,6 +1923,14 @@ export type Database = {
       clear_polygon_flag_for_area: {
         Args: { p_area_id: string }
         Returns: undefined
+      }
+      compute_zipcodes_for_polygon: {
+        Args: { min_overlap_percent?: number; polygon_geojson: Json }
+        Returns: string[]
+      }
+      compute_zipcodes_for_service_area: {
+        Args: { min_overlap_percent?: number; service_area_id: string }
+        Returns: string[]
       }
       create_service_area_audit_log: {
         Args:
@@ -2067,9 +2067,7 @@ export type Database = {
         }[]
       }
       find_zipcodes_intersecting_polygon: {
-        Args:
-          | { min_overlap_percent?: number; polygon_coords: Json }
-          | { polygon_coords: Json }
+        Args: { min_overlap_percent?: number; polygon_coords: Json }
         Returns: {
           boundary_geojson: Json
           overlap_percent: number
@@ -3880,6 +3878,14 @@ export type Database = {
       zip_has_active_coverage_by_zip: {
         Args: { p_zipcode: string }
         Returns: boolean
+      }
+      zipcodes_intersecting_polygon_geojson: {
+        Args: { min_overlap_percent?: number; polygon_geojson: Json }
+        Returns: {
+          boundary_geojson: Json
+          overlap_percent: number
+          zipcode: string
+        }[]
       }
     }
     Enums: {

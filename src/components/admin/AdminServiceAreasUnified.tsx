@@ -27,7 +27,8 @@ import {
   Activity,
   AlertTriangle,
   CheckCircle,
-  Loader2
+  Loader2,
+  Database
 } from 'lucide-react';
 import { BulkZipcodeAssignment } from './BulkZipcodeAssignment';
 import { 
@@ -349,6 +350,30 @@ export const AdminServiceAreasUnified = () => {
           <Button onClick={handleRefresh} disabled={loading} variant="outline">
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh
+          </Button>
+          <Button
+            onClick={() => {
+              supabase.rpc('check_spatial_health').then(({ data, error }) => {
+                if (error) {
+                  toast({
+                    title: "Health Check Failed",
+                    description: error.message,
+                    variant: "destructive",
+                  });
+                } else {
+                  const healthData = data as any;
+                  toast({
+                    title: "Spatial Health Check",
+                    description: `Status: ${healthData?.overall_health || 'unknown'} | ZIP polygons: ${healthData?.zcta_polygon_count || 0} | ZIP codes: ${healthData?.zip_code_count || 0} | Sample test: ${healthData?.sample_test_zipcode_count || 0} ZIPs`,
+                  });
+                }
+              });
+            }}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <Database className="h-4 w-4" />
+            Health Check
           </Button>
         </div>
       </div>

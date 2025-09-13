@@ -327,7 +327,10 @@ const AdminServiceAreaMap = ({
       console.log('📡 Calling draw-area-save edge function with:', saveData);
 
       const { data, error } = await supabase.functions.invoke('draw-area-save', {
-        body: saveData
+        body: {
+          ...saveData,
+          overlapThreshold: 2 // Default 2% overlap threshold
+        }
       });
 
       console.log('📡 Edge function response:', { data, error });
@@ -344,9 +347,10 @@ const AdminServiceAreaMap = ({
 
       console.log('✅ Save successful:', data);
 
+      const zipCount = data.zipCodeCount || 0;
       toast({
         title: "Success",
-        description: data.message || `${areaSelectionMode === 'existing' ? 'Updated' : 'Created'} service area successfully`,
+        description: `${data.message || `${areaSelectionMode === 'existing' ? 'Updated' : 'Created'} service area successfully`}. Computed ${zipCount} ZIP codes using the full US dataset.`,
       });
 
       // Clear current polygon and refresh
