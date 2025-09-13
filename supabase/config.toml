@@ -135,9 +135,3 @@ verify_jwt = false
 
 [functions.update-invoice]
 verify_jwt = false
-
-[functions.assign-regional-zipcodes]
-verify_jwt = false
-
-[functions.admin-service-area-manager]
-verify_jwt = true
