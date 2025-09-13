@@ -201,30 +201,61 @@ const AdminServiceAreaMap = ({
   }, [workerId]);
 
   const loadServiceAreas = async () => {
+    if (!workerId) {
+      console.warn('No workerId provided to loadServiceAreas');
+      return;
+    }
+    
     setLoading(true);
     try {
+      console.log(`Loading service areas for worker: ${workerId}`);
+      
       const { data, error } = await supabase
         .from('worker_service_areas')
         .select('*')
         .eq('worker_id', workerId)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error loading service areas:', error);
+        throw error;
+      }
+      
+      console.log(`Loaded ${data?.length || 0} service areas for worker ${workerId}`);
       setServiceAreas(data || []);
     } catch (error) {
       console.error('Error loading service areas:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
+      
       toast({
-        title: "Error",
-        description: "Failed to load service areas",
+        title: "Database Error",
+        description: `Failed to load service areas: ${errorMessage}`,
         variant: "destructive",
       });
+      
+      // Set empty array instead of leaving undefined
+      setServiceAreas([]);
     } finally {
       setLoading(false);
     }
   };
 
   const handleSavePolygon = async () => {
-    if (!currentPolygon || !workerId) return;
+    if (!currentPolygon || !workerId) {
+      console.warn('Missing required data for saving polygon:', { 
+        hasPolygon: !!currentPolygon, 
+        workerId 
+      });
+      return;
+    }
+
+    console.log('Starting polygon save operation:', {
+      workerId,
+      areaName,
+      mode: areaSelectionMode,
+      selectedArea: selectedExistingArea?.id,
+      polygonPoints: currentPolygon.length
+    });
 
     setSaving(true);
     try {
@@ -232,35 +263,50 @@ const AdminServiceAreaMap = ({
       const polygonCoordinates = currentPolygon;
 
       if (areaSelectionMode === 'existing' && selectedExistingArea) {
-        // Update existing area
-        await updateServiceAreaForWorker(selectedExistingArea.id, {
+        console.log(`Updating existing area: ${selectedExistingArea.id}`);
+        const result = await updateServiceAreaForWorker(selectedExistingArea.id, {
           polygon_coordinates: polygonCoordinates
         });
-        toast({
-          title: "Success",
-          description: `Updated ${selectedExistingArea.area_name}`,
-        });
+        
+        if (result) {
+          toast({
+            title: "Success",
+            description: `Updated ${selectedExistingArea.area_name}`,
+          });
+        } else {
+          throw new Error('Update operation returned null');
+        }
       } else {
-        // Create new area
-        await createServiceAreaForWorker(workerId, areaName, polygonCoordinates);
-        toast({
-          title: "Success",
-          description: `Created ${areaName}`,
-        });
+        console.log(`Creating new area: ${areaName}`);
+        const result = await createServiceAreaForWorker(workerId, areaName, polygonCoordinates);
+        
+        if (result) {
+          toast({
+            title: "Success",
+            description: `Created ${areaName}`,
+          });
+        } else {
+          throw new Error('Create operation failed');
+        }
       }
 
       // Clear current polygon and refresh
       setCurrentPolygon(null);
       setShowAreaSelection(false);
       drawnItemsRef.current?.clearLayers();
+      
+      console.log('Refreshing service areas after save');
       await loadServiceAreas();
       onServiceAreaUpdate?.();
       onServiceAreaCreated?.();
+      
     } catch (error) {
       console.error('Error saving polygon:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      
       toast({
-        title: "Error",
-        description: "Failed to save service area",
+        title: "Save Failed",
+        description: `Failed to save service area: ${errorMessage}`,
         variant: "destructive",
       });
     } finally {

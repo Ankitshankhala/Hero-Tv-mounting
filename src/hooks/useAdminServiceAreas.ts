@@ -198,12 +198,38 @@ export const useAdminServiceAreas = (forceFresh = false) => {
             const workerAreas = (serviceAreasData.data || []).filter(area => area.worker_id === worker.id);
             const workerZipcodes = (zipcodesData.data || []).filter(zip => zip.worker_id === worker.id);
             
-            // Get total zipcode count using the new function
-            const { data: stats } = await supabase.rpc('get_worker_zipcode_stats', {
-              p_worker_id: worker.id
-            });
-            
-            const total_zipcodes = stats?.[0]?.total_zipcodes || 0;
+            // Get total zipcode count with error handling and fallback
+            let total_zipcodes = 0;
+            try {
+              const { data: stats, error: statsError } = await supabase.rpc('get_worker_zipcode_stats', {
+                p_worker_id: worker.id
+              });
+              
+              if (statsError) {
+                console.warn(`RPC function failed for worker ${worker.id}:`, statsError);
+                // Fallback: count directly from table
+                const { count } = await supabase
+                  .from('worker_service_zipcodes')
+                  .select('*', { count: 'exact', head: true })
+                  .eq('worker_id', worker.id);
+                total_zipcodes = count || 0;
+              } else {
+                total_zipcodes = stats?.[0]?.total_zipcodes || 0;
+              }
+            } catch (error) {
+              console.warn(`Error getting zipcode stats for worker ${worker.id}:`, error);
+              // Final fallback: count directly from table
+              try {
+                const { count } = await supabase
+                  .from('worker_service_zipcodes')
+                  .select('*', { count: 'exact', head: true })
+                  .eq('worker_id', worker.id);
+                total_zipcodes = count || 0;
+              } catch (fallbackError) {
+                console.error(`Fallback count failed for worker ${worker.id}:`, fallbackError);
+                total_zipcodes = 0;
+              }
+            }
 
             return {
               ...worker,
@@ -223,11 +249,16 @@ export const useAdminServiceAreas = (forceFresh = false) => {
       setWorkers(data);
     } catch (error) {
       console.error('Error fetching workers with service areas:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
       toast({
-        title: "Error",
-        description: "Failed to load workers and service areas",
+        title: "Database Error",
+        description: `Failed to load workers and service areas: ${errorMessage}`,
         variant: "destructive",
       });
+      
+      // Set empty data instead of leaving undefined
+      setWorkers([]);
     } finally {
       setLoading(false);
     }
