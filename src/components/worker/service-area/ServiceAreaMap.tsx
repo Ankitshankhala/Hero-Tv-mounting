@@ -1390,11 +1390,6 @@ const ServiceAreaMap = ({ workerId, onServiceAreaUpdate, onServiceAreaCreated, i
                 className="w-full h-96 rounded-lg border"
                 style={{ minHeight: '400px' }}
               />
-              {loading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm rounded-lg pointer-events-none">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-                </div>
-              )}
              </div>
 
              {/* ZIP Markers Toggle */}
