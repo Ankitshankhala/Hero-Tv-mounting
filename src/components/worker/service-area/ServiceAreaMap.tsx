@@ -1336,9 +1336,7 @@ const ServiceAreaMap = ({
               </Card>}
 
             {/* ZIP Code Tester */}
-            <Card className="bg-muted/50">
-              
-            </Card>
+            
 
             {/* Instructions */}
             
