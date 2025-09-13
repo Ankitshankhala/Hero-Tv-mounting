@@ -71,11 +71,26 @@ const AdminServiceAreaMap = ({
     refreshData 
   } = useAdminServiceAreas();
 
-  // Initialize map
+  // Initialize map with enhanced debugging
   useEffect(() => {
-    if (!isActive) return;
-    if (mapRef.current) return;
+    console.log('🗺️ Map initialization started:', {
+      isActive,
+      hasExistingMap: !!mapRef.current,
+      hasContainer: !!mapContainerRef.current,
+      workerId,
+      workerName
+    });
+    
+    if (!isActive) {
+      console.log('⏸️ Map initialization skipped: not active');
+      return;
+    }
+    if (mapRef.current) {
+      console.log('⏸️ Map initialization skipped: map already exists');
+      return;
+    }
 
+    console.log('🎯 Creating new Leaflet map...');
     const map = L.map(mapContainerRef.current!, {
       center: [39.8283, -98.5795], // Center of US
       zoom: 4,
@@ -131,8 +146,14 @@ const AdminServiceAreaMap = ({
     map.addControl(drawControl);
     drawControlRef.current = drawControl;
 
-    // Handle drawing events
+    // Handle drawing events with enhanced logging
     map.on(L.Draw.Event.CREATED, (e: any) => {
+      console.log('🖊️ Draw event CREATED triggered:', {
+        type: e.layerType,
+        layer: e.layer,
+        timestamp: new Date().toISOString()
+      });
+      
       const layer = e.layer;
       drawnItems.addLayer(layer);
       
@@ -143,6 +164,13 @@ const AdminServiceAreaMap = ({
           lat: point.lat,
           lng: point.lng
         }));
+        
+        console.log('📍 Polygon coordinates extracted:', {
+          pointCount: coordinates.length,
+          firstPoint: coordinates[0],
+          lastPoint: coordinates[coordinates.length - 1]
+        });
+        
         setCurrentPolygon(coordinates);
         setShowAreaSelection(true);
         
@@ -152,18 +180,23 @@ const AdminServiceAreaMap = ({
           if (activeAreas.length > 0) {
             setAreaSelectionMode('existing');
             setSelectedExistingArea(activeAreas[0]);
+            console.log('🔄 Set to update existing area:', activeAreas[0].area_name);
           } else {
             setAreaSelectionMode('new');
             setSelectedExistingArea(null);
+            console.log('🆕 Set to create new area (no active areas)');
           }
         } else {
           setAreaSelectionMode('new');
           setSelectedExistingArea(null);
+          console.log('🆕 Set to create new area (no existing areas)');
         }
       }
     });
 
     map.on(L.Draw.Event.EDITED, (e: any) => {
+      console.log('✏️ Draw event EDITED triggered:', e.layers.getLayers().length, 'layers');
+      
       const layers = e.layers;
       layers.eachLayer((layer: any) => {
         if (layer instanceof L.Polygon || layer instanceof L.Rectangle) {
@@ -173,12 +206,24 @@ const AdminServiceAreaMap = ({
             lat: point.lat,
             lng: point.lng
           }));
+          
+          console.log('📍 Updated polygon coordinates:', {
+            pointCount: coordinates.length,
+            boundingBox: {
+              minLat: Math.min(...coordinates.map(p => p.lat)),
+              maxLat: Math.max(...coordinates.map(p => p.lat)),
+              minLng: Math.min(...coordinates.map(p => p.lng)),
+              maxLng: Math.max(...coordinates.map(p => p.lng))
+            }
+          });
+          
           setCurrentPolygon(coordinates);
         }
       });
     });
 
     map.on(L.Draw.Event.DELETED, () => {
+      console.log('🗑️ Draw event DELETED triggered');
       setCurrentPolygon(null);
       setEditingArea(null);
     });
@@ -243,66 +288,79 @@ const AdminServiceAreaMap = ({
 
   const handleSavePolygon = async () => {
     if (!currentPolygon || !workerId) {
-      console.warn('Missing required data for saving polygon:', { 
+      console.warn('🚫 Missing required data for saving polygon:', { 
         hasPolygon: !!currentPolygon, 
-        workerId 
+        workerId,
+        areaName 
+      });
+      toast({
+        title: "Validation Error",
+        description: "Missing polygon data or worker ID",
+        variant: "destructive",
       });
       return;
     }
 
-    console.log('Starting polygon save operation:', {
+    console.log('🎨 Starting polygon save operation:', {
       workerId,
       areaName,
       mode: areaSelectionMode,
       selectedArea: selectedExistingArea?.id,
-      polygonPoints: currentPolygon.length
+      polygonPoints: currentPolygon.length,
+      timestamp: new Date().toISOString()
     });
 
     setSaving(true);
+    
     try {
-      // Keep currentPolygon as array of {lat, lng} for the functions
-      const polygonCoordinates = currentPolygon;
+      // Use the new simplified draw-area-save edge function
+      const saveData = {
+        workerId,
+        areaName: areaSelectionMode === 'new' ? areaName : selectedExistingArea?.area_name,
+        polygon: currentPolygon,
+        mode: areaSelectionMode === 'existing' ? 'update' : 'create',
+        ...(areaSelectionMode === 'existing' && selectedExistingArea && {
+          areaIdToUpdate: selectedExistingArea.id
+        })
+      };
 
-      if (areaSelectionMode === 'existing' && selectedExistingArea) {
-        console.log(`Updating existing area: ${selectedExistingArea.id}`);
-        const result = await updateServiceAreaForWorker(selectedExistingArea.id, {
-          polygon_coordinates: polygonCoordinates
-        });
-        
-        if (result) {
-          toast({
-            title: "Success",
-            description: `Updated ${selectedExistingArea.area_name}`,
-          });
-        } else {
-          throw new Error('Update operation returned null');
-        }
-      } else {
-        console.log(`Creating new area: ${areaName}`);
-        const result = await createServiceAreaForWorker(workerId, areaName, polygonCoordinates);
-        
-        if (result) {
-          toast({
-            title: "Success",
-            description: `Created ${areaName}`,
-          });
-        } else {
-          throw new Error('Create operation failed');
-        }
+      console.log('📡 Calling draw-area-save edge function with:', saveData);
+
+      const { data, error } = await supabase.functions.invoke('draw-area-save', {
+        body: saveData
+      });
+
+      console.log('📡 Edge function response:', { data, error });
+
+      if (error) {
+        console.error('❌ Edge function error:', error);
+        throw new Error(error.message || 'Edge function call failed');
       }
+
+      if (!data?.success) {
+        console.error('❌ Save operation failed:', data);
+        throw new Error(data?.error || 'Save operation failed');
+      }
+
+      console.log('✅ Save successful:', data);
+
+      toast({
+        title: "Success",
+        description: data.message || `${areaSelectionMode === 'existing' ? 'Updated' : 'Created'} service area successfully`,
+      });
 
       // Clear current polygon and refresh
       setCurrentPolygon(null);
       setShowAreaSelection(false);
       drawnItemsRef.current?.clearLayers();
       
-      console.log('Refreshing service areas after save');
+      console.log('🔄 Refreshing service areas after save');
       await loadServiceAreas();
       onServiceAreaUpdate?.();
       onServiceAreaCreated?.();
       
     } catch (error) {
-      console.error('Error saving polygon:', error);
+      console.error('💥 Error saving polygon:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       
       toast({

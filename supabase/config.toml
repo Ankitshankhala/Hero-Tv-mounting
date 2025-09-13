@@ -135,3 +135,6 @@ verify_jwt = false
 
 [functions.update-invoice]
 verify_jwt = false
+
+[functions.draw-area-save]
+verify_jwt = true
