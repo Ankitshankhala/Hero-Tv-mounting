@@ -126,9 +126,24 @@ export const useWorkerServiceAreas = (workerId?: string) => {
         throw new Error(data.error || 'Failed to add ZIP codes');
       }
 
+      // Provide more detailed success message
+      const syncResult = data.syncResult;
+      let description = `ZIP codes ${mode === 'replace_all' ? 'replaced' : 'added'} - ${data.zipcodesCount} total`;
+      
+      if (syncResult) {
+        const parts = [];
+        if (syncResult.inserted > 0) parts.push(`${syncResult.inserted} new`);
+        if (syncResult.updated > 0) parts.push(`${syncResult.updated} updated`);
+        if (syncResult.skipped > 0) parts.push(`${syncResult.skipped} skipped`);
+        
+        if (parts.length > 0) {
+          description = `ZIP codes processed: ${parts.join(', ')}`;
+        }
+      }
+      
       toast({
         title: "Success",
-        description: `ZIP codes ${mode === 'replace_all' ? 'replaced' : 'added'} - ${data.zipcodesCount} total`,
+        description,
       });
 
       await fetchServiceAreas();
@@ -136,9 +151,20 @@ export const useWorkerServiceAreas = (workerId?: string) => {
 
     } catch (error) {
       console.error('Error adding ZIP codes:', error);
+      
+      // Provide more specific error messages
+      let errorMessage = "Failed to add ZIP codes";
+      if (error.message?.includes('duplicate key value violates unique constraint')) {
+        errorMessage = "Some ZIP codes already exist in your service areas. They have been updated instead of duplicated.";
+      } else if (error.message?.includes('Failed to insert ZIP codes')) {
+        errorMessage = "Unable to save ZIP codes. Please try again.";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Error",
-        description: error.message || "Failed to add ZIP codes",
+        description: errorMessage,
         variant: "destructive",
       });
       return null;
