@@ -1256,13 +1256,8 @@ const ServiceAreaMap = ({
 
              {/* ZIP Markers Toggle */}
              <div className="space-y-2">
-               <label className="flex items-center space-x-2 text-sm">
-                 <input type="checkbox" checked={showZipMarkers} onChange={e => setShowZipMarkers(e.target.checked)} className="rounded" />
-                 <span>Show ZIP Code Markers</span>
-               </label>
-               <div className="text-xs text-muted-foreground">
-                 Display markers for assigned ZIP codes ({serviceZipcodes.length} total)
-               </div>
+               
+               
              </div>
 
              {/* Area Selection Interface */}
