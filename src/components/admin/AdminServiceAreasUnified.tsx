@@ -566,6 +566,45 @@ export const AdminServiceAreasUnified = () => {
               </Card>
             )}
 
+            {/* Activity Log - Only in manage/drawing mode with selected worker */}
+            {selectedWorker && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Activity className="h-5 w-5" />
+                    Recent Activity
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="h-64">
+                    <div className="space-y-2">
+                      {(auditLogs || []).length === 0 ? (
+                        <p className="text-muted-foreground text-center py-4 text-sm">
+                          No recent activity
+                        </p>
+                      ) : (
+                        (auditLogs || []).slice(0, 10).map(log => (
+                          <div key={log.id} className="border-l-2 border-muted pl-3 py-2">
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium">
+                                {log.operation.replace(/_/g, ' ').toUpperCase()}
+                                {log.area_name && ` - ${log.area_name}`}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {formatDistanceToNow(new Date(log.changed_at), {
+                                  addSuffix: true
+                                })}
+                              </p>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Mode Selection */}
             <Card>
               <CardHeader>
@@ -643,101 +682,6 @@ export const AdminServiceAreasUnified = () => {
         </div>
       )}
 
-      {/* Additional Tabs for Detailed Views */}
-      <Tabs defaultValue="list" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="list">Workers List</TabsTrigger>
-          <TabsTrigger value="audit">Activity Log</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="list" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Workers Overview</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {filteredWorkers.map(worker => {
-                  const stats = getWorkerStats(worker);
-                  return (
-                    <div key={worker.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-medium">{worker.name}</h3>
-                          <Badge variant={worker.is_active ? 'default' : 'secondary'}>
-                            {worker.is_active ? 'Active' : 'Inactive'}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground">{worker.email}</p>
-                        {worker.phone && <p className="text-sm text-muted-foreground">{worker.phone}</p>}
-                        <div className="flex gap-4 text-sm">
-                          <span>Areas: {stats.activeAreas}/{(worker.service_areas || []).length}</span>
-                          <span>ZIP Codes: {stats.totalZipCodes}</span>
-                          {stats.areasNeedingBackfill > 0 && (
-                            <span className="text-amber-600">
-                              {stats.areasNeedingBackfill} areas need ZIP codes
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <Button 
-                        size="sm" 
-                        onClick={() => {
-                          setSelectedWorkerId(worker.id);
-                          setViewMode('manage');
-                        }}
-                      >
-                        <Edit3 className="h-4 w-4 mr-2" />
-                        Manage
-                      </Button>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="audit" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Activity Log</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-96">
-                <div className="space-y-3">
-                  {(auditLogs || []).length === 0 ? (
-                    <p className="text-muted-foreground text-center py-8">
-                      No activity logs found
-                    </p>
-                  ) : (
-                    (auditLogs || []).map(log => (
-                      <div key={log.id} className="border-l-2 border-muted pl-4 py-2">
-                        <div className="flex items-center justify-between">
-                          <div className="space-y-1">
-                            <p className="text-sm font-medium">
-                              {log.operation.replace(/_/g, ' ').toUpperCase()}
-                              {log.area_name && ` - ${log.area_name}`}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {log.change_summary || 'Service area modified'}
-                            </p>
-                          </div>
-                          <span className="text-xs text-muted-foreground">
-                            {formatDistanceToNow(new Date(log.changed_at), {
-                              addSuffix: true
-                            })}
-                          </span>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </ScrollArea>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
     </div>
   );
 };
