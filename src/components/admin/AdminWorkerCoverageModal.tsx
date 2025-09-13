@@ -6,10 +6,12 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeServiceAreas } from '@/hooks/useRealtimeServiceAreas';
+import { useAdminServiceAreas } from '@/hooks/useAdminServiceAreas';
 import { X, Plus, MapPin, Loader2 } from 'lucide-react';
 
 interface Worker {
@@ -24,6 +26,12 @@ interface WorkerZip {
   area_name: string;
 }
 
+interface ExistingServiceArea {
+  id: string;
+  area_name: string;
+  zipcode_count: number;
+}
+
 interface AdminWorkerCoverageModalProps {
   worker: Worker | null;
   isOpen: boolean;
@@ -33,15 +41,19 @@ interface AdminWorkerCoverageModalProps {
 
 export const AdminWorkerCoverageModal = ({ worker, isOpen, onClose, onSuccess }: AdminWorkerCoverageModalProps) => {
   const [currentZips, setCurrentZips] = useState<WorkerZip[]>([]);
+  const [existingServiceAreas, setExistingServiceAreas] = useState<ExistingServiceArea[]>([]);
   const [newZipInput, setNewZipInput] = useState('');
   const [newZips, setNewZips] = useState<string[]>([]);
   const [areaName, setAreaName] = useState('');
+  const [addMode, setAddMode] = useState<'create_new' | 'add_to_existing'>('create_new');
+  const [selectedExistingAreaId, setSelectedExistingAreaId] = useState<string>('');
   const [mode, setMode] = useState<'append' | 'replace_all'>('append');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [zipSuggestions, setZipSuggestions] = useState<{zipcode: string; city: string; state: string}[]>([]);
   const [removingZip, setRemovingZip] = useState<string | null>(null);
   const { toast } = useToast();
+  const { addZipcodesToExistingArea } = useAdminServiceAreas();
 
   // Set up real-time updates for service areas
   useRealtimeServiceAreas(() => {
@@ -50,7 +62,7 @@ export const AdminWorkerCoverageModal = ({ worker, isOpen, onClose, onSuccess }:
     }
   });
 
-  // Fetch current ZIP codes for the worker
+  // Fetch current ZIP codes and existing service areas for the worker
   const fetchCurrentZips = async () => {
     if (!worker) return;
     
@@ -67,6 +79,7 @@ export const AdminWorkerCoverageModal = ({ worker, isOpen, onClose, onSuccess }:
 
       if (!areas || areas.length === 0) {
         setCurrentZips([]);
+        setExistingServiceAreas([]);
         return;
       }
 
@@ -80,7 +93,7 @@ export const AdminWorkerCoverageModal = ({ worker, isOpen, onClose, onSuccess }:
 
       if (zipError) throw zipError;
 
-      // Merge the data
+      // Merge the ZIP data
       const zips = zipData?.map(zip => {
         const area = areas.find(a => a.id === zip.service_area_id);
         return {
@@ -90,7 +103,15 @@ export const AdminWorkerCoverageModal = ({ worker, isOpen, onClose, onSuccess }:
         };
       }) || [];
 
+      // Create existing service areas with ZIP counts
+      const existingAreas = areas.map(area => ({
+        id: area.id,
+        area_name: area.area_name,
+        zipcode_count: zipData?.filter(zip => zip.service_area_id === area.id).length || 0
+      }));
+
       setCurrentZips(zips);
+      setExistingServiceAreas(existingAreas);
     } catch (error) {
       console.error('Error fetching current ZIPs:', error);
       toast({
@@ -195,31 +216,46 @@ export const AdminWorkerCoverageModal = ({ worker, isOpen, onClose, onSuccess }:
       return;
     }
 
+    if (addMode === 'add_to_existing' && !selectedExistingAreaId) {
+      toast({
+        title: "Missing Selection",
+        description: "Please select an existing service area",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (mode === 'replace_all' && !confirm(`This will replace ALL existing ZIP codes for ${worker.name}. Are you sure?`)) {
       return;
     }
 
     setSaving(true);
     try {
-      const { data, error } = await supabase.functions.invoke('service-area-upsert', {
-        body: {
-          workerId: worker.id,
-          areaName: areaName || `Admin Assigned - ${new Date().toLocaleDateString()}`,
-          zipcodesOnly: newZips,
-          mode: mode
+      if (addMode === 'add_to_existing') {
+        // Add to existing service area
+        await addZipcodesToExistingArea(worker.id, selectedExistingAreaId, newZips, mode);
+      } else {
+        // Create new service area
+        const { data, error } = await supabase.functions.invoke('service-area-upsert', {
+          body: {
+            workerId: worker.id,
+            areaName: areaName || `Admin Assigned - ${new Date().toLocaleDateString()}`,
+            zipcodesOnly: newZips,
+            mode: mode
+          }
+        });
+
+        if (error) throw error;
+
+        if (!data.success) {
+          throw new Error(data.error || 'Failed to save ZIP codes');
         }
-      });
 
-      if (error) throw error;
-
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to save ZIP codes');
+        toast({
+          title: "Success",
+          description: `ZIP codes ${mode === 'replace_all' ? 'replaced' : 'added'} successfully`,
+        });
       }
-
-      toast({
-        title: "Success",
-        description: `ZIP codes ${mode === 'replace_all' ? 'replaced' : 'added'} successfully`,
-      });
 
       onSuccess();
       onClose();
@@ -256,6 +292,8 @@ export const AdminWorkerCoverageModal = ({ worker, isOpen, onClose, onSuccess }:
       setNewZips([]);
       setNewZipInput('');
       setAreaName('');
+      setAddMode('create_new');
+      setSelectedExistingAreaId('');
       setMode('append');
       setZipSuggestions([]);
     }
@@ -416,16 +454,59 @@ export const AdminWorkerCoverageModal = ({ worker, isOpen, onClose, onSuccess }:
           {/* Configuration */}
           {newZips.length > 0 && (
             <div className="space-y-4">
+              {/* Add Mode Selection */}
               <div>
-                <Label htmlFor="areaName" className="text-sm font-medium">Service Area Name</Label>
-                <Input
-                  id="areaName"
-                  placeholder={`Admin Assigned - ${new Date().toLocaleDateString()}`}
-                  value={areaName}
-                  onChange={(e) => setAreaName(e.target.value)}
-                  className="mt-1"
-                />
+                <Label className="text-sm font-medium">Where to add ZIP codes</Label>
+                <RadioGroup 
+                  value={addMode} 
+                  onValueChange={(value) => setAddMode(value as 'create_new' | 'add_to_existing')}
+                  className="mt-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="create_new" id="create_new" />
+                    <Label htmlFor="create_new" className="text-sm">Create new service area</Label>
+                  </div>
+                  {existingServiceAreas.length > 0 && (
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="add_to_existing" id="add_to_existing" />
+                      <Label htmlFor="add_to_existing" className="text-sm">Add to existing service area</Label>
+                    </div>
+                  )}
+                </RadioGroup>
               </div>
+
+              {/* Service Area Name for new areas */}
+              {addMode === 'create_new' && (
+                <div>
+                  <Label htmlFor="areaName" className="text-sm font-medium">Service Area Name</Label>
+                  <Input
+                    id="areaName"
+                    placeholder={`Admin Assigned - ${new Date().toLocaleDateString()}`}
+                    value={areaName}
+                    onChange={(e) => setAreaName(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+              )}
+
+              {/* Existing Service Area Selection */}
+              {addMode === 'add_to_existing' && existingServiceAreas.length > 0 && (
+                <div>
+                  <Label className="text-sm font-medium">Select Existing Service Area</Label>
+                  <Select value={selectedExistingAreaId} onValueChange={setSelectedExistingAreaId}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Choose a service area..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {existingServiceAreas.map((area) => (
+                        <SelectItem key={area.id} value={area.id}>
+                          {area.area_name} ({area.zipcode_count} ZIP codes)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div>
                 <Label className="text-sm font-medium">Action</Label>
@@ -455,10 +536,13 @@ export const AdminWorkerCoverageModal = ({ worker, isOpen, onClose, onSuccess }:
           </Button>
           <Button 
             onClick={handleSave} 
-            disabled={saving || newZips.length === 0}
+            disabled={saving || newZips.length === 0 || (addMode === 'add_to_existing' && !selectedExistingAreaId)}
           >
             {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {mode === 'replace_all' ? 'Replace Coverage' : 'Add Coverage'}
+            {addMode === 'add_to_existing' 
+              ? (mode === 'replace_all' ? 'Replace in Area' : 'Add to Area')
+              : (mode === 'replace_all' ? 'Replace Coverage' : 'Add Coverage')
+            }
           </Button>
         </div>
       </DialogContent>
