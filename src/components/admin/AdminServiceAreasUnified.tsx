@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -35,6 +35,7 @@ import {
   LazyEnhancedWorkerServiceAreasMapImproved, 
   LazyAdminServiceAreaMap,
   LazyAdminZipCodeManager,
+  LazyZipCodeDataManager,
   withLazyLoading 
 } from './LazyAdminComponents';
 import ServiceAreaMap from '@/components/worker/service-area/ServiceAreaMap';
@@ -75,7 +76,7 @@ export const AdminServiceAreasUnified = () => {
 
   // Service Area Manager states
   const [selectedWorkerId, setSelectedWorkerId] = useState<string>('');
-  const [viewMode, setViewMode] = useState<'overview' | 'manage' | 'drawing'>('overview');
+  const [viewMode, setViewMode] = useState<'overview' | 'manage' | 'drawing' | 'data'>('overview');
   const [editingArea, setEditingArea] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [activeTab, setActiveTab] = useState<'coverage' | 'map' | 'zips' | 'audit'>('coverage');
@@ -291,7 +292,8 @@ export const AdminServiceAreasUnified = () => {
           <p className="text-slate-300">
             {viewMode === 'overview' ? 'View and manage worker service coverage across all areas' : 
              viewMode === 'manage' ? 'Manage individual worker service areas and zip code assignments' :
-             'Draw and edit service area polygons for workers'}
+             viewMode === 'drawing' ? 'Draw and edit service area polygons for workers' :
+             'Manage comprehensive ZIP code and ZCTA polygon data'}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -301,26 +303,26 @@ export const AdminServiceAreasUnified = () => {
               variant={viewMode === 'overview' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setViewMode('overview')}
-              className={`text-sm font-medium px-4 py-2 ${
+              className={`text-sm font-medium px-3 py-2 ${
                 viewMode === 'overview' 
                   ? 'bg-blue-600 text-white shadow-md' 
                   : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
               }`}
             >
-              <Eye className="h-4 w-4 mr-2" />
+              <Eye className="h-4 w-4 mr-1" />
               Overview
             </Button>
             <Button
               variant={viewMode === 'manage' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setViewMode('manage')}
-              className={`text-sm font-medium px-4 py-2 ${
+              className={`text-sm font-medium px-3 py-2 ${
                 viewMode === 'manage' 
                   ? 'bg-blue-600 text-white shadow-md' 
                   : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
               }`}
             >
-              <Settings className="h-4 w-4 mr-2" />
+              <Settings className="h-4 w-4 mr-1" />
               Manage
             </Button>
             <Button
@@ -328,14 +330,27 @@ export const AdminServiceAreasUnified = () => {
               size="sm"
               onClick={() => setViewMode('drawing')}
               disabled={!selectedWorkerId}
-              className={`text-sm font-medium px-4 py-2 ${
+              className={`text-sm font-medium px-3 py-2 ${
                 viewMode === 'drawing' 
                   ? 'bg-blue-600 text-white shadow-md' 
                   : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
               } ${!selectedWorkerId ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              <Map className="h-4 w-4 mr-2" />
+              <Map className="h-4 w-4 mr-1" />
               Draw
+            </Button>
+            <Button
+              variant={viewMode === 'data' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('data')}
+              className={`text-sm font-medium px-3 py-2 ${
+                viewMode === 'data' 
+                  ? 'bg-blue-600 text-white shadow-md' 
+                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+              }`}
+            >
+              <Database className="h-4 w-4 mr-1" />
+              Data
             </Button>
           </div>
 
@@ -704,6 +719,26 @@ export const AdminServiceAreasUnified = () => {
               </CardContent>
             </Card>
           </div>
+        </div>
+      )}
+
+      {/* DATA MANAGEMENT MODE */}
+      {viewMode === 'data' && (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Database className="h-5 w-5" />
+                ZIP Code Data Management
+              </CardTitle>
+              <CardDescription>
+                Manage comprehensive US ZIP code points and Census Bureau ZCTA polygon data for spatial queries
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <LazyZipCodeDataManager />
+            </CardContent>
+          </Card>
         </div>
       )}
 
