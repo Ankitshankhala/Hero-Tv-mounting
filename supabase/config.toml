@@ -46,7 +46,7 @@ enable_signup = true
 enable_confirmations = false
 template = "Your code is {{ .Code }}"
 
-# Consolidated unified functions
+# Fully consolidated functions
 [functions.unified-payment-verification]
 verify_jwt = false
 
@@ -59,18 +59,8 @@ verify_jwt = false
 [functions.unified-test-suite]
 verify_jwt = false
 
-# Legacy spatial functions (keeping for now)
-[functions.polygon-to-zipcodes]
+[functions.unified-spatial-operations]
 verify_jwt = false
 
-[functions.backfill-service-area-zipcodes]
-verify_jwt = false
-
-[functions.draw-area-save]
-verify_jwt = true
-
-[functions.spatial-health-check]
-verify_jwt = false
-
-[functions.service-area-upsert]
+[functions.unified-utilities]
 verify_jwt = false
