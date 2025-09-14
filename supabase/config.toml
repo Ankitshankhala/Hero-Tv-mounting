@@ -46,6 +46,20 @@ enable_signup = true
 enable_confirmations = false
 template = "Your code is {{ .Code }}"
 
+# Consolidated unified functions
+[functions.unified-payment-verification]
+verify_jwt = false
+
+[functions.unified-email-dispatcher]
+verify_jwt = false
+
+[functions.unified-invoice-generator]
+verify_jwt = false
+
+[functions.unified-test-suite]
+verify_jwt = false
+
+# Legacy spatial functions (keeping for now)
 [functions.polygon-to-zipcodes]
 verify_jwt = false
 
