@@ -64,3 +64,9 @@ verify_jwt = false
 
 [functions.unified-utilities]
 verify_jwt = false
+
+[functions.email-notification-orchestrator]
+verify_jwt = false
+
+[functions.enhanced-invoice-generator]
+verify_jwt = false
