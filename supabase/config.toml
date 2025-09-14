@@ -46,7 +46,7 @@ enable_signup = true
 enable_confirmations = false
 template = "Your code is {{ .Code }}"
 
-# Fully consolidated functions
+# Core functions - most don't require JWT verification for maximum compatibility
 [functions.unified-payment-verification]
 verify_jwt = false
 
