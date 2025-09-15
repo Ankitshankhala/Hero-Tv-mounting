@@ -317,7 +317,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Worker information (if assigned)
     const workerInfo = workerUser?.name ? 
-      `<p><strong>Worker:</strong> ${workerUser.name}</p>` : 
+      `<p><strong>Worker:</strong> ${workerUser.name}${workerUser.phone ? `<br><strong>Mobile:</strong> ${workerUser.phone}` : ''}</p>` : 
       `<p><strong>Worker:</strong> To be assigned</p>`;
 
     // Format location notes if available
@@ -413,7 +413,7 @@ ${bookingServices?.map((service: any) =>
 
 Total Amount: $${totalAmount.toFixed(2)}
 
-${workerUser?.name ? `Worker: ${workerUser.name}` : 'Worker: To be assigned'}
+${workerUser?.name ? `Worker: ${workerUser.name}${workerUser.phone ? `\nMobile: ${workerUser.phone}` : ''}` : 'Worker: To be assigned'}
 
 ${booking.location_notes ? `Location Notes: ${booking.location_notes}` : ''}
 

@@ -70,7 +70,7 @@ serve(async (req) => {
 
     switch (emailType) {
       case 'confirmation':
-        targetFunction = 'send-customer-booking-confirmation';
+        targetFunction = 'send-booking-confirmation-email';
         requestBody.bookingId = bookingId;
         break;
 
