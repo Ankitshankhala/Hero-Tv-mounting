@@ -53,14 +53,5 @@ verify_jwt = false
 [functions.enhanced-invoice-generator]
 verify_jwt = false
 
-[functions.unified-email-dispatcher]
-verify_jwt = false
-
-[functions.unified-spatial-operations]
-verify_jwt = false
-
-[functions.unified-utilities]
-verify_jwt = false
-
 [functions.storage-chunked-importer]
 verify_jwt = true
