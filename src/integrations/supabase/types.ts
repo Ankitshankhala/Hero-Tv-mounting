@@ -2591,7 +2591,7 @@ export type Database = {
         Returns: Json
       }
       load_zcta_polygons_batch: {
-        Args: Record<PropertyKey, never> | { polygon_data?: Json }
+        Args: { polygon_data?: Json }
         Returns: Json
       }
       load_zcta_polygons_from_data: {
