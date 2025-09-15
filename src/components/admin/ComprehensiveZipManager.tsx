@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useChunkedUpload } from '@/hooks/useChunkedUpload';
+import { logger } from '@/utils/logger';
 import { Download, Database, MapPin, CheckCircle, AlertCircle, Loader2, Upload } from 'lucide-react';
 
 interface ImportStatus {
@@ -52,7 +53,7 @@ export const ComprehensiveZipManager = () => {
       if (error) throw error;
       setImportStatus(data);
     } catch (error) {
-      console.error('Failed to load import status:', error);
+      logger.error('Failed to load import status:', error);
     } finally {
       setLoading(false);
     }
@@ -71,7 +72,7 @@ export const ComprehensiveZipManager = () => {
       setImportResult(data);
       await loadImportStatus(); // Refresh status
     } catch (error) {
-      console.error('Import failed:', error);
+      logger.error('Import failed:', error);
       setImportResult({
         success: false,
         message: 'Import failed: ' + (error as Error).message
@@ -94,7 +95,7 @@ export const ComprehensiveZipManager = () => {
       setImportResult(data);
       await loadImportStatus();
     } catch (error) {
-      console.error('Polygon import failed:', error);
+      logger.error('Polygon import failed:', error);
       setImportResult({
         success: false,
         message: 'Polygon import failed: ' + (error as Error).message
@@ -183,7 +184,7 @@ export const ComprehensiveZipManager = () => {
       if (error) throw error;
       setValidationData(data);
     } catch (error) {
-      console.error('Validation failed:', error);
+      logger.error('Validation failed:', error);
     }
   };
 

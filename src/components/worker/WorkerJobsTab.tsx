@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ExpandableJobCardContainer } from './ExpandableJobCardContainer';
@@ -6,7 +6,7 @@ import { JobFiltersBar } from './JobFiltersBar';
 import { useJobFilters } from '@/hooks/useJobFilters';
 import { Calendar, Briefcase, Archive } from 'lucide-react';
 import type { Database } from '@/integrations/supabase/types';
-import { convertUTCToLocal } from '@/utils/timezoneUtils';
+import { convertUTCToLocal } from '@/utils/timeUtils';
 
 type BookingStatus = Database['public']['Enums']['booking_status'];
 

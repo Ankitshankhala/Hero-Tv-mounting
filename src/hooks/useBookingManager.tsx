@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { calculateBookingTotal } from '@/utils/pricing';
-import { DEFAULT_SERVICE_TIMEZONE } from '@/utils/timezoneUtils';
+import { DEFAULT_SERVICE_TIMEZONE } from '@/utils/timeUtils';
 import { optimizedSupabaseCall, measureApiCall } from '@/utils/optimizedApi';
 
 interface BookingData {

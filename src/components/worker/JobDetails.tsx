@@ -1,7 +1,6 @@
 
-import React from 'react';
 import { Calendar, MapPin, Clock, Phone } from 'lucide-react';
-import { formatBookingTimeForContext, getUserTimezone, getTimezoneAbbreviation } from '@/utils/timezoneUtils';
+import { formatBookingTimeForContext, getUserTimezone, getTimezoneAbbreviation } from '@/utils/timeUtils';
 import { format } from 'date-fns';
 
 interface JobDetailsProps {

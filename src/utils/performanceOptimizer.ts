@@ -3,21 +3,11 @@
 // Remove console.log statements in production
 export const isDevelopment = process.env.NODE_ENV === 'development';
 
-export const optimizedLog = (...args: any[]) => {
-  if (isDevelopment) {
-    console.log(...args);
-  }
-};
+import { logger } from './logger';
 
-export const optimizedError = (...args: any[]) => {
-  console.error(...args); // Always log errors
-};
-
-export const optimizedWarn = (...args: any[]) => {
-  if (isDevelopment) {
-    console.warn(...args);
-  }
-};
+export const optimizedLog = logger.dev;
+export const optimizedError = logger.error;
+export const optimizedWarn = logger.warn;
 
 // Debounce utility for performance
 export const debounce = <T extends (...args: any[]) => any>(

@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { format } from 'date-fns';
 import { Edit, Trash2, Eye, UserPlus, Calendar, DollarSign, CreditCard, Send, X, ChevronDown, ChevronUp, Archive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { formatBookingTimeForContext, US_TIMEZONES, DEFAULT_SERVICE_TIMEZONE } from '@/utils/timezoneUtils';
+import { formatBookingTimeForContext, US_TIMEZONES, DEFAULT_SERVICE_TIMEZONE } from '@/utils/timeUtils';
 import { BookingEmailStatus } from './BookingEmailStatus';
 import { archiveBooking } from '@/utils/serviceHelpers';
 import { useToast } from '@/hooks/use-toast';
@@ -236,7 +236,7 @@ export const BookingTable = ({
                 const isExpanded = expandedRows.has(booking.id);
                 
                 return (
-                  <React.Fragment key={booking.id}>
+                  <div key={booking.id}>
                     <tr className="border-b hover:bg-muted/25">
                       <td className="p-3">
                         <div className="flex items-center gap-2">
@@ -427,7 +427,7 @@ export const BookingTable = ({
                       </td>
                     </tr>
                   )}
-                </React.Fragment>
+                </div>
                 );
               })}
             </tbody>

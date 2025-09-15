@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ChevronDown, Phone, MapPin, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { formatBookingTimeForContext, convertUTCToLocal } from '@/utils/timezoneUtils';
+import { formatBookingTimeForContext, convertUTCToLocal } from '@/utils/timeUtils';
 
 
 interface CompactJobCardProps {
