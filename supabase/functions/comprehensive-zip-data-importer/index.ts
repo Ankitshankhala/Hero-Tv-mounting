@@ -135,7 +135,7 @@ async function importZctaPolygons(supabase: any, shapefileData?: any) {
       // Process uploaded shapefile data
       console.log('Processing uploaded shapefile data...');
       
-      const { data, error } = await supabase.rpc('load_zcta_polygons_from_data', {
+      const { data, error } = await supabase.rpc('load_zcta_polygons_batch', {
         polygon_data: shapefileData
       });
       
