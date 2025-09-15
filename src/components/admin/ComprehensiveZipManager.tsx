@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
-import { Download, Database, MapPin, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { Download, Database, MapPin, CheckCircle, AlertCircle, Loader2, Upload } from 'lucide-react';
 
 interface ImportStatus {
   zip_codes: number;
@@ -33,6 +34,8 @@ export const ComprehensiveZipManager = () => {
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [validationData, setValidationData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadImportStatus();
@@ -96,6 +99,50 @@ export const ComprehensiveZipManager = () => {
       });
     } finally {
       setIsImporting(false);
+    }
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploadingFile(true);
+    setImportResult(null);
+
+    try {
+      // For GeoJSON files, read and parse directly
+      if (file.name.endsWith('.geojson') || file.name.endsWith('.json')) {
+        const fileContent = await file.text();
+        const geoJsonData = JSON.parse(fileContent);
+
+        const { data, error } = await supabase.functions.invoke('comprehensive-zip-data-importer', {
+          body: { 
+            operation: 'import_zcta_polygons',
+            shapefile_data: geoJsonData
+          }
+        });
+
+        if (error) throw error;
+        setImportResult(data);
+        await loadImportStatus();
+      } else {
+        setImportResult({
+          success: false,
+          message: 'Please upload a GeoJSON file (.geojson or .json). Shapefile support coming soon.'
+        });
+      }
+    } catch (error) {
+      console.error('File upload failed:', error);
+      setImportResult({
+        success: false,
+        message: 'File upload failed: ' + (error as Error).message
+      });
+    } finally {
+      setUploadingFile(false);
+      // Reset the file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -243,31 +290,78 @@ export const ComprehensiveZipManager = () => {
                 </Button>
               </div>
 
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-medium">ZCTA Polygon Data</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Import ZIP Code Tabulation Area boundaries for spatial operations
-                  </p>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium">ZCTA Polygon Data</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Import ZIP Code Tabulation Area boundaries for spatial operations
+                    </p>
+                  </div>
+                  <Button 
+                    onClick={handleImportPolygons}
+                    disabled={isImporting || uploadingFile}
+                    variant="outline"
+                    className="ml-4"
+                  >
+                    {isImporting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Importing...
+                      </>
+                    ) : (
+                      <>
+                        <MapPin className="w-4 h-4 mr-2" />
+                        Setup Infrastructure
+                      </>
+                    )}
+                  </Button>
                 </div>
-                <Button 
-                  onClick={handleImportPolygons}
-                  disabled={isImporting}
-                  variant="outline"
-                  className="ml-4"
-                >
-                  {isImporting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Importing...
-                    </>
-                  ) : (
-                    <>
-                      <MapPin className="w-4 h-4 mr-2" />
-                      Import Polygons
-                    </>
-                  )}
-                </Button>
+
+                <div className="border-t pt-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium">Upload Shapefile Data</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Upload your 801MB ZCTA shapefile as GeoJSON format
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".geojson,.json"
+                        onChange={handleFileUpload}
+                        disabled={uploadingFile || isImporting}
+                        className="hidden"
+                      />
+                      <Button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploadingFile || isImporting}
+                        variant="default"
+                      >
+                        {uploadingFile ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-4 h-4 mr-2" />
+                            Upload GeoJSON
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                  <Alert className="mt-2">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      Convert your shapefile to GeoJSON format using QGIS or online tools before uploading.
+                      For the 801MB file, consider splitting into smaller chunks if needed.
+                    </AlertDescription>
+                  </Alert>
+                </div>
               </div>
             </CardContent>
           </Card>

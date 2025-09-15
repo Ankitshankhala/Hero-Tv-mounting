@@ -23,15 +23,16 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { operation, data_source = 'census' } = await req.json()
+    const requestBody = await req.json()
+    const { operation, data_source = 'census', shapefile_data } = requestBody
 
-    console.log('Starting comprehensive ZIP data import:', { operation, data_source })
+    console.log('Starting comprehensive ZIP data import:', { operation, data_source, has_shapefile: !!shapefile_data })
 
     switch (operation) {
       case 'import_census_zip_codes':
         return await importCensusZipCodes(supabase)
       case 'import_zcta_polygons':
-        return await importZctaPolygons(supabase)
+        return await importZctaPolygons(supabase, shapefile_data)
       case 'get_import_status':
         return await getImportStatus(supabase)
       case 'validate_data':
@@ -126,37 +127,69 @@ async function importCensusZipCodes(supabase: any) {
   }
 }
 
-async function importZctaPolygons(supabase: any) {
+async function importZctaPolygons(supabase: any, shapefileData?: any) {
   try {
     console.log('Starting ZCTA polygon import...');
     
-    // Call the database function to load sample polygons
-    const { data, error } = await supabase.rpc('load_zcta_polygons_batch');
-    
-    if (error) {
-      console.error('ZCTA polygon import error:', error);
+    if (shapefileData) {
+      // Process uploaded shapefile data
+      console.log('Processing uploaded shapefile data...');
+      
+      const { data, error } = await supabase.rpc('load_zcta_polygons_from_data', {
+        polygon_data: shapefileData
+      });
+      
+      if (error) {
+        console.error('Shapefile processing error:', error);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: error.message,
+            details: 'Failed to process shapefile data'
+          }),
+          { 
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+      
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: error.message,
-          details: 'Failed to import ZCTA polygons'
+        JSON.stringify({
+          success: true,
+          message: `Shapefile processed successfully. Imported ${data.processed} polygons with ${data.errors} errors.`,
+          data: data
         }),
-        { 
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    } else {
+      // Setup database infrastructure
+      const { data, error } = await supabase.rpc('load_zcta_polygons_batch');
+      
+      if (error) {
+        console.error('ZCTA setup error:', error);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: error.message,
+            details: 'Failed to setup ZCTA polygon infrastructure'
+          }),
+          { 
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+      
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'ZCTA polygon infrastructure ready. Upload shapefile data to begin import.',
+          data: data
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-    
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: 'ZCTA polygons imported successfully',
-        data: data
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-    
   } catch (error) {
     console.error('ZCTA polygon import error:', error);
     return new Response(
