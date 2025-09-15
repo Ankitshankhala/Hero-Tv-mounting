@@ -129,45 +129,99 @@ async function importCensusZipCodes(supabase: any) {
 
 async function importZctaPolygons(supabase: any, shapefileData?: any) {
   try {
-    console.log('Starting ZCTA polygon import...');
-    
-    if (shapefileData) {
-      // Process uploaded shapefile data
-      console.log('Processing uploaded shapefile data...');
-      
-      const { data, error } = await supabase.rpc('load_zcta_polygons_batch', {
-        polygon_data: shapefileData
-      });
-      
-      if (error) {
-        console.error('Shapefile processing error:', error);
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: error.message,
-            details: 'Failed to process shapefile data'
-          }),
-          { 
-            status: 500,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
+    console.log('Starting ZCTA polygon import...')
+
+    // Helper to normalize incoming GeoJSON/features into simplified records
+    const normalizeFeatures = (input: any): any[] => {
+      try {
+        const data = typeof input === 'string' ? JSON.parse(input) : input
+        const features = Array.isArray(data?.features)
+          ? data.features
+          : Array.isArray(data)
+            ? data
+            : []
+
+        const records = features.map((f: any) => {
+          const props = f?.properties || {}
+          const geometry = f?.geometry || f?.geom || f?.geometry_json
+          const z = props.ZCTA5CE10 || props.ZCTA5CE || props.ZCTA5 || props.ZIP || props.ZIPCODE || f?.zcta5ce
+          const aland = props.ALAND10 ?? props.ALAND ?? f?.aland ?? null
+          const awater = props.AWATER10 ?? props.AWATER ?? f?.awater ?? null
+          const zcta = (z ? String(z) : '').padStart(5, '0')
+          return { zcta5ce: zcta, geometry, aland, awater }
+        })
+        return records
+      } catch (e) {
+        console.error('Failed to normalize features:', e)
+        return []
       }
-      
+    }
+
+    const chunkArray = (arr: any[], size: number) => {
+      const chunks: any[][] = []
+      for (let i = 0; i < arr.length; i += size) chunks.push(arr.slice(i, i + size))
+      return chunks
+    }
+
+    if (shapefileData) {
+      // New: process in background to avoid timeouts for large uploads
+      console.log('Processing uploaded shapefile data (background)...')
+      const records = normalizeFeatures(shapefileData)
+      if (!records.length) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'No valid features found in uploaded data' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      const batchSize = 200
+      const batches = chunkArray(records, batchSize)
+      const total = records.length
+
+      async function backgroundImport() {
+        let processed = 0
+        let errors = 0
+        for (let i = 0; i < batches.length; i++) {
+          const batch = batches[i]
+          try {
+            const { data, error } = await supabase.rpc('load_zcta_polygons_batch', {
+              polygon_data: batch
+            })
+            if (error) {
+              console.error('Batch RPC error:', error)
+              errors += batch.length
+            } else {
+              processed += batch.length
+              console.log(`ZCTA batch ${i + 1}/${batches.length} processed. Cumulative: ${processed}/${total}`)
+            }
+          } catch (e) {
+            console.error('Batch processing exception:', e)
+            errors += batch.length
+          }
+        }
+        console.log(`ZCTA background import completed. processed=${processed}, errors=${errors}`)
+      }
+
+      // Kick off background task and return immediately
+      // @ts-ignore
+      EdgeRuntime.waitUntil(backgroundImport())
+
       return new Response(
         JSON.stringify({
           success: true,
-          message: `Shapefile processed successfully. Imported ${data.processed} polygons with ${data.errors} errors.`,
-          data: data
+          message: 'ZCTA import started in background',
+          total_records: total,
+          batches: batches.length,
+          batch_size: batchSize
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+        { status: 202, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     } else {
       // Setup database infrastructure
-      const { data, error } = await supabase.rpc('load_zcta_polygons_batch');
-      
+      const { data, error } = await supabase.rpc('load_zcta_polygons_batch')
+
       if (error) {
-        console.error('ZCTA setup error:', error);
+        console.error('ZCTA setup error:', error)
         return new Response(
           JSON.stringify({ 
             success: false, 
@@ -178,20 +232,20 @@ async function importZctaPolygons(supabase: any, shapefileData?: any) {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
           }
-        );
+        )
       }
-      
+
       return new Response(
         JSON.stringify({
           success: true,
-          message: 'ZCTA polygon infrastructure ready. Upload shapefile data to begin import.',
+          message: 'ZCTA polygon infrastructure ready. Upload GeoJSON to begin import.',
           data: data
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      )
     }
   } catch (error) {
-    console.error('ZCTA polygon import error:', error);
+    console.error('ZCTA polygon import error:', error)
     return new Response(
       JSON.stringify({ 
         success: false, 
@@ -202,7 +256,7 @@ async function importZctaPolygons(supabase: any, shapefileData?: any) {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
-    );
+    )
   }
 }
 
