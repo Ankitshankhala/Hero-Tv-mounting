@@ -253,6 +253,96 @@ export type Database = {
           },
         ]
       }
+      comprehensive_zcta_polygons: {
+        Row: {
+          created_at: string | null
+          data_source: string | null
+          geom: unknown
+          id: string
+          internal_lat: number | null
+          internal_lng: number | null
+          land_area: number | null
+          water_area: number | null
+          zcta5ce: string
+        }
+        Insert: {
+          created_at?: string | null
+          data_source?: string | null
+          geom: unknown
+          id?: string
+          internal_lat?: number | null
+          internal_lng?: number | null
+          land_area?: number | null
+          water_area?: number | null
+          zcta5ce: string
+        }
+        Update: {
+          created_at?: string | null
+          data_source?: string | null
+          geom?: unknown
+          id?: string
+          internal_lat?: number | null
+          internal_lng?: number | null
+          land_area?: number | null
+          water_area?: number | null
+          zcta5ce?: string
+        }
+        Relationships: []
+      }
+      comprehensive_zip_codes: {
+        Row: {
+          city: string
+          county: string | null
+          created_at: string | null
+          data_source: string | null
+          id: string
+          land_area: number | null
+          latitude: number | null
+          longitude: number | null
+          population: number | null
+          state: string
+          state_abbr: string
+          timezone: string | null
+          updated_at: string | null
+          water_area: number | null
+          zipcode: string
+        }
+        Insert: {
+          city: string
+          county?: string | null
+          created_at?: string | null
+          data_source?: string | null
+          id?: string
+          land_area?: number | null
+          latitude?: number | null
+          longitude?: number | null
+          population?: number | null
+          state: string
+          state_abbr: string
+          timezone?: string | null
+          updated_at?: string | null
+          water_area?: number | null
+          zipcode: string
+        }
+        Update: {
+          city?: string
+          county?: string | null
+          created_at?: string | null
+          data_source?: string | null
+          id?: string
+          land_area?: number | null
+          latitude?: number | null
+          longitude?: number | null
+          population?: number | null
+          state?: string
+          state_abbr?: string
+          timezone?: string | null
+          updated_at?: string | null
+          water_area?: number | null
+          zipcode?: string
+        }
+        Relationships: []
+      }
       email_logs: {
         Row: {
           booking_id: string | null
@@ -1924,6 +2014,10 @@ export type Database = {
         Args: { p_area_id: string }
         Returns: undefined
       }
+      comprehensive_zip_has_coverage: {
+        Args: { p_zipcode: string }
+        Returns: boolean
+      }
       compute_zipcodes_for_polygon: {
         Args: { min_overlap_percent?: number; polygon_geojson: Json }
         Returns: string[]
@@ -2320,6 +2414,14 @@ export type Database = {
           worker_ids: string[]
         }[]
       }
+      get_comprehensive_zip_boundaries: {
+        Args: { p_lat: number; p_lng: number; p_radius_km?: number }
+        Returns: {
+          boundary_geojson: Json
+          distance_km: number
+          zipcode: string
+        }[]
+      }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -2499,6 +2601,10 @@ export type Database = {
       merge_worker_service_areas: {
         Args: { p_new_area_name: string; p_worker_id: string }
         Returns: Json
+      }
+      migrate_existing_zip_data: {
+        Args: Record<PropertyKey, never>
+        Returns: number
       }
       path: {
         Args: { "": unknown }

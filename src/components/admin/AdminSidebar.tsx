@@ -11,7 +11,8 @@ import {
   FileText,
   MessageSquare, 
   MapPin,
-  Mail
+  Mail,
+  Database
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import {
@@ -68,6 +69,12 @@ export const AdminSidebar = ({ activeTab, onTabChange }: AdminSidebarProps) => {
       items: [
         { id: 'sms', label: 'SMS Logs', icon: MessageSquare },
         { id: 'email', label: 'Email Logs', icon: Mail },
+      ]
+    },
+    {
+      label: 'Data Management',
+      items: [
+        { id: 'comprehensive-zip', label: 'ZIP Data Import', icon: Database },
       ]
     },
     {
