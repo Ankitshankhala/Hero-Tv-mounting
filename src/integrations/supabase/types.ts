@@ -1123,6 +1123,54 @@ export type Database = {
           },
         ]
       }
+      upload_chunks_metadata: {
+        Row: {
+          assembled_file_path: string | null
+          chunk_index: number
+          chunk_path: string | null
+          created_at: string | null
+          data_type: string | null
+          error_message: string | null
+          id: string
+          progress_current: number | null
+          progress_total: number | null
+          status: string
+          total_chunks: number
+          updated_at: string | null
+          upload_id: string
+        }
+        Insert: {
+          assembled_file_path?: string | null
+          chunk_index: number
+          chunk_path?: string | null
+          created_at?: string | null
+          data_type?: string | null
+          error_message?: string | null
+          id?: string
+          progress_current?: number | null
+          progress_total?: number | null
+          status?: string
+          total_chunks: number
+          updated_at?: string | null
+          upload_id: string
+        }
+        Update: {
+          assembled_file_path?: string | null
+          chunk_index?: number
+          chunk_path?: string | null
+          created_at?: string | null
+          data_type?: string | null
+          error_message?: string | null
+          id?: string
+          progress_current?: number | null
+          progress_total?: number | null
+          status?: string
+          total_chunks?: number
+          updated_at?: string | null
+          upload_id?: string
+        }
+        Relationships: []
+      }
       us_zcta_polygons: {
         Row: {
           created_at: string | null
