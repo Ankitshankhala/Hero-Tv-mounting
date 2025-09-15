@@ -72,12 +72,6 @@ export const AdminSidebar = ({ activeTab, onTabChange }: AdminSidebarProps) => {
       ]
     },
     {
-      label: 'Data Management',
-      items: [
-        { id: 'comprehensive-zip', label: 'ZIP Data Import', icon: Database },
-      ]
-    },
-    {
       label: 'Content & Settings',
       items: [
         { id: 'blog', label: 'Blog', icon: FileText },

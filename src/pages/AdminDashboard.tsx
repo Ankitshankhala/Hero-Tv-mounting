@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { AdminServiceAreaManager } from '@/components/admin/AdminServiceAreaManager';
-import { ZipCodeDataManager } from '@/components/admin/ZipCodeDataManager';
+
 import { WorkerTipTracker } from '@/components/admin/WorkerTipTracker';
 import { 
   Settings, 
@@ -51,7 +51,20 @@ export const AdminDashboard = () => {
         </TabsList>
 
         <TabsContent value="spatial" className="space-y-6">
-          <ZipCodeDataManager />
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Database className="h-5 w-5" />
+                Spatial Data Management
+              </CardTitle>
+              <CardDescription>
+                Spatial data management features have been removed
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">This section is no longer available.</p>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="tips" className="space-y-6">

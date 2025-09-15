@@ -35,7 +35,7 @@ import {
   LazyEnhancedWorkerServiceAreasMapImproved, 
   LazyAdminServiceAreaMap,
   LazyAdminZipCodeManager,
-  LazyZipCodeDataManager,
+  
   withLazyLoading 
 } from './LazyAdminComponents';
 import ServiceAreaMap from '@/components/worker/service-area/ServiceAreaMap';
@@ -722,21 +722,21 @@ export const AdminServiceAreasUnified = () => {
         </div>
       )}
 
-      {/* DATA MANAGEMENT MODE */}
+      {/* DATA MANAGEMENT MODE - REMOVED */}
       {viewMode === 'data' && (
         <div className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Database className="h-5 w-5" />
-                ZIP Code Data Management
+                Data Management
               </CardTitle>
               <CardDescription>
-                Manage comprehensive US ZIP code points and Census Bureau ZCTA polygon data for spatial queries
+                ZIP code data management features have been removed
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <LazyZipCodeDataManager />
+              <p className="text-muted-foreground">This functionality is no longer available.</p>
             </CardContent>
           </Card>
         </div>

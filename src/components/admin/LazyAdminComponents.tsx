@@ -16,9 +16,6 @@ export const LazyAdminZipCodeManager = lazy(
   () => import('./AdminZipCodeManager')
 );
 
-export const LazyZipCodeDataManager = lazy(
-  () => import('./ZipCodeDataManager')
-);
 
 // Loading component for lazy-loaded admin components
 export const AdminComponentLoader = () => (
