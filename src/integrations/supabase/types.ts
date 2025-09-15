@@ -2067,7 +2067,9 @@ export type Database = {
         }[]
       }
       find_zipcodes_intersecting_polygon: {
-        Args: { min_overlap_percent?: number; polygon_coords: Json }
+        Args:
+          | { min_overlap_percent?: number; polygon_coords: Json }
+          | { p_polygon: Json }
         Returns: {
           boundary_geojson: Json
           overlap_percent: number
@@ -2482,6 +2484,14 @@ export type Database = {
         Args: { "": unknown }
         Returns: Json
       }
+      load_sample_zipcode_data: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      load_zcta_polygons_batch: {
+        Args: { p_polygons: Json }
+        Returns: Json
+      }
       longtransactionsenabled: {
         Args: Record<PropertyKey, never>
         Returns: boolean
@@ -2554,7 +2564,7 @@ export type Database = {
         Args:
           | { tbl_oid: unknown; use_typmod?: boolean }
           | { use_typmod?: boolean }
-        Returns: number
+        Returns: string
       }
       postgis_addbbox: {
         Args: { "": unknown }

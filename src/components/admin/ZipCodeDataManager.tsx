@@ -63,12 +63,23 @@ export const ZipCodeDataManager = () => {
 
   const loadProgress = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('load-complete-zipcode-data', {
-        body: { action: 'get_progress' }
+      const { data, error } = await supabase.functions.invoke('enhanced-zipcode-data-loader', {
+        body: { operation: 'health_check' }
       });
 
       if (error) throw error;
-      setProgress(data);
+      
+      const healthData = data.health_data;
+      setProgress({
+        zipcodesLoaded: healthData?.zip_codes?.count || 0,
+        polygonsLoaded: healthData?.zcta_polygons?.count || 0,
+        totalExpectedZipcodes: 41000,
+        totalExpectedPolygons: 33000,
+        completionPercentage: {
+          zipcodes: healthData?.zip_codes?.percentage || 0,
+          polygons: healthData?.zcta_polygons?.percentage || 0
+        }
+      });
     } catch (error) {
       console.error('Failed to load progress:', error);
     }
@@ -76,12 +87,20 @@ export const ZipCodeDataManager = () => {
 
   const runValidation = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('load-complete-zipcode-data', {
-        body: { action: 'validate_data' }
+      const { data, error } = await supabase.functions.invoke('enhanced-zipcode-data-loader', {
+        body: { operation: 'health_check' }
       });
 
       if (error) throw error;
-      setValidation(data);
+      
+      const healthData = data.health_data;
+      setValidation({
+        zipcodesCount: healthData?.zip_codes?.count || 0,
+        zctaPolygonsCount: healthData?.zcta_polygons?.count || 0,
+        spatialTestSuccess: healthData?.postgis_available || false,
+        spatialTestResults: data,
+        recommendedActions: healthData?.recommendations || []
+      });
     } catch (error) {
       console.error('Failed to run validation:', error);
     }
@@ -95,26 +114,30 @@ export const ZipCodeDataManager = () => {
         description: "Starting comprehensive dataset load...",
       });
 
-      const { data, error } = await supabase.functions.invoke('load-complete-zipcode-data', {
+      const { data, error } = await supabase.functions.invoke('enhanced-zipcode-data-loader', {
         body: { 
-          action: 'load_sample_data',
-          testMode: false 
+          operation: 'load_sample_data'
         }
       });
 
       if (error) throw error;
 
-      setLoadResult(data);
+      setLoadResult({
+        success: data.success,
+        zipcodesLoaded: data.result?.inserted_count || 0,
+        polygonsLoaded: 0,
+        errors: data.success ? [] : [data.error || 'Unknown error']
+      });
       
       if (data.success) {
         toast({
           title: "Data Load Successful",
-          description: `Loaded ${data.zipcodesLoaded} ZIP codes and ${data.polygonsLoaded} ZCTA polygons`,
+          description: `Loaded ${data.result?.inserted_count || 0} ZIP codes`,
         });
       } else {
         toast({
-          title: "Data Load Completed with Issues",
-          description: `${data.errors?.length || 0} errors encountered`,
+          title: "Data Load Failed",
+          description: data.error || 'Unknown error occurred',
           variant: "destructive",
         });
       }
@@ -138,11 +161,14 @@ export const ZipCodeDataManager = () => {
   const clearData = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('load-complete-zipcode-data', {
-        body: { action: 'clear_data' }
-      });
+      // Clear data by deleting all records
+      const [zipResult, zctaResult] = await Promise.all([
+        supabase.from('us_zip_codes').delete().neq('zipcode', '__NEVER_MATCH__'),
+        supabase.from('us_zcta_polygons').delete().neq('zcta5ce', '__NEVER_MATCH__')
+      ]);
 
-      if (error) throw error;
+      if (zipResult.error) throw zipResult.error;
+      if (zctaResult.error) throw zctaResult.error;
 
       toast({
         title: "Data Cleared",
