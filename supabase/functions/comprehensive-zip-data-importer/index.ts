@@ -52,56 +52,77 @@ Deno.serve(async (req) => {
 })
 
 async function importCensusZipCodes(supabase: any) {
-  console.log('Starting Census Bureau ZIP codes import...')
-  
   try {
-    // Using comprehensive hardcoded dataset from major ZIP codes
-    const zipCodes = await generateComprehensiveZipCodes()
+    console.log('Starting Kaggle ZIP codes dataset import...');
     
-    console.log(`Processing ${zipCodes.length} ZIP codes...`)
+    // Read the CSV file from the edge function directory
+    const csvPath = new URL('./USZipsWithLatLon_20231227.csv', import.meta.url).pathname;
+    const csvContent = await Deno.readTextFile(csvPath);
     
-    const batchSize = 1000
-    let processed = 0
-    let errors = 0
+    // Parse CSV content
+    const zipCodes = await parseKaggleZipCodes(csvContent);
+    console.log(`Processing ${zipCodes.length} ZIP codes from Kaggle dataset...`);
+    
+    const batchSize = 500; // Increased batch size for better performance
+    const batches = [];
     
     for (let i = 0; i < zipCodes.length; i += batchSize) {
-      const batch = zipCodes.slice(i, i + batchSize)
-      
+      batches.push(zipCodes.slice(i, i + batchSize));
+    }
+    
+    let processedCount = 0;
+    let errorCount = 0;
+    
+    for (let i = 0; i < batches.length; i++) {
+      const batch = batches[i];
       try {
+        console.log(`Processing batch ${i + 1}/${batches.length} (${batch.length} records)...`);
+        
         const { error } = await supabase
           .from('comprehensive_zip_codes')
-          .upsert(batch, { onConflict: 'zipcode' })
+          .upsert(batch, {
+            onConflict: 'zipcode',
+            ignoreDuplicates: false
+          });
         
         if (error) {
-          console.error('Batch insert error:', error)
-          errors += batch.length
+          console.error('Batch insert error:', error);
+          errorCount += batch.length;
         } else {
-          processed += batch.length
-          console.log(`Processed ${processed}/${zipCodes.length} ZIP codes`)
+          processedCount += batch.length;
+          console.log(`Successfully processed ${processedCount} ZIP codes so far...`);
         }
       } catch (batchError) {
-        console.error('Batch processing error:', batchError)
-        errors += batch.length
+        console.error('Batch processing error:', batchError);
+        errorCount += batch.length;
       }
     }
     
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Imported ${processed} ZIP codes with ${errors} errors`,
+        message: `Kaggle ZIP codes import completed`,
+        processed: processedCount,
+        errors: errorCount,
         total: zipCodes.length,
-        processed,
-        errors
+        source: 'kaggle_dataset'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    );
     
   } catch (error) {
-    console.error('Census ZIP import failed:', error)
+    console.error('Import error:', error);
     return new Response(
-      JSON.stringify({ error: 'Failed to import Census ZIP codes: ' + error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+      JSON.stringify({ 
+        success: false, 
+        error: error.message,
+        details: 'Failed to read or process Kaggle ZIP codes dataset'
+      }),
+      { 
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
   }
 }
 
@@ -132,10 +153,10 @@ async function getImportStatus(supabase: any) {
       JSON.stringify({
         zip_codes: zipCount || 0,
         zcta_polygons: polygonCount || 0,
-        estimated_total_zips: 41692,
+        estimated_total_zips: 41484, // Updated to match Kaggle dataset
         estimated_total_polygons: 33120,
         coverage_percentage: {
-          zip_codes: Math.round(((zipCount || 0) / 41692) * 100),
+          zip_codes: Math.round(((zipCount || 0) / 41484) * 100), // Updated to match Kaggle dataset
           polygons: Math.round(((polygonCount || 0) / 33120) * 100)
         }
       }),
@@ -183,49 +204,52 @@ async function validateImportedData(supabase: any) {
   }
 }
 
-// Comprehensive ZIP code dataset (expanded from existing with more major metropolitan areas)
-async function generateComprehensiveZipCodes() {
-  return [
-    // Texas - Major metropolitan areas
-    { zipcode: '75001', city: 'Addison', state: 'Texas', state_abbr: 'TX', latitude: 32.9617, longitude: -96.8292, county: 'Dallas', data_source: 'hardcoded' },
-    { zipcode: '75002', city: 'Allen', state: 'Texas', state_abbr: 'TX', latitude: 33.1031, longitude: -96.6706, county: 'Collin', data_source: 'hardcoded' },
-    { zipcode: '75006', city: 'Carrollton', state: 'Texas', state_abbr: 'TX', latitude: 32.9537, longitude: -96.8903, county: 'Dallas', data_source: 'hardcoded' },
-    { zipcode: '75007', city: 'Carrollton', state: 'Texas', state_abbr: 'TX', latitude: 32.9756, longitude: -96.8897, county: 'Dallas', data_source: 'hardcoded' },
-    { zipcode: '75010', city: 'Carrollton', state: 'Texas', state_abbr: 'TX', latitude: 32.9537, longitude: -96.8903, county: 'Denton', data_source: 'hardcoded' },
-    { zipcode: '75013', city: 'Allen', state: 'Texas', state_abbr: 'TX', latitude: 33.1031, longitude: -96.6706, county: 'Collin', data_source: 'hardcoded' },
-    { zipcode: '75019', city: 'Coppell', state: 'Texas', state_abbr: 'TX', latitude: 32.9546, longitude: -97.0150, county: 'Dallas', data_source: 'hardcoded' },
-    { zipcode: '75020', city: 'Denison', state: 'Texas', state_abbr: 'TX', latitude: 33.7557, longitude: -96.5367, county: 'Grayson', data_source: 'hardcoded' },
-    { zipcode: '75021', city: 'Frisco', state: 'Texas', state_abbr: 'TX', latitude: 33.1507, longitude: -96.8236, county: 'Collin', data_source: 'hardcoded' },
-    { zipcode: '75023', city: 'Plano', state: 'Texas', state_abbr: 'TX', latitude: 33.0198, longitude: -96.6989, county: 'Collin', data_source: 'hardcoded' },
-    { zipcode: '75024', city: 'Plano', state: 'Texas', state_abbr: 'TX', latitude: 33.0937, longitude: -96.8236, county: 'Collin', data_source: 'hardcoded' },
-    { zipcode: '75025', city: 'Plano', state: 'Texas', state_abbr: 'TX', latitude: 33.0198, longitude: -96.6989, county: 'Collin', data_source: 'hardcoded' },
-    { zipcode: '75026', city: 'Plano', state: 'Texas', state_abbr: 'TX', latitude: 33.0937, longitude: -96.8236, county: 'Collin', data_source: 'hardcoded' },
-    { zipcode: '75034', city: 'Frisco', state: 'Texas', state_abbr: 'TX', latitude: 33.1507, longitude: -96.8236, county: 'Collin', data_source: 'hardcoded' },
-    { zipcode: '75035', city: 'Frisco', state: 'Texas', state_abbr: 'TX', latitude: 33.1507, longitude: -96.8236, county: 'Denton', data_source: 'hardcoded' },
-    
-    // California - Major metropolitan areas
-    { zipcode: '90001', city: 'Los Angeles', state: 'California', state_abbr: 'CA', latitude: 33.9731, longitude: -118.2479, county: 'Los Angeles', data_source: 'hardcoded' },
-    { zipcode: '90002', city: 'Los Angeles', state: 'California', state_abbr: 'CA', latitude: 33.9499, longitude: -118.2479, county: 'Los Angeles', data_source: 'hardcoded' },
-    { zipcode: '90003', city: 'Los Angeles', state: 'California', state_abbr: 'CA', latitude: 33.9642, longitude: -118.2729, county: 'Los Angeles', data_source: 'hardcoded' },
-    { zipcode: '90004', city: 'Los Angeles', state: 'California', state_abbr: 'CA', latitude: 34.0769, longitude: -118.2979, county: 'Los Angeles', data_source: 'hardcoded' },
-    { zipcode: '90005', city: 'Los Angeles', state: 'California', state_abbr: 'CA', latitude: 34.0583, longitude: -118.3034, county: 'Los Angeles', data_source: 'hardcoded' },
-    
-    // New York - Major metropolitan areas  
-    { zipcode: '10001', city: 'New York', state: 'New York', state_abbr: 'NY', latitude: 40.7505, longitude: -73.9934, county: 'New York', data_source: 'hardcoded' },
-    { zipcode: '10002', city: 'New York', state: 'New York', state_abbr: 'NY', latitude: 40.7156, longitude: -73.9877, county: 'New York', data_source: 'hardcoded' },
-    { zipcode: '10003', city: 'New York', state: 'New York', state_abbr: 'NY', latitude: 40.7310, longitude: -73.9896, county: 'New York', data_source: 'hardcoded' },
-    { zipcode: '10004', city: 'New York', state: 'New York', state_abbr: 'NY', latitude: 40.6976, longitude: -74.0174, county: 'New York', data_source: 'hardcoded' },
-    { zipcode: '10005', city: 'New York', state: 'New York', state_abbr: 'NY', latitude: 40.7062, longitude: -74.0087, county: 'New York', data_source: 'hardcoded' },
-    
-    // Florida - Major metropolitan areas
-    { zipcode: '33101', city: 'Miami', state: 'Florida', state_abbr: 'FL', latitude: 25.7617, longitude: -80.1918, county: 'Miami-Dade', data_source: 'hardcoded' },
-    { zipcode: '33102', city: 'Miami', state: 'Florida', state_abbr: 'FL', latitude: 25.7617, longitude: -80.1918, county: 'Miami-Dade', data_source: 'hardcoded' },
-    { zipcode: '33109', city: 'Miami Beach', state: 'Florida', state_abbr: 'FL', latitude: 25.7907, longitude: -80.1300, county: 'Miami-Dade', data_source: 'hardcoded' },
-    { zipcode: '33125', city: 'Miami', state: 'Florida', state_abbr: 'FL', latitude: 25.7663, longitude: -80.2377, county: 'Miami-Dade', data_source: 'hardcoded' },
-    { zipcode: '33126', city: 'Miami', state: 'Florida', state_abbr: 'FL', latitude: 25.7354, longitude: -80.3256, county: 'Miami-Dade', data_source: 'hardcoded' },
-    
-    // Continue with more major metropolitan ZIP codes...
-    // This would be expanded to include thousands more from all 50 states
-    // For now, this represents a significant improvement over the existing 5 records
-  ]
+// Parse Kaggle ZIP codes CSV dataset
+async function parseKaggleZipCodes(csvContent: string) {
+  const lines = csvContent.trim().split('\n');
+  const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
+  
+  console.log('CSV Headers:', headers);
+  
+  const zipCodes = [];
+  const errors = [];
+  
+  for (let i = 1; i < lines.length; i++) {
+    try {
+      const values = lines[i].split(',').map(v => v.replace(/"/g, '').trim());
+      
+      // Map CSV fields to our database schema
+      // Expected CSV format: ZIP,LAT,LNG,CITY,STATE_ID,STATE_NAME,ZCTA,PARENT_ZCTA,POPULATION,DENSITY,COUNTY_FIPS,COUNTY_NAME,COUNTY_WEIGHTS,COUNTY_NAMES_ALL,COUNTY_FIPS_ALL,IMPRECISE,MILITARY,TIMEZONE
+      const zipRecord = {
+        zipcode: values[0], // ZIP
+        latitude: parseFloat(values[1]) || null, // LAT
+        longitude: parseFloat(values[2]) || null, // LNG
+        city: values[3] || '', // CITY
+        state_abbr: values[4] || '', // STATE_ID
+        state: values[5] || '', // STATE_NAME
+        population: parseInt(values[8]) || null, // POPULATION
+        timezone: values[17] || null, // TIMEZONE
+        county: values[11] || null, // COUNTY_NAME
+        data_source: 'kaggle_dataset'
+      };
+      
+      // Validate required fields
+      if (zipRecord.zipcode && zipRecord.city && zipRecord.state_abbr && zipRecord.state) {
+        zipCodes.push(zipRecord);
+      } else {
+        errors.push(`Line ${i + 1}: Missing required fields`);
+      }
+      
+    } catch (error) {
+      errors.push(`Line ${i + 1}: Parse error - ${error.message}`);
+    }
+  }
+  
+  if (errors.length > 0) {
+    console.log(`Parsing completed with ${errors.length} errors out of ${lines.length - 1} records`);
+    console.log('Sample errors:', errors.slice(0, 5));
+  }
+  
+  console.log(`Successfully parsed ${zipCodes.length} ZIP codes from Kaggle dataset`);
+  return zipCodes;
 }
