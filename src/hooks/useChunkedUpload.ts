@@ -60,20 +60,24 @@ export const useChunkedUpload = () => {
           
           const formData = new FormData();
           formData.append('chunk', chunk);
-          formData.append('chunkIndex', j.toString());
-          formData.append('totalChunks', totalChunks.toString());
-          formData.append('uploadId', uploadId);
-          formData.append('dataType', dataType);
+          formData.append('metadata', JSON.stringify({
+            chunkId: uploadId,
+            fileName: file.name,
+            totalChunks: totalChunks,
+            chunkIndex: j,
+            fileSize: file.size
+          }));
 
           batch.push(
-            supabase.functions.invoke('storage-chunked-importer', {
-              body: formData,
+            fetch(`https://ggvplltpwsnvtcbpazbe.supabase.co/functions/v1/storage-chunked-importer?operation=upload_chunk`, {
+              method: 'POST',
               headers: {
-                'Content-Type': 'multipart/form-data'
-              }
-            }).then(({ data, error }) => {
-              if (error) throw error;
-              return data;
+                'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdndnBsbHRwd3NudnRjYnBhemJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk1MTU5NjIsImV4cCI6MjA2NTA5MTk2Mn0.cbZ4kBKP7odpP9r1Qrg4G6CA8XdW7vLdKsqr6gE0j_Q'
+              },
+              body: formData
+            }).then(response => {
+              if (!response.ok) throw new Error(`Chunk ${j} upload failed`);
+              return response.json();
             })
           );
         }
@@ -104,11 +108,16 @@ export const useChunkedUpload = () => {
       setUploadProgress(assemblyProgress);
       onProgress?.(assemblyProgress);
 
-      const { data: finalizeData, error: finalizeError } = await supabase.functions.invoke('storage-chunked-importer', {
-        body: { operation: 'finalize_upload', uploadId, dataType }
+      const finalizeResponse = await fetch(`https://ggvplltpwsnvtcbpazbe.supabase.co/functions/v1/storage-chunked-importer?operation=finalize_upload`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdndnBsbHRwd3NudnRjYnBhemJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk1MTU5NjIsImV4cCI6MjA2NTA5MTk2Mn0.cbZ4kBKP7odpP9r1Qrg4G6CA8XdW7vLdKsqr6gE0j_Q'
+        },
+        body: JSON.stringify({ chunkId: uploadId, fileName: file.name })
       });
 
-      if (finalizeError) throw finalizeError;
+      if (!finalizeResponse.ok) throw new Error('Failed to finalize upload');
 
       // Start processing
       const processingProgress = {
@@ -122,11 +131,16 @@ export const useChunkedUpload = () => {
       setUploadProgress(processingProgress);
       onProgress?.(processingProgress);
 
-      const { data: processData, error: processError } = await supabase.functions.invoke('storage-chunked-importer', {
-        body: { operation: 'process_stored_file', uploadId, dataType }
+      const processResponse = await fetch(`https://ggvplltpwsnvtcbpazbe.supabase.co/functions/v1/storage-chunked-importer?operation=process_stored_file`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdndnBsbHRwd3NudnRjYnBhemJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk1MTU5NjIsImV4cCI6MjA2NTA5MTk2Mn0.cbZ4kBKP7odpP9r1Qrg4G6CA8XdW7vLdKsqr6gE0j_Q'
+        },
+        body: JSON.stringify({ uploadId, dataType })
       });
 
-      if (processError) throw processError;
+      if (!processResponse.ok) throw new Error('Failed to start processing');
 
       // Poll for completion
       return await pollUploadProgress(uploadId, onProgress);
@@ -151,11 +165,15 @@ export const useChunkedUpload = () => {
   ): Promise<void> => {
     const poll = async (): Promise<void> => {
       try {
-        const { data, error } = await supabase.functions.invoke('storage-chunked-importer', {
-          body: { operation: 'get_progress', uploadId }
+        const response = await fetch(`https://ggvplltpwsnvtcbpazbe.supabase.co/functions/v1/storage-chunked-importer?operation=get_progress&uploadId=${uploadId}`, {
+          method: 'GET',
+          headers: {
+            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdndnBsbHRwd3NudnRjYnBhemJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk1MTU5NjIsImV4cCI6MjA2NTA5MTk2Mn0.cbZ4kBKP7odpP9r1Qrg4G6CA8XdW7vLdKsqr6gE0j_Q'
+          }
         });
 
-        if (error) throw error;
+        if (!response.ok) throw new Error('Failed to get progress');
+        const data = await response.json();
 
         const progressData = data as UploadProgressResponse;
         

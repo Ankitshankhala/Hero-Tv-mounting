@@ -113,7 +113,7 @@ export const ComprehensiveZipManager = () => {
     clearProgress();
 
     try {
-      if (file.name.endsWith('.geojson') || file.name.endsWith('.json')) {
+      if (file.name.endsWith('.geojson') || file.name.endsWith('.json') || file.name.endsWith('.gojson')) {
         const fileSizeMB = file.size / (1024 * 1024);
         
         // Use chunked upload for files larger than 20MB
