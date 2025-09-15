@@ -172,16 +172,6 @@ async function importZctaPolygons(supabase: any) {
     );
   }
 }
-  
-  return new Response(
-    JSON.stringify({
-      success: false,
-      message: 'ZCTA polygon import requires shapefile processing implementation',
-      note: 'This will be implemented in Phase 2 with proper GIS data handling'
-    }),
-    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-  )
-}
 
 async function getImportStatus(supabase: any) {
   try {
