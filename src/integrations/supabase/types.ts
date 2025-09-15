@@ -2591,7 +2591,7 @@ export type Database = {
         Returns: Json
       }
       load_zcta_polygons_batch: {
-        Args: { p_polygons: Json }
+        Args: { polygon_data?: Json }
         Returns: Json
       }
       longtransactionsenabled: {

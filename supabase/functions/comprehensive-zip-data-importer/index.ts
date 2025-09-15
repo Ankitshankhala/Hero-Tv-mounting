@@ -56,7 +56,7 @@ async function importCensusZipCodes(supabase: any) {
     console.log('Starting Kaggle ZIP codes dataset import...');
     
     // Read the CSV file from the edge function directory
-    const csvPath = new URL('./USZipsWithLatLon_20231227.csv', import.meta.url).pathname;
+    const csvPath = new URL('./USZipsWithLatLon_20231227.csv', import.meta.url);
     const csvContent = await Deno.readTextFile(csvPath);
     
     // Parse CSV content
@@ -127,7 +127,51 @@ async function importCensusZipCodes(supabase: any) {
 }
 
 async function importZctaPolygons(supabase: any) {
-  console.log('ZCTA polygon import not yet implemented - requires shapefile processing')
+  try {
+    console.log('Starting ZCTA polygon import...');
+    
+    // Call the database function to load sample polygons
+    const { data, error } = await supabase.rpc('load_zcta_polygons_batch');
+    
+    if (error) {
+      console.error('ZCTA polygon import error:', error);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: error.message,
+          details: 'Failed to import ZCTA polygons'
+        }),
+        { 
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+    
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: 'ZCTA polygons imported successfully',
+        data: data
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+    
+  } catch (error) {
+    console.error('ZCTA polygon import error:', error);
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: error.message,
+        details: 'Failed to import ZCTA polygons'
+      }),
+      { 
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+  }
+}
   
   return new Response(
     JSON.stringify({
@@ -219,17 +263,17 @@ async function parseKaggleZipCodes(csvContent: string) {
       const values = lines[i].split(',').map(v => v.replace(/"/g, '').trim());
       
       // Map CSV fields to our database schema
-      // Expected CSV format: ZIP,LAT,LNG,CITY,STATE_ID,STATE_NAME,ZCTA,PARENT_ZCTA,POPULATION,DENSITY,COUNTY_FIPS,COUNTY_NAME,COUNTY_WEIGHTS,COUNTY_NAMES_ALL,COUNTY_FIPS_ALL,IMPRECISE,MILITARY,TIMEZONE
+      // Actual CSV format: country code,postal code,place name,admin name1,admin code1,admin name2,admin code2,latitude,longitude
       const zipRecord = {
-        zipcode: values[0], // ZIP
-        latitude: parseFloat(values[1]) || null, // LAT
-        longitude: parseFloat(values[2]) || null, // LNG
-        city: values[3] || '', // CITY
-        state_abbr: values[4] || '', // STATE_ID
-        state: values[5] || '', // STATE_NAME
-        population: parseInt(values[8]) || null, // POPULATION
-        timezone: values[17] || null, // TIMEZONE
-        county: values[11] || null, // COUNTY_NAME
+        zipcode: values[1], // postal code
+        latitude: parseFloat(values[7]) || null, // latitude
+        longitude: parseFloat(values[8]) || null, // longitude
+        city: values[2] || '', // place name
+        state_abbr: values[4] || '', // admin code1
+        state: values[3] || '', // admin name1
+        population: null, // not available in this dataset
+        timezone: null, // not available in this dataset
+        county: values[5] || null, // admin name2
         data_source: 'kaggle_dataset'
       };
       
