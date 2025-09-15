@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
   try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
     const { operation, data_source = 'census' } = await req.json()
@@ -120,23 +120,23 @@ async function importZctaPolygons(supabase: any) {
 
 async function getImportStatus(supabase: any) {
   try {
-    const { data: zipCount } = await supabase
+    const { count: zipCount } = await supabase
       .from('comprehensive_zip_codes')
-      .select('zipcode', { count: 'exact', head: true })
+      .select('*', { count: 'exact', head: true })
     
-    const { data: polygonCount } = await supabase
+    const { count: polygonCount } = await supabase
       .from('comprehensive_zcta_polygons')
-      .select('zcta5ce', { count: 'exact', head: true })
+      .select('*', { count: 'exact', head: true })
     
     return new Response(
       JSON.stringify({
-        zip_codes: zipCount?.length || 0,
-        zcta_polygons: polygonCount?.length || 0,
+        zip_codes: zipCount || 0,
+        zcta_polygons: polygonCount || 0,
         estimated_total_zips: 41692,
         estimated_total_polygons: 33120,
         coverage_percentage: {
-          zip_codes: Math.round(((zipCount?.length || 0) / 41692) * 100),
-          polygons: Math.round(((polygonCount?.length || 0) / 33120) * 100)
+          zip_codes: Math.round(((zipCount || 0) / 41692) * 100),
+          polygons: Math.round(((polygonCount || 0) / 33120) * 100)
         }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
