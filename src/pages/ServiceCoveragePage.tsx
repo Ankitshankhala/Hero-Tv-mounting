@@ -1,5 +1,5 @@
 import React from 'react';
-import { ServiceCoverageMapEnhanced } from '@/components/ServiceCoverageMapEnhanced';
+import { ServiceCoverageMapWithBoundaries } from '@/components/ServiceCoverageMapWithBoundaries';
 import { useNavigate } from 'react-router-dom';
 
 export const ServiceCoveragePage = () => {
@@ -23,9 +23,8 @@ export const ServiceCoveragePage = () => {
             </p>
           </div>
 
-          <ServiceCoverageMapEnhanced 
+          <ServiceCoverageMapWithBoundaries 
             onBookingRequested={handleBookingRequested}
-            showZipBoundaries={true}
             className="max-w-2xl mx-auto"
           />
 
