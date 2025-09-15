@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
+import { useChunkedUpload } from '@/hooks/useChunkedUpload';
 import { Download, Database, MapPin, CheckCircle, AlertCircle, Loader2, Upload } from 'lucide-react';
 
 interface ImportStatus {
@@ -36,6 +37,7 @@ export const ComprehensiveZipManager = () => {
   const [loading, setLoading] = useState(true);
   const [uploadingFile, setUploadingFile] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { uploadProgress, uploadLargeFile, clearProgress } = useChunkedUpload();
 
   useEffect(() => {
     loadImportStatus();
@@ -108,27 +110,54 @@ export const ComprehensiveZipManager = () => {
 
     setUploadingFile(true);
     setImportResult(null);
+    clearProgress();
 
     try {
-      // For GeoJSON files, read and parse directly
       if (file.name.endsWith('.geojson') || file.name.endsWith('.json')) {
-        const fileContent = await file.text();
-        const geoJsonData = JSON.parse(fileContent);
+        const fileSizeMB = file.size / (1024 * 1024);
+        
+        // Use chunked upload for files larger than 20MB
+        if (fileSizeMB > 20) {
+          setImportResult({
+            success: true,
+            message: `Large file detected (${fileSizeMB.toFixed(1)}MB). Using chunked upload...`
+          });
 
-        const { data, error } = await supabase.functions.invoke('comprehensive-zip-data-importer', {
-          body: { 
-            operation: 'import_zcta_polygons',
-            shapefile_data: geoJsonData
-          }
-        });
+          await uploadLargeFile(file, 'zcta_polygons', (progress) => {
+            // Progress updates are handled by the hook
+            if (progress.completed) {
+              setImportResult({
+                success: true,
+                message: 'File uploaded and processed successfully!'
+              });
+              loadImportStatus();
+            } else if (progress.error) {
+              setImportResult({
+                success: false,
+                message: 'Upload failed: ' + progress.error
+              });
+            }
+          });
+        } else {
+          // Direct upload for smaller files
+          const fileContent = await file.text();
+          const geoJsonData = JSON.parse(fileContent);
 
-        if (error) throw error;
-        setImportResult(data);
-        await loadImportStatus();
+          const { data, error } = await supabase.functions.invoke('comprehensive-zip-data-importer', {
+            body: { 
+              operation: 'import_zcta_polygons',
+              shapefile_data: geoJsonData
+            }
+          });
+
+          if (error) throw error;
+          setImportResult(data);
+          await loadImportStatus();
+        }
       } else {
         setImportResult({
           success: false,
-          message: 'Please upload a GeoJSON file (.geojson or .json). Shapefile support coming soon.'
+          message: 'Please upload a GeoJSON file (.geojson or .json).'
         });
       }
     } catch (error) {
@@ -139,7 +168,6 @@ export const ComprehensiveZipManager = () => {
       });
     } finally {
       setUploadingFile(false);
-      // Reset the file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -323,7 +351,7 @@ export const ComprehensiveZipManager = () => {
                     <div>
                       <h4 className="font-medium">Upload Shapefile Data</h4>
                       <p className="text-sm text-muted-foreground">
-                        Upload your 801MB ZCTA shapefile as GeoJSON format
+                        Upload GeoJSON files of any size (including your 42MB file)
                       </p>
                     </div>
                     <div className="flex items-center space-x-2">
@@ -332,18 +360,20 @@ export const ComprehensiveZipManager = () => {
                         type="file"
                         accept=".geojson,.json"
                         onChange={handleFileUpload}
-                        disabled={uploadingFile || isImporting}
+                        disabled={uploadingFile || isImporting || (uploadProgress && !uploadProgress.completed)}
                         className="hidden"
                       />
                       <Button
                         onClick={() => fileInputRef.current?.click()}
-                        disabled={uploadingFile || isImporting}
+                        disabled={uploadingFile || isImporting || (uploadProgress && !uploadProgress.completed)}
                         variant="default"
                       >
-                        {uploadingFile ? (
+                        {uploadingFile || uploadProgress ? (
                           <>
                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Processing...
+                            {uploadProgress?.isUploading ? 'Uploading...' : 
+                             uploadProgress?.isAssembling ? 'Assembling...' :
+                             uploadProgress?.isProcessing ? 'Processing...' : 'Processing...'}
                           </>
                         ) : (
                           <>
@@ -354,11 +384,35 @@ export const ComprehensiveZipManager = () => {
                       </Button>
                     </div>
                   </div>
+
+                  {/* Progress visualization for chunked uploads */}
+                  {uploadProgress && (
+                    <div className="mt-4 space-y-3">
+                      <div className="flex items-center justify-between text-sm">
+                        <span>
+                          {uploadProgress.isUploading && `Uploading chunks (${uploadProgress.chunksUploaded}/${uploadProgress.totalChunks})`}
+                          {uploadProgress.isAssembling && 'Assembling file...'}
+                          {uploadProgress.isProcessing && 'Processing data...'}
+                          {uploadProgress.completed && 'Upload completed!'}
+                          {uploadProgress.error && 'Upload failed'}
+                        </span>
+                        <span className="font-mono">{uploadProgress.progress.toFixed(1)}%</span>
+                      </div>
+                      <Progress value={uploadProgress.progress} className="h-2" />
+                      {uploadProgress.error && (
+                        <Alert variant="destructive">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertDescription>{uploadProgress.error}</AlertDescription>
+                        </Alert>
+                      )}
+                    </div>
+                  )}
+
                   <Alert className="mt-2">
-                    <AlertCircle className="h-4 w-4" />
+                    <CheckCircle className="h-4 w-4" />
                     <AlertDescription>
-                      Convert your shapefile to GeoJSON format using QGIS or online tools before uploading.
-                      For the 801MB file, consider splitting into smaller chunks if needed.
+                      Files over 20MB will automatically use chunked upload for reliable transfer.
+                      Your 42MB GeoJSON file is fully supported!
                     </AlertDescription>
                   </Alert>
                 </div>
