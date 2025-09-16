@@ -2639,7 +2639,7 @@ export type Database = {
         Returns: Json
       }
       load_zcta_polygons_batch: {
-        Args: { polygon_data?: Json }
+        Args: { batch_data: Json }
         Returns: Json
       }
       load_zcta_polygons_from_data: {
