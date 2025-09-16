@@ -55,3 +55,6 @@ verify_jwt = false
 
 [functions.storage-chunked-importer]
 verify_jwt = false
+
+[functions.service-area-upsert]
+verify_jwt = false
