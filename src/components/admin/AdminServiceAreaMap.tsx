@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAdminServiceAreas } from '@/hooks/useAdminServiceAreas';
 import { PolygonValidator } from './PolygonValidator';
+import { useClientSpatialOperations } from '@/utils/clientSpatialOperations';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
@@ -73,6 +74,7 @@ const AdminServiceAreaMap = ({
     deleteWorkerServiceArea,
     refreshData 
   } = useAdminServiceAreas();
+  const spatialOps = useClientSpatialOperations();
 
   // Initialize map with enhanced debugging
   useEffect(() => {
@@ -316,26 +318,31 @@ const AdminServiceAreaMap = ({
     setSaving(true);
     
     try {
-      // Use the new simplified draw-area-save edge function
+      // Use client-side spatial operations to get ZIP codes first
+      console.log('🗺️ Computing ZIP codes using client-side ZCTA data...');
+      const zipCodes = await spatialOps.getZipcodesFromPolygon(currentPolygon, {
+        includePartial: true,
+        minIntersectionRatio: 0.1
+      });
+
+      console.log(`✅ Found ${zipCodes.length} ZIP codes using client-side operations`);
+
+      // Prepare data for edge function
       const saveData = {
         workerId,
         areaName: areaSelectionMode === 'new' ? areaName : selectedExistingArea?.area_name,
         polygon: currentPolygon,
+        zipCodes, // Include pre-computed ZIP codes
         mode: areaSelectionMode === 'existing' ? 'update' : 'create',
         ...(areaSelectionMode === 'existing' && selectedExistingArea && {
           areaIdToUpdate: selectedExistingArea.id
         })
       };
 
-      console.log('📡 Calling draw-area-save edge function with:', saveData);
+      console.log('📡 Calling service-area-upsert edge function with:', saveData);
 
-      const { data, error } = await supabase.functions.invoke('unified-spatial-operations', {
-        body: {
-          operation: 'draw-area-save',
-          data: saveData,
-          workerId,
-          overlapThreshold: 2 // Default 2% overlap threshold
-        }
+      const { data, error } = await supabase.functions.invoke('service-area-upsert', {
+        body: saveData
       });
 
       console.log('📡 Edge function response:', { data, error });
@@ -352,10 +359,9 @@ const AdminServiceAreaMap = ({
 
       console.log('✅ Save successful:', data);
 
-      const zipCount = data.zipCodeCount || 0;
       toast({
         title: "Success",
-        description: `${data.message || `${areaSelectionMode === 'existing' ? 'Updated' : 'Created'} service area successfully`}. Computed ${zipCount} ZIP codes using the full US dataset.`,
+        description: `${data.message || `${areaSelectionMode === 'existing' ? 'Updated' : 'Created'} service area successfully`}. Computed ${zipCodes.length} ZIP codes using complete ZCTA dataset.`,
       });
 
       // Clear current polygon and refresh

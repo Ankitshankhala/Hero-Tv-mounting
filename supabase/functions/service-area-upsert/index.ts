@@ -30,10 +30,12 @@ serve(async (req) => {
       hasWorkerId: !!requestBody.workerId,
       hasPolygon: !!requestBody.polygon,
       polygonLength: requestBody.polygon?.length,
+      hasZipCodes: !!requestBody.zipCodes,
+      zipCodeCount: requestBody.zipCodes?.length,
       mode: requestBody.mode
     });
 
-    const { workerId, polygon, areaIdToUpdate, areaName, mode } = requestBody;
+    const { workerId, polygon, areaIdToUpdate, areaName, mode, zipCodes: preComputedZipCodes } = requestBody;
 
     if (!workerId || !polygon || !Array.isArray(polygon) || polygon.length < 3) {
       throw new Error('Invalid request: workerId, polygon (min 3 points) are required');
@@ -97,70 +99,74 @@ serve(async (req) => {
       operation = 'created';
     }
 
-    // Now compute ZIP codes using the enhanced function
-    logStep('Computing ZIP codes for service area', serviceAreaResult.id);
-    
-    let zipResult;
+    // Use pre-computed ZIP codes if provided, otherwise compute them
     let zipcodes: string[] = [];
     let skippedCount = 0;
     
-    try {
-      const { data: computeResult, error: zipError } = await supabase
-        .rpc('compute_zipcodes_for_service_area', {
-          p_service_area_id: serviceAreaResult.id
-        });
-
-      if (zipError) {
-        logStep('ZIP code computation failed with RPC, trying fallback', zipError.message);
-        
-        // Fallback: Use enhanced polygon-to-ZIP computation directly
-        const { data: polygonResult, error: polygonError } = await supabase
-          .rpc('compute_zipcodes_for_polygon', {
-            p_polygon_coords: geoJsonPolygon
+    if (preComputedZipCodes && Array.isArray(preComputedZipCodes) && preComputedZipCodes.length > 0) {
+      zipcodes = preComputedZipCodes;
+      logStep('Using pre-computed ZIP codes from client', { count: zipcodes.length });
+    } else {
+      logStep('Computing ZIP codes for service area', serviceAreaResult.id);
+      
+      try {
+        const { data: computeResult, error: zipError } = await supabase
+          .rpc('compute_zipcodes_for_service_area', {
+            p_service_area_id: serviceAreaResult.id
           });
+
+        if (zipError) {
+          logStep('ZIP code computation failed with RPC, trying fallback', zipError.message);
           
-        if (polygonError) {
-          logStep('Polygon ZIP computation also failed, using basic fallback', polygonError.message);
-          
-          // Super fallback: Check comprehensive_zip_codes with bounding box
-          const bounds = calculateBounds(polygon);
-          const { data: fallbackZips, error: fallbackError } = await supabase
-            .from('comprehensive_zip_codes')
-            .select('zipcode')
-            .gte('latitude', bounds.south)
-            .lte('latitude', bounds.north)
-            .gte('longitude', bounds.west)
-            .lte('longitude', bounds.east);
+          // Fallback: Use enhanced polygon-to-ZIP computation directly
+          const { data: polygonResult, error: polygonError } = await supabase
+            .rpc('compute_zipcodes_for_polygon', {
+              p_polygon_coords: geoJsonPolygon
+            });
             
-          if (!fallbackError && fallbackZips) {
-            zipcodes = fallbackZips.map(z => z.zipcode);
-            logStep('Used bounding box fallback', { count: zipcodes.length });
+          if (polygonError) {
+            logStep('Polygon ZIP computation also failed, using basic fallback', polygonError.message);
+            
+            // Super fallback: Check comprehensive_zip_codes with bounding box
+            const bounds = calculateBounds(polygon);
+            const { data: fallbackZips, error: fallbackError } = await supabase
+              .from('comprehensive_zip_codes')
+              .select('zipcode')
+              .gte('latitude', bounds.south)
+              .lte('latitude', bounds.north)
+              .gte('longitude', bounds.west)
+              .lte('longitude', bounds.east);
+              
+            if (!fallbackError && fallbackZips) {
+              zipcodes = fallbackZips.map(z => z.zipcode);
+              logStep('Used bounding box fallback', { count: zipcodes.length });
+            }
+          } else {
+            zipcodes = polygonResult || [];
           }
         } else {
-          zipcodes = polygonResult || [];
+          const zipResult = computeResult;
+          zipcodes = zipResult?.zipcodes || [];
+          logStep('ZIP computation successful via RPC', { count: zipcodes.length });
         }
-      } else {
-        zipResult = computeResult;
-        zipcodes = zipResult?.zipcodes || [];
-        logStep('ZIP computation successful via RPC', { count: zipcodes.length });
-      }
-    } catch (computeError) {
-      logStep('All ZIP computation methods failed', computeError);
-      
-      // Final fallback: generate some reasonable ZIPs based on the polygon center
-      const center = calculateCenter(polygon);
-      logStep('Using center-based ZIP lookup as final fallback', center);
-      
-      // Try to find ZIPs near the center point
-      const { data: nearbyZips, error: nearbyError } = await supabase
-        .from('comprehensive_zip_codes')
-        .select('zipcode')
-        .order(`((latitude - ${center.lat})^2 + (longitude - ${center.lng})^2)`)
-        .limit(10);
+      } catch (computeError) {
+        logStep('All ZIP computation methods failed', computeError);
         
-      if (!nearbyError && nearbyZips) {
-        zipcodes = nearbyZips.map(z => z.zipcode);
-        logStep('Used center-based fallback', { count: zipcodes.length, center });
+        // Final fallback: generate some reasonable ZIPs based on the polygon center
+        const center = calculateCenter(polygon);
+        logStep('Using center-based ZIP lookup as final fallback', center);
+        
+        // Try to find ZIPs near the center point
+        const { data: nearbyZips, error: nearbyError } = await supabase
+          .from('comprehensive_zip_codes')
+          .select('zipcode')
+          .order(`((latitude - ${center.lat})^2 + (longitude - ${center.lng})^2)`)
+          .limit(10);
+          
+        if (!nearbyError && nearbyZips) {
+          zipcodes = nearbyZips.map(z => z.zipcode);
+          logStep('Used center-based fallback', { count: zipcodes.length, center });
+        }
       }
     }
 
@@ -182,6 +188,38 @@ serve(async (req) => {
         new: zipcodes.length,
         skipped: skippedCount
       });
+    }
+
+    // Store ZIP codes in worker_service_zipcodes table
+    if (zipcodes.length > 0) {
+      logStep('Storing ZIP codes in database', { count: zipcodes.length });
+      
+      // Clear existing ZIP codes for this service area (if updating)
+      await supabase
+        .from('worker_service_zipcodes')
+        .delete()
+        .eq('service_area_id', serviceAreaResult.id);
+      
+      // Insert new ZIP codes in batches
+      const batchSize = 100;
+      for (let i = 0; i < zipcodes.length; i += batchSize) {
+        const batch = zipcodes.slice(i, i + batchSize);
+        const zipInserts = batch.map(zipcode => ({
+          worker_id: workerId,
+          service_area_id: serviceAreaResult.id,
+          zipcode: zipcode
+        }));
+        
+        const { error: zipInsertError } = await supabase
+          .from('worker_service_zipcodes')
+          .insert(zipInserts);
+          
+        if (zipInsertError) {
+          logStep('Failed to insert ZIP batch', { batch: i/batchSize + 1, error: zipInsertError.message });
+        }
+      }
+      
+      logStep('ZIP codes stored successfully', { total: zipcodes.length });
     }
 
     const executionTime = performance.now() - startTime;
