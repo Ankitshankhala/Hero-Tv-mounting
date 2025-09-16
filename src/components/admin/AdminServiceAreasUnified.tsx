@@ -157,13 +157,18 @@ export const AdminServiceAreasUnified = () => {
             continue;
           }
 
-          // Call the database function
-          const { error } = await supabase.rpc('load_zcta_polygons_batch', {
+          // Call the database function with enhanced logging
+          console.log(`Loading batch ${batchIndex} with ${transformedBatch.length} items`);
+          console.log('First item in batch:', transformedBatch[0]);
+          
+          const { data: batchResult, error } = await supabase.rpc('load_zcta_polygons_batch', {
             batch_data: transformedBatch
           });
 
           if (error) {
             console.error(`Batch ${batchIndex} failed:`, error);
+            console.error('Error details:', error.details, error.hint);
+            console.error('Failed batch data sample:', transformedBatch.slice(0, 3));
             failedBatches++;
             
             // Show warning for individual batch failure but continue
@@ -173,6 +178,8 @@ export const AdminServiceAreasUnified = () => {
               variant: "destructive",
             });
           } else {
+            console.log(`Batch ${batchIndex} result:`, batchResult);
+            console.log(`Batch ${batchIndex} loaded successfully with ${transformedBatch.length} items`);
             successfulBatches++;
           }
 
@@ -207,12 +214,15 @@ export const AdminServiceAreasUnified = () => {
       // Refresh spatial health check if any batches were successful
       if (successfulBatches > 0) {
         setTimeout(() => {
-          supabase.rpc('check_spatial_health').then(({ data }) => {
-            if (data) {
+          supabase.rpc('check_spatial_health').then(({ data, error }) => {
+            if (error) {
+              console.error('Health check error after loading:', error);
+            } else if (data) {
+              console.log('Health check data after loading:', data);
               const healthData = data as any;
               toast({
                 title: "Updated Spatial Health",
-                description: `ZCTA polygons: ${healthData.zcta_polygon_count || 0}`,
+                description: `ZCTA polygons: ${healthData.zcta_polygons?.count || 0} | ZIP codes: ${healthData.zip_codes?.count || 0}`,
               });
             }
           });
@@ -524,16 +534,23 @@ export const AdminServiceAreasUnified = () => {
             onClick={() => {
               supabase.rpc('check_spatial_health').then(({ data, error }) => {
                 if (error) {
+                  console.error('Health check error:', error);
                   toast({
                     title: "Health Check Failed",
                     description: error.message,
                     variant: "destructive",
                   });
                 } else {
+                  console.log('Health check raw data:', data);
                   const healthData = data as any;
+                  const zctaCount = healthData?.zcta_polygons?.count || 0;
+                  const zipCount = healthData?.zip_codes?.count || 0;
+                  const sampleCount = healthData?.sample_test_zipcode_count || 0;
+                  console.log('Parsed counts:', { zctaCount, zipCount, sampleCount });
+                  
                   toast({
                     title: "Spatial Health Check",
-                    description: `Status: ${healthData?.overall_health || 'unknown'} | ZIP polygons: ${healthData?.zcta_polygon_count || 0} | ZIP codes: ${healthData?.zip_code_count || 0} | Sample test: ${healthData?.sample_test_zipcode_count || 0} ZIPs`,
+                    description: `Status: ${healthData?.overall_health || 'unknown'} | ZCTA polygons: ${zctaCount} | ZIP codes: ${zipCount} | Sample test: ${sampleCount} ZIPs`,
                   });
                 }
               });
