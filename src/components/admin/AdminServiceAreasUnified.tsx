@@ -159,7 +159,7 @@ export const AdminServiceAreasUnified = () => {
 
           // Call the database function
           const { error } = await supabase.rpc('load_zcta_polygons_batch', {
-            polygon_data: transformedBatch
+            batch_data: transformedBatch
           });
 
           if (error) {
