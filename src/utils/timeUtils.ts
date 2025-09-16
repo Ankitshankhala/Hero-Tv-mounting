@@ -140,6 +140,28 @@ export const isValidTimezone = (timezone: string): boolean => {
 };
 
 /**
+ * Constructs a timestamp from date and time components
+ */
+const constructTimestamp = (date: string, time: string, timezone?: string): Date | null => {
+  try {
+    if (!date || !time) return null;
+    
+    const dateTimeString = `${date}T${time}`;
+    
+    if (timezone) {
+      // Convert from service timezone to UTC
+      return fromZonedTime(dateTimeString, timezone);
+    } else {
+      // Treat as local time and convert to UTC
+      return fromZonedTime(dateTimeString, DEFAULT_SERVICE_TIMEZONE);
+    }
+  } catch (error) {
+    console.warn('Failed to construct timestamp:', { date, time, timezone, error });
+    return null;
+  }
+};
+
+/**
  * Formats booking times based on context (customer, worker, admin)
  */
 export const formatBookingTimeForContext = (
@@ -149,36 +171,77 @@ export const formatBookingTimeForContext = (
 ): string => {
   const timezone = viewerTimezone || getUserTimezone();
   
-  // Handle different ways booking times might be stored
-  const timestamp = booking.scheduledDateTime || booking.scheduled_date_time || booking.dateTime;
+  // Try multiple ways to get the booking timestamp with proper fallback hierarchy
+  let timestamp: Date | string | null = null;
+  
+  // Primary: Use start_time_utc (most accurate UTC timestamp)
+  if (booking.start_time_utc) {
+    timestamp = booking.start_time_utc;
+  }
+  // Fallback: Construct from scheduled_date + scheduled_start (legacy fields)
+  else if (booking.scheduled_date && booking.scheduled_start) {
+    timestamp = constructTimestamp(
+      booking.scheduled_date, 
+      booking.scheduled_start, 
+      booking.service_tz || DEFAULT_SERVICE_TIMEZONE
+    );
+  }
+  // Alternative: Use local_service_date + local_service_time with service_tz
+  else if (booking.local_service_date && booking.local_service_time) {
+    timestamp = constructTimestamp(
+      booking.local_service_date,
+      booking.local_service_time,
+      booking.service_tz || DEFAULT_SERVICE_TIMEZONE
+    );
+  }
+  // Legacy fallback: Check old field names that might still exist
+  else if (booking.scheduledDateTime || booking.scheduled_date_time || booking.dateTime) {
+    timestamp = booking.scheduledDateTime || booking.scheduled_date_time || booking.dateTime;
+  }
   
   if (!timestamp) {
+    console.warn('No valid timestamp found for booking:', {
+      bookingId: booking.id,
+      availableFields: Object.keys(booking).filter(key => 
+        key.includes('date') || key.includes('time') || key.includes('Time')
+      )
+    });
     return 'No time set';
   }
 
-  switch (context) {
-    case 'customer':
-      return formatBookingTime(timestamp, timezone, {
-        showDate: true,
-        showTime: true,
-        showTimezone: true
-      });
-    
-    case 'worker':
-      return formatBookingTime(timestamp, timezone, {
-        showDate: true,
-        showTime: true,
-        showTimezone: false
-      });
-    
-    case 'admin':
-      return formatBookingTime(timestamp, DEFAULT_SERVICE_TIMEZONE, {
-        showDate: true,
-        showTime: true,
-        showTimezone: true
-      });
-    
-    default:
-      return formatBookingTime(timestamp, timezone);
+  try {
+    switch (context) {
+      case 'customer':
+        return formatBookingTime(timestamp, timezone, {
+          showDate: true,
+          showTime: true,
+          showTimezone: true
+        });
+      
+      case 'worker':
+        return formatBookingTime(timestamp, timezone, {
+          showDate: true,
+          showTime: true,
+          showTimezone: false
+        });
+      
+      case 'admin':
+        return formatBookingTime(timestamp, DEFAULT_SERVICE_TIMEZONE, {
+          showDate: true,
+          showTime: true,
+          showTimezone: true
+        });
+      
+      default:
+        return formatBookingTime(timestamp, timezone);
+    }
+  } catch (error) {
+    console.error('Error formatting booking time:', {
+      bookingId: booking.id,
+      timestamp,
+      context,
+      error
+    });
+    return 'Invalid time format';
   }
 };
