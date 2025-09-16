@@ -146,11 +146,11 @@ export const AdminServiceAreasUnified = () => {
         try {
           // Transform features to match database schema
           const transformedBatch = batch.map((feature: any) => ({
-            zcta5ce: feature.properties?.ZCTA5CE20 || feature.properties?.ZCTA5CE || '',
+            ZCTA5CE20: feature.properties?.ZCTA5CE20 || feature.properties?.ZCTA5CE || feature.properties?.zcta5ce || '',
             geom: feature.geometry,
-            land_area: feature.properties?.ALAND20 || feature.properties?.ALAND || 0,
-            water_area: feature.properties?.AWATER20 || feature.properties?.AWATER || 0
-          })).filter(item => item.zcta5ce); // Filter out items without ZIP codes
+            ALAND20: feature.properties?.ALAND20 ?? feature.properties?.ALAND ?? 0,
+            AWATER20: feature.properties?.AWATER20 ?? feature.properties?.AWATER ?? 0
+          })).filter(item => item.ZCTA5CE20); // Filter out items without ZIP codes
 
           if (transformedBatch.length === 0) {
             console.warn(`Batch ${batchIndex} has no valid ZIP codes, skipping`);
