@@ -2067,11 +2067,15 @@ export type Database = {
         Returns: boolean
       }
       compute_zipcodes_for_polygon: {
-        Args: { min_overlap_percent?: number; polygon_geojson: Json }
+        Args:
+          | { min_overlap_percent?: number; polygon_geojson: Json }
+          | { p_polygon_coords: Json }
         Returns: string[]
       }
       compute_zipcodes_for_service_area: {
-        Args: { min_overlap_percent?: number; service_area_id: string }
+        Args:
+          | { min_overlap_percent?: number; service_area_id: string }
+          | { p_service_area_id: string }
         Returns: string[]
       }
       create_service_area_audit_log: {
@@ -4046,6 +4050,10 @@ export type Database = {
       zip_has_active_coverage_by_zip: {
         Args: { p_zipcode: string }
         Returns: boolean
+      }
+      zipcodes_intersecting_polygon: {
+        Args: { polygon_coords: Json }
+        Returns: string[]
       }
       zipcodes_intersecting_polygon_geojson: {
         Args: { min_overlap_percent?: number; polygon_geojson: Json }
