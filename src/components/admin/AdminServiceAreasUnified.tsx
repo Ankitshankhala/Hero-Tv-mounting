@@ -82,6 +82,10 @@ export const AdminServiceAreasUnified = () => {
   const [activeTab, setActiveTab] = useState<'coverage' | 'map' | 'zips' | 'audit'>('coverage');
   const [initialLoaded, setInitialLoaded] = useState(false);
 
+  // ZCTA loading states
+  const [isLoadingZcta, setIsLoadingZcta] = useState(false);
+  const [zctaProgress, setZctaProgress] = useState({ current: 0, total: 0 });
+
   const {
     workers: adminWorkers,
     auditLogs,
@@ -95,6 +99,138 @@ export const AdminServiceAreasUnified = () => {
   } = useAdminServiceAreas();
   const workers = adminWorkers as CoverageWorker[];
   const { toast } = useToast();
+
+  // Load ZCTA Data Function
+  const loadZctaData = async () => {
+    if (isLoadingZcta) return;
+    
+    setIsLoadingZcta(true);
+    setZctaProgress({ current: 0, total: 0 });
+    
+    try {
+      toast({
+        title: "Loading ZCTA Data",
+        description: "Fetching ZIP code boundary data...",
+      });
+
+      // Fetch the GeoJSON file
+      const response = await fetch('/zcta2020_web.geojson');
+      if (!response.ok) {
+        throw new Error(`Failed to fetch GeoJSON: ${response.statusText}`);
+      }
+
+      const geojsonData = await response.json();
+      const features = geojsonData.features || [];
+      
+      if (features.length === 0) {
+        throw new Error('No features found in GeoJSON file');
+      }
+
+      // Process in batches of 50
+      const batchSize = 50;
+      const totalBatches = Math.ceil(features.length / batchSize);
+      setZctaProgress({ current: 0, total: totalBatches });
+
+      toast({
+        title: "Processing ZCTA Data",
+        description: `Processing ${features.length} ZIP code boundaries in ${totalBatches} batches...`,
+      });
+
+      let successfulBatches = 0;
+      let failedBatches = 0;
+
+      for (let i = 0; i < features.length; i += batchSize) {
+        const batch = features.slice(i, i + batchSize);
+        const batchIndex = Math.floor(i / batchSize) + 1;
+        
+        try {
+          // Transform features to match database schema
+          const transformedBatch = batch.map((feature: any) => ({
+            zcta5ce: feature.properties?.ZCTA5CE20 || feature.properties?.ZCTA5CE || '',
+            geom: feature.geometry,
+            land_area: feature.properties?.ALAND20 || feature.properties?.ALAND || 0,
+            water_area: feature.properties?.AWATER20 || feature.properties?.AWATER || 0
+          })).filter(item => item.zcta5ce); // Filter out items without ZIP codes
+
+          if (transformedBatch.length === 0) {
+            console.warn(`Batch ${batchIndex} has no valid ZIP codes, skipping`);
+            continue;
+          }
+
+          // Call the database function
+          const { error } = await supabase.rpc('load_zcta_polygons_batch', {
+            polygon_data: transformedBatch
+          });
+
+          if (error) {
+            console.error(`Batch ${batchIndex} failed:`, error);
+            failedBatches++;
+            
+            // Show warning for individual batch failure but continue
+            toast({
+              title: "Batch Warning",
+              description: `Batch ${batchIndex}/${totalBatches} failed: ${error.message}`,
+              variant: "destructive",
+            });
+          } else {
+            successfulBatches++;
+          }
+
+        } catch (batchError) {
+          console.error(`Batch ${batchIndex} processing error:`, batchError);
+          failedBatches++;
+        }
+
+        // Update progress
+        setZctaProgress({ current: batchIndex, total: totalBatches });
+
+        // Show progress every 20 batches or on completion
+        if (batchIndex % 20 === 0 || batchIndex === totalBatches) {
+          toast({
+            title: "Loading Progress",
+            description: `Processed ${batchIndex}/${totalBatches} batches (${successfulBatches} successful, ${failedBatches} failed)`,
+          });
+        }
+
+        // Small delay to prevent overwhelming the database
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      // Final result
+      const totalProcessed = successfulBatches + failedBatches;
+      toast({
+        title: "ZCTA Data Loading Complete",
+        description: `Finished: ${successfulBatches}/${totalProcessed} batches successful. ${successfulBatches * batchSize} ZIP boundaries loaded.`,
+        variant: successfulBatches > 0 ? "default" : "destructive",
+      });
+
+      // Refresh spatial health check if any batches were successful
+      if (successfulBatches > 0) {
+        setTimeout(() => {
+          supabase.rpc('check_spatial_health').then(({ data }) => {
+            if (data) {
+              const healthData = data as any;
+              toast({
+                title: "Updated Spatial Health",
+                description: `ZCTA polygons: ${healthData.zcta_polygon_count || 0}`,
+              });
+            }
+          });
+        }, 2000);
+      }
+
+    } catch (error) {
+      console.error('ZCTA loading failed:', error);
+      toast({
+        title: "ZCTA Loading Failed",
+        description: error instanceof Error ? error.message : 'Unknown error occurred',
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingZcta(false);
+      setZctaProgress({ current: 0, total: 0 });
+    }
+  };
 
   // Optimized initial data loading - only fetch when component mounts
   useEffect(() => {
@@ -365,6 +501,24 @@ export const AdminServiceAreasUnified = () => {
           <Button onClick={handleRefresh} disabled={loading} variant="outline">
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh
+          </Button>
+          <Button
+            onClick={loadZctaData}
+            disabled={isLoadingZcta}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            {isLoadingZcta ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {zctaProgress.total > 0 ? `${zctaProgress.current}/${zctaProgress.total}` : 'Loading...'}
+              </>
+            ) : (
+              <>
+                <Database className="h-4 w-4" />
+                Load ZCTA Data
+              </>
+            )}
           </Button>
           <Button
             onClick={() => {
