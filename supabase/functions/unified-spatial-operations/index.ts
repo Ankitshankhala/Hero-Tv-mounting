@@ -83,152 +83,389 @@ serve(async (req) => {
 });
 
 async function handlePolygonToZipcodes(supabase: any, polygon: any) {
-  logStep('Converting polygon to zipcodes');
+  logStep('Enhanced polygon to zipcodes conversion');
   
   if (!polygon || !polygon.coordinates) {
     throw new Error('Invalid polygon data provided');
   }
-  
-  // Query zipcodes that intersect with the polygon
-  const { data: zipcodes, error } = await supabase
-    .from('regions')
-    .select('zipcode, city, state')
-    .overlaps('polygon', `POLYGON((${polygon.coordinates[0].map((coord: number[]) => `${coord[0]} ${coord[1]}`).join(',')}))`);
-    
-  if (error) {
-    throw new Error(`Failed to fetch zipcodes: ${error.message}`);
+
+  try {
+    // Use the improved database function for ZIP code computation
+    const { data: zipResult, error } = await supabase
+      .rpc('compute_zipcodes_for_polygon', {
+        p_polygon_coords: polygon
+      });
+
+    if (error) {
+      logStep('Primary ZIP computation failed, trying fallback', error.message);
+      
+      // Fallback to comprehensive ZIP code dataset
+      const { data: fallbackResult, error: fallbackError } = await supabase
+        .rpc('zipcodes_intersecting_polygon', {
+          polygon_coords: polygon
+        });
+
+      if (fallbackError) {
+        throw new Error(`All ZIP code computation methods failed: ${fallbackError.message}`);
+      }
+
+      return {
+        success: true,
+        zipcodes: fallbackResult || [],
+        count: fallbackResult?.length || 0,
+        method: 'fallback',
+        warning: 'Used fallback ZIP code computation method'
+      };
+    }
+
+    return { 
+      success: true, 
+      zipcodes: zipResult || [],
+      count: zipResult?.length || 0,
+      method: 'primary'
+    };
+
+  } catch (error) {
+    logStep('All ZIP computation methods failed', error.message);
+    throw error;
   }
-  
-  return { 
-    success: true, 
-    zipcodes: zipcodes || [],
-    count: zipcodes?.length || 0
-  };
 }
 
 async function handleBackfillServiceArea(supabase: any, serviceAreaId: string) {
-  logStep('Backfilling service area zipcodes', serviceAreaId);
+  logStep('Enhanced service area ZIP backfill', serviceAreaId);
   
   if (!serviceAreaId) {
     throw new Error('Service area ID is required');
   }
-  
-  // Get service area polygon
-  const { data: serviceArea, error: areaError } = await supabase
-    .from('worker_service_areas')
-    .select('polygon, worker_id')
-    .eq('id', serviceAreaId)
-    .single();
+
+  try {
+    // Use the database function for consistent ZIP code computation
+    const { data: result, error } = await supabase
+      .rpc('compute_zipcodes_for_service_area', {
+        p_service_area_id: serviceAreaId
+      });
+
+    if (error) {
+      throw new Error(`ZIP code computation failed: ${error.message}`);
+    }
+
+    logStep('ZIP backfill completed', { 
+      serviceAreaId, 
+      zipcodesAdded: result?.zipcodes_added || 0 
+    });
+
+    return {
+      success: true,
+      zipcodesAdded: result?.zipcodes_added || 0,
+      serviceAreaId,
+      method: 'database_function'
+    };
+
+  } catch (error) {
+    logStep('Enhanced backfill failed, trying manual method', error.message);
     
-  if (areaError || !serviceArea) {
-    throw new Error('Service area not found');
+    // Fallback to manual method
+    const { data: serviceArea, error: areaError } = await supabase
+      .from('worker_service_areas')
+      .select('polygon_coordinates, worker_id')
+      .eq('id', serviceAreaId)
+      .single();
+       
+    if (areaError || !serviceArea) {
+      throw new Error('Service area not found');
+    }
+
+    // Use comprehensive ZIP code intersection
+    const { data: zipcodes, error: zipError } = await supabase
+      .rpc('zipcodes_intersecting_polygon', {
+        polygon_coords: serviceArea.polygon_coordinates
+      });
+       
+    if (zipError) {
+      throw new Error(`Fallback ZIP computation failed: ${zipError.message}`);
+    }
+
+    // Insert zipcode mappings
+    if (zipcodes && zipcodes.length > 0) {
+      const zipcodeMappings = zipcodes.map((zipcode: string) => ({
+        service_area_id: serviceAreaId,
+        worker_id: serviceArea.worker_id,
+        zipcode: zipcode
+      }));
+      
+      const { error: insertError } = await supabase
+        .from('worker_service_zipcodes')
+        .upsert(zipcodeMappings, { onConflict: 'service_area_id,zipcode' });
+         
+      if (insertError) {
+        throw new Error(`Failed to insert ZIP codes: ${insertError.message}`);
+      }
+
+      return {
+        success: true,
+        zipcodesAdded: zipcodeMappings.length,
+        serviceAreaId,
+        method: 'fallback'
+      };
+    }
+
+    return {
+      success: true,
+      zipcodesAdded: 0,
+      serviceAreaId,
+      method: 'fallback',
+      warning: 'No ZIP codes found for this polygon'
+    };
   }
-  
-  // Find zipcodes that intersect with the polygon
-  const { data: zipcodes, error: zipError } = await supabase
-    .from('regions')
-    .select('zipcode')
-    .overlaps('polygon', serviceArea.polygon);
-    
-  if (zipError) {
-    throw new Error(`Failed to fetch zipcodes: ${zipError.message}`);
-  }
-  
-  // Insert zipcode mappings
-  const zipcodeMappings = zipcodes.map((zip: any) => ({
-    service_area_id: serviceAreaId,
-    worker_id: serviceArea.worker_id,
-    zipcode: zip.zipcode
-  }));
-  
-  const { error: insertError } = await supabase
-    .from('worker_service_zipcodes')
-    .upsert(zipcodeMappings, { onConflict: 'service_area_id,zipcode' });
-    
-  if (insertError) {
-    throw new Error(`Failed to insert zipcodes: ${insertError.message}`);
-  }
-  
-  return {
-    success: true,
-    zipcodesAdded: zipcodeMappings.length,
-    serviceAreaId
-  };
 }
 
 async function handleDrawAreaSave(supabase: any, data: any, workerId: string) {
-  logStep('Saving drawn area', { workerId, hasData: !!data });
+  logStep('Enhanced draw area save', { workerId, hasData: !!data });
   
   if (!workerId || !data) {
     throw new Error('Worker ID and area data are required');
   }
-  
-  // Save the service area
-  const { data: savedArea, error } = await supabase
-    .from('worker_service_areas')
-    .insert({
-      worker_id: workerId,
-      name: data.name || 'Custom Service Area',
-      polygon: data.polygon,
-      is_active: true
-    })
-    .select()
-    .single();
-    
-  if (error) {
-    throw new Error(`Failed to save service area: ${error.message}`);
+
+  // Validate polygon coordinates
+  if (!data.polygon || !Array.isArray(data.polygon) || data.polygon.length < 3) {
+    throw new Error('Invalid polygon coordinates - need at least 3 points');
   }
-  
-  // Backfill zipcodes for the new area
-  await handleBackfillServiceArea(supabase, savedArea.id);
-  
-  return {
-    success: true,
-    serviceArea: savedArea,
-    message: 'Service area saved and zipcodes backfilled'
+
+  // Convert polygon to GeoJSON format for PostGIS
+  const geoJsonPolygon = {
+    type: 'Polygon',
+    coordinates: [[
+      ...data.polygon.map((point: any) => [point.lng || point.lon, point.lat]),
+      [data.polygon[0].lng || data.polygon[0].lon, data.polygon[0].lat] // Close polygon
+    ]]
   };
+
+  logStep('Converted polygon to GeoJSON', { pointCount: data.polygon.length });
+
+  try {
+    let serviceAreaResult;
+    
+    // Handle create vs update mode
+    if (data.mode === 'update' && data.areaIdToUpdate) {
+      logStep('Updating existing service area', data.areaIdToUpdate);
+      
+      const { data: updatedArea, error: updateError } = await supabase
+        .from('worker_service_areas')
+        .update({
+          area_name: data.areaName || 'Updated Service Area',
+          polygon_coordinates: geoJsonPolygon,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', data.areaIdToUpdate)
+        .eq('worker_id', workerId) // Security check
+        .select()
+        .single();
+        
+      if (updateError) {
+        throw new Error(`Failed to update service area: ${updateError.message}`);
+      }
+      
+      serviceAreaResult = updatedArea;
+    } else {
+      logStep('Creating new service area');
+      
+      const { data: newArea, error: createError } = await supabase
+        .from('worker_service_areas')
+        .insert({
+          worker_id: workerId,
+          area_name: data.areaName || 'New Service Area',
+          polygon_coordinates: geoJsonPolygon,
+          is_active: true
+        })
+        .select()
+        .single();
+        
+      if (createError) {
+        throw new Error(`Failed to create service area: ${createError.message}`);
+      }
+      
+      serviceAreaResult = newArea;
+    }
+
+    // Now compute ZIP codes using the enhanced function
+    logStep('Computing ZIP codes for service area', serviceAreaResult.id);
+    
+    const { data: zipResult, error: zipError } = await supabase
+      .rpc('compute_zipcodes_for_service_area', {
+        p_service_area_id: serviceAreaResult.id
+      });
+
+    if (zipError) {
+      logStep('ZIP code computation failed', zipError.message);
+      // Don't fail the entire operation if ZIP computation fails
+      console.warn('ZIP code computation failed, but service area was saved:', zipError);
+    }
+
+    const zipCount = zipResult?.zipcodes_added || 0;
+    logStep('ZIP code computation completed', { zipCount });
+
+    return {
+      success: true,
+      serviceArea: serviceAreaResult,
+      zipCodeCount: zipCount,
+      message: `Service area ${data.mode === 'update' ? 'updated' : 'created'} successfully`,
+      operation: data.mode || 'create'
+    };
+
+  } catch (error) {
+    logStep('Error in draw area save', error.message);
+    throw error;
+  }
 }
 
 async function handleHealthCheck(supabase: any) {
-  logStep('Performing spatial health check');
+  logStep('Comprehensive spatial health check');
   
+  const checks: any = {
+    timestamp: new Date().toISOString(),
+    database: false,
+    postgis: false,
+    zcta_data: false,
+    zip_data: false,
+    spatial_functions: false
+  };
+
+  let overallSuccess = true;
+  const errors: string[] = [];
+
   try {
-    // Check database connection
+    // 1. Database connection check
     const { data: dbCheck, error: dbError } = await supabase
-      .from('regions')
+      .from('worker_service_areas')
       .select('count')
       .limit(1);
       
-    if (dbError) {
-      throw new Error(`Database check failed: ${dbError.message}`);
+    if (!dbError) {
+      checks.database = true;
+    } else {
+      errors.push(`Database: ${dbError.message}`);
+      overallSuccess = false;
     }
     
-    // Check PostGIS extension
+    // 2. PostGIS extension check
     const { data: gisCheck, error: gisError } = await supabase
       .rpc('postgis_version');
       
-    const postgisAvailable = !gisError;
-    
+    if (!gisError && gisCheck) {
+      checks.postgis = true;
+      checks.postgis_version = gisCheck;
+    } else {
+      errors.push('PostGIS extension not available');
+      overallSuccess = false;
+    }
+
+    // 3. ZCTA polygon data check
+    const { data: zctaCount, error: zctaError } = await supabase
+      .from('us_zcta_polygons')
+      .select('count')
+      .limit(1);
+
+    if (!zctaError) {
+      checks.zcta_data = true;
+      
+      // Get actual count
+      const { count } = await supabase
+        .from('us_zcta_polygons')
+        .select('*', { count: 'exact', head: true });
+      
+      checks.zcta_polygon_count = count;
+    } else {
+      errors.push(`ZCTA data: ${zctaError.message}`);
+    }
+
+    // 4. ZIP code data check
+    const { data: zipCount, error: zipError } = await supabase
+      .from('comprehensive_zip_codes')
+      .select('count')
+      .limit(1);
+
+    if (!zipError) {
+      checks.zip_data = true;
+      
+      // Get actual count
+      const { count } = await supabase
+        .from('comprehensive_zip_codes')
+        .select('*', { count: 'exact', head: true });
+      
+      checks.zip_code_count = count;
+    } else {
+      errors.push(`ZIP data: ${zipError.message}`);
+    }
+
+    // 5. Spatial functions check
+    const { data: funcCheck, error: funcError } = await supabase
+      .rpc('compute_zipcodes_for_polygon', {
+        p_polygon_coords: {
+          type: 'Polygon',
+          coordinates: [[[-98.5, 39.8], [-98.4, 39.8], [-98.4, 39.9], [-98.5, 39.9], [-98.5, 39.8]]]
+        }
+      });
+
+    if (!funcError) {
+      checks.spatial_functions = true;
+      checks.test_polygon_zips = Array.isArray(funcCheck) ? funcCheck.length : 0;
+    } else {
+      errors.push(`Spatial functions: ${funcError.message}`);
+    }
+
     return {
-      success: true,
-      checks: {
-        database: true,
-        postgis: postgisAvailable,
-        timestamp: new Date().toISOString()
-      }
+      success: overallSuccess,
+      checks,
+      errors: errors.length > 0 ? errors : undefined,
+      recommendations: generateHealthRecommendations(checks)
     };
     
   } catch (error) {
     return {
       success: false,
-      checks: {
-        database: false,
-        postgis: false,
-        timestamp: new Date().toISOString()
-      },
-      error: error.message
+      checks,
+      errors: [...errors, error.message],
+      recommendations: ['Check database connectivity', 'Verify PostGIS installation']
     };
   }
+}
+
+function generateHealthRecommendations(checks: any): string[] {
+  const recommendations: string[] = [];
+  
+  if (!checks.database) {
+    recommendations.push('Fix database connectivity issues');
+  }
+  
+  if (!checks.postgis) {
+    recommendations.push('Install PostGIS extension');
+  }
+  
+  if (!checks.zcta_data) {
+    recommendations.push('Load ZCTA polygon data using the data upload feature');
+  }
+  
+  if (!checks.zip_data) {
+    recommendations.push('Load comprehensive ZIP code data');
+  }
+  
+  if (!checks.spatial_functions) {
+    recommendations.push('Fix spatial computation functions');
+  }
+  
+  if (checks.zcta_polygon_count && checks.zcta_polygon_count < 30000) {
+    recommendations.push('ZCTA data appears incomplete - reload dataset');
+  }
+  
+  if (checks.zip_code_count && checks.zip_code_count < 40000) {
+    recommendations.push('ZIP code data appears incomplete - reload dataset');
+  }
+  
+  if (recommendations.length === 0) {
+    recommendations.push('All systems operational - ready for production use');
+  }
+  
+  return recommendations;
 }
 
 async function handleServiceAreaUpsert(supabase: any, data: any) {

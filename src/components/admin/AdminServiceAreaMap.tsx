@@ -11,6 +11,7 @@ import { MapPin, Save, Trash2, Edit3, Search, MapPinCheck, Globe, Loader2, Plus,
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAdminServiceAreas } from '@/hooks/useAdminServiceAreas';
+import { PolygonValidator } from './PolygonValidator';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
@@ -62,6 +63,8 @@ const AdminServiceAreaMap = ({
   const [showAreaSelection, setShowAreaSelection] = useState(false);
   const [areaSelectionMode, setAreaSelectionMode] = useState<'existing' | 'new'>('new');
   const [selectedExistingArea, setSelectedExistingArea] = useState<ServiceArea | null>(null);
+  const [polygonValid, setPolygonValid] = useState(true);
+  const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
   
   const { toast } = useToast();
   const { 
@@ -326,9 +329,11 @@ const AdminServiceAreaMap = ({
 
       console.log('📡 Calling draw-area-save edge function with:', saveData);
 
-      const { data, error } = await supabase.functions.invoke('draw-area-save', {
+      const { data, error } = await supabase.functions.invoke('unified-spatial-operations', {
         body: {
-          ...saveData,
+          operation: 'draw-area-save',
+          data: saveData,
+          workerId,
           overlapThreshold: 2 // Default 2% overlap threshold
         }
       });
@@ -529,10 +534,20 @@ const AdminServiceAreaMap = ({
               </div>
             )}
 
+            {/* Polygon Validation */}
+            <PolygonValidator
+              polygon={currentPolygon}
+              onValidationChange={(isValid, warnings) => {
+                setPolygonValid(isValid);
+                setValidationWarnings(warnings);
+              }}
+              showZipPreview={true}
+            />
+
             <div className="flex gap-2">
               <Button
                 onClick={handleSavePolygon}
-                disabled={saving || (areaSelectionMode === 'existing' && !selectedExistingArea)}
+                disabled={saving || !polygonValid || (areaSelectionMode === 'existing' && !selectedExistingArea)}
                 className="flex-1"
               >
                 {saving ? (

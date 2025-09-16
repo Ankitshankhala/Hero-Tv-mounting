@@ -69,12 +69,15 @@ export const useWorkerServiceAreas = (workerId?: string) => {
     if (!workerId) return null;
 
     try {
-      const { data, error } = await supabase.functions.invoke('service-area-upsert', {
+      const { data, error } = await supabase.functions.invoke('unified-spatial-operations', {
         body: {
-          workerId,
-          areaName,
-          polygon,
-          mode
+          operation: 'draw-area-save',
+          data: {
+            areaName,
+            polygon,
+            mode: mode === 'replace_all' ? 'create' : 'create'
+          },
+          workerId
         }
       });
 
@@ -111,12 +114,15 @@ export const useWorkerServiceAreas = (workerId?: string) => {
     if (!workerId) return null;
     
     try {
-      const { data, error } = await supabase.functions.invoke('service-area-upsert', {
+      const { data, error } = await supabase.functions.invoke('unified-spatial-operations', {
         body: {
-          workerId,
-          areaName: areaName || `Manual Entry - ${new Date().toLocaleDateString()}`,
-          zipcodesOnly: zipCodes,
-          mode
+          operation: 'service-area-upsert',
+          data: {
+            workerId,
+            areaName: areaName || `Manual Entry - ${new Date().toLocaleDateString()}`,
+            zipcodesOnly: zipCodes,
+            mode
+          }
         }
       });
 
