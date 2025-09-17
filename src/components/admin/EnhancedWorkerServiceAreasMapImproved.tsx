@@ -49,7 +49,9 @@ export const EnhancedWorkerServiceAreasMapImproved: React.FC<EnhancedWorkerServi
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const [selectedArea, setSelectedArea] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [computedZipCount, setComputedZipCount] = useState<number | null>(null);
+  const [computedZipCodes, setComputedZipCodes] = useState<string[]>([]);
+  const [zipCodeLoading, setZipCodeLoading] = useState(false);
+  const [highlightedPolygon, setHighlightedPolygon] = useState<L.GeoJSON | null>(null);
 
   // Initialize map
   useEffect(() => {
@@ -167,30 +169,42 @@ export const EnhancedWorkerServiceAreasMapImproved: React.FC<EnhancedWorkerServi
               }
             }).addTo(mapRef.current);
 
-            polygon.bindPopup(`
-              <div class="p-3">
-                <h3 class="font-bold text-sm mb-1">${area.area_name}</h3>
-                <p class="text-xs text-gray-600 mb-1">Worker: ${worker.name}</p>
-                <p class="text-xs mb-1">Status: ${area.is_active ? 'Active' : 'Inactive'}</p>
-                <p class="text-xs">ZIP Codes: calculating...</p>
-              </div>
-            `);
+            // Remove popup - we'll use sidebar only
 
             polygon.on('click', async () => {
+              // Clear previous highlight
+              if (highlightedPolygon) {
+                highlightedPolygon.setStyle({
+                  weight: 3,
+                  opacity: 0.8
+                });
+              }
+              
+              // Highlight selected polygon
+              polygon.setStyle({
+                weight: 5,
+                opacity: 1.0
+              });
+              setHighlightedPolygon(polygon);
+              
               setSelectedArea({ ...area, worker });
-              setComputedZipCount(null);
+              setZipCodeLoading(true);
+              setComputedZipCodes([]);
+              
               try {
                 // Compute full ZIP list intersecting polygon via DB
                 const { data, error } = await (await import('@/integrations/supabase/client')).supabase
                   .rpc('zipcodes_intersecting_polygon', {
                     polygon_coords: area.polygon_coordinates
                   });
-                if (!error) {
+                if (!error && data) {
                   const zips = Array.isArray(data) ? data as string[] : [];
-                  setComputedZipCount(zips.length);
+                  setComputedZipCodes(zips.sort());
                 }
               } catch (e) {
-                console.warn('Failed to compute ZIP count for popup:', e);
+                console.warn('Failed to compute ZIP codes:', e);
+              } finally {
+                setZipCodeLoading(false);
               }
             });
 
@@ -313,7 +327,17 @@ export const EnhancedWorkerServiceAreasMapImproved: React.FC<EnhancedWorkerServi
               <Button 
                 variant="ghost" 
                 size="sm" 
-                onClick={() => setSelectedArea(null)}
+                onClick={() => {
+                  setSelectedArea(null);
+                  // Clear polygon highlight
+                  if (highlightedPolygon) {
+                    highlightedPolygon.setStyle({
+                      weight: 3,
+                      opacity: 0.8
+                    });
+                    setHighlightedPolygon(null);
+                  }
+                }}
               >
                 ×
               </Button>
@@ -335,11 +359,32 @@ export const EnhancedWorkerServiceAreasMapImproved: React.FC<EnhancedWorkerServi
 
             <div>
               <h4 className="text-sm font-medium mb-2">Coverage</h4>
-              <p className="text-sm text-muted-foreground">
-                {computedZipCount !== null 
-                  ? `${computedZipCount} ZIP codes covered`
-                  : `${selectedArea.zipcode_list?.length || 0} ZIP codes (computing full coverage...)`}
-              </p>
+              {zipCodeLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <RefreshCw className="h-3 w-3 animate-spin" />
+                  Computing ZIP codes...
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    {computedZipCodes.length} ZIP codes in this area
+                  </p>
+                  <ScrollArea className="h-32 w-full border rounded-md p-2">
+                    <div className="grid grid-cols-3 gap-1">
+                      {computedZipCodes.map((zipcode) => (
+                        <Badge key={zipcode} variant="outline" className="text-xs justify-center">
+                          {zipcode}
+                        </Badge>
+                      ))}
+                    </div>
+                    {computedZipCodes.length === 0 && !zipCodeLoading && (
+                      <p className="text-xs text-muted-foreground text-center py-4">
+                        No ZIP codes found in this area
+                      </p>
+                    )}
+                  </ScrollArea>
+                </div>
+              )}
             </div>
 
             <div>
