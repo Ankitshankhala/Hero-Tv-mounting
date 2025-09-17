@@ -1,5 +1,4 @@
 import * as turf from '@turf/turf';
-import { useZctaBoundaries } from '@/hooks/useZctaBoundaries';
 
 interface PolygonPoint {
   lat: number;
@@ -12,8 +11,17 @@ interface ZipcodeIntersectionResult {
   properties: any;
 }
 
+interface ZctaSpatialIndex {
+  zipcode: string;
+  feature: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon>;
+  bbox: [number, number, number, number]; // [minLng, minLat, maxLng, maxLat]
+  centroid: [number, number]; // [lng, lat]
+  geometryType: 'Polygon' | 'MultiPolygon';
+}
+
 export class ClientSpatialOperations {
   private zctaData: GeoJSON.FeatureCollection | null = null;
+  private spatialIndex: ZctaSpatialIndex[] | null = null;
   private loadingPromise: Promise<void> | null = null;
 
   // Initialize with ZCTA data loading
@@ -40,10 +48,61 @@ export class ClientSpatialOperations {
       
       this.zctaData = await response.json();
       console.log(`✅ Loaded ${this.zctaData?.features?.length || 0} ZCTA boundaries`);
+      
+      // Build spatial index for faster lookups
+      this.buildSpatialIndex();
     } catch (error) {
       console.error('❌ Failed to load ZCTA data:', error);
       throw error;
     }
+  }
+
+  private buildSpatialIndex(): void {
+    if (!this.zctaData?.features) return;
+    
+    console.log('🔧 Building spatial index...');
+    const startTime = performance.now();
+    this.spatialIndex = [];
+    
+    let validCount = 0;
+    let skippedCount = 0;
+
+    for (const feature of this.zctaData.features) {
+      try {
+        const zctaFeature = feature as GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon>;
+        
+        // Extract zipcode
+        const zipcode = feature.properties?.ZCTA5CE20 || 
+                       feature.properties?.ZCTA5CE || 
+                       feature.properties?.zipcode;
+        
+        if (!zipcode || !zctaFeature.geometry) {
+          skippedCount++;
+          continue;
+        }
+
+        // Calculate bounding box and centroid
+        const bbox = turf.bbox(zctaFeature) as [number, number, number, number];
+        const centroid = turf.centroid(zctaFeature);
+        const geometryType = zctaFeature.geometry.type;
+
+        this.spatialIndex.push({
+          zipcode: zipcode.toString(),
+          feature: zctaFeature,
+          bbox,
+          centroid: centroid.geometry.coordinates as [number, number],
+          geometryType
+        });
+        
+        validCount++;
+      } catch (error) {
+        skippedCount++;
+        continue;
+      }
+    }
+
+    const endTime = performance.now();
+    console.log(`✅ Built spatial index: ${validCount} valid features, ${skippedCount} skipped, took ${Math.round(endTime - startTime)}ms`);
   }
 
   // Convert polygon points to GeoJSON
@@ -68,53 +127,121 @@ export class ClientSpatialOperations {
   ): Promise<ZipcodeIntersectionResult[]> {
     await this.ensureDataLoaded();
     
-    if (!this.zctaData || !this.zctaData.features) {
-      throw new Error('ZCTA data not loaded');
+    if (!this.spatialIndex) {
+      throw new Error('Spatial index not built');
     }
 
+    if (polygonPoints.length < 3) {
+      throw new Error('Polygon must have at least 3 points');
+    }
+
+    const startTime = performance.now();
     const { includePartial = true, minIntersectionRatio = 0.1 } = options;
     const searchPolygon = this.createGeoJSONPolygon(polygonPoints);
     const results: ZipcodeIntersectionResult[] = [];
 
-    console.log(`🔍 Searching ${this.zctaData.features.length} ZCTA features for intersections...`);
+    // Stage 1: Calculate search bounds
+    const searchBbox = turf.bbox(searchPolygon) as [number, number, number, number];
+    const searchCentroid = turf.centroid(searchPolygon);
+    
+    // Calculate dynamic search radius based on polygon size
+    const polygonDiagonal = turf.distance(
+      [searchBbox[0], searchBbox[1]], 
+      [searchBbox[2], searchBbox[3]], 
+      { units: 'miles' }
+    );
+    const searchRadiusMiles = Math.min(Math.max(polygonDiagonal * 1.5, 10), 75);
 
-    for (const feature of this.zctaData.features) {
+    console.log(`🔍 Optimized search: polygon diagonal ${Math.round(polygonDiagonal)}mi, search radius ${Math.round(searchRadiusMiles)}mi`);
+
+    // Stage 2: Bounding box pre-filtering
+    const bbox1Time = performance.now();
+    const candidates = this.spatialIndex.filter(indexed => {
+      // Quick bounding box intersection check
+      return !(indexed.bbox[2] < searchBbox[0] || // candidate max lng < search min lng
+               indexed.bbox[0] > searchBbox[2] || // candidate min lng > search max lng
+               indexed.bbox[3] < searchBbox[1] || // candidate max lat < search min lat
+               indexed.bbox[1] > searchBbox[3]);  // candidate min lat > search max lat
+    });
+    
+    const bbox2Time = performance.now();
+    console.log(`📦 Bbox filter: ${this.spatialIndex.length} → ${candidates.length} candidates (${Math.round(bbox2Time - bbox1Time)}ms)`);
+
+    // Stage 3: Distance-based filtering for very large polygons
+    let distanceFilteredCandidates = candidates;
+    if (candidates.length > 1000) {
+      distanceFilteredCandidates = candidates.filter(indexed => {
+        const distance = turf.distance(
+          searchCentroid.geometry.coordinates,
+          indexed.centroid,
+          { units: 'miles' }
+        );
+        return distance <= searchRadiusMiles;
+      });
+      console.log(`🎯 Distance filter: ${candidates.length} → ${distanceFilteredCandidates.length} candidates`);
+    }
+
+    // Stage 4: Geometric intersection checks
+    const geoTime = performance.now();
+    let skippedCount = 0;
+    
+    for (const indexed of distanceFilteredCandidates) {
       try {
-        const zctaPolygon = feature as GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon>;
-        
-        // Check if polygons intersect - handle as any to avoid type complexity
-        const intersection = turf.intersect(searchPolygon as any, zctaPolygon as any);
-        
-        if (intersection) {
-          const intersectionArea = turf.area(intersection);
-          const zctaArea = turf.area(zctaPolygon);
-          const intersectionRatio = intersectionArea / zctaArea;
+        let isIncluded = false;
+        let intersectionArea = 0;
 
-          // Filter by minimum intersection ratio if specified
-          if (!includePartial && intersectionRatio < minIntersectionRatio) {
-            continue;
-          }
-
-          const zipcode = feature.properties?.ZCTA5CE20 || 
-                          feature.properties?.ZCTA5CE || 
-                          feature.properties?.zipcode;
-
-          if (zipcode) {
-            results.push({
-              zipcode: zipcode.toString(),
-              intersectionArea,
-              properties: feature.properties
-            });
+        // Quick centroid check first
+        if (turf.booleanPointInPolygon(indexed.centroid, searchPolygon)) {
+          isIncluded = true;
+          // For centroids inside, use the full ZCTA area as intersection area
+          intersectionArea = turf.area(indexed.feature as any);
+        } else {
+          // Check for geometric intersection
+          if (turf.booleanIntersects(indexed.feature, searchPolygon)) {
+            isIncluded = true;
+            
+            // Only calculate intersection area if needed for filtering
+            if (!includePartial || minIntersectionRatio > 0) {
+              try {
+                const intersection = turf.intersect(searchPolygon as any, indexed.feature as any);
+                if (intersection) {
+                  intersectionArea = turf.area(intersection);
+                  
+                  // Apply minimum intersection ratio filter
+                  if (!includePartial && minIntersectionRatio > 0) {
+                    const zctaArea = turf.area(indexed.feature as any);
+                    const intersectionRatio = intersectionArea / zctaArea;
+                    if (intersectionRatio < minIntersectionRatio) {
+                      isIncluded = false;
+                    }
+                  }
+                }
+              } catch (intersectError) {
+                // If intersection calculation fails, include it anyway for partial intersections
+                intersectionArea = turf.area(indexed.feature as any) * 0.1; // Estimate 10% intersection
+              }
+            } else {
+              // For simple inclusion without area requirements, estimate area
+              intersectionArea = turf.area(indexed.feature as any) * 0.5; // Estimate 50% intersection
+            }
           }
         }
+
+        if (isIncluded) {
+          results.push({
+            zipcode: indexed.zipcode,
+            intersectionArea,
+            properties: indexed.feature.properties
+          });
+        }
       } catch (error) {
-        // Skip invalid features
-        console.warn('Skipping invalid ZCTA feature:', error);
+        skippedCount++;
         continue;
       }
     }
 
-    console.log(`✅ Found ${results.length} intersecting ZIP codes`);
+    const endTime = performance.now();
+    console.log(`✅ Found ${results.length} ZIP codes (${skippedCount} skipped) in ${Math.round(endTime - startTime)}ms`);
     
     // Sort by intersection area (descending)
     return results.sort((a, b) => b.intersectionArea - a.intersectionArea);
