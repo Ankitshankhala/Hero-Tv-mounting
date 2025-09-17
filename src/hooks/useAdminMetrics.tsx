@@ -58,7 +58,7 @@ export const useAdminMetrics = () => {
 
         if (bookingsError) throw bookingsError;
 
-        // Get transactions with completed status for revenue calculation
+        // Get transactions that represent actual revenue
         const { data: transactions, error: transactionsError } = await supabase
           .from('transactions')
           .select(`
@@ -67,7 +67,7 @@ export const useAdminMetrics = () => {
             created_at,
             transaction_type
           `)
-          .eq('status', 'completed')
+          .in('status', ['completed', 'authorized'])
           .in('transaction_type', ['capture', 'charge']);
 
         if (transactionsError) throw transactionsError;
