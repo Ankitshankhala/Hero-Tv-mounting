@@ -13,6 +13,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { formatDistanceToNow } from 'date-fns';
 import { apiCache } from '@/utils/optimizedApi';
 import { useSpatialHealthCheck } from '@/hooks/useSpatialHealthCheck';
+import { AreaNameEditor } from '@/components/shared/AreaNameEditor';
 export const AdminServiceAreaManager = () => {
   const [selectedWorkerId, setSelectedWorkerId] = useState<string>('');
   const {
@@ -130,6 +131,41 @@ export const AdminServiceAreaManager = () => {
                         </div>
                       </div>
                     </div>}
+                </CardContent>
+              </Card>
+
+              {/* Service Areas List */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Service Areas</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="h-48">
+                    <div className="space-y-2">
+                      {selectedWorker?.service_areas?.map(area => (
+                        <div key={area.id} className="text-xs p-2 bg-muted rounded">
+                          <AreaNameEditor
+                            area={area}
+                            onNameUpdate={(newName) => {
+                              // Refresh data after name update
+                              fetchWorkers();
+                              fetchAuditLogs(selectedWorkerId);
+                            }}
+                            trigger="inline"
+                          />
+                          <div className="text-muted-foreground mt-1">
+                            Status: <Badge variant={area.is_active ? "default" : "secondary"} className="text-xs">
+                              {area.is_active ? "Active" : "Inactive"}
+                            </Badge>
+                          </div>
+                        </div>
+                      )) || (
+                        <div className="text-muted-foreground text-center py-4">
+                          No service areas found
+                        </div>
+                      )}
+                    </div>
+                  </ScrollArea>
                 </CardContent>
               </Card>
 
