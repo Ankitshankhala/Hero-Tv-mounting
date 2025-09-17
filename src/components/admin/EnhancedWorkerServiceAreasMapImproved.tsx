@@ -3,10 +3,11 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import '@/styles/zipMap.css';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { MapPin, Users, Eye, RefreshCw } from 'lucide-react';
+import { MapPin, Users, RefreshCw } from 'lucide-react';
+import { ServiceAreaPopup } from './ServiceAreaPopup';
+import { unifiedZctaManager } from '@/services/unifiedZctaManager';
+import { polygon, bbox, intersect } from '@turf/turf';
 
 interface Worker {
   id: string;
@@ -52,6 +53,8 @@ export const EnhancedWorkerServiceAreasMapImproved: React.FC<EnhancedWorkerServi
   const [computedZipCodes, setComputedZipCodes] = useState<string[]>([]);
   const [zipCodeLoading, setZipCodeLoading] = useState(false);
   const [highlightedPolygon, setHighlightedPolygon] = useState<L.GeoJSON | null>(null);
+  const [popupPosition, setPopupPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [zctaLoaded, setZctaLoaded] = useState(false);
 
   // Initialize map
   useEffect(() => {
@@ -82,6 +85,64 @@ export const EnhancedWorkerServiceAreasMapImproved: React.FC<EnhancedWorkerServi
       }
     };
   }, []);
+
+  // Load ZCTA data on component mount
+  useEffect(() => {
+    const loadZctaData = async () => {
+      try {
+        await unifiedZctaManager.loadZctaData();
+        setZctaLoaded(true);
+        console.log('ZCTA data loaded successfully');
+      } catch (error) {
+        console.warn('Failed to load ZCTA data:', error);
+      }
+    };
+    
+    loadZctaData();
+  }, []);
+
+  // Helper function to compute ZCTA ZIP codes for a polygon using bounds-based approximation
+  const computeZctaZipCodes = async (polygonGeoJson: any): Promise<string[]> => {
+    if (!zctaLoaded || !unifiedZctaManager.isReady()) {
+      console.warn('ZCTA data not ready, using fallback method');
+      return [];
+    }
+
+    try {
+      const spatialIndex = unifiedZctaManager.getSpatialIndex();
+      if (!spatialIndex || spatialIndex.length === 0) {
+        console.warn('ZCTA spatial index is empty');
+        return [];
+      }
+
+      const intersectingZips: string[] = [];
+      
+      // Get polygon bounds for filtering
+      const servicePolygon = polygon(polygonGeoJson.coordinates);
+      const serviceBbox = bbox(servicePolygon);
+      const [minLng, minLat, maxLng, maxLat] = serviceBbox;
+      
+      // Use bounds-based approach for performance - check bbox overlap
+      spatialIndex.forEach((entry) => {
+        try {
+          const [entryMinLng, entryMinLat, entryMaxLng, entryMaxLat] = entry.bbox;
+          
+          // Check if bounding boxes overlap (simpler and faster)
+          if (minLng <= entryMaxLng && maxLng >= entryMinLng &&
+              minLat <= entryMaxLat && maxLat >= entryMinLat) {
+            intersectingZips.push(entry.zipcode);
+          }
+        } catch (error) {
+          console.warn(`Error checking overlap for ZIP ${entry.zipcode}:`, error);
+        }
+      });
+
+      return intersectingZips.sort();
+    } catch (error) {
+      console.error('Error computing ZCTA ZIP codes:', error);
+      return [];
+    }
+  };
 
   // Helper function to convert polygon coordinates to GeoJSON
   const convertToGeoJSON = (polygonCoords: any) => {
@@ -169,9 +230,7 @@ export const EnhancedWorkerServiceAreasMapImproved: React.FC<EnhancedWorkerServi
               }
             }).addTo(mapRef.current);
 
-            // Remove popup - we'll use sidebar only
-
-            polygon.on('click', async () => {
+            polygon.on('click', async (e) => {
               // Clear previous highlight
               if (highlightedPolygon) {
                 highlightedPolygon.setStyle({
@@ -187,22 +246,37 @@ export const EnhancedWorkerServiceAreasMapImproved: React.FC<EnhancedWorkerServi
               });
               setHighlightedPolygon(polygon);
               
+              // Set popup position from click event
+              const containerPoint = e.containerPoint;
+              setPopupPosition({ 
+                x: containerPoint.x + 20, 
+                y: containerPoint.y - 10 
+              });
+              
               setSelectedArea({ ...area, worker });
               setZipCodeLoading(true);
               setComputedZipCodes([]);
               
               try {
-                // Compute full ZIP list intersecting polygon via DB
-                const { data, error } = await (await import('@/integrations/supabase/client')).supabase
-                  .rpc('zipcodes_intersecting_polygon', {
-                    polygon_coords: area.polygon_coordinates
-                  });
-                if (!error && data) {
-                  const zips = Array.isArray(data) ? data as string[] : [];
-                  setComputedZipCodes(zips.sort());
+                // Use ZCTA data for accurate ZIP code computation
+                const geoJsonData = convertToGeoJSON(area.polygon_coordinates);
+                if (geoJsonData && zctaLoaded) {
+                  const zctaZips = await computeZctaZipCodes(geoJsonData);
+                  setComputedZipCodes(zctaZips);
+                } else {
+                  // Fallback to database function if ZCTA not available
+                  const { data, error } = await (await import('@/integrations/supabase/client')).supabase
+                    .rpc('zipcodes_intersecting_polygon', {
+                      polygon_coords: area.polygon_coordinates
+                    });
+                  if (!error && data) {
+                    const zips = Array.isArray(data) ? data as string[] : [];
+                    setComputedZipCodes(zips.sort());
+                  }
                 }
               } catch (e) {
                 console.warn('Failed to compute ZIP codes:', e);
+                setComputedZipCodes([]);
               } finally {
                 setZipCodeLoading(false);
               }
@@ -318,83 +392,26 @@ export const EnhancedWorkerServiceAreasMapImproved: React.FC<EnhancedWorkerServi
         </Card>
       </div>
 
-      {/* Side Panel for Selected Area */}
+      {/* Enhanced Popup for Selected Area */}
       {selectedArea && (
-        <Card className="w-80 h-full bg-background/95 backdrop-blur-md border-l shadow-xl z-[1000]">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base">{selectedArea.area_name}</CardTitle>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => {
-                  setSelectedArea(null);
-                  // Clear polygon highlight
-                  if (highlightedPolygon) {
-                    highlightedPolygon.setStyle({
-                      weight: 3,
-                      opacity: 0.8
-                    });
-                    setHighlightedPolygon(null);
-                  }
-                }}
-              >
-                ×
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <h4 className="text-sm font-medium mb-2">Worker</h4>
-              <p className="text-sm text-muted-foreground">{selectedArea.worker.name}</p>
-              <p className="text-xs text-muted-foreground">{selectedArea.worker.email}</p>
-            </div>
-            
-            <div>
-              <h4 className="text-sm font-medium mb-2">Status</h4>
-              <Badge variant={selectedArea.is_active ? 'default' : 'secondary'}>
-                {selectedArea.is_active ? 'Active' : 'Inactive'}
-              </Badge>
-            </div>
-
-            <div>
-              <h4 className="text-sm font-medium mb-2">Coverage</h4>
-              {zipCodeLoading ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <RefreshCw className="h-3 w-3 animate-spin" />
-                  Computing ZIP codes...
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">
-                    {computedZipCodes.length} ZIP codes in this area
-                  </p>
-                  <ScrollArea className="h-32 w-full border rounded-md p-2">
-                    <div className="grid grid-cols-3 gap-1">
-                      {computedZipCodes.map((zipcode) => (
-                        <Badge key={zipcode} variant="outline" className="text-xs justify-center">
-                          {zipcode}
-                        </Badge>
-                      ))}
-                    </div>
-                    {computedZipCodes.length === 0 && !zipCodeLoading && (
-                      <p className="text-xs text-muted-foreground text-center py-4">
-                        No ZIP codes found in this area
-                      </p>
-                    )}
-                  </ScrollArea>
-                </div>
-              )}
-            </div>
-
-            <div>
-              <h4 className="text-sm font-medium mb-2">Created</h4>
-              <p className="text-sm text-muted-foreground">
-                {new Date(selectedArea.created_at).toLocaleDateString()}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        <ServiceAreaPopup
+          area={selectedArea}
+          zipCodes={computedZipCodes}
+          loading={zipCodeLoading}
+          position={popupPosition}
+          onClose={() => {
+            setSelectedArea(null);
+            setComputedZipCodes([]);
+            // Clear polygon highlight
+            if (highlightedPolygon) {
+              highlightedPolygon.setStyle({
+                weight: 3,
+                opacity: 0.8
+              });
+              setHighlightedPolygon(null);
+            }
+          }}
+        />
       )}
     </div>
   );
