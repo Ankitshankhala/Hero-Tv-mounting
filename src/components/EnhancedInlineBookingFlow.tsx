@@ -74,6 +74,7 @@ export const EnhancedInlineBookingFlow = ({
     updateServiceQuantity,
     removeService,
     handleZipcodeChange,
+    handleZctaValidationChange,
     isStep1Valid,
     isStep2Valid,
     isStep3Valid,
@@ -412,6 +413,7 @@ export const EnhancedInlineBookingFlow = ({
                   formData={formData}
                   setFormData={setFormData}
                   handleZipcodeChange={handleZipcodeChange}
+                  onZctaValidationChange={handleZctaValidationChange}
                 />
               )}
 

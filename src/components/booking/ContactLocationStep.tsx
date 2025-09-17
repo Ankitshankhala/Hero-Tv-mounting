@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ZipcodeInput } from '@/components/ui/ZipcodeInput';
+import { ZctaLocationInput } from '@/components/booking/ZctaLocationInput';
 import { User, Mail, Phone, MapPin } from 'lucide-react';
 import { FormData as BookingFormData } from '@/hooks/booking/types';
 
@@ -12,12 +12,14 @@ interface ContactLocationStepProps {
   formData: BookingFormData;
   setFormData: React.Dispatch<React.SetStateAction<BookingFormData>>;
   handleZipcodeChange: (zipcode: string, cityState?: string) => void;
+  onZctaValidationChange?: (isValid: boolean, hasServiceCoverage: boolean) => void;
 }
 
 export const ContactLocationStep = ({
   formData,
   setFormData,
-  handleZipcodeChange
+  handleZipcodeChange,
+  onZctaValidationChange
 }: ContactLocationStepProps) => {
   return (
     <div className="space-y-6">
@@ -72,14 +74,20 @@ export const ContactLocationStep = ({
         </div>
 
         <div className="space-y-3">
-          <ZipcodeInput
-            id="zipcode"
-            label="ZIP Code"
+          <ZctaLocationInput
             value={formData.zipcode}
-            onChange={handleZipcodeChange}
-            required
+            onChange={(zipcode) => {
+              handleZipcodeChange(zipcode);
+            }}
+            onValidationChange={(isValid, validation) => {
+              if (onZctaValidationChange && validation) {
+                onZctaValidationChange(isValid, validation.coverageInfo?.hasActive || false);
+              }
+            }}
             placeholder="12345"
-            className="[&_input]:h-12 [&_input]:bg-slate-700/50 [&_input]:border-slate-600 [&_input]:text-white [&_input]:placeholder-slate-400 [&_input]:focus:border-blue-400 [&_label]:text-white"
+            showDetails={false}
+            autoValidate={true}
+            className="[&_input]:h-12 [&_input]:bg-slate-700/50 [&_input]:border-slate-600 [&_input]:text-white [&_input]:placeholder-slate-400 [&_input]:focus:border-blue-400"
           />
         </div>
       </div>

@@ -1,13 +1,13 @@
 
 import { useEffect } from 'react';
 import { useBookingFormState } from './useBookingFormState';
-import { useWorkerAvailability } from './useWorkerAvailability';
+import { useZctaWorkerAvailability } from './useZctaWorkerAvailability';
 import { useBookingOperations } from './useBookingOperations';
 import { ServiceItem } from './types';
 
 export const useBookingFlowState = (selectedServices: ServiceItem[] = []) => {
   const formState = useBookingFormState(selectedServices);
-  const workerAvailability = useWorkerAvailability();
+  const workerAvailability = useZctaWorkerAvailability();
   const bookingOperations = useBookingOperations();
 
   // Fetch worker availability when date/zipcode changes
