@@ -74,7 +74,7 @@ export const ContactLocationStep = ({
         </div>
 
         {/* ZIP Code Input */}
-        <div className="space-y-2">
+        <div className="space-y-3">
           <Label className="text-base font-medium flex items-center space-x-2 text-white">
             <MapPin className="h-4 w-4 text-purple-400" />
             <span>ZIP Code *</span>
@@ -92,7 +92,7 @@ export const ContactLocationStep = ({
             placeholder="Enter ZIP code (e.g., 75201)"
             showDetails={true}
             autoValidate={true}
-            className="[&_input]:h-12 [&_input]:bg-slate-700/50 [&_input]:border-slate-600 [&_input]:text-white [&_input]:placeholder-slate-400 [&_input]:focus:border-blue-400"
+            className="h-12 bg-slate-700/50 border-slate-600 text-white placeholder-slate-400 focus:border-blue-400"
           />
         </div>
       </div>
