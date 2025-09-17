@@ -184,35 +184,27 @@ export const ZctaLocationInput: React.FC<ZctaLocationInputProps> = ({
 
       {/* Service Coverage Results */}
       {showDetails && validationTriggered && coverageInfo && !isLoading && (
-        <Card className={cn(
-          "border-2 bg-card text-card-foreground",
-          coverageInfo.hasActive ? "border-action-success/30" : "border-action-danger/30"
-        )}>
-          <CardContent className="p-4 space-y-3">
-            {/* Direct Area and Worker Display */}
-            <div className="flex items-center space-x-2">
-              {coverageInfo.hasActive ? (
-                <>
-                  <CheckCircle className="h-4 w-4 text-action-success" />
-                  <span className="text-sm font-medium text-foreground">
-                    {coverageInfo.workers && coverageInfo.workers.length > 0 && (
-                      <>
-                        {coverageInfo.workers[0].city} - {coverageInfo.workers.map((worker: any) => worker.name).join(', ')}
-                      </>
-                    )}
-                  </span>
-                </>
-              ) : (
-                <>
-                  <XCircle className="h-4 w-4 text-action-danger" />
-                  <span className="text-sm font-medium text-foreground">
-                    No workers available in this area
-                  </span>
-                </>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex items-center space-x-2">
+          {coverageInfo.hasActive ? (
+            <>
+              <MapPin className="h-4 w-4 text-action-success" />
+              <span className="text-sm font-medium text-action-success">
+                {coverageInfo.workers && coverageInfo.workers.length > 0 && (
+                  <>
+                    {coverageInfo.workers[0].city} - {coverageInfo.workers.length === 1 ? 'Worker' : 'Workers'}: {coverageInfo.workers.map((worker: any) => worker.name).join(', ')}
+                  </>
+                )}
+              </span>
+            </>
+          ) : (
+            <>
+              <XCircle className="h-4 w-4 text-action-danger" />
+              <span className="text-sm font-medium text-action-danger">
+                No workers available in this area
+              </span>
+            </>
+          )}
+        </div>
       )}
 
       {/* Loading State */}
