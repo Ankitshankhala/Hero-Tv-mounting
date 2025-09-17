@@ -18,8 +18,8 @@ export interface ZctaBookingIntegration {
   assignmentLoading: boolean;
   
   // Coverage checking
-  checkCoverage: (zctaCode: string) => Promise<{ hasActive: boolean; workerCount: number }>;
-  coverageResult: { hasActive: boolean; workerCount: number } | null;
+  checkCoverage: (zctaCode: string) => Promise<{ hasActive: boolean; workerCount: number; workers?: Array<{id: string; name: string; city?: string; coverage_source?: string;}> }>;
+  coverageResult: { hasActive: boolean; workerCount: number; workers?: Array<{id: string; name: string; city?: string; coverage_source?: string;}> } | null;
   coverageLoading: boolean;
   
   // Error handling
@@ -45,7 +45,7 @@ export const useZctaBookingIntegration = (): ZctaBookingIntegration => {
   const [assignmentResult, setAssignmentResult] = useState<any>(null);
   const [assignmentLoading, setAssignmentLoading] = useState(false);
   
-  const [coverageResult, setCoverageResult] = useState<{ hasActive: boolean; workerCount: number } | null>(null);
+  const [coverageResult, setCoverageResult] = useState<{ hasActive: boolean; workerCount: number; workers?: Array<{id: string; name: string; city?: string; coverage_source?: string;}> } | null>(null);
   const [coverageLoading, setCoverageLoading] = useState(false);
   
   const [error, setError] = useState<string | null>(null);
@@ -127,23 +127,31 @@ export const useZctaBookingIntegration = (): ZctaBookingIntegration => {
   }, []);
 
   // Check coverage
-  const checkCoverage = useCallback(async (zctaCode: string): Promise<{ hasActive: boolean; workerCount: number }> => {
+  const checkCoverage = useCallback(async (zctaCode: string): Promise<{ hasActive: boolean; workerCount: number; workers?: Array<{id: string; name: string; city?: string; coverage_source?: string;}> }> => {
     setCoverageLoading(true);
     setError(null);
     
     try {
-      const [hasActive, workerCount] = await Promise.all([
+      const [hasActive, workerCount, workers] = await Promise.all([
         zctaOnlyService.hasActiveCoverage(zctaCode),
-        zctaOnlyService.getWorkerCount(zctaCode)
+        zctaOnlyService.getWorkerCount(zctaCode),
+        zctaOnlyService.findAvailableWorkersWithAreaInfo(zctaCode, new Date().toISOString().split('T')[0], '09:00').then(w => 
+          w.map(worker => ({
+            id: worker.worker_id,
+            name: worker.worker_name,
+            city: worker.area_name || '',
+            coverage_source: 'zcta'
+          }))
+        ).catch(() => [])
       ]);
       
-      const result = { hasActive, workerCount };
+      const result = { hasActive, workerCount, workers };
       setCoverageResult(result);
       return result;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to check coverage';
       setError(errorMessage);
-      const fallbackResult = { hasActive: false, workerCount: 0 };
+      const fallbackResult = { hasActive: false, workerCount: 0, workers: [] };
       setCoverageResult(fallbackResult);
       return fallbackResult;
     } finally {

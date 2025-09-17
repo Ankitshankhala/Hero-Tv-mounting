@@ -15,6 +15,12 @@ interface ZctaBookingValidationResult {
   isLoading: boolean;
   error?: string;
   zctaEnhanced: boolean; // Indicates this uses ZCTA data
+  workers?: Array<{
+    id: string;
+    name: string;
+    city?: string;
+    coverage_source?: string;
+  }>;
 }
 
 /**
@@ -68,7 +74,8 @@ export const useZctaBookingValidation = () => {
         locationData,
         coverageSource: coverageData.coverageSource,
         isLoading: false,
-        zctaEnhanced: true
+        zctaEnhanced: true,
+        workers: []
       };
       
       setValidationState(result);

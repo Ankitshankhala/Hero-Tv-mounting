@@ -244,6 +244,35 @@ export const ZctaLocationInput: React.FC<ZctaLocationInputProps> = ({
                     </div>
                   )}
                 </div>
+                
+                {/* Worker Coverage Details */}
+                {coverageInfo.hasActive && coverageInfo.workers && coverageInfo.workers.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    <div className="text-xs font-medium text-gray-600 mb-1">Available Workers:</div>
+                    <div className="space-y-1">
+                      {coverageInfo.workers.slice(0, 3).map((worker: any, index: number) => (
+                        <div key={worker.id || index} className="flex items-center justify-between text-xs bg-gray-50 rounded p-2">
+                          <div>
+                            <span className="font-medium">{worker.name}</span>
+                            {worker.city && <span className="text-gray-500 ml-1">• {worker.city}</span>}
+                          </div>
+                          {worker.coverage_source && (
+                            <span className={`px-2 py-1 rounded text-xs ${
+                              worker.coverage_source === 'zcta' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
+                            }`}>
+                              {worker.coverage_source === 'zcta' ? 'ZCTA' : 'Database'}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                      {coverageInfo.workers.length > 3 && (
+                        <div className="text-xs text-gray-500 italic">
+                          +{coverageInfo.workers.length - 3} more workers available
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
