@@ -834,15 +834,25 @@ export const AdminServiceAreasUnified = () => {
                   <Settings className="h-4 w-4 mr-2" />
                   Manage Areas
                 </Button>
-                <Button 
-                  variant={viewMode === 'drawing' ? 'default' : 'outline'}
-                  className="w-full justify-start"
-                  onClick={() => setViewMode('drawing')}
-                  disabled={!selectedWorkerId}
-                >
-                  <Edit3 className="h-4 w-4 mr-2" />
-                  Draw New Area
-                </Button>
+                <div className="relative">
+                  <Button 
+                    variant={viewMode === 'drawing' ? 'default' : 'outline'}
+                    className="w-full justify-start"
+                    onClick={() => setViewMode('drawing')}
+                    disabled={!selectedWorkerId}
+                  >
+                    <Edit3 className="h-4 w-4 mr-2" />
+                    Draw New Area
+                    {!selectedWorkerId && (
+                      <AlertTriangle className="h-3 w-3 ml-auto text-amber-500" />
+                    )}
+                  </Button>
+                  {!selectedWorkerId && (
+                    <div className="absolute -bottom-1 left-0 right-0 text-xs text-amber-400 text-center">
+                      Select a worker first
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -883,8 +893,31 @@ export const AdminServiceAreasUnified = () => {
                     />
                   )
                 ) : (
-                  <div className="flex items-center justify-center h-full text-muted-foreground">
-                    Select a worker to {viewMode === 'drawing' ? 'draw service areas' : 'manage their service areas'}
+                  <div className="flex flex-col items-center justify-center h-full text-muted-foreground space-y-4">
+                    <div className="text-center space-y-2">
+                      <AlertTriangle className="h-12 w-12 mx-auto text-amber-500" />
+                      <h3 className="text-lg font-medium">Worker Selection Required</h3>
+                      <p className="text-sm max-w-md">
+                        {viewMode === 'drawing' 
+                          ? 'To draw new service areas, please select a worker from the list on the left first.' 
+                          : 'To manage service areas, please select a worker from the list on the left first.'}
+                      </p>
+                    </div>
+                    {workers.length > 0 && (
+                      <Button 
+                        variant="outline" 
+                        onClick={() => {
+                          const firstWorker = workers.find(w => w.is_active) || workers[0];
+                          if (firstWorker) {
+                            setSelectedWorkerId(firstWorker.id);
+                          }
+                        }}
+                        className="mt-4"
+                      >
+                        <Users className="h-4 w-4 mr-2" />
+                        Auto-select First Worker
+                      </Button>
+                    )}
                   </div>
                 )}
               </CardContent>

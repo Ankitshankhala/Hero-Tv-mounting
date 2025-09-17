@@ -20,9 +20,12 @@ export const LazyAdminZipCodeManager = lazy(
 // Loading component for lazy-loaded admin components
 export const AdminComponentLoader = () => (
   <div className="flex items-center justify-center h-96 bg-background/50">
-    <div className="flex items-center gap-3 text-muted-foreground">
-      <Loader2 className="h-5 w-5 animate-spin" />
-      <span>Loading component...</span>
+    <div className="flex flex-col items-center gap-3 text-muted-foreground">
+      <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
+      <div className="text-center">
+        <p className="font-medium">Loading map component...</p>
+        <p className="text-sm text-muted-foreground">This may take a moment</p>
+      </div>
     </div>
   </div>
 );
