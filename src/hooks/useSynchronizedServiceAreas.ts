@@ -95,7 +95,8 @@ export const useSynchronizedServiceAreas = (options: SyncOptions = {}) => {
     areaId: string,
     workerId: string,
     areaName: string,
-    zipCodes: string[]
+    zipCodes: string[],
+    polygonPoints?: Array<{ lat: number; lng: number }>
   ): Promise<boolean> => {
     if (!workerId || zipCodes.length === 0) {
       return false;
@@ -106,10 +107,12 @@ export const useSynchronizedServiceAreas = (options: SyncOptions = {}) => {
     try {
       const { data, error } = await supabase.functions.invoke('service-area-upsert', {
         body: {
-          areaId,
           workerId,
+          areaIdToUpdate: areaId,
           areaName,
-          zipcodes: zipCodes,
+          zipCodes: zipCodes, // Correct parameter name
+          polygon: polygonPoints || [], // Include polygon data for edge function
+          mode: areaId ? 'update' : 'create',
           syncTimestamp: Date.now()
         }
       });
@@ -179,7 +182,7 @@ export const useSynchronizedServiceAreas = (options: SyncOptions = {}) => {
       if (lastItem) {
         try {
           const zipCodes = await computeZipCodes(lastItem.polygonPoints);
-          await syncToBackend(lastItem.areaId, lastItem.workerId, lastItem.areaName, zipCodes);
+          await syncToBackend(lastItem.areaId, lastItem.workerId, lastItem.areaName, zipCodes, lastItem.polygonPoints);
         } catch (error) {
           console.error('Queued sync failed:', error);
         }
@@ -210,7 +213,7 @@ export const useSynchronizedServiceAreas = (options: SyncOptions = {}) => {
   ): Promise<boolean> => {
     try {
       const zipCodes = await computeZipCodes(polygonPoints);
-      return await syncToBackend(areaId, workerId, areaName, zipCodes);
+      return await syncToBackend(areaId, workerId, areaName, zipCodes, polygonPoints);
     } catch (error) {
       console.error('Manual sync failed:', error);
       return false;

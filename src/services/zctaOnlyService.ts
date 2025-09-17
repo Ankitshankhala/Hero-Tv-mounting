@@ -149,7 +149,7 @@ export class ZctaOnlyService {
         .from('worker_service_zipcodes')
         .select(`
           worker_id,
-          worker:workers!inner(name, email, phone),
+          worker:users!inner(name, email, phone),
           service_area:worker_service_areas!inner(id, area_name)
         `)
         .eq('zipcode', zctaCode)

@@ -35,38 +35,69 @@ serve(async (req) => {
       mode: requestBody.mode
     });
 
-    const { workerId, polygon, areaIdToUpdate, areaName, mode, zipCodes: preComputedZipCodes } = requestBody;
+    const { 
+      workerId, 
+      polygon, 
+      areaIdToUpdate, 
+      areaName, 
+      mode, 
+      zipCodes: preComputedZipCodes,
+      // Handle backward compatibility
+      areaId: legacyAreaId,
+      zipcodes: legacyZipcodes
+    } = requestBody;
 
-    if (!workerId || !polygon || !Array.isArray(polygon) || polygon.length < 3) {
-      throw new Error('Invalid request: workerId, polygon (min 3 points) are required');
+    // Map legacy parameters for backward compatibility
+    const actualAreaId = areaIdToUpdate || legacyAreaId;
+    const actualZipCodes = preComputedZipCodes || legacyZipcodes;
+
+    if (!workerId) {
+      throw new Error('Invalid request: workerId is required');
     }
 
-    // Convert polygon to GeoJSON format for PostGIS
-    const geoJsonPolygon = {
-      type: 'Polygon',
-      coordinates: [[
-        ...polygon.map((point: any) => [point.lng || point.lon, point.lat]),
-        [polygon[0].lng || polygon[0].lon, polygon[0].lat] // Close polygon
-      ]]
-    };
+    // Allow requests with either polygon OR (areaId + zipCodes) for sync operations
+    if (!polygon && !actualZipCodes) {
+      throw new Error('Invalid request: either polygon or pre-computed zipCodes are required');
+    }
 
-    logStep('Converted polygon to GeoJSON', { pointCount: polygon.length });
+    if (polygon && (!Array.isArray(polygon) || polygon.length < 3)) {
+      throw new Error('Invalid request: polygon must have at least 3 points');
+    }
+
+    // Convert polygon to GeoJSON format for PostGIS (only if polygon exists)
+    let geoJsonPolygon;
+    if (polygon && polygon.length > 0) {
+      geoJsonPolygon = {
+        type: 'Polygon',
+        coordinates: [[
+          ...polygon.map((point: any) => [point.lng || point.lon, point.lat]),
+          [polygon[0].lng || polygon[0].lon, polygon[0].lat] // Close polygon
+        ]]
+      };
+      logStep('Converted polygon to GeoJSON', { pointCount: polygon.length });
+    }
 
     let serviceAreaResult;
     let operation = 'created';
 
     // Handle create vs update mode
-    if ((mode === 'update' || mode === 'append') && areaIdToUpdate) {
-      logStep('Updating existing service area', areaIdToUpdate);
+    if ((mode === 'update' || mode === 'append') && actualAreaId) {
+      logStep('Updating existing service area', actualAreaId);
+      
+      const updateData: any = {
+        area_name: areaName || 'Updated Service Area',
+        updated_at: new Date().toISOString()
+      };
+      
+      // Only update polygon if provided
+      if (polygon && polygon.length > 0) {
+        updateData.polygon_coordinates = polygon;
+      }
       
       const { data: updatedArea, error: updateError } = await supabase
         .from('worker_service_areas')
-        .update({
-          area_name: areaName || 'Updated Service Area',
-          polygon_coordinates: polygon, // Store original format
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', areaIdToUpdate)
+        .update(updateData)
+        .eq('id', actualAreaId)
         .eq('worker_id', workerId) // Security check
         .select()
         .single();
@@ -103,8 +134,8 @@ serve(async (req) => {
     let zipcodes: string[] = [];
     let skippedCount = 0;
     
-    if (preComputedZipCodes && Array.isArray(preComputedZipCodes) && preComputedZipCodes.length > 0) {
-      zipcodes = preComputedZipCodes;
+    if (actualZipCodes && Array.isArray(actualZipCodes) && actualZipCodes.length > 0) {
+      zipcodes = actualZipCodes;
       logStep('Using pre-computed ZIP codes from client', { count: zipcodes.length });
     } else {
       logStep('Computing ZIP codes for service area', serviceAreaResult.id);
@@ -171,12 +202,12 @@ serve(async (req) => {
     }
 
     // Handle mode-specific logic for existing ZIP codes
-    if (mode === 'append' && areaIdToUpdate) {
+    if (mode === 'append' && actualAreaId) {
       // Get existing ZIP codes
       const { data: existingZips } = await supabase
         .from('worker_service_zipcodes')
         .select('zipcode')
-        .eq('service_area_id', areaIdToUpdate);
+        .eq('service_area_id', actualAreaId);
         
       const existingZipCodes = new Set(existingZips?.map(z => z.zipcode) || []);
       const newZipcodes = zipcodes.filter(zip => !existingZipCodes.has(zip));
