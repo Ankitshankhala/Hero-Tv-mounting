@@ -1016,61 +1016,6 @@ const AdminServiceAreaMap = ({
               Admin Mode
             </Badge>
           </CardTitle>
-          <div className="text-sm text-muted-foreground mt-2 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
-            <p className="font-medium text-blue-700 dark:text-blue-300 mb-1">📍 Drawing Instructions:</p>
-            <ul className="space-y-1 text-xs text-blue-600 dark:text-blue-400">
-              <li>• <strong>Standard:</strong> Use polygon tool (top-right) - now supports unlimited vertices!</li>
-              <li>• <strong>Custom:</strong> Use "Custom Polygon" button below as alternative method</li>
-              <li>• <strong>Completion:</strong> Double-click last point or click first point to finish</li>
-              <li>• Rectangle tool works normally for simple rectangular areas</li>
-              <li className="text-green-600 dark:text-green-400">• <strong>Fixed:</strong> Leaflet Draw measurement errors patched</li>
-            </ul>
-            
-            {/* Custom Drawing Button */}
-            <div className="mt-3 flex gap-2">
-              <Button
-                size="sm"
-                variant={customDrawingMode ? "destructive" : "default"}
-                onClick={() => {
-                  if (customDrawingMode) {
-                    // Cancel custom drawing
-                    setCustomDrawingMode(false);
-                    if (mapRef.current) {
-                      mapRef.current.getContainer().style.cursor = '';
-                    }
-                    toast({
-                      title: "Drawing Cancelled",
-                      description: "Custom polygon drawing cancelled.",
-                    });
-                  } else {
-                    // Start custom drawing
-                    if (mapRef.current && (mapRef.current as any)._startCustomDrawing) {
-                      (mapRef.current as any)._startCustomDrawing();
-                    }
-                  }
-                }}
-                disabled={!mapInitialized}
-              >
-                {customDrawingMode ? (
-                  <>
-                    <X className="h-4 w-4 mr-2" />
-                    Cancel Custom Drawing
-                  </>
-                ) : (
-                  <>
-                    <Edit3 className="h-4 w-4 mr-2" />
-                    Custom Polygon (Unlimited Vertices)
-                  </>
-                )}
-              </Button>
-              
-              {customDrawingMode && (
-                <Badge variant="outline" className="text-blue-600 border-blue-300">
-                  {customPolygonPoints.length} points added
-                </Badge>
-              )}
-            </div>
-          </div>
         </CardHeader>
         <CardContent className="p-0 relative">
           <div 
