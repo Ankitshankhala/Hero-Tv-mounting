@@ -189,72 +189,28 @@ export const ZctaLocationInput: React.FC<ZctaLocationInputProps> = ({
           coverageInfo.hasActive ? "border-action-success/30" : "border-action-danger/30"
         )}>
           <CardContent className="p-4 space-y-3">
-            {/* Service Coverage Status */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                {coverageInfo.hasActive ? (
+            {/* Direct Area and Worker Display */}
+            <div className="flex items-center space-x-2">
+              {coverageInfo.hasActive ? (
+                <>
                   <CheckCircle className="h-4 w-4 text-action-success" />
-                ) : (
+                  <span className="text-sm font-medium text-foreground">
+                    {coverageInfo.workers && coverageInfo.workers.length > 0 && (
+                      <>
+                        {coverageInfo.workers[0].city} - {coverageInfo.workers.map((worker: any) => worker.name).join(', ')}
+                      </>
+                    )}
+                  </span>
+                </>
+              ) : (
+                <>
                   <XCircle className="h-4 w-4 text-action-danger" />
-                )}
-                <span className="text-sm font-medium text-foreground">
-                  {coverageInfo.hasActive 
-                    ? 'Service Available' 
-                    : 'No workers available in this area'
-                  }
-                </span>
-              </div>
-              {coverageInfo.workerCount > 0 && (
-                <div className="flex items-center space-x-1 text-sm text-muted-foreground">
-                  <Users className="h-4 w-4" />
-                  <span>{coverageInfo.workerCount} worker{coverageInfo.workerCount !== 1 ? 's' : ''}</span>
-                </div>
+                  <span className="text-sm font-medium text-foreground">
+                    No workers available in this area
+                  </span>
+                </>
               )}
             </div>
-            
-            {/* No Service Message */}
-            {!coverageInfo.hasActive && (
-              <div className="p-3 bg-action-warning/10 border border-action-warning/30 rounded">
-                <div className="text-sm text-action-warning font-medium">
-                  No workers available in ZIP code {inputValue}
-                </div>
-              </div>
-            )}
-            
-            {/* Available Workers */}
-            {coverageInfo.hasActive && coverageInfo.workers && coverageInfo.workers.length > 0 && (
-              <div className="space-y-2">
-                <div className="text-xs font-medium text-muted-foreground">
-                  Available Workers:
-                </div>
-                <div className="space-y-2">
-                  {coverageInfo.workers.slice(0, 2).map((worker: any, index: number) => (
-                    <div key={worker.id || index} className="bg-muted/50 rounded p-3 border border-border">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center">
-                          <span className="text-xs font-semibold text-primary">
-                            {worker.name?.charAt(0)?.toUpperCase()}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="font-medium text-foreground text-sm">{worker.name}</span>
-                          {worker.city && (
-                            <div className="text-xs text-muted-foreground">{worker.city}</div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  {coverageInfo.workers.length > 2 && (
-                    <div className="text-center p-2 bg-muted/30 rounded border border-dashed border-border">
-                      <span className="text-xs text-muted-foreground">
-                        +{coverageInfo.workers.length - 2} more workers available
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
           </CardContent>
         </Card>
       )}
