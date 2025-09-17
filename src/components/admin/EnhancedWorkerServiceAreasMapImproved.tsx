@@ -56,6 +56,27 @@ export const EnhancedWorkerServiceAreasMapImproved: React.FC<EnhancedWorkerServi
   const [popupPosition, setPopupPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [zctaLoaded, setZctaLoaded] = useState(false);
 
+  // Sync selectedArea with fresh workers data when it changes
+  useEffect(() => {
+    if (selectedArea) {
+      // Find the updated area data from the fresh workers prop
+      const currentWorker = workers.find(w => w.id === selectedArea.worker.id);
+      if (currentWorker) {
+        const updatedArea = currentWorker.service_areas.find(area => area.id === selectedArea.id);
+        if (updatedArea) {
+          // Update selectedArea with fresh data while preserving worker info
+          setSelectedArea({ 
+            ...updatedArea, 
+            worker: {
+              ...currentWorker,
+              zcta_zipcode_count: currentWorker.service_zipcodes?.length || 0
+            }
+          });
+        }
+      }
+    }
+  }, [workers]); // Re-run when workers data changes
+
   // Initialize map
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
