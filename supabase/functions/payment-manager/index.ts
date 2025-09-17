@@ -280,7 +280,7 @@ async function capturePayment(req: Request, stripe: Stripe, supabase: any) {
   await supabase
     .from('bookings')
     .update({
-      payment_status: 'completed',
+      payment_status: 'captured',
       status: 'completed'
     })
     .eq('id', bookingId);
