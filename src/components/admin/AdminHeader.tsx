@@ -13,7 +13,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { ArrowSidebarToggle } from './ArrowSidebarToggle';
 import { NotificationBell } from './NotificationBell';
 import { GlobalSearch } from './GlobalSearch';
-
 interface AdminHeaderProps {
   onNavigate?: (section: string) => void;
 }
@@ -173,10 +172,7 @@ export const AdminHeader = ({
                 </AlertDialogContent>
               </AlertDialog>}
             
-            <Button variant="outline" onClick={() => setShowTodaysJobs(true)} className="bg-slate-700/50 text-slate-300 border-slate-600 hover:bg-white hover:text-slate-900 transition-colors">
-              <Calendar className="h-4 w-4 mr-2" />
-              Today's Jobs
-            </Button>
+            
             
             {/* Tour Reset Button */}
             <Button variant="outline" size="sm" onClick={handleResetTour} className="bg-blue-900/20 text-blue-400 border-blue-600/50 hover:bg-blue-600 hover:text-white transition-colors" title="Reset admin tour completion status">
