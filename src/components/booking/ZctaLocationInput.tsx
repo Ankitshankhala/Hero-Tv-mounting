@@ -117,9 +117,9 @@ export const ZctaLocationInput: React.FC<ZctaLocationInputProps> = ({
     return cn(
       'pr-10',
       {
-        'border-green-500 bg-green-50': status === 'valid',
-        'border-red-500 bg-red-50': status === 'invalid',
-        'border-blue-500 bg-blue-50': status === 'loading'
+        'border-action-success bg-background text-foreground': status === 'valid',
+        'border-action-danger bg-background text-foreground': status === 'invalid',
+        'border-action-info bg-background text-foreground': status === 'loading'
       },
       className
     );
@@ -129,25 +129,25 @@ export const ZctaLocationInput: React.FC<ZctaLocationInputProps> = ({
     const status = getInputStatus();
     switch (status) {
       case 'loading':
-        return <Loader2 className="h-4 w-4 animate-spin text-blue-500" />;
+        return <Loader2 className="h-4 w-4 animate-spin text-action-info" />;
       case 'valid':
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
+        return <CheckCircle className="h-4 w-4 text-action-success" />;
       case 'invalid':
-        return <XCircle className="h-4 w-4 text-red-500" />;
+        return <XCircle className="h-4 w-4 text-action-danger" />;
       default:
-        return <MapPin className="h-4 w-4 text-gray-400" />;
+        return <MapPin className="h-4 w-4 text-muted-foreground" />;
     }
   };
 
   const getDataSourceBadge = (dataSource: string) => {
     const variants: Record<string, { variant: any; label: string; color: string }> = {
-      'zcta_boundary': { variant: 'default', label: 'ZCTA Boundary', color: 'bg-blue-100 text-blue-800' },
-      'postal_only': { variant: 'secondary', label: 'Postal Data', color: 'bg-yellow-100 text-yellow-800' },
-      'not_found': { variant: 'destructive', label: 'Not Found', color: 'bg-red-100 text-red-800' },
-      'invalid': { variant: 'destructive', label: 'Invalid', color: 'bg-red-100 text-red-800' }
+      'zcta_boundary': { variant: 'default', label: 'ZCTA Boundary', color: 'bg-action-info/20 text-action-info border border-action-info/30' },
+      'postal_only': { variant: 'secondary', label: 'Postal Data', color: 'bg-action-warning/20 text-action-warning border border-action-warning/30' },
+      'not_found': { variant: 'destructive', label: 'Not Found', color: 'bg-action-danger/20 text-action-danger border border-action-danger/30' },
+      'invalid': { variant: 'destructive', label: 'Invalid', color: 'bg-action-danger/20 text-action-danger border border-action-danger/30' }
     };
 
-    const config = variants[dataSource] || { variant: 'outline', label: dataSource, color: 'bg-gray-100 text-gray-800' };
+    const config = variants[dataSource] || { variant: 'outline', label: dataSource, color: 'bg-muted/50 text-muted-foreground border border-border' };
     return (
       <span className={`px-2 py-1 rounded text-xs font-medium ${config.color}`}>
         {config.label}
@@ -184,17 +184,17 @@ export const ZctaLocationInput: React.FC<ZctaLocationInputProps> = ({
       {/* Validation Results */}
       {showDetails && validationTriggered && zctaValidation && !isLoading && (
         <Card className={cn(
-          "border-2",
-          zctaValidation.is_valid ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50"
+          "border-2 bg-card text-card-foreground",
+          zctaValidation.is_valid ? "border-action-success/30" : "border-action-danger/30"
         )}>
           <CardContent className="p-4 space-y-3">
             {/* Header */}
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold flex items-center">
+              <h3 className="font-semibold flex items-center text-foreground">
                 {zctaValidation.is_valid ? (
-                  <CheckCircle className="h-4 w-4 text-green-600 mr-2" />
+                  <CheckCircle className="h-4 w-4 text-action-success mr-2" />
                 ) : (
-                  <XCircle className="h-4 w-4 text-red-600 mr-2" />
+                  <XCircle className="h-4 w-4 text-action-danger mr-2" />
                 )}
                 {zctaValidation.is_valid ? 'Valid ZCTA Code' : 'Invalid ZCTA Code'}
               </h3>
@@ -205,40 +205,40 @@ export const ZctaLocationInput: React.FC<ZctaLocationInputProps> = ({
             {zctaValidation.is_valid && (
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <span className="font-medium">Location:</span>
-                  <div className="text-gray-700">{zctaValidation.city}, {zctaValidation.state}</div>
+                  <span className="font-medium text-foreground">Location:</span>
+                  <div className="text-muted-foreground">{zctaValidation.city}, {zctaValidation.state}</div>
                 </div>
                 <div>
-                  <span className="font-medium">Area:</span>
-                  <div className="text-gray-700">{zctaValidation.total_area_sq_miles.toFixed(1)} sq mi</div>
+                  <span className="font-medium text-foreground">Area:</span>
+                  <div className="text-muted-foreground">{zctaValidation.total_area_sq_miles.toFixed(1)} sq mi</div>
                 </div>
                 <div>
-                  <span className="font-medium">Coordinates:</span>
-                  <div className="text-gray-700">{zctaValidation.centroid_lat.toFixed(4)}, {zctaValidation.centroid_lng.toFixed(4)}</div>
+                  <span className="font-medium text-foreground">Coordinates:</span>
+                  <div className="text-muted-foreground">{zctaValidation.centroid_lat.toFixed(4)}, {zctaValidation.centroid_lng.toFixed(4)}</div>
                 </div>
                 <div>
-                  <span className="font-medium">Boundary Data:</span>
-                  <div className="text-gray-700">{zctaValidation.has_boundary_data ? 'Available' : 'Not Available'}</div>
+                  <span className="font-medium text-foreground">Boundary Data:</span>
+                  <div className="text-muted-foreground">{zctaValidation.has_boundary_data ? 'Available' : 'Not Available'}</div>
                 </div>
               </div>
             )}
 
             {/* Service Coverage */}
             {coverageInfo && (
-              <div className="pt-2 border-t border-gray-200">
+              <div className="pt-2 border-t border-border">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
                     {coverageInfo.hasActive ? (
-                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <CheckCircle className="h-4 w-4 text-action-success" />
                     ) : (
-                      <XCircle className="h-4 w-4 text-red-600" />
+                      <XCircle className="h-4 w-4 text-action-danger" />
                     )}
-                    <span className="text-sm font-medium">
+                    <span className="text-sm font-medium text-foreground">
                       {coverageInfo.hasActive ? 'Service Available' : 'No Service Coverage'}
                     </span>
                   </div>
                   {coverageInfo.workerCount > 0 && (
-                    <div className="flex items-center space-x-1 text-sm text-gray-600">
+                    <div className="flex items-center space-x-1 text-sm text-muted-foreground">
                       <Users className="h-4 w-4" />
                       <span>{coverageInfo.workerCount} worker{coverageInfo.workerCount !== 1 ? 's' : ''}</span>
                     </div>
@@ -248,17 +248,17 @@ export const ZctaLocationInput: React.FC<ZctaLocationInputProps> = ({
                 {/* Worker Coverage Details */}
                 {coverageInfo.hasActive && coverageInfo.workers && coverageInfo.workers.length > 0 && (
                   <div className="mt-3 space-y-2">
-                    <div className="text-xs font-medium text-gray-600 mb-1">Available Workers:</div>
+                    <div className="text-xs font-medium text-muted-foreground mb-1">Available Workers:</div>
                     <div className="space-y-1">
                       {coverageInfo.workers.slice(0, 3).map((worker: any, index: number) => (
-                        <div key={worker.id || index} className="flex items-center justify-between text-xs bg-gray-50 rounded p-2">
+                        <div key={worker.id || index} className="flex items-center justify-between text-xs bg-muted/50 rounded p-2">
                           <div>
-                            <span className="font-medium">{worker.name}</span>
-                            {worker.city && <span className="text-gray-500 ml-1">• {worker.city}</span>}
+                            <span className="font-medium text-foreground">{worker.name}</span>
+                            {worker.city && <span className="text-muted-foreground ml-1">• {worker.city}</span>}
                           </div>
                           {worker.coverage_source && (
                             <span className={`px-2 py-1 rounded text-xs ${
-                              worker.coverage_source === 'zcta' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
+                              worker.coverage_source === 'zcta' ? 'bg-action-info/20 text-action-info border border-action-info/30' : 'bg-muted text-muted-foreground border border-border'
                             }`}>
                               {worker.coverage_source === 'zcta' ? 'ZCTA' : 'Database'}
                             </span>
@@ -266,7 +266,7 @@ export const ZctaLocationInput: React.FC<ZctaLocationInputProps> = ({
                         </div>
                       ))}
                       {coverageInfo.workers.length > 3 && (
-                        <div className="text-xs text-gray-500 italic">
+                        <div className="text-xs text-muted-foreground italic">
                           +{coverageInfo.workers.length - 3} more workers available
                         </div>
                       )}
@@ -278,11 +278,11 @@ export const ZctaLocationInput: React.FC<ZctaLocationInputProps> = ({
 
             {/* Service Area Capabilities */}
             {zctaValidation.is_valid && (
-              <div className="pt-2 border-t border-gray-200">
+              <div className="pt-2 border-t border-border">
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center space-x-2">
-                    <Info className="h-4 w-4 text-blue-500" />
-                    <span className="font-medium">Service Area Support:</span>
+                    <Info className="h-4 w-4 text-action-info" />
+                    <span className="font-medium text-foreground">Service Area Support:</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     {zctaValidation.can_use_for_service ? (
@@ -297,8 +297,8 @@ export const ZctaLocationInput: React.FC<ZctaLocationInputProps> = ({
 
             {/* Warnings for invalid codes */}
             {!zctaValidation.is_valid && (
-              <div className="pt-2 border-t border-red-200">
-                <div className="text-sm text-red-700">
+              <div className="pt-2 border-t border-action-danger/30">
+                <div className="text-sm text-action-danger">
                   <p>This ZCTA code is not recognized. Please verify the code or try a different location.</p>
                 </div>
               </div>
@@ -309,7 +309,7 @@ export const ZctaLocationInput: React.FC<ZctaLocationInputProps> = ({
 
       {/* Loading State */}
       {isLoading && (
-        <div className="flex items-center justify-center p-4 text-sm text-gray-600">
+        <div className="flex items-center justify-center p-4 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin mr-2" />
           Validating ZCTA code...
         </div>
