@@ -22,7 +22,8 @@ export const AdminServiceAreaManager = () => {
     loading,
     fetchWorkers,
     fetchAuditLogs,
-    createServiceAreaForWorker
+    createServiceAreaForWorker,
+    updateServiceAreaName
   } = useAdminServiceAreas();
   
   const { runHealthCheck, isLoading: healthCheckLoading, healthData } = useSpatialHealthCheck();
@@ -145,7 +146,7 @@ export const AdminServiceAreaManager = () => {
                       {selectedWorker?.service_areas?.map(area => (
                         <div key={area.id} className="text-xs p-2 bg-muted rounded">
                            <AreaNameEditor
-                             area={area}
+                             area={area as any}
                              onNameUpdate={async (areaId: string, newName: string) => {
                                const success = await updateServiceAreaName(areaId, newName);
                                if (success) {
