@@ -20,7 +20,7 @@ export const AdminServiceAreaManager = () => {
     workers,
     auditLogs,
     loading,
-    fetchWorkers,
+    fetchWorkersWithServiceAreas,
     fetchAuditLogs,
     createServiceAreaForWorker,
     updateServiceAreaName
@@ -29,9 +29,9 @@ export const AdminServiceAreaManager = () => {
   const { runHealthCheck, isLoading: healthCheckLoading, healthData } = useSpatialHealthCheck();
   const selectedWorker = workers.find(w => w.id === selectedWorkerId);
   useEffect(() => {
-    fetchWorkers();
+    fetchWorkersWithServiceAreas();
     fetchAuditLogs();
-  }, [fetchWorkers, fetchAuditLogs]);
+  }, [fetchWorkersWithServiceAreas, fetchAuditLogs]);
 
   // Auto-select first worker when workers are loaded
   useEffect(() => {
@@ -47,7 +47,7 @@ export const AdminServiceAreaManager = () => {
   // Set up real-time updates scoped to selected worker to avoid global refresh
   useRealtimeServiceAreas({
     onUpdate: () => {
-      fetchWorkers();
+      fetchWorkersWithServiceAreas(true);
       fetchAuditLogs(selectedWorkerId || undefined);
     },
     filterWorkerId: selectedWorkerId || undefined
@@ -67,7 +67,7 @@ export const AdminServiceAreaManager = () => {
   const handleRefresh = () => {
     // Clear cache for fresh data
     apiCache.clear();
-    fetchWorkers();
+    fetchWorkersWithServiceAreas(true);
     fetchAuditLogs(selectedWorkerId || undefined);
   };
   return <div className="p-6 space-y-6">
@@ -147,15 +147,15 @@ export const AdminServiceAreaManager = () => {
                         <div key={area.id} className="text-xs p-2 bg-muted rounded">
                            <AreaNameEditor
                              area={area as any}
-                             onNameUpdate={async (areaId: string, newName: string) => {
-                               const success = await updateServiceAreaName(areaId, newName);
-                               if (success) {
-                                 // Refresh data after successful name update
-                                 fetchWorkers();
-                                 fetchAuditLogs(selectedWorkerId);
-                               }
-                               return success;
-                             }}
+                              onNameUpdate={async (areaId: string, newName: string) => {
+                                const success = await updateServiceAreaName(areaId, newName);
+                                if (success) {
+                                  // Refresh complete data after successful name update
+                                  fetchWorkersWithServiceAreas(true);
+                                  fetchAuditLogs(selectedWorkerId);
+                                }
+                                return success;
+                              }}
                             trigger="inline"
                           />
                           <div className="text-muted-foreground mt-1">
@@ -212,11 +212,11 @@ export const AdminServiceAreaManager = () => {
                   {selectedWorkerId ? <ServiceAreaMap 
                     workerId={selectedWorkerId} 
                     onServiceAreaCreated={() => {
-                      // Clear cache and refresh data
+                      // Clear cache and refresh complete data
                       apiCache.clear();
-                      fetchWorkers();
+                      fetchWorkersWithServiceAreas(true);
                       fetchAuditLogs(selectedWorkerId);
-                    }} 
+                    }}
                     adminMode={true} 
                     isActive={true} 
                     key={selectedWorkerId} // Force re-mount for new worker

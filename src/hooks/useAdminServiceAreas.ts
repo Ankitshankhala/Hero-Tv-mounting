@@ -155,7 +155,7 @@ export const useAdminServiceAreas = (forceFresh = false) => {
         description: data.message,
       });
 
-      await fetchWorkers();
+      await fetchWorkersWithServiceAreas(true);
       await fetchAuditLogs();
       return data;
 
@@ -318,7 +318,7 @@ export const useAdminServiceAreas = (forceFresh = false) => {
         description: "Service area updated successfully",
       });
 
-      await refreshData();
+      await refreshData(true);
       return true;
     } catch (error) {
       console.error('Error updating service area:', error);
@@ -403,7 +403,7 @@ export const useAdminServiceAreas = (forceFresh = false) => {
         description: "Service area deleted successfully",
       });
 
-      await refreshData();
+      await refreshData(true);
       return true;
     } catch (error) {
       console.error('Error deleting service area:', error);
@@ -460,7 +460,7 @@ export const useAdminServiceAreas = (forceFresh = false) => {
         description: result.message,
       });
 
-      await fetchWorkers();
+      await fetchWorkersWithServiceAreas(true);
       await fetchAuditLogs();
       return result;
 
@@ -538,7 +538,7 @@ export const useAdminServiceAreas = (forceFresh = false) => {
         description: "Service area updated successfully",
       });
 
-      await refreshData();
+      await refreshData(true);
       return data;
     } catch (error) {
       console.error('Error updating service area:', error);
