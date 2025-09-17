@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
@@ -34,10 +34,10 @@ import { BulkZipcodeAssignment } from './BulkZipcodeAssignment';
 import { 
   LazyEnhancedWorkerServiceAreasMapImproved, 
   LazyAdminServiceAreaMap,
-  LazyAdminZipCodeManager,
-  
-  withLazyLoading 
+  withLazyLoading,
+  AdminComponentLoader
 } from './LazyAdminComponents';
+import AdminServiceAreaMap from './AdminServiceAreaMap';
 import ServiceAreaMap from '@/components/worker/service-area/ServiceAreaMap';
 import { useAdminServiceAreas } from '@/hooks/useAdminServiceAreas';
 import { useRealtimeServiceAreas } from '@/hooks/useRealtimeServiceAreas';
@@ -76,10 +76,9 @@ export const AdminServiceAreasUnified = () => {
 
   // Service Area Manager states
   const [selectedWorkerId, setSelectedWorkerId] = useState<string>('');
-  const [viewMode, setViewMode] = useState<'overview' | 'manage' | 'drawing' | 'data'>('overview');
+  const [viewMode, setViewMode] = useState<'overview' | 'manage' | 'drawing'>('overview');
   const [editingArea, setEditingArea] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
-  const [activeTab, setActiveTab] = useState<'coverage' | 'map' | 'zips' | 'audit'>('coverage');
   const [initialLoaded, setInitialLoaded] = useState(false);
 
   // ZCTA loading states
@@ -254,10 +253,10 @@ export const AdminServiceAreasUnified = () => {
 
   // Defer audit logs loading until needed
   useEffect(() => {
-    if (activeTab === 'audit' && initialLoaded) {
-      fetchAuditLogs();
+    if (selectedWorkerId && initialLoaded) {
+      fetchAuditLogs(selectedWorkerId);
     }
-  }, [activeTab, initialLoaded, fetchAuditLogs]);
+  }, [selectedWorkerId, initialLoaded, fetchAuditLogs]);
 
   // Optimized debug logging - only log when data changes significantly
   useEffect(() => {
@@ -286,7 +285,7 @@ export const AdminServiceAreasUnified = () => {
     onUpdate: () => {
       if (initialLoaded) {
         refreshData(false); // Use cache for real-time updates
-        if (selectedWorkerId && activeTab === 'audit') {
+        if (selectedWorkerId) {
           fetchAuditLogs(selectedWorkerId);
         }
       }
@@ -331,8 +330,8 @@ export const AdminServiceAreasUnified = () => {
 
   const handleRefresh = () => {
     refreshData(true); // Force fresh data only on manual refresh
-    if (activeTab === 'audit') {
-      fetchAuditLogs(selectedWorkerId || undefined);
+    if (selectedWorkerId) {
+      fetchAuditLogs(selectedWorkerId);
     }
   };
 
@@ -440,9 +439,9 @@ export const AdminServiceAreasUnified = () => {
           </h1>
           <p className="text-slate-300">
             {viewMode === 'overview' ? 'View and manage worker service coverage across all areas' : 
-             viewMode === 'manage' ? 'Manage individual worker service areas and zip code assignments' :
-             viewMode === 'drawing' ? 'Draw and edit service area polygons for workers' :
-             'Manage comprehensive ZIP code and ZCTA polygon data'}
+             viewMode === 'manage' ? 'Edit existing service areas and zip code assignments for a worker' :
+             viewMode === 'drawing' ? 'Create new service area polygons for a worker' :
+             'Service area management'}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -459,7 +458,7 @@ export const AdminServiceAreasUnified = () => {
               }`}
             >
               <Eye className="h-4 w-4 mr-1" />
-              Overview
+              Coverage View
             </Button>
             <Button
               variant={viewMode === 'manage' ? 'default' : 'ghost'}
@@ -472,7 +471,7 @@ export const AdminServiceAreasUnified = () => {
               }`}
             >
               <Settings className="h-4 w-4 mr-1" />
-              Manage
+              Edit Areas
             </Button>
             <Button
               variant={viewMode === 'drawing' ? 'default' : 'ghost'}
@@ -486,20 +485,7 @@ export const AdminServiceAreasUnified = () => {
               } ${!selectedWorkerId ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <Map className="h-4 w-4 mr-1" />
-              Draw
-            </Button>
-            <Button
-              variant={viewMode === 'data' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('data')}
-              className={`text-sm font-medium px-3 py-2 ${
-                viewMode === 'data' 
-                  ? 'bg-blue-600 text-white shadow-md' 
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-              }`}
-            >
-              <Database className="h-4 w-4 mr-1" />
-              Data
+              Create New
             </Button>
           </div>
 
@@ -507,7 +493,7 @@ export const AdminServiceAreasUnified = () => {
           {viewMode !== 'overview' && (
             <Button onClick={() => setViewMode('overview')} variant="outline" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Overview
+              Back to Coverage View
             </Button>
           )}
           <BulkZipcodeAssignment workers={filteredWorkers} onAssignZipcodes={addZipcodesToExistingArea} />
@@ -532,37 +518,6 @@ export const AdminServiceAreasUnified = () => {
                 Load ZCTA Data
               </>
             )}
-          </Button>
-          <Button
-            onClick={() => {
-              supabase.rpc('check_spatial_health').then(({ data, error }) => {
-                if (error) {
-                  console.error('Health check error:', error);
-                  toast({
-                    title: "Health Check Failed",
-                    description: error.message,
-                    variant: "destructive",
-                  });
-                } else {
-                  console.log('Health check raw data:', data);
-                  const healthData = data as any;
-                  const zctaCount = healthData?.zcta_polygons?.count || 0;
-                  const zipCount = healthData?.zip_codes?.count || 0;
-                  const sampleCount = healthData?.sample_test_zipcode_count || 0;
-                  console.log('Parsed counts:', { zctaCount, zipCount, sampleCount });
-                  
-                  toast({
-                    title: "Spatial Health Check",
-                    description: `Status: ${healthData?.overall_health || 'unknown'} | ZCTA polygons: ${zctaCount} | ZIP codes: ${zipCount} | Sample test: ${sampleCount} ZIPs`,
-                  });
-                }
-              });
-            }}
-            variant="outline"
-            className="flex items-center gap-2"
-          >
-            <Database className="h-4 w-4" />
-            Health Check
           </Button>
         </div>
       </div>
@@ -672,7 +627,7 @@ export const AdminServiceAreasUnified = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Map className="h-5 w-5" />
-                  Coverage Overview
+                  Service Coverage Overview
                 </CardTitle>
               </CardHeader>
               <CardContent className="h-[600px] p-0">
@@ -835,7 +790,7 @@ export const AdminServiceAreasUnified = () => {
                   disabled={!selectedWorkerId}
                 >
                   <Settings className="h-4 w-4 mr-2" />
-                  Manage Areas
+                  Edit Existing Areas
                 </Button>
                 <div className="relative">
                   <Button 
@@ -845,7 +800,7 @@ export const AdminServiceAreasUnified = () => {
                     disabled={!selectedWorkerId}
                   >
                     <Edit3 className="h-4 w-4 mr-2" />
-                    Draw New Area
+                    Create New Area
                     {!selectedWorkerId && (
                       <AlertTriangle className="h-3 w-3 ml-auto text-amber-500" />
                     )}
@@ -866,26 +821,28 @@ export const AdminServiceAreasUnified = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Map className="h-5 w-5" />
-                  {viewMode === 'drawing' ? 'Area Drawing Tool' : 'Service Area Manager'}
+                  {viewMode === 'drawing' ? 'Create New Service Area' : 'Edit Service Areas'}
                 </CardTitle>
               </CardHeader>
               <CardContent className="h-[600px] p-0">
                 {selectedWorkerId ? (
                   viewMode === 'drawing' ? (
                     /* DRAWING MODE - Map for drawing new areas */
-                    <LazyAdminServiceAreaMap
-                      workerId={selectedWorkerId}
-                      workerName={selectedWorker?.name || 'Unknown Worker'}
-                      onServiceAreaUpdate={() => {
-                        refreshData(true);
-                        fetchAuditLogs(selectedWorkerId);
-                      }}
-                      onServiceAreaCreated={() => {
-                        refreshData(true);
-                        fetchAuditLogs(selectedWorkerId);
-                      }}
-                      isActive={true}
-                    />
+                    <Suspense fallback={<AdminComponentLoader />}>
+                      <AdminServiceAreaMap
+                        workerId={selectedWorkerId}
+                        workerName={selectedWorker?.name || 'Unknown Worker'}
+                        onServiceAreaUpdate={() => {
+                          refreshData(true);
+                          fetchAuditLogs(selectedWorkerId);
+                        }}
+                        onServiceAreaCreated={() => {
+                          refreshData(true);
+                          fetchAuditLogs(selectedWorkerId);
+                        }}
+                        isActive={true}
+                      />
+                    </Suspense>
                   ) : (
                     /* MANAGE MODE - Map for managing existing areas */
                     <ServiceAreaMap 
@@ -902,8 +859,8 @@ export const AdminServiceAreasUnified = () => {
                       <h3 className="text-lg font-medium">Worker Selection Required</h3>
                       <p className="text-sm max-w-md">
                         {viewMode === 'drawing' 
-                          ? 'To draw new service areas, please select a worker from the list on the left first.' 
-                          : 'To manage service areas, please select a worker from the list on the left first.'}
+                          ? 'To create new service areas, please select a worker from the list on the left first.' 
+                          : 'To edit service areas, please select a worker from the list on the left first.'}
                       </p>
                     </div>
                     {workers.length > 0 && (
@@ -929,25 +886,6 @@ export const AdminServiceAreasUnified = () => {
         </div>
       )}
 
-      {/* DATA MANAGEMENT MODE - REMOVED */}
-      {viewMode === 'data' && (
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Database className="h-5 w-5" />
-                Data Management
-              </CardTitle>
-              <CardDescription>
-                ZIP code data management features have been removed
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">This functionality is no longer available.</p>
-            </CardContent>
-          </Card>
-        </div>
-      )}
 
     </div>
   );
