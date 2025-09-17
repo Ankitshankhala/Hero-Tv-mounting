@@ -5,7 +5,8 @@ interface Worker {
   id: string;
   name: string;
   is_active: boolean;
-  zcta_zipcodes?: number; // ZCTA-computed ZIP count
+  zcta_zipcodes?: number; // ZCTA-computed unique ZIP count
+  zcta_total_area_zipcodes?: number; // ZCTA-computed total area ZIP count (with duplicates)
   service_areas?: Array<{
     id: string;
     area_name: string;
@@ -45,17 +46,24 @@ export const SimpleWorkerCard: React.FC<SimpleWorkerCardProps> = ({
     const activeAreas = worker.service_areas?.filter(area => area.is_active) || [];
     const areaCount = activeAreas.length;
     
-    // Use ZCTA-computed ZIP count if available, otherwise fall back to database count
-    const zipCount = worker.zcta_zipcodes || worker.service_zipcodes?.length || 0;
+    // Use ZCTA-computed ZIP counts if available, otherwise fall back to database count
+    const uniqueZipCount = worker.zcta_zipcodes || worker.service_zipcodes?.length || 0;
+    const totalZipCount = worker.zcta_total_area_zipcodes || uniqueZipCount;
     
     if (areaCount === 0) return '0 areas';
     
     // Format with proper singular/plural
     const areaText = areaCount === 1 ? 'area' : 'areas';
-    const zipText = zipCount === 1 ? 'ZIP' : 'ZIPs';
+    const uniqueZipText = uniqueZipCount === 1 ? 'ZIP' : 'ZIPs';
     
-    if (zipCount > 0) {
-      return `${areaCount} ${areaText} ${zipCount} ${zipText}`;
+    if (uniqueZipCount > 0) {
+      // Show both metrics when they differ (indicating overlap)
+      if (totalZipCount > uniqueZipCount) {
+        return `${areaCount} ${areaText}, ${totalZipCount} total ZIPs (${uniqueZipCount} unique)`;
+      }
+      
+      // Show simple format when no overlap
+      return `${areaCount} ${areaText}, ${uniqueZipCount} ${uniqueZipText}`;
     }
     
     return `${areaCount} ${areaText}`;

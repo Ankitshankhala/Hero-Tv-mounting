@@ -12,7 +12,8 @@ interface Worker {
   is_active: boolean;
   service_area_count: number;
   total_zipcodes: number;
-  zcta_zipcodes?: number; // ZCTA-computed ZIP count
+  zcta_zipcodes?: number; // ZCTA-computed unique ZIP count
+  zcta_total_area_zipcodes?: number; // ZCTA-computed total area ZIP count (with duplicates)
   service_areas?: Array<{
     id: string;
     worker_id?: string;
@@ -246,11 +247,15 @@ export const useAdminServiceAreas = (forceFresh = false) => {
           try {
             const zctaStatsMap = await batchComputeWorkerZctaStats(workersWithAreas);
             
-            // Add ZCTA ZIP count to worker data
-            const workersWithZcta = workersWithAreas.map(worker => ({
-              ...worker,
-              zcta_zipcodes: zctaStatsMap.get(worker.id)?.totalZctaZipcodes || 0
-            }));
+            // Add ZCTA ZIP counts to worker data
+            const workersWithZcta = workersWithAreas.map(worker => {
+              const stats = zctaStatsMap.get(worker.id);
+              return {
+                ...worker,
+                zcta_zipcodes: stats?.totalZctaZipcodes || 0,
+                zcta_total_area_zipcodes: stats?.totalAreaZipcodes || 0
+              };
+            });
             
             return workersWithZcta;
           } catch (zctaError) {

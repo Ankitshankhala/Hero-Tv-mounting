@@ -11,7 +11,8 @@ export interface WorkerZctaCoverage {
 export interface WorkerAreaZctaStats {
   workerId: string;
   activeAreaCount: number;
-  totalZctaZipcodes: number;
+  totalZctaZipcodes: number; // Unique ZIP codes across all areas (deduplicated)
+  totalAreaZipcodes: number; // Sum of all area ZIP codes (with duplicates)
   zctaCoverageByArea: Map<string, string[]>;
 }
 
@@ -100,6 +101,7 @@ export const computeWorkerZctaStats = async (
   const activeAreas = serviceAreas.filter(area => area.is_active);
   const zctaCoverageByArea = new Map<string, string[]>();
   const allZipcodes = new Set<string>();
+  let totalAreaZipcodes = 0;
 
   // Compute ZCTA coverage for each active area
   for (const area of activeAreas) {
@@ -107,8 +109,11 @@ export const computeWorkerZctaStats = async (
       const zctaZips = await computeZctaZipCodesForPolygon(area.polygon_coordinates);
       zctaCoverageByArea.set(area.id, zctaZips);
       
-      // Add to total unique ZIP set
+      // Add to total unique ZIP set (deduplicated)
       zctaZips.forEach(zip => allZipcodes.add(zip));
+      
+      // Add to total area coverage (with duplicates)
+      totalAreaZipcodes += zctaZips.length;
     } else {
       zctaCoverageByArea.set(area.id, []);
     }
@@ -117,7 +122,8 @@ export const computeWorkerZctaStats = async (
   return {
     workerId: '', // Will be set by caller
     activeAreaCount: activeAreas.length,
-    totalZctaZipcodes: allZipcodes.size,
+    totalZctaZipcodes: allZipcodes.size, // Unique across all areas
+    totalAreaZipcodes, // Sum of all areas (with duplicates)
     zctaCoverageByArea
   };
 };
@@ -153,6 +159,7 @@ export const batchComputeWorkerZctaStats = async (
         workerId: worker.id,
         activeAreaCount: 0,
         totalZctaZipcodes: 0,
+        totalAreaZipcodes: 0,
         zctaCoverageByArea: new Map()
       }
     };

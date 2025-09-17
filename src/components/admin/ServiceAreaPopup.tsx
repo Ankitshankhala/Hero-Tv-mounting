@@ -15,6 +15,7 @@ interface ServiceAreaPopupProps {
       id: string;
       name: string;
       email: string;
+      zcta_zipcode_count?: number; // Worker's total unique ZIP count
     };
   };
   zipCodes: string[];
@@ -109,9 +110,16 @@ export const ServiceAreaPopup: React.FC<ServiceAreaPopupProps> = ({
             </div>
           ) : (
             <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">
-                {zipCodes.length} ZCTA ZIP codes in this area
-              </p>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">
+                  {zipCodes.length} ZCTA ZIP codes in this area
+                </p>
+                {area.worker.zcta_zipcode_count && (
+                  <p className="text-xs text-muted-foreground/80">
+                    Worker total: {area.worker.zcta_zipcode_count} unique ZIPs
+                  </p>
+                )}
+              </div>
               <ScrollArea className="h-24 w-full border rounded-md p-2 bg-muted/30">
                 <div className="grid grid-cols-3 gap-1">
                   {zipCodes.map((zipcode) => (
