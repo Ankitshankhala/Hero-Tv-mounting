@@ -1,5 +1,6 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { SimpleWorkerCard } from './SimpleWorkerCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -410,46 +411,16 @@ export const AdminServiceAreasUnified = () => {
               </CardHeader>
               <CardContent>
                 <ScrollArea className="h-96">
-                  <div className="space-y-2">
-                    {filteredWorkers.map(worker => {
-                      const stats = getWorkerStats(worker);
-                      const isSelected = selectedWorkerId === worker.id;
-                      return (
-                        <div 
-                          key={worker.id} 
-                          className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                            isSelected ? 'border-primary bg-primary/5' : 'hover:border-muted-foreground/20'
-                          }`}
-                          onClick={() => handleWorkerSelect(worker.id)}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2">
-                                <h4 className="font-medium text-sm">{worker.name}</h4>
-                                <Badge variant={worker.is_active ? 'default' : 'secondary'} className="text-xs">
-                                  {worker.is_active ? 'Active' : 'Inactive'}
-                                </Badge>
-                              </div>
-                              <div className="flex gap-4 text-xs text-muted-foreground">
-                                <span>{stats.activeAreas} areas</span>
-                                <span>{stats.totalZipCodes} ZIPs</span>
-                              </div>
-                            </div>
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedWorkerId(worker.id);
-                                setViewMode('manage');
-                              }}
-                            >
-                              <Edit3 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    })}
+                  <div className="space-y-1">
+                    {filteredWorkers.map((worker, index) => (
+                      <SimpleWorkerCard
+                        key={worker.id}
+                        worker={worker}
+                        isSelected={selectedWorkerId === worker.id}
+                        onClick={() => handleWorkerSelect(worker.id)}
+                        colorIndex={index}
+                      />
+                    ))}
                   </div>
                 </ScrollArea>
               </CardContent>
