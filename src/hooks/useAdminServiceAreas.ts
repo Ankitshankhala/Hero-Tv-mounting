@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { optimizedSupabaseCall, measureApiCall } from '@/utils/optimizedApi';
+import { batchComputeWorkerZctaStats } from '@/utils/zctaWorkerCoverage';
 
 interface Worker {
   id: string;
@@ -11,6 +12,7 @@ interface Worker {
   is_active: boolean;
   service_area_count: number;
   total_zipcodes: number;
+  zcta_zipcodes?: number; // ZCTA-computed ZIP count
   service_areas?: Array<{
     id: string;
     worker_id?: string;
@@ -239,6 +241,23 @@ export const useAdminServiceAreas = (forceFresh = false) => {
               service_zipcodes: workerZipcodes
             };
           }));
+
+          // Compute ZCTA coverage for all workers in parallel
+          try {
+            const zctaStatsMap = await batchComputeWorkerZctaStats(workersWithAreas);
+            
+            // Add ZCTA ZIP count to worker data
+            const workersWithZcta = workersWithAreas.map(worker => ({
+              ...worker,
+              zcta_zipcodes: zctaStatsMap.get(worker.id)?.totalZctaZipcodes || 0
+            }));
+            
+            return workersWithZcta;
+          } catch (zctaError) {
+            console.warn('Error computing ZCTA coverage, using database ZIP counts:', zctaError);
+            // Return workers without ZCTA data if computation fails
+            return workersWithAreas;
+          }
 
           return workersWithAreas;
         },

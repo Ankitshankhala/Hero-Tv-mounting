@@ -5,6 +5,7 @@ interface Worker {
   id: string;
   name: string;
   is_active: boolean;
+  zcta_zipcodes?: number; // ZCTA-computed ZIP count
   service_areas?: Array<{
     id: string;
     area_name: string;
@@ -40,25 +41,28 @@ export const SimpleWorkerCard: React.FC<SimpleWorkerCardProps> = ({
   onClick,
   colorIndex = 0
 }) => {
-  const getWorkerAreaCode = (worker: Worker) => {
+  const getWorkerCoverageDisplay = (worker: Worker) => {
     const activeAreas = worker.service_areas?.filter(area => area.is_active) || [];
-    const totalZips = worker.service_zipcodes?.length || 0;
-    
-    if (activeAreas.length === 0) return '0';
-    
-    // Create a simplified area code like "1a+54z" 
     const areaCount = activeAreas.length;
-    const firstAreaId = activeAreas[0]?.id?.slice(-2) || 'xx';
     
-    if (totalZips > 0) {
-      return `${areaCount}a+${totalZips}z`;
+    // Use ZCTA-computed ZIP count if available, otherwise fall back to database count
+    const zipCount = worker.zcta_zipcodes || worker.service_zipcodes?.length || 0;
+    
+    if (areaCount === 0) return '0 areas';
+    
+    // Format with proper singular/plural
+    const areaText = areaCount === 1 ? 'area' : 'areas';
+    const zipText = zipCount === 1 ? 'ZIP' : 'ZIPs';
+    
+    if (zipCount > 0) {
+      return `${areaCount} ${areaText} ${zipCount} ${zipText}`;
     }
     
-    return `${areaCount}a`;
+    return `${areaCount} ${areaText}`;
   };
 
   const workerColor = WORKER_COLORS[colorIndex % WORKER_COLORS.length];
-  const areaCode = getWorkerAreaCode(worker);
+  const coverageDisplay = getWorkerCoverageDisplay(worker);
 
   return (
     <div 
@@ -86,9 +90,9 @@ export const SimpleWorkerCard: React.FC<SimpleWorkerCardProps> = ({
           )}
         </div>
         
-        {/* Area code */}
-        <span className="text-xs font-mono text-muted-foreground bg-muted px-2 py-1 rounded">
-          {areaCode}
+        {/* Coverage display */}
+        <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+          {coverageDisplay}
         </span>
       </div>
     </div>
