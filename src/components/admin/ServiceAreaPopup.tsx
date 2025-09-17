@@ -30,7 +30,7 @@ export const ServiceAreaPopup: React.FC<ServiceAreaPopupProps> = ({
   onClose,
   position
 }) => {
-  // Smart positioning to avoid map edge overflow
+  // Smart positioning to stay within viewport bounds
   const getPopupStyle = () => {
     const maxWidth = 320;
     const maxHeight = 400;
@@ -43,7 +43,7 @@ export const ServiceAreaPopup: React.FC<ServiceAreaPopupProps> = ({
       left = window.innerWidth - maxWidth - 20;
     }
     
-    // Adjust if too close to bottom edge
+    // Adjust if too close to bottom edge  
     if (top + maxHeight > window.innerHeight - 20) {
       top = window.innerHeight - maxHeight - 20;
     }

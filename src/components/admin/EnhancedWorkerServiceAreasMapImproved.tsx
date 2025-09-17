@@ -246,12 +246,16 @@ export const EnhancedWorkerServiceAreasMapImproved: React.FC<EnhancedWorkerServi
               });
               setHighlightedPolygon(polygon);
               
-              // Set popup position from click event
+              // Set popup position from click event (convert to viewport coordinates)
               const containerPoint = e.containerPoint;
-              setPopupPosition({ 
-                x: containerPoint.x + 20, 
-                y: containerPoint.y - 10 
-              });
+              const mapContainer = mapContainerRef.current;
+              if (mapContainer) {
+                const containerRect = mapContainer.getBoundingClientRect();
+                setPopupPosition({ 
+                  x: containerRect.left + containerPoint.x + 20, 
+                  y: containerRect.top + containerPoint.y - 10 
+                });
+              }
               
               setSelectedArea({ ...area, worker });
               setZipCodeLoading(true);
