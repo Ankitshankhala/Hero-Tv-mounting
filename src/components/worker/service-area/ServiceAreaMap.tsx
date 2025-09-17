@@ -9,6 +9,7 @@ import { MapPin, Save, Trash2, Edit3, Search, MapPinCheck, Globe, Loader2 } from
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkerServiceAreas } from '@/hooks/useWorkerServiceAreas';
+import { useClientSpatialOperations } from '@/utils/clientSpatialOperations';
 import { optimizedSupabaseCall } from '@/utils/optimizedApi';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -75,9 +76,11 @@ const ServiceAreaMap = ({
   const [areaSelectionMode, setAreaSelectionMode] = useState<'existing' | 'new'>('new');
   const [selectedExistingArea, setSelectedExistingArea] = useState<ServiceArea | null>(null);
   const [showAreaSelection, setShowAreaSelection] = useState(false);
-  const {
-    toast
-  } = useToast();
+  const [computingZipCodes, setComputingZipCodes] = useState(false);
+  const [precomputedZipCodes, setPrecomputedZipCodes] = useState<string[]>([]);
+  
+  const { toast } = useToast();
+  const spatialOps = useClientSpatialOperations();
   const {
     serviceZipcodes,
     getActiveZipcodes,
@@ -166,8 +169,8 @@ const ServiceAreaMap = ({
     drawControlRef.current = drawControl;
     map.addControl(drawControl);
 
-    // Handle drawing events
-    map.on(L.Draw.Event.CREATED, (e: any) => {
+    // Handle drawing events with client-side ZIP computation
+    map.on(L.Draw.Event.CREATED, async (e: any) => {
       const layer = e.layer;
       drawnItems.addLayer(layer);
       if (layer instanceof L.Polygon || layer instanceof L.Rectangle) {
@@ -179,7 +182,10 @@ const ServiceAreaMap = ({
         }));
         setCurrentPolygon(coordinates);
 
-        // Show area selection interface instead of just the name input
+        // Compute ZIP codes client-side immediately
+        await computeZipCodes(coordinates);
+
+        // Show area selection interface
         setShowAreaSelection(true);
 
         // Set default selection based on existing areas
@@ -198,9 +204,9 @@ const ServiceAreaMap = ({
         }
       }
     });
-    map.on(L.Draw.Event.EDITED, (e: any) => {
+    map.on(L.Draw.Event.EDITED, async (e: any) => {
       const layers = e.layers;
-      layers.eachLayer((layer: any) => {
+      layers.eachLayer(async (layer: any) => {
         if (layer instanceof L.Polygon || layer instanceof L.Rectangle) {
           const latLngs = layer.getLatLngs();
           const coords = Array.isArray(latLngs[0]) ? latLngs[0] : latLngs;
@@ -209,11 +215,15 @@ const ServiceAreaMap = ({
             lng: point.lng
           }));
           setCurrentPolygon(coordinates);
+          
+          // Recompute ZIP codes after editing
+          await computeZipCodes(coordinates);
         }
       });
     });
     map.on(L.Draw.Event.DELETED, () => {
       setCurrentPolygon(null);
+      setPrecomputedZipCodes([]);
       setEditingArea(null);
     });
 
@@ -346,6 +356,45 @@ const ServiceAreaMap = ({
       });
     } finally {
       setLocationLoading(false);
+    }
+  };
+
+  // Function to compute ZIP codes client-side using ZCTA data
+  const computeZipCodes = async (coordinates: Array<{ lat: number; lng: number }>) => {
+    if (!coordinates || coordinates.length < 3) {
+      setPrecomputedZipCodes([]);
+      return;
+    }
+
+    setComputingZipCodes(true);
+    try {
+      console.log('🔍 Computing ZIP codes client-side for polygon...');
+      const zipCodes = await spatialOps.getZipcodesFromPolygon(coordinates, {
+        includePartial: true,
+        minIntersectionRatio: 0.1
+      });
+      
+      console.log(`✅ Found ${zipCodes.length} ZIP codes:`, zipCodes.slice(0, 10));
+      setPrecomputedZipCodes(zipCodes);
+      
+      // Show warning if very few ZIP codes found
+      if (zipCodes.length < 5) {
+        toast({
+          title: "Few ZIP codes found",
+          description: `Only ${zipCodes.length} ZIP codes found. Consider enlarging the polygon.`,
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('❌ Failed to compute ZIP codes:', error);
+      setPrecomputedZipCodes([]);
+      toast({
+        title: "ZIP computation failed",
+        description: "Could not compute ZIP codes. Will use server fallback.",
+        variant: "destructive"
+      });
+    } finally {
+      setComputingZipCodes(false);
     }
   };
 
@@ -741,6 +790,15 @@ const ServiceAreaMap = ({
         workerId: workerId,
         polygon: currentPolygon
       };
+
+      // Add precomputed ZIP codes if available
+      if (precomputedZipCodes.length > 0) {
+        requestBody.zipCodes = precomputedZipCodes;
+        console.log(`📍 Sending ${precomputedZipCodes.length} pre-computed ZIP codes to server`);
+      } else {
+        console.log('⚠️ No pre-computed ZIP codes available, server will use fallback');
+      }
+
       if (areaSelectionMode === 'existing' && selectedExistingArea) {
         // Add to existing area
         requestBody.areaIdToUpdate = selectedExistingArea.id;
@@ -780,6 +838,7 @@ const ServiceAreaMap = ({
 
       // Clear state
       setCurrentPolygon(null);
+      setPrecomputedZipCodes([]);
       setShowAreaSelection(false);
       setAreaSelectionMode('new');
       setSelectedExistingArea(null);
@@ -836,6 +895,14 @@ const ServiceAreaMap = ({
         polygon: currentPolygon,
         mode: editingArea ? 'append' : 'append' // For edits, we'll use the areaIdToUpdate
       };
+
+      // Add precomputed ZIP codes if available
+      if (precomputedZipCodes.length > 0) {
+        requestBody.zipCodes = precomputedZipCodes;
+        console.log(`📍 Sending ${precomputedZipCodes.length} pre-computed ZIP codes to server`);
+      } else {
+        console.log('⚠️ No pre-computed ZIP codes available, server will use fallback');
+      }
 
       // If editing an existing area, include the area ID
       if (editingArea) {
@@ -1176,24 +1243,34 @@ const ServiceAreaMap = ({
             
             {/* Action Buttons */}
             <div className="flex gap-2">
-              <Button onClick={handleSaveWithSelection} disabled={saving || areaSelectionMode === 'new' && !areaName.trim()} className="flex-1">
-                {saving ? <>
+              <Button onClick={handleSaveWithSelection} disabled={saving || computingZipCodes || (areaSelectionMode === 'new' && !areaName.trim())} className="flex-1">
+                {saving ? (
+                  <>
                     <div className="h-4 w-4 mr-2 animate-spin rounded-full border-b-2 border-white" />
                     Saving...
-                  </> : <>
+                  </>
+                ) : computingZipCodes ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Computing...
+                  </>
+                ) : (
+                  <>
                     <Save className="h-4 w-4 mr-2" />
                     {areaSelectionMode === 'existing' ? `Add to ${selectedExistingArea?.area_name}` : 'Create New Area'}
-                  </>}
+                  </>
+                )}
               </Button>
               <Button variant="outline" onClick={() => {
               setShowAreaSelection(false);
               setCurrentPolygon(null);
+              setPrecomputedZipCodes([]);
               if (drawnItemsRef.current) {
                 drawnItemsRef.current.clearLayers();
               }
             }}>
-                Cancel
-              </Button>
+              Cancel
+            </Button>
             </div>
           </div>
         </CardContent>

@@ -266,7 +266,7 @@ export const AdminServiceAreasUnified = () => {
     }
   }, [workers.length]);
 
-  // Auto-select first worker when in manage mode - optimized
+  // Auto-select first worker when in manage mode and optionally default to drawing mode
   useEffect(() => {
     if (viewMode === 'manage' && workers.length > 0 && !selectedWorkerId && initialLoaded) {
       const firstActiveWorker = workers.find(w => w.is_active) || workers[0];
@@ -274,6 +274,9 @@ export const AdminServiceAreasUnified = () => {
         setSelectedWorkerId(firstActiveWorker.id);
         // Defer audit log loading
         setTimeout(() => fetchAuditLogs(firstActiveWorker.id), 100);
+        
+        // Optional: Auto-switch to drawing mode to guide users to more accurate flow
+        // setTimeout(() => setViewMode('drawing'), 200);
       }
     }
   }, [workers, selectedWorkerId, viewMode, fetchAuditLogs, initialLoaded]);
