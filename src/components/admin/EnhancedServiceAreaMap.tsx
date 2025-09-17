@@ -4,8 +4,10 @@ import { useAreaNameEditor } from '@/hooks/useAreaNameEditor';
 import { bindEditablePopup } from '@/components/shared/EditableAreaPopup';
 import AreaNameEditor from '@/components/shared/AreaNameEditor';
 import { Button } from '@/components/ui/button';
-import { MapPin, Edit3, Save } from 'lucide-react';
+import { MapPin, Edit3, Save, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useZctaMapIntegration } from '@/hooks/useZctaMapIntegration';
+import { Badge } from '@/components/ui/badge';
 
 // Leaflet icon fix
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -37,6 +39,7 @@ interface EnhancedServiceAreaMapProps {
   showInactiveAreas?: boolean;
   adminMode?: boolean;
   onAreaNameUpdate?: (areaId: string, newName: string) => void;
+  showZctaBoundaries?: boolean;
 }
 
 const WORKER_COLORS = [
@@ -49,14 +52,33 @@ export const EnhancedServiceAreaMap: React.FC<EnhancedServiceAreaMapProps> = ({
   selectedWorkerId,
   showInactiveAreas = false,
   adminMode = false,
-  onAreaNameUpdate
+  onAreaNameUpdate,
+  showZctaBoundaries = false
 }) => {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const polygonLayersRef = useRef<Map<string, L.Polygon | L.GeoJSON>>(new Map());
   const [selectedArea, setSelectedArea] = useState<ServiceArea & { worker: Worker } | null>(null);
   const [editMode, setEditMode] = useState(false);
+  const [zctaBoundariesVisible, setZctaBoundariesVisible] = useState(showZctaBoundaries);
   const { toast } = useToast();
+
+  // ZCTA integration for boundary display
+  const zctaIntegration = useZctaMapIntegration(mapRef.current, {
+    showBoundaries: zctaBoundariesVisible,
+    boundaryStyle: {
+      color: '#8b5cf6',
+      weight: 1,
+      fillColor: '#8b5cf6',
+      fillOpacity: 0.05,
+      opacity: 0.4,
+      dashArray: '2, 4'
+    },
+    onZipcodesVisible: (zipcodes) => {
+      console.log(`📍 Visible ZIP codes: ${zipcodes.length}`);
+    },
+    autoUpdate: true
+  });
 
   // Use our custom area name editor hook
   const { updateAreaName, validateAreaName } = useAreaNameEditor({
@@ -131,14 +153,23 @@ export const EnhancedServiceAreaMap: React.FC<EnhancedServiceAreaMapProps> = ({
             dashArray: area.is_active ? undefined : '8, 8'
           });
 
-          // Use our enhanced editable popup
-          bindEditablePopup(
-            polygon,
-            area,
-            worker,
-            updateAreaName,
-            area.zipcode_list?.length
-          );
+          // Enhanced popup with ZCTA integration
+          const popupContent = `
+            <div class="p-2">
+              <h4 class="font-semibold text-sm mb-2">${area.area_name}</h4>
+              <div class="space-y-1 text-xs">
+                <div><strong>Worker:</strong> ${worker.name}</div>
+                <div><strong>Status:</strong> <span class="${area.is_active ? 'text-green-600' : 'text-red-600'}">${area.is_active ? 'Active' : 'Inactive'}</span></div>
+                <div><strong>ZIP Codes:</strong> ${area.zipcode_list?.length || 0}</div>
+                <div class="mt-2">
+                  <button onclick="window.showZipBoundaries('${area.id}')" class="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded hover:bg-purple-200">
+                    Show ZIP Boundaries
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+          polygon.bindPopup(popupContent);
 
           // Add click handler for selection
           polygon.on('click', () => {
@@ -239,32 +270,93 @@ export const EnhancedServiceAreaMap: React.FC<EnhancedServiceAreaMapProps> = ({
         </div>
       )}
 
-      {/* Edit mode toggle */}
-      <div className="absolute bottom-4 left-4 z-[1000]">
+      {/* Map controls */}
+      <div className="absolute bottom-4 left-4 z-[1000] space-y-2">
         <Button
           onClick={() => setEditMode(!editMode)}
           variant={editMode ? "default" : "outline"}
-          className="shadow-lg"
+          className="shadow-lg block w-full"
         >
           <Edit3 className="h-4 w-4 mr-2" />
           {editMode ? 'Exit Edit Mode' : 'Edit Mode'}
         </Button>
+        
+        <Button
+          onClick={() => setZctaBoundariesVisible(!zctaBoundariesVisible)}
+          variant={zctaBoundariesVisible ? "default" : "outline"}
+          className="shadow-lg block w-full"
+        >
+          {zctaBoundariesVisible ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
+          ZIP Boundaries
+        </Button>
       </div>
 
-      {/* Legend */}
+      {/* ZCTA loading indicator */}
+      {zctaIntegration.isLoading && (
+        <div className="absolute top-4 left-4 z-[1000]">
+          <div className="bg-white rounded-lg shadow-lg border p-3">
+            <div className="flex items-center gap-2">
+              <div className="animate-spin h-4 w-4 border-2 border-purple-600 border-t-transparent rounded-full"></div>
+              <div className="text-sm">
+                <div className="font-medium">Loading ZCTA Boundaries</div>
+                {zctaIntegration.progress && (
+                  <div className="text-xs text-gray-600">
+                    {zctaIntegration.progress.message}
+                  </div>
+                )}
+              </div>
+            </div>
+            {zctaIntegration.progress && (
+              <div className="mt-2 w-48 bg-gray-200 rounded-full h-1">
+                <div 
+                  className="bg-purple-600 h-1 rounded-full transition-all duration-300"
+                  style={{ width: `${zctaIntegration.progress.progress}%` }}
+                ></div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Enhanced Legend with ZCTA info */}
       <div className="absolute bottom-4 right-4 bg-white rounded-lg shadow-lg border p-3 z-[1000]">
         <h4 className="font-medium text-sm mb-2">Legend</h4>
         <div className="space-y-1 text-xs">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 border-2 border-blue-500 bg-blue-200"></div>
-            <span>Active Areas</span>
+            <span>Active Service Areas</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 border-2 border-gray-400 bg-gray-100 border-dashed"></div>
             <span>Inactive Areas</span>
           </div>
+          {zctaBoundariesVisible && (
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 border border-purple-400 bg-purple-50 border-dashed"></div>
+              <span>ZIP Code Boundaries</span>
+            </div>
+          )}
+          
+          {/* ZCTA Status */}
+          <div className="border-t pt-2 mt-2 space-y-1">
+            <div className="flex items-center justify-between">
+              <span>ZCTA Data:</span>
+              <Badge variant={zctaIntegration.isReady ? "default" : "secondary"} className="text-xs">
+                {zctaIntegration.isReady ? 'Ready' : 'Loading'}
+              </Badge>
+            </div>
+            {zctaIntegration.visibleZipcodes.length > 0 && (
+              <div className="flex items-center justify-between">
+                <span>Visible ZIPs:</span>
+                <Badge variant="outline" className="text-xs">
+                  {zctaIntegration.visibleZipcodes.length}
+                </Badge>
+              </div>
+            )}
+          </div>
+          
           <div className="text-gray-500 mt-2">
-            Click areas to edit names
+            Click areas for details • Zoom in for ZIP boundaries
           </div>
         </div>
       </div>
