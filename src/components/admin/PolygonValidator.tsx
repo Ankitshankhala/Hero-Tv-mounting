@@ -174,8 +174,6 @@ export const PolygonValidator: React.FC<PolygonValidatorProps> = ({
       {/* Statistics */}
       {validation.stats && validation.isValid && (
         <div className="text-sm text-muted-foreground space-y-1">
-          <div>Area: ~{validation.stats.area} km²</div>
-          <div>Perimeter: ~{validation.stats.perimeter} km</div>
           {validation.stats.zipCodes.length > 0 && (
             <div>
               Sample ZIP codes: {validation.stats.zipCodes.slice(0, 5).join(', ')}

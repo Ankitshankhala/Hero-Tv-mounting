@@ -72,7 +72,10 @@ const ServiceAreaMap = ({
   const [searchAddress, setSearchAddress] = useState('');
   const [searching, setSearching] = useState(false);
   const [showZipMarkers, setShowZipMarkers] = useState<boolean>(true);
+  const [showZipBoundaries, setShowZipBoundaries] = useState<boolean>(false);
+  const [showZipBoundariesPreview, setShowZipBoundariesPreview] = useState<boolean>(false);
   const zipMarkersRef = useRef<Map<string, L.CircleMarker>>(new Map());
+  const zipBoundariesRef = useRef<Map<string, L.Polygon>>(new Map());
   const [areaSelectionMode, setAreaSelectionMode] = useState<'existing' | 'new'>('new');
   const [selectedExistingArea, setSelectedExistingArea] = useState<ServiceArea | null>(null);
   const [showAreaSelection, setShowAreaSelection] = useState(false);
@@ -377,6 +380,11 @@ const ServiceAreaMap = ({
       console.log(`✅ Found ${zipCodes.length} ZIP codes:`, zipCodes.slice(0, 10));
       setPrecomputedZipCodes(zipCodes);
       
+      // Render ZIP code boundaries if enabled
+      if (showZipBoundariesPreview && zipCodes.length > 0) {
+        await renderZipBoundaries(zipCodes);
+      }
+      
       // Show warning if very few ZIP codes found
       if (zipCodes.length < 5) {
         toast({
@@ -395,6 +403,78 @@ const ServiceAreaMap = ({
       });
     } finally {
       setComputingZipCodes(false);
+    }
+  };
+
+  // Function to render ZIP code boundaries on the map
+  const renderZipBoundaries = async (zipcodes: string[]) => {
+    if (!mapRef.current || !zipcodes.length) return;
+
+    // Clear existing boundaries
+    zipBoundariesRef.current.forEach(boundary => mapRef.current?.removeLayer(boundary));
+    zipBoundariesRef.current.clear();
+
+    try {
+      // Load ZCTA data
+      const response = await fetch('/zcta2020_web.geojson');
+      const zctaData = await response.json();
+
+      let renderedCount = 0;
+      for (const zipcode of zipcodes) {
+        try {
+          const feature = zctaData.features.find((f: any) => 
+            f.properties.ZCTA5CE20 === zipcode
+          );
+
+          if (feature && feature.geometry) {
+            let coordinates: number[][][];
+            
+            if (feature.geometry.type === 'Polygon') {
+              coordinates = feature.geometry.coordinates;
+            } else if (feature.geometry.type === 'MultiPolygon') {
+              coordinates = feature.geometry.coordinates[0]; // Use first polygon
+            } else {
+              continue;
+            }
+
+            // Convert Web Mercator to WGS84 if needed
+            const latLngs: [number, number][] = coordinates[0].map(coord => {
+              // Check if coordinates are in Web Mercator (EPSG:3857)
+              if (Math.abs(coord[0]) > 180 || Math.abs(coord[1]) > 90) {
+                // Convert from Web Mercator to WGS84
+                const lng = (coord[0] * 180) / 20037508.34;
+                const lat = Math.atan(Math.sinh(Math.PI * (1 - (2 * coord[1]) / 20037508.34))) * 180 / Math.PI;
+                return [lat, lng];
+              }
+              return [coord[1], coord[0]]; // Swap lat/lng for Leaflet
+            });
+
+            const polygon = L.polygon(latLngs, {
+              color: '#10b981',
+              weight: 1,
+              opacity: 0.8,
+              fillColor: '#10b981',
+              fillOpacity: 0.2
+            });
+
+            polygon.bindTooltip(`ZIP ${zipcode}`, {
+              permanent: false,
+              direction: 'center',
+              className: 'zip-boundary-tooltip'
+            });
+
+            polygon.addTo(mapRef.current);
+            zipBoundariesRef.current.set(zipcode, polygon);
+            renderedCount++;
+          }
+        } catch (error) {
+          console.warn(`Failed to render boundary for ZIP ${zipcode}:`, error);
+        }
+      }
+
+      console.log(`✅ Rendered ${renderedCount} ZIP code boundaries`);
+    } catch (error) {
+      console.error('Failed to load ZCTA data for boundaries:', error);
     }
   };
 
@@ -420,6 +500,18 @@ const ServiceAreaMap = ({
       renderZipMarkers();
     }
   }, [showZipMarkers, serviceZipcodes, isActive]);
+
+  // Update ZIP boundaries when dependencies change
+  useEffect(() => {
+    if (isActive && showZipBoundaries && serviceZipcodes.length > 0) {
+      const zipcodes = serviceZipcodes.map(sz => sz.zipcode);
+      renderZipBoundaries(zipcodes);
+    } else if (isActive && !showZipBoundaries) {
+      // Clear boundaries when disabled
+      zipBoundariesRef.current.forEach(boundary => mapRef.current?.removeLayer(boundary));
+      zipBoundariesRef.current.clear();
+    }
+  }, [showZipBoundaries, serviceZipcodes, isActive]);
 
   // Geocode a ZIP code using Zippopotam.us API
   const geocodeZipcode = async (zipcode: string) => {
@@ -1241,6 +1333,38 @@ const ServiceAreaMap = ({
               </div>
             </div>
             
+            {/* ZIP Code Preview */}
+            {precomputedZipCodes.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">
+                  Found ZIP codes ({precomputedZipCodes.length}):
+                </Label>
+                <div className="max-h-32 overflow-y-auto border rounded p-2 bg-gray-50">
+                  <div className="flex flex-wrap gap-1">
+                    {precomputedZipCodes.slice(0, 20).map(zip => (
+                      <Badge key={zip} variant="secondary" className="text-xs">
+                        {zip}
+                      </Badge>
+                    ))}
+                    {precomputedZipCodes.length > 20 && (
+                      <Badge variant="outline" className="text-xs">
+                        +{precomputedZipCodes.length - 20} more
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => renderZipBoundaries(precomputedZipCodes)}
+                  className="text-xs"
+                >
+                  <MapPin className="h-3 w-3 mr-1" />
+                  Show ZIP boundaries on map
+                </Button>
+              </div>
+            )}
+
             {/* Action Buttons */}
             <div className="flex gap-2">
               <Button onClick={handleSaveWithSelection} disabled={saving || computingZipCodes || (areaSelectionMode === 'new' && !areaName.trim())} className="flex-1">
@@ -1297,6 +1421,21 @@ const ServiceAreaMap = ({
         .leaflet-tooltip-top:before {
           border-top-color: rgba(0, 0, 0, 0.85) !important;
         }
+        .zip-boundary-tooltip {
+          background: rgba(16, 185, 129, 0.9) !important;
+          border: 1px solid #10b981 !important;
+          border-radius: 4px !important;
+          color: white !important;
+          font-weight: 600 !important;
+          font-size: 12px !important;
+          padding: 6px 10px !important;
+          box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3) !important;
+          text-align: center !important;
+          line-height: 1.2 !important;
+        }
+        .zip-boundary-tooltip:before {
+          border-top-color: rgba(16, 185, 129, 0.9) !important;
+        }
       `}</style>
       
       <div className="space-y-6">
@@ -1331,10 +1470,39 @@ const ServiceAreaMap = ({
               }} />
              </div>
 
-             {/* ZIP Markers Toggle */}
+             {/* Map Controls */}
              <div className="space-y-2">
-               
-               
+               <div className="flex items-center gap-4">
+                 <label className="flex items-center gap-2">
+                   <input
+                     type="checkbox"
+                     checked={showZipMarkers}
+                     onChange={(e) => setShowZipMarkers(e.target.checked)}
+                     className="rounded"
+                   />
+                   <span className="text-sm">Show ZIP markers</span>
+                 </label>
+                 
+                 <label className="flex items-center gap-2">
+                   <input
+                     type="checkbox"
+                     checked={showZipBoundaries}
+                     onChange={(e) => setShowZipBoundaries(e.target.checked)}
+                     className="rounded"
+                   />
+                   <span className="text-sm">Show ZIP boundaries</span>
+                 </label>
+                 
+                 <label className="flex items-center gap-2">
+                   <input
+                     type="checkbox"
+                     checked={showZipBoundariesPreview}
+                     onChange={(e) => setShowZipBoundariesPreview(e.target.checked)}
+                     className="rounded"
+                   />
+                   <span className="text-sm">Preview boundaries when drawing</span>
+                 </label>
+               </div>
              </div>
 
              {/* Area Selection Interface */}

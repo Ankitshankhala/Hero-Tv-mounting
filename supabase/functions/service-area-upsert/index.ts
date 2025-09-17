@@ -200,22 +200,29 @@ serve(async (req) => {
         .delete()
         .eq('service_area_id', serviceAreaResult.id);
       
-      // Insert new ZIP codes in batches
+      // Insert new ZIP codes in batches using UPSERT to handle duplicates
       const batchSize = 100;
       for (let i = 0; i < zipcodes.length; i += batchSize) {
         const batch = zipcodes.slice(i, i + batchSize);
         const zipInserts = batch.map(zipcode => ({
           worker_id: workerId,
           service_area_id: serviceAreaResult.id,
-          zipcode: zipcode
+          zipcode: zipcode,
+          from_polygon: true,
+          from_manual: false
         }));
         
+        // Use UPSERT to handle duplicate (worker_id, zipcode) constraints
         const { error: zipInsertError } = await supabase
           .from('worker_service_zipcodes')
-          .insert(zipInserts);
+          .upsert(zipInserts, {
+            onConflict: 'worker_id,zipcode',
+            ignoreDuplicates: false
+          });
           
         if (zipInsertError) {
-          logStep('Failed to insert ZIP batch', { batch: i/batchSize + 1, error: zipInsertError.message });
+          logStep('Failed to upsert ZIP batch', { batch: i/batchSize + 1, error: zipInsertError.message });
+          throw new Error(`Failed to insert ZIP codes: ${zipInsertError.message}`);
         }
       }
       

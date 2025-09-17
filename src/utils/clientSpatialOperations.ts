@@ -81,14 +81,21 @@ export class ClientSpatialOperations {
           continue;
         }
 
-        // Calculate bounding box and centroid
-        const bbox = turf.bbox(zctaFeature) as [number, number, number, number];
-        const centroid = turf.centroid(zctaFeature);
-        const geometryType = zctaFeature.geometry.type;
+        // Convert Web Mercator coordinates to WGS84 for proper spatial indexing
+        const convertedFeature = this.convertWebMercatorToWGS84(zctaFeature);
+        if (!convertedFeature) {
+          skippedCount++;
+          continue;
+        }
+
+        // Calculate bounding box and centroid using converted coordinates
+        const bbox = turf.bbox(convertedFeature) as [number, number, number, number];
+        const centroid = turf.centroid(convertedFeature);
+        const geometryType = convertedFeature.geometry.type;
 
         this.spatialIndex.push({
           zipcode: zipcode.toString(),
-          feature: zctaFeature,
+          feature: convertedFeature,
           bbox,
           centroid: centroid.geometry.coordinates as [number, number],
           geometryType
@@ -96,6 +103,7 @@ export class ClientSpatialOperations {
         
         validCount++;
       } catch (error) {
+        console.warn(`Failed to process feature for ZIP ${feature.properties?.ZCTA5CE20}:`, error);
         skippedCount++;
         continue;
       }
@@ -103,6 +111,53 @@ export class ClientSpatialOperations {
 
     const endTime = performance.now();
     console.log(`✅ Built spatial index: ${validCount} valid features, ${skippedCount} skipped, took ${Math.round(endTime - startTime)}ms`);
+  }
+
+  // Convert Web Mercator (EPSG:3857) coordinates to WGS84 (EPSG:4326)
+  private convertWebMercatorToWGS84(feature: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon>): GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon> | null {
+    try {
+      const convertCoordinates = (coords: number[][]): number[][] => {
+        const R = 6378137.0; // Web Mercator sphere radius in meters
+        return coords.map(coord => {
+          const [x, y] = coord;
+          // Check if coordinates are in Web Mercator meters (not degrees)
+          if (Math.abs(x) > 180 || Math.abs(y) > 90) {
+            // Correct inverse Web Mercator → WGS84 conversion
+            const lng = (x * 180) / (Math.PI * R);
+            const lat = (Math.atan(Math.sinh(y / R)) * 180) / Math.PI;
+            return [lng, lat];
+          }
+          return [x, y]; // Already in WGS84 degrees
+        });
+      };
+
+      if (feature.geometry.type === 'Polygon') {
+        const convertedCoords = feature.geometry.coordinates.map(ring => convertCoordinates(ring));
+        return {
+          ...feature,
+          geometry: {
+            ...feature.geometry,
+            coordinates: convertedCoords
+          }
+        };
+      } else if (feature.geometry.type === 'MultiPolygon') {
+        const convertedCoords = feature.geometry.coordinates.map(polygon => 
+          polygon.map(ring => convertCoordinates(ring))
+        );
+        return {
+          ...feature,
+          geometry: {
+            ...feature.geometry,
+            coordinates: convertedCoords
+          }
+        };
+      }
+
+      return null;
+    } catch (error) {
+      console.warn('Failed to convert coordinates:', error);
+      return null;
+    }
   }
 
   // Convert polygon points to GeoJSON
