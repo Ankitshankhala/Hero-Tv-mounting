@@ -144,13 +144,17 @@ export const AdminServiceAreaManager = () => {
                     <div className="space-y-2">
                       {selectedWorker?.service_areas?.map(area => (
                         <div key={area.id} className="text-xs p-2 bg-muted rounded">
-                          <AreaNameEditor
-                            area={area}
-                            onNameUpdate={(newName) => {
-                              // Refresh data after name update
-                              fetchWorkers();
-                              fetchAuditLogs(selectedWorkerId);
-                            }}
+                           <AreaNameEditor
+                             area={area}
+                             onNameUpdate={async (areaId: string, newName: string) => {
+                               const success = await updateServiceAreaName(areaId, newName);
+                               if (success) {
+                                 // Refresh data after successful name update
+                                 fetchWorkers();
+                                 fetchAuditLogs(selectedWorkerId);
+                               }
+                               return success;
+                             }}
                             trigger="inline"
                           />
                           <div className="text-muted-foreground mt-1">
