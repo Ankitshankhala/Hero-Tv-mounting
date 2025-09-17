@@ -78,6 +78,55 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
     area: Worker['service_areas'][0];
     zipCodes: string[];
   } | null>(null);
+  // Convert stored coordinates to a GeoJSON Polygon if needed
+  const toGeoJsonPolygon = (coords: any): any | null => {
+    try {
+      if (!coords) return null;
+      // Already GeoJSON
+      if (coords.type === 'Polygon' && Array.isArray(coords.coordinates)) {
+        return coords;
+      }
+      // Array of {lat,lng} or [lat,lng]
+      const points: [number, number][] = (Array.isArray(coords) ? coords : [])
+        .map((c: any) => {
+          if (c && typeof c.lat === 'number' && typeof c.lng === 'number') return [c.lng, c.lat] as [number, number];
+          if (Array.isArray(c) && c.length >= 2 && typeof c[0] === 'number' && typeof c[1] === 'number') return [c[1], c[0]] as [number, number];
+          return null;
+        })
+        .filter(Boolean) as [number, number][];
+      if (points.length < 3) return null;
+      // Close polygon by repeating first point
+      const ring = [...points, points[0]];
+      return { type: 'Polygon', coordinates: [ring] };
+    } catch {
+      return null;
+    }
+  };
+
+  // Fetch full ZIP list intersecting the polygon, falling back to assigned ZIPs
+  const getZipcodesForArea = async (area: Worker['service_areas'][0], assignedZips: string[]): Promise<string[]> => {
+    const geo = toGeoJsonPolygon(area.polygon_coordinates);
+    if (!geo) return [...new Set(assignedZips)].sort();
+    try {
+      const { data, error } = await supabase.rpc('zipcodes_intersecting_polygon', {
+        polygon_coords: geo
+      });
+      if (error) {
+        console.warn('zipcodes_intersecting_polygon failed:', error);
+        return [...new Set(assignedZips)].sort();
+      }
+      const computed = Array.isArray(data) ? (data as string[]) : [];
+      // Union computed with assigned
+      return [...new Set([...
+        computed,
+        ...assignedZips
+      ])].sort();
+    } catch (e) {
+      console.warn('Failed to compute ZIPs for area:', e);
+      return [...new Set(assignedZips)].sort();
+    }
+  };
+
   const [showZipOverlays, setShowZipOverlays] = useState<boolean>(true);
 
   // Initialize map
@@ -477,12 +526,13 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
                 dashArray: area.is_active ? undefined : '5, 5'
               });
 
-              // Add click handler
-              polygon.on('click', () => {
+              // Add click handler that computes full ZIP list for the polygon
+              polygon.on('click', async () => {
+                const fullZips = await getZipcodesForArea(area, areaZipCodes);
                 setSelectedAreaInfo({
                   worker,
                   area,
-                  zipCodes: areaZipCodes.sort()
+                  zipCodes: fullZips
                 });
               });
               polygon.addTo(mapRef.current!);

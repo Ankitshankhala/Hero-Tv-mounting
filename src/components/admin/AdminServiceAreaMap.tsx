@@ -970,7 +970,38 @@ const AdminServiceAreaMap = ({
     drawnItemsRef.current.clearLayers();
 
     try {
-      const polygon = L.geoJSON(polygonCoords, {
+      // Normalize incoming geometry: Feature | Polygon | MultiPolygon | raw coordinates
+      let geometry: any = polygonCoords;
+      if (geometry && geometry.type === 'Feature') {
+        geometry = geometry.geometry;
+      }
+      if (!geometry || !geometry.type) {
+        // If we only have coordinates array, wrap as Polygon
+        if (Array.isArray(geometry)) {
+          geometry = { type: 'Polygon', coordinates: [geometry] };
+        } else if (polygonCoords && polygonCoords.coordinates) {
+          geometry = { type: 'Polygon', coordinates: polygonCoords.coordinates };
+        } else {
+          throw new Error('Unsupported polygon format');
+        }
+      }
+
+      // If MultiPolygon, take the first polygon ring for editing
+      if (geometry.type === 'MultiPolygon') {
+        const firstPoly = geometry.coordinates && geometry.coordinates[0];
+        if (!firstPoly) throw new Error('Invalid MultiPolygon geometry');
+        geometry = { type: 'Polygon', coordinates: firstPoly };
+      }
+
+      // Ensure there is at least one linear ring
+      const rings = geometry.coordinates && geometry.coordinates[0];
+      if (!rings || !Array.isArray(rings)) {
+        throw new Error('Polygon has no exterior ring');
+      }
+
+      // Render on map using GeoJSON Feature wrapper
+      const feature = { type: 'Feature', properties: {}, geometry } as any;
+      const polygonLayer = L.geoJSON(feature, {
         style: {
           color: '#3b82f6',
           weight: 3,
@@ -980,18 +1011,15 @@ const AdminServiceAreaMap = ({
         }
       });
 
-      polygon.addTo(drawnItemsRef.current);
+      polygonLayer.addTo(drawnItemsRef.current);
       setEditingArea(area);
       setCurrentPolygon(
-        polygonCoords.coordinates[0].map((coord: [number, number]) => ({
-          lat: coord[1],
-          lng: coord[0]
-        }))
+        rings.map((coord: [number, number]) => ({ lat: coord[1], lng: coord[0] }))
       );
 
       // Fit map to polygon
-      if (polygon.getBounds().isValid()) {
-        mapRef.current.fitBounds(polygon.getBounds(), { padding: [20, 20] });
+      if (polygonLayer.getBounds().isValid()) {
+        mapRef.current.fitBounds(polygonLayer.getBounds(), { padding: [20, 20] });
       }
     } catch (error) {
       console.error('Error displaying polygon:', error);
@@ -1079,7 +1107,7 @@ const AdminServiceAreaMap = ({
           cancelDrawing();
         }
       }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <MapPinCheck className="h-5 w-5 text-primary" />

@@ -7,6 +7,7 @@ interface RealtimeOptions {
   onError?: (error: any) => void;
   enableCacheInvalidation?: boolean;
   throttleMs?: number;
+  filterWorkerId?: string; // Optional: limit events to a specific worker
 }
 
 export const useRealtimeServiceAreas = (options: RealtimeOptions | (() => void)) => {
@@ -15,6 +16,7 @@ export const useRealtimeServiceAreas = (options: RealtimeOptions | (() => void))
   const onError = isFunction ? undefined : options.onError;
   const enableCacheInvalidation = isFunction ? true : (options.enableCacheInvalidation ?? true);
   const throttleMs = isFunction ? 200 : (options.throttleMs ?? 200);
+  const filterWorkerId = isFunction ? undefined : options.filterWorkerId;
 
   const lastUpdateRef = useRef<number>(0);
   const errorCountRef = useRef<number>(0);
@@ -84,7 +86,9 @@ export const useRealtimeServiceAreas = (options: RealtimeOptions | (() => void))
             {
               event: '*',
               schema: 'public',
-              table: 'worker_service_areas'
+              table: 'worker_service_areas',
+              // Limit to a single worker if provided
+              ...(filterWorkerId ? { filter: `worker_id=eq.${filterWorkerId}` } : {})
             },
             (payload) => {
               console.log('Service areas change detected:', payload);
@@ -96,7 +100,8 @@ export const useRealtimeServiceAreas = (options: RealtimeOptions | (() => void))
             {
               event: '*',
               schema: 'public',
-              table: 'worker_service_zipcodes'
+              table: 'worker_service_zipcodes',
+              ...(filterWorkerId ? { filter: `worker_id=eq.${filterWorkerId}` } : {})
             },
             (payload) => {
               console.log('Service zip codes change detected:', payload);
@@ -108,7 +113,8 @@ export const useRealtimeServiceAreas = (options: RealtimeOptions | (() => void))
             {
               event: '*',
               schema: 'public',
-              table: 'service_area_audit_logs'
+              table: 'service_area_audit_logs',
+              ...(filterWorkerId ? { filter: `worker_id=eq.${filterWorkerId}` } : {})
             },
             (payload) => {
               console.log('Service area audit logs change detected:', payload);

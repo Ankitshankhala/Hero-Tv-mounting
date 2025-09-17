@@ -152,7 +152,9 @@ export const AdminServiceAreasUnified = () => {
       });
     },
     enableCacheInvalidation: true,
-    throttleMs: 500 // Increased throttle to reduce load
+    throttleMs: 500, // Increased throttle to reduce load
+    // Limit realtime change feed to the selected worker to avoid cross-worker updates
+    filterWorkerId: selectedWorkerId || undefined
   });
 
   // Debounce worker selection
@@ -242,11 +244,9 @@ export const AdminServiceAreasUnified = () => {
   };
 
   const getWorkerStats = (worker: CoverageWorker) => {
-    // Use total_zipcodes if available from the RPC call, otherwise calculate from service_zipcodes
-    const totalZipCodes = worker.total_zipcodes || new Set((worker.service_zipcodes || []).filter(zip => {
-      const area = (worker.service_areas || []).find(a => a.id === zip.service_area_id);
-      return area && area.is_active;
-    }).map(zip => zip.zipcode)).size;
+    // Prefer server-computed total if available; otherwise count all unique ZIPs for the worker
+    // Note: Some ZIPs may have null service_area_id (manual entries). Including them ensures stats aren't undercounted.
+    const totalZipCodes = worker.total_zipcodes || new Set((worker.service_zipcodes || []).map(zip => zip.zipcode)).size;
     const activeAreas = (worker.service_areas || []).filter(area => area.is_active).length;
 
     // Count areas that need backfilling (have polygons but no ZIP codes)

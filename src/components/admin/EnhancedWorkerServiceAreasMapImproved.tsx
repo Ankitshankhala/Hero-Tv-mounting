@@ -49,6 +49,7 @@ export const EnhancedWorkerServiceAreasMapImproved: React.FC<EnhancedWorkerServi
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const [selectedArea, setSelectedArea] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [computedZipCount, setComputedZipCount] = useState<number | null>(null);
 
   // Initialize map
   useEffect(() => {
@@ -171,12 +172,26 @@ export const EnhancedWorkerServiceAreasMapImproved: React.FC<EnhancedWorkerServi
                 <h3 class="font-bold text-sm mb-1">${area.area_name}</h3>
                 <p class="text-xs text-gray-600 mb-1">Worker: ${worker.name}</p>
                 <p class="text-xs mb-1">Status: ${area.is_active ? 'Active' : 'Inactive'}</p>
-                <p class="text-xs">ZIP Codes: ${area.zipcode_list?.length || 0}</p>
+                <p class="text-xs">ZIP Codes: calculating...</p>
               </div>
             `);
 
-            polygon.on('click', () => {
+            polygon.on('click', async () => {
               setSelectedArea({ ...area, worker });
+              setComputedZipCount(null);
+              try {
+                // Compute full ZIP list intersecting polygon via DB
+                const { data, error } = await (await import('@/integrations/supabase/client')).supabase
+                  .rpc('zipcodes_intersecting_polygon', {
+                    polygon_coords: area.polygon_coordinates
+                  });
+                if (!error) {
+                  const zips = Array.isArray(data) ? data as string[] : [];
+                  setComputedZipCount(zips.length);
+                }
+              } catch (e) {
+                console.warn('Failed to compute ZIP count for popup:', e);
+              }
             });
 
             const bounds = polygon.getBounds();
@@ -321,7 +336,9 @@ export const EnhancedWorkerServiceAreasMapImproved: React.FC<EnhancedWorkerServi
             <div>
               <h4 className="text-sm font-medium mb-2">Coverage</h4>
               <p className="text-sm text-muted-foreground">
-                {selectedArea.zipcode_list?.length || 0} ZIP codes covered
+                {computedZipCount !== null 
+                  ? `${computedZipCount} ZIP codes covered`
+                  : `${selectedArea.zipcode_list?.length || 0} ZIP codes (computing full coverage...)`}
               </p>
             </div>
 

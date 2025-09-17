@@ -42,10 +42,13 @@ export const AdminServiceAreaManager = () => {
     }
   }, [workers, selectedWorkerId, fetchAuditLogs]);
 
-  // Set up real-time updates
-  useRealtimeServiceAreas(() => {
-    fetchWorkers();
-    fetchAuditLogs(selectedWorkerId || undefined);
+  // Set up real-time updates scoped to selected worker to avoid global refresh
+  useRealtimeServiceAreas({
+    onUpdate: () => {
+      fetchWorkers();
+      fetchAuditLogs(selectedWorkerId || undefined);
+    },
+    filterWorkerId: selectedWorkerId || undefined
   });
   // Debounce worker selection to prevent rapid API calls
   const { debouncedCallback: debouncedWorkerSelect } = useDebounce((workerId: string) => {

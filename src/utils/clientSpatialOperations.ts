@@ -40,7 +40,7 @@ export class ClientSpatialOperations {
   private async loadZctaData(): Promise<void> {
     try {
       console.log('🌐 Loading ZCTA boundary data from GeoJSON...');
-      const response = await fetch('/zcta2020_web.geojson');
+      const response = await fetch('/zcta2020_web.geojson', { cache: 'no-store' });
       
       if (!response.ok) {
         throw new Error(`Failed to load ZCTA data: ${response.statusText}`);

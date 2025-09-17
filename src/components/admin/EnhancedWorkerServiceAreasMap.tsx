@@ -52,6 +52,7 @@ export const EnhancedWorkerServiceAreasMap: React.FC<EnhancedWorkerServiceAreasM
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const [selectedArea, setSelectedArea] = useState<any>(null);
   const [coverageValidation, setCoverageValidation] = useState<any>(null);
+  const [computedZipCount, setComputedZipCount] = useState<number | null>(null);
   const [zipBoundariesVisible, setZipBoundariesVisible] = useState(showZipBoundaries);
   const [legendVisible, setLegendVisible] = useState(true);
   
@@ -268,17 +269,31 @@ export const EnhancedWorkerServiceAreasMap: React.FC<EnhancedWorkerServiceAreasM
                 <h3 class="font-bold">${area.area_name}</h3>
                 <p class="text-sm">Worker: ${worker.name}</p>
                 <p class="text-sm">Status: ${area.is_active ? 'Active' : 'Inactive'}</p>
-                <p class="text-sm">ZIP Codes: ${area.zipcode_list?.length || 0}</p>
+                <p class="text-sm">ZIP Codes: calculating...</p>
               </div>
             `);
 
             polygon.on('click', async () => {
               setSelectedArea({ ...area, worker });
+              setComputedZipCount(null);
               
               // Validate polygon coverage
               if (area.polygon_coordinates) {
                 const validation = await validatePolygonCoverage(area.polygon_coordinates);
                 setCoverageValidation(validation);
+              }
+
+              // Compute full ZIPs via DB for accurate count
+              try {
+                const { data, error } = await supabase.rpc('zipcodes_intersecting_polygon', {
+                  polygon_coords: area.polygon_coordinates
+                });
+                if (!error) {
+                  const zips = Array.isArray(data) ? data as string[] : [];
+                  setComputedZipCount(zips.length);
+                }
+              } catch (e) {
+                console.warn('Failed to compute ZIP count:', e);
               }
             });
 
@@ -530,7 +545,7 @@ export const EnhancedWorkerServiceAreasMap: React.FC<EnhancedWorkerServiceAreasM
               </Badge>
               <Badge variant="outline">
                 <Users className="h-3 w-3 mr-1" />
-                {selectedArea.zipcode_list?.length || 0} ZIPs
+                {computedZipCount !== null ? computedZipCount : (selectedArea.zipcode_list?.length || 0)} ZIPs
               </Badge>
             </div>
 
