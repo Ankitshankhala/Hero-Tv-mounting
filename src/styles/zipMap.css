@@ -53,3 +53,86 @@
 .coverage-marker.no-service {
   filter: drop-shadow(0 2px 4px rgba(239, 68, 68, 0.3));
 }
+
+/* Fix for Leaflet map grey area issues */
+.leaflet-container {
+  height: 100% !important;
+  width: 100% !important;
+  background: #fff !important;
+}
+
+.leaflet-tile-container {
+  opacity: 1 !important;
+}
+
+.leaflet-tile {
+  opacity: 1 !important;
+  transition: opacity 0.2s !important;
+}
+
+/* Ensure proper map sizing */
+.leaflet-map-pane {
+  z-index: 1 !important;
+}
+
+/* Fix for draw controls */
+.leaflet-draw-toolbar {
+  margin-top: 10px !important;
+}
+
+.leaflet-draw-toolbar a {
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  border: 1px solid rgba(148, 163, 184, 0.3) !important;
+}
+
+/* Fix for polygon drawing issues */
+.leaflet-container {
+  /* Prevent text selection during drawing */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  
+  /* Prevent touch actions that might interfere with drawing */
+  touch-action: pan-x pan-y;
+}
+
+/* Drawing mode specific styles */
+.leaflet-draw-draw-polygon {
+  cursor: crosshair !important;
+}
+
+/* Polygon drawing cursor */
+.leaflet-container.leaflet-draw-polygon {
+  cursor: crosshair !important;
+}
+
+/* Prevent double-tap zoom during drawing */
+.leaflet-container.leaflet-draw-drawing {
+  touch-action: none !important;
+}
+
+/* Drawing guides and tooltips */
+.leaflet-draw-tooltip {
+  background-color: rgba(0, 0, 0, 0.8) !important;
+  color: white !important;
+  border-radius: 4px !important;
+  padding: 4px 8px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+}
+
+/* Vertex markers during drawing */
+.leaflet-editing-icon {
+  background-color: #3b82f6 !important;
+  border: 2px solid white !important;
+  border-radius: 50% !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+.leaflet-touch-icon {
+  background-color: #3b82f6 !important;
+  border: 3px solid white !important;
+  border-radius: 50% !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3) !important;
+}

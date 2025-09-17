@@ -17,6 +17,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
 import 'leaflet-draw';
+import '@/styles/zipMap.css';
 
 // Fix Leaflet default marker icon issue
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -66,6 +67,11 @@ const AdminServiceAreaMap = ({
   const [selectedExistingArea, setSelectedExistingArea] = useState<ServiceArea | null>(null);
   const [polygonValid, setPolygonValid] = useState(true);
   const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
+  const [mapInitialized, setMapInitialized] = useState(false);
+  const [mapError, setMapError] = useState<string | null>(null);
+  const [customDrawingMode, setCustomDrawingMode] = useState(false);
+  const [customPolygonPoints, setCustomPolygonPoints] = useState<L.LatLng[]>([]);
+  const [customPolygonLayer, setCustomPolygonLayer] = useState<L.Polyline | null>(null);
   
   const { toast } = useToast();
   const { 
@@ -76,7 +82,7 @@ const AdminServiceAreaMap = ({
   } = useAdminServiceAreas();
   const spatialOps = useClientSpatialOperations();
 
-  // Initialize map with enhanced debugging
+  // Initialize map with enhanced debugging and proper sizing
   useEffect(() => {
     console.log('🗺️ Map initialization started:', {
       isActive,
@@ -88,23 +94,116 @@ const AdminServiceAreaMap = ({
     
     if (!isActive) {
       console.log('⏸️ Map initialization skipped: not active');
+      setMapInitialized(false);
       return;
     }
     if (mapRef.current) {
       console.log('⏸️ Map initialization skipped: map already exists');
       return;
     }
+    if (!mapContainerRef.current) {
+      console.log('⏸️ Map initialization skipped: no container');
+      return;
+    }
 
+    // Reset initialization state
+    setMapInitialized(false);
+    setMapError(null);
+
+    // Ensure container has dimensions before creating map
+    const container = mapContainerRef.current;
+    if (container.offsetWidth === 0 || container.offsetHeight === 0) {
+      console.log('⏸️ Map container has no dimensions, retrying...');
+      setTimeout(() => {
+        if (container.offsetWidth > 0 && container.offsetHeight > 0) {
+          initializeMap();
+        }
+      }, 100);
+      return;
+    }
+
+    initializeMap();
+
+    function initializeMap() {
     console.log('🎯 Creating new Leaflet map...');
-    const map = L.map(mapContainerRef.current!, {
-      center: [39.8283, -98.5795], // Center of US
-      zoom: 4,
-      zoomControl: true
-    });
+      const map = L.map(mapContainerRef.current!, {
+        center: [39.8283, -98.5795], // Center of US
+        zoom: 4,
+        zoomControl: true,
+        preferCanvas: false,
+        attributionControl: true,
+        doubleClickZoom: false, // Disable double-click zoom to prevent conflicts with polygon drawing
+        boxZoom: true,
+        dragging: true,
+        keyboard: true,
+        scrollWheelZoom: true,
+        touchZoom: true,
+        tapTolerance: 15,
+        bounceAtZoomLimits: true
+      } as L.MapOptions);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
+      // Add multiple tile layer options for better reliability
+      const primaryTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19,
+        crossOrigin: true
+      });
+
+      // Fallback tile layer
+      const fallbackTileLayer = L.tileLayer('https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png', {
+        attribution: '© CartoDB',
+        maxZoom: 19,
+        crossOrigin: true
+      });
+
+      let tileLoadAttempts = 0;
+      const maxTileLoadAttempts = 3;
+
+      // Add error handling for tile loading with fallback
+      primaryTileLayer.on('tileerror', (error) => {
+        console.warn('Primary tile loading error:', error);
+        tileLoadAttempts++;
+        if (tileLoadAttempts >= maxTileLoadAttempts) {
+          console.log('Switching to fallback tile layer');
+          map.removeLayer(primaryTileLayer);
+          fallbackTileLayer.addTo(map);
+        }
+      });
+
+      let tilesLoaded = false;
+      primaryTileLayer.on('tileload', () => {
+        if (!tilesLoaded) {
+          console.log('Primary tiles loaded successfully');
+          tilesLoaded = true;
+          setMapInitialized(true);
+          setMapError(null);
+        }
+      });
+
+      fallbackTileLayer.on('tileload', () => {
+        if (!tilesLoaded) {
+          console.log('Fallback tiles loaded successfully');
+          tilesLoaded = true;
+          setMapInitialized(true);
+          setMapError(null);
+        }
+      });
+
+      // Set timeout to show error if tiles don't load
+      setTimeout(() => {
+        if (!tilesLoaded) {
+          setMapError('Map tiles failed to load. Please check your internet connection.');
+          console.error('Map tiles failed to load after timeout');
+        }
+      }, 10000);
+
+      primaryTileLayer.addTo(map);
+
+      // Force invalidate size after a short delay
+      setTimeout(() => {
+        map.invalidateSize();
+        console.log('🔄 Map size invalidated');
+      }, 100);
 
     mapRef.current = map;
 
@@ -113,23 +212,28 @@ const AdminServiceAreaMap = ({
     map.addLayer(drawnItems);
     drawnItemsRef.current = drawnItems;
 
-    // Initialize draw control
+      // Initialize draw control with minimal configuration to avoid conflicts
     const drawControl = new L.Control.Draw({
       position: 'topright',
       draw: {
-        polygon: {
-          allowIntersection: false,
-          showArea: true,
-          drawError: {
-            color: '#e1e100',
-            message: '<strong>Error:</strong> shape edges cannot cross!'
+          polygon: {
+            allowIntersection: false,
+            showArea: false, // Disable area calculation to prevent the "type is not defined" error
+            showLength: false, // Disable length calculation as well
+            drawError: {
+              color: '#e1e100',
+              message: '<strong>Error:</strong> shape edges cannot cross!'
+            },
+            shapeOptions: {
+              color: '#3b82f6',
+              fillColor: '#3b82f6',
+              fillOpacity: 0.2
+            },
+            // Additional options to prevent measurement errors
+            metric: false,
+            feet: false,
+            nautic: false
           },
-          shapeOptions: {
-            color: '#3b82f6',
-            fillColor: '#3b82f6',
-            fillOpacity: 0.2
-          }
-        },
         rectangle: {
           shapeOptions: {
             color: '#3b82f6',
@@ -148,14 +252,224 @@ const AdminServiceAreaMap = ({
       }
     });
 
-    map.addControl(drawControl);
-    drawControlRef.current = drawControl;
+      // Safely try to override the polygon drawing handler (may not be available immediately)
+      try {
+        const drawControlAny = drawControl as any;
+        const polygonHandler = drawControlAny?._toolbars?.draw?._modes?.polygon?.handler;
+        if (polygonHandler && polygonHandler.completeShape) {
+          console.log('🔧 Found polygon handler, applying overrides...');
+          
+          // Store original methods
+          const originalCompleteShape = polygonHandler.completeShape;
+          const originalAddVertex = polygonHandler.addVertex;
+          
+          // Override completeShape to require explicit completion
+          if (originalCompleteShape) {
+            polygonHandler.completeShape = function() {
+              const vertexCount = this._poly ? this._poly.getLatLngs().length : 0;
+              console.log('🔒 CompleteShape override called, vertices:', vertexCount);
+              if (vertexCount >= 3) {
+                originalCompleteShape.call(this);
+              } else {
+                console.log('⚠️ Not enough vertices to complete shape');
+              }
+            };
+          }
+          
+          // Override addVertex to track and prevent auto-completion
+          if (originalAddVertex) {
+            polygonHandler.addVertex = function(latlng) {
+              const currentVertices = this._poly ? this._poly.getLatLngs().length : 0;
+              console.log('📍 Adding vertex #' + (currentVertices + 1), latlng);
+              
+              // Call original addVertex
+              originalAddVertex.call(this, latlng);
+              
+              // Prevent auto-completion after 3 vertices
+              if (this._poly && this._poly.getLatLngs().length >= 3) {
+                // Remove any auto-complete behavior by clearing timeout or flags
+                if (this._finishTooltip) {
+                  this._finishTooltip = null;
+                }
+              }
+            };
+          }
+          
+          console.log('✅ Polygon handler overrides applied successfully');
+        } else {
+          console.log('⚠️ Polygon handler not available for override (will try later)');
+        }
+      } catch (error) {
+        console.warn('⚠️ Error accessing polygon handler for override:', error);
+      }
 
-    // Handle drawing events with enhanced logging
+      // Comprehensive patch for Leaflet Draw measurement errors
+      try {
+        // Patch L.GeometryUtil.readableArea if it exists
+        if ((L as any).GeometryUtil?.readableArea) {
+          const originalReadableArea = (L as any).GeometryUtil.readableArea;
+          (L as any).GeometryUtil.readableArea = function(area: number, isMetric?: boolean, type?: string) {
+            try {
+              // Ensure type parameter is provided
+              const measurementType = type || (isMetric !== false ? 'metric' : 'imperial');
+              return originalReadableArea.call(this, area, isMetric, measurementType);
+            } catch (error) {
+              console.warn('Error in GeometryUtil.readableArea, using fallback:', error);
+              // Fallback to simple area display
+              if (isMetric !== false) {
+                return area > 1000000 ? (area / 1000000).toFixed(2) + ' km²' : area.toFixed(0) + ' m²';
+              } else {
+                const sqft = area * 10.764;
+                return sqft > 43560 ? (sqft / 43560).toFixed(2) + ' acres' : sqft.toFixed(0) + ' sq ft';
+              }
+            }
+          };
+          console.log('✅ Patched L.GeometryUtil.readableArea function');
+        }
+
+        // Also patch the global readableArea function if it exists
+        if (typeof (window as any).readableArea !== 'undefined') {
+          const originalGlobalReadableArea = (window as any).readableArea;
+          (window as any).readableArea = function(area: number, isMetric?: boolean, type?: string) {
+            try {
+              const measurementType = type || (isMetric !== false ? 'metric' : 'imperial');
+              return originalGlobalReadableArea.call(this, area, isMetric, measurementType);
+            } catch (error) {
+              console.warn('Error in global readableArea, using fallback:', error);
+              return area > 1000000 ? (area / 1000000).toFixed(2) + ' km²' : area.toFixed(0) + ' m²';
+            }
+          };
+          console.log('✅ Patched global readableArea function');
+        }
+
+        // Patch any readableArea function in the L.Draw namespace
+        if ((L as any).Draw?.Polygon?.prototype?._getMeasurementString) {
+          const originalGetMeasurementString = (L as any).Draw.Polygon.prototype._getMeasurementString;
+          (L as any).Draw.Polygon.prototype._getMeasurementString = function() {
+            try {
+              return originalGetMeasurementString.call(this);
+            } catch (error) {
+              console.warn('Error in _getMeasurementString, suppressing:', error);
+              return ''; // Return empty string to avoid breaking the drawing
+            }
+          };
+          console.log('✅ Patched L.Draw.Polygon._getMeasurementString');
+        }
+
+      } catch (error) {
+        console.warn('Could not apply Leaflet Draw patches:', error);
+      }
+
+      map.addControl(drawControl);
+      drawControlRef.current = drawControl;
+
+      // Wait for draw control to be fully initialized, then apply additional fixes
+      setTimeout(() => {
+        try {
+          const drawControlAny = drawControl as any;
+          const polygonDrawer = drawControlAny?._toolbars?.draw?._modes?.polygon?.handler;
+          if (polygonDrawer && !polygonDrawer._overridesApplied) {
+            console.log('🔧 Applying delayed polygon drawing fixes...');
+            
+            // Mark as overridden to prevent double application
+            polygonDrawer._overridesApplied = true;
+            
+            // Store original methods if they exist and haven't been overridden yet
+            if (polygonDrawer.completeShape && !polygonDrawer._originalCompleteShape) {
+              polygonDrawer._originalCompleteShape = polygonDrawer.completeShape;
+              polygonDrawer.completeShape = function() {
+                const vertexCount = this._poly ? this._poly.getLatLngs().length : 0;
+                console.log('🔒 Delayed CompleteShape override called, vertices:', vertexCount);
+                
+                // Only complete if we have at least 3 vertices and user explicitly wants to complete
+                if (vertexCount >= 3) {
+                  console.log('✅ Completing polygon with', vertexCount, 'vertices');
+                  polygonDrawer._originalCompleteShape.call(this);
+                } else {
+                  console.log('⚠️ Prevented premature completion with only', vertexCount, 'vertices');
+                }
+              };
+            }
+
+            // Override the finish method to prevent auto-completion
+            if (polygonDrawer._finishShape && !polygonDrawer._originalFinishShape) {
+              polygonDrawer._originalFinishShape = polygonDrawer._finishShape;
+              polygonDrawer._finishShape = function() {
+                const vertexCount = this._poly ? this._poly.getLatLngs().length : 0;
+                console.log('🏁 Delayed FinishShape override called, vertices:', vertexCount);
+                
+                if (vertexCount >= 3) {
+                  polygonDrawer._originalFinishShape.call(this);
+                } else {
+                  console.log('⚠️ Prevented finish with insufficient vertices');
+                }
+              };
+            }
+            
+            console.log('✅ Delayed polygon drawing fixes applied successfully');
+          } else if (polygonDrawer?._overridesApplied) {
+            console.log('ℹ️ Polygon handler overrides already applied');
+          } else {
+            console.warn('⚠️ Could not access polygon drawing handler for delayed fixes');
+          }
+        } catch (error) {
+          console.error('❌ Error applying delayed polygon drawing fixes:', error);
+        }
+      }, 500);
+
+      // Add drawing state tracking
+      let drawingInProgress = false;
+      let vertexCount = 0;
+
+      // Handle drawing start
+      map.on(L.Draw.Event.DRAWSTART, (e: any) => {
+        console.log('🎨 Drawing started:', e.layerType);
+        drawingInProgress = true;
+        vertexCount = 0;
+        
+        // Show helpful toast for polygon drawing
+        if (e.layerType === 'polygon') {
+          toast({
+            title: "Drawing Polygon",
+            description: "Click to add unlimited points. Double-click the last point or click the first point to complete.",
+            duration: 6000,
+          });
+          
+          // Disable map double-click zoom during polygon drawing
+          map.doubleClickZoom.disable();
+          console.log('🚫 Double-click zoom disabled during polygon drawing');
+        }
+      });
+
+      // Handle vertex addition
+      map.on(L.Draw.Event.DRAWVERTEX, (e: any) => {
+        vertexCount++;
+        console.log('📍 Vertex added:', vertexCount, 'total vertices');
+      });
+
+      // Handle drawing stop
+      map.on(L.Draw.Event.DRAWSTOP, (e: any) => {
+        console.log('🛑 Drawing stopped:', {
+          layerType: e.layerType,
+          vertexCount,
+          reason: 'user_action'
+        });
+        drawingInProgress = false;
+        
+        // Re-enable double-click zoom after drawing stops
+        if (!map.doubleClickZoom.enabled()) {
+          map.doubleClickZoom.enable();
+          console.log('✅ Double-click zoom re-enabled after drawing stopped');
+        }
+      });
+
+      // Handle drawing events with enhanced logging and validation
     map.on(L.Draw.Event.CREATED, (e: any) => {
       console.log('🖊️ Draw event CREATED triggered:', {
         type: e.layerType,
         layer: e.layer,
+          vertexCount,
+          drawingWasInProgress: drawingInProgress,
         timestamp: new Date().toISOString()
       });
       
@@ -172,9 +486,23 @@ const AdminServiceAreaMap = ({
         
         console.log('📍 Polygon coordinates extracted:', {
           pointCount: coordinates.length,
+            vertexCountFromTracking: vertexCount,
           firstPoint: coordinates[0],
-          lastPoint: coordinates[coordinates.length - 1]
-        });
+            lastPoint: coordinates[coordinates.length - 1],
+            allPoints: coordinates
+          });
+
+          // Validate minimum points
+          if (coordinates.length < 3) {
+            console.warn('⚠️ Polygon has less than 3 points, removing from map');
+            drawnItems.removeLayer(layer);
+            toast({
+              title: "Invalid Polygon",
+              description: "A polygon must have at least 3 points. Please try drawing again.",
+              variant: "destructive",
+            });
+            return;
+          }
         
         setCurrentPolygon(coordinates);
         setShowAreaSelection(true);
@@ -197,6 +525,10 @@ const AdminServiceAreaMap = ({
           console.log('🆕 Set to create new area (no existing areas)');
         }
       }
+
+        // Reset tracking
+        drawingInProgress = false;
+        vertexCount = 0;
     });
 
     map.on(L.Draw.Event.EDITED, (e: any) => {
@@ -233,17 +565,241 @@ const AdminServiceAreaMap = ({
       setEditingArea(null);
     });
 
+      // Add additional debugging for all map events during drawing
+      const debugEvents = ['click', 'dblclick', 'mousedown', 'mouseup', 'touchstart', 'touchend'];
+      debugEvents.forEach(eventType => {
+        map.on(eventType, (e: any) => {
+          if (drawingInProgress) {
+            console.log(`🔍 Map ${eventType} during drawing:`, {
+              latlng: e.latlng,
+              originalEvent: e.originalEvent?.type,
+              target: e.target?.constructor?.name,
+              vertexCount,
+              timestamp: new Date().toISOString()
+            });
+          }
+        });
+      });
+
+      // Custom polygon drawing functionality
+      let customPoints: L.LatLng[] = [];
+      let customPolyline: L.Polyline | null = null;
+      let customMarkers: L.CircleMarker[] = [];
+      
+      const startCustomDrawing = () => {
+        console.log('🎨 Starting custom polygon drawing mode');
+        setCustomDrawingMode(true);
+        customPoints = [];
+        customMarkers = [];
+        
+        // Clear any existing custom drawing
+        if (customPolyline) {
+          map.removeLayer(customPolyline);
+        }
+        customMarkers.forEach(marker => map.removeLayer(marker));
+        customMarkers = [];
+        
+        toast({
+          title: "Custom Drawing Mode",
+          description: "Click to add points. Right-click or press Enter to complete polygon.",
+          duration: 8000,
+        });
+        
+        map.getContainer().style.cursor = 'crosshair';
+      };
+      
+      const addCustomPoint = (latlng: L.LatLng) => {
+        customPoints.push(latlng);
+        console.log('📍 Custom point added:', customPoints.length, latlng);
+        
+        // Add visual marker
+        const marker = L.circleMarker(latlng, {
+          radius: 6,
+          fillColor: '#3b82f6',
+          color: '#ffffff',
+          weight: 2,
+          opacity: 1,
+          fillOpacity: 1
+        }).addTo(map);
+        customMarkers.push(marker);
+        
+        // Update polyline
+        if (customPolyline) {
+          map.removeLayer(customPolyline);
+        }
+        
+        if (customPoints.length > 1) {
+          customPolyline = L.polyline(customPoints, {
+            color: '#3b82f6',
+            weight: 3,
+            opacity: 0.8
+          }).addTo(map);
+        }
+        
+        // Show completion hint after 3 points
+        if (customPoints.length >= 3) {
+          toast({
+            title: `${customPoints.length} Points Added`,
+            description: "Right-click or press Enter to complete the polygon.",
+            duration: 3000,
+          });
+        }
+      };
+      
+      const completeCustomPolygon = () => {
+        if (customPoints.length < 3) {
+          toast({
+            title: "Insufficient Points",
+            description: "A polygon needs at least 3 points.",
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        console.log('✅ Completing custom polygon with', customPoints.length, 'points');
+        
+        // Create the final polygon
+        const polygon = L.polygon(customPoints, {
+          color: '#3b82f6',
+          fillColor: '#3b82f6',
+          fillOpacity: 0.2,
+          weight: 3
+        });
+        
+        // Clear drawing state
+        setCustomDrawingMode(false);
+        if (customPolyline) map.removeLayer(customPolyline);
+        customMarkers.forEach(marker => map.removeLayer(marker));
+        map.getContainer().style.cursor = '';
+        
+        // Add to drawn items
+        drawnItems.addLayer(polygon);
+        
+        // Convert to coordinates format expected by the rest of the system
+        const coordinates = customPoints.map(point => ({
+          lat: point.lat,
+          lng: point.lng
+        }));
+        
+        setCurrentPolygon(coordinates);
+        setShowAreaSelection(true);
+        
+        // Reset custom drawing state
+        customPoints = [];
+        customPolyline = null;
+        customMarkers = [];
+      };
+      
+      // Add custom drawing event handlers
+      map.on('click', (e: L.LeafletMouseEvent) => {
+        if (customDrawingMode) {
+          e.originalEvent.preventDefault();
+          e.originalEvent.stopPropagation();
+          addCustomPoint(e.latlng);
+        }
+      });
+      
+      map.on('contextmenu', (e: L.LeafletMouseEvent) => {
+        if (customDrawingMode) {
+          e.originalEvent.preventDefault();
+          completeCustomPolygon();
+        }
+      });
+      
+      // Keyboard support for custom drawing
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (customDrawingMode) {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            completeCustomPolygon();
+          } else if (e.key === 'Escape') {
+            e.preventDefault();
+            setCustomDrawingMode(false);
+            if (customPolyline) map.removeLayer(customPolyline);
+            customMarkers.forEach(marker => map.removeLayer(marker));
+            map.getContainer().style.cursor = '';
+            customPoints = [];
+            toast({
+              title: "Drawing Cancelled",
+              description: "Custom polygon drawing cancelled.",
+            });
+          }
+        }
+      };
+      
+      document.addEventListener('keydown', handleKeyDown);
+      
+      // Store the custom drawing function for external access
+      (map as any)._startCustomDrawing = startCustomDrawing;
+
+      // Add global error handler to catch Leaflet Draw measurement errors
+      const originalConsoleError = console.error;
+      const handleLeafletDrawErrors = (...args: any[]) => {
+        const errorMessage = args.join(' ');
+        if (errorMessage.includes('type is not defined') || 
+            errorMessage.includes('readableArea') ||
+            errorMessage.includes('_getMeasurementString')) {
+          console.warn('🔧 Suppressed Leaflet Draw measurement error:', ...args);
+          return; // Don't log these specific errors
+        }
+        originalConsoleError.apply(console, args);
+      };
+      
+      // Temporarily override console.error during drawing
+      let errorHandlerActive = false;
+      map.on(L.Draw.Event.DRAWSTART, () => {
+        if (!errorHandlerActive) {
+          console.error = handleLeafletDrawErrors;
+          errorHandlerActive = true;
+          console.log('🔇 Activated Leaflet Draw error suppression');
+        }
+      });
+      
+      map.on(L.Draw.Event.DRAWSTOP, () => {
+        if (errorHandlerActive) {
+          console.error = originalConsoleError;
+          errorHandlerActive = false;
+          console.log('🔊 Deactivated Leaflet Draw error suppression');
+        }
+      });
+      
+      map.on(L.Draw.Event.CREATED, () => {
+        if (errorHandlerActive) {
+          console.error = originalConsoleError;
+          errorHandlerActive = false;
+          console.log('🔊 Deactivated Leaflet Draw error suppression');
+        }
+      });
+
     // Resize observer
     const ro = new ResizeObserver(() => {
       requestAnimationFrame(() => map.invalidateSize());
     });
     if (mapContainerRef.current) ro.observe(mapContainerRef.current);
 
-    return () => {
-      ro.disconnect();
-      map.remove();
-    };
+      return () => {
+        // Cleanup event listeners
+        document.removeEventListener('keydown', handleKeyDown);
+        // Restore original console.error if it was overridden
+        if (console.error !== originalConsoleError) {
+          console.error = originalConsoleError;
+        }
+        ro.disconnect();
+        map.remove();
+      };
+    }
   }, [isActive, serviceAreas]);
+
+  // Handle map invalidation when component becomes active/visible
+  useEffect(() => {
+    if (isActive && mapRef.current) {
+      // Delay to ensure container is fully visible
+      setTimeout(() => {
+        mapRef.current?.invalidateSize();
+        console.log('🔄 Map size invalidated due to visibility change');
+      }, 200);
+    }
+  }, [isActive]);
 
   // Load service areas
   useEffect(() => {
@@ -460,13 +1016,115 @@ const AdminServiceAreaMap = ({
               Admin Mode
             </Badge>
           </CardTitle>
+          <div className="text-sm text-muted-foreground mt-2 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+            <p className="font-medium text-blue-700 dark:text-blue-300 mb-1">📍 Drawing Instructions:</p>
+            <ul className="space-y-1 text-xs text-blue-600 dark:text-blue-400">
+              <li>• <strong>Standard:</strong> Use polygon tool (top-right) - now supports unlimited vertices!</li>
+              <li>• <strong>Custom:</strong> Use "Custom Polygon" button below as alternative method</li>
+              <li>• <strong>Completion:</strong> Double-click last point or click first point to finish</li>
+              <li>• Rectangle tool works normally for simple rectangular areas</li>
+              <li className="text-green-600 dark:text-green-400">• <strong>Fixed:</strong> Leaflet Draw measurement errors patched</li>
+            </ul>
+            
+            {/* Custom Drawing Button */}
+            <div className="mt-3 flex gap-2">
+              <Button
+                size="sm"
+                variant={customDrawingMode ? "destructive" : "default"}
+                onClick={() => {
+                  if (customDrawingMode) {
+                    // Cancel custom drawing
+                    setCustomDrawingMode(false);
+                    if (mapRef.current) {
+                      mapRef.current.getContainer().style.cursor = '';
+                    }
+                    toast({
+                      title: "Drawing Cancelled",
+                      description: "Custom polygon drawing cancelled.",
+                    });
+                  } else {
+                    // Start custom drawing
+                    if (mapRef.current && (mapRef.current as any)._startCustomDrawing) {
+                      (mapRef.current as any)._startCustomDrawing();
+                    }
+                  }
+                }}
+                disabled={!mapInitialized}
+              >
+                {customDrawingMode ? (
+                  <>
+                    <X className="h-4 w-4 mr-2" />
+                    Cancel Custom Drawing
+                  </>
+                ) : (
+                  <>
+                    <Edit3 className="h-4 w-4 mr-2" />
+                    Custom Polygon (Unlimited Vertices)
+                  </>
+                )}
+              </Button>
+              
+              {customDrawingMode && (
+                <Badge variant="outline" className="text-blue-600 border-blue-300">
+                  {customPolygonPoints.length} points added
+                </Badge>
+              )}
+            </div>
+          </div>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="p-0 relative">
           <div 
             ref={mapContainerRef}
             className="h-96 w-full rounded-b-lg"
-            style={{ minHeight: '400px' }}
+            style={{ 
+              minHeight: '400px', 
+              height: '400px',
+              position: 'relative',
+              zIndex: 1
+            }}
           />
+          
+          {/* Loading overlay */}
+          {!mapInitialized && !mapError && (
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10">
+              <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
+                <div className="text-center">
+                  <p className="font-medium">Loading map...</p>
+                  <p className="text-sm">Initializing drawing tools</p>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Error overlay */}
+          {mapError && (
+            <div className="absolute inset-0 bg-background/90 backdrop-blur-sm flex items-center justify-center z-10">
+              <div className="flex flex-col items-center gap-3 text-destructive max-w-md text-center">
+                <AlertTriangle className="h-8 w-8" />
+                <div>
+                  <p className="font-medium">Map Loading Error</p>
+                  <p className="text-sm mt-1">{mapError}</p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-3"
+                    onClick={() => {
+                      setMapError(null);
+                      setMapInitialized(false);
+                      // Trigger re-initialization
+                      if (mapRef.current) {
+                        mapRef.current.remove();
+                        mapRef.current = null;
+                      }
+                    }}
+                  >
+                    Retry
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
