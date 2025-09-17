@@ -26,9 +26,20 @@ export const getZctaServiceCoverage = async (customerZipcode: string): Promise<Z
     // Clean zipcode
     const cleanZipcode = customerZipcode.replace(/[^\d]/g, '').substring(0, 5);
     
-    // Check cache first
-    if (zctaServiceCoverageCache.has(cleanZipcode)) {
-      return zctaServiceCoverageCache.get(cleanZipcode)!;
+    // Validate zipcode format
+    if (!cleanZipcode || cleanZipcode.length !== 5) {
+      return {
+        hasServiceCoverage: false,
+        workerCount: 0,
+        coverageSource: 'none'
+      };
+    }
+    
+    // Check cache first (with expiration)
+    const cacheKey = `${cleanZipcode}_${Date.now()}`;
+    const cached = zctaServiceCoverageCache.get(cleanZipcode);
+    if (cached && Date.now() - (cached as any)._timestamp < 300000) { // 5 min cache
+      return cached;
     }
     
     // Run ZCTA validation and database coverage check in parallel
@@ -96,10 +107,12 @@ export const getZctaServiceCoverage = async (customerZipcode: string): Promise<Z
         city: zctaData.city,
         state: zctaData.state,
         state_abbr: zctaData.state_abbr
-      } : undefined
-    };
+      } : undefined,
+      // Add timestamp for cache expiration
+      _timestamp: Date.now()
+    } as ZctaServiceCoverageData & { _timestamp: number };
     
-    // Cache the result
+    // Cache the result with timestamp
     zctaServiceCoverageCache.set(cleanZipcode, result);
     return result;
     
@@ -135,36 +148,78 @@ export const findZctaAvailableWorkers = async (
   zipcode: string, 
   date: string, 
   time: string, 
-  duration: number = 60
+  duration: number = 60,
+  retryCount: number = 0
 ) => {
+  const maxRetries = 2;
+  
   try {
-    // Try ZCTA-based worker finding first
-    const zctaWorkers = await zctaOnlyService.findAvailableWorkersWithAreaInfo(
-      zipcode, date, time, duration
-    );
+    // Clean and validate zipcode
+    const cleanZipcode = zipcode.replace(/[^\d]/g, '').substring(0, 5);
+    if (!cleanZipcode || cleanZipcode.length !== 5) {
+      throw new Error('Invalid ZIP code format');
+    }
     
-    if (zctaWorkers.length > 0) {
-      return zctaWorkers.map(worker => ({
-        ...worker,
-        assignment_source: 'zcta' as const
-      }));
+    // Try ZCTA-based worker finding first with retry logic
+    let zctaWorkers = [];
+    try {
+      zctaWorkers = await Promise.race([
+        zctaOnlyService.findAvailableWorkersWithAreaInfo(cleanZipcode, date, time, duration),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('ZCTA service timeout')), 10000)
+        )
+      ]) as any[];
+      
+      if (zctaWorkers.length > 0) {
+        return zctaWorkers.map(worker => ({
+          ...worker,
+          assignment_source: 'zcta' as const,
+          // Enhanced worker details
+          service_area: worker.service_area || `${cleanZipcode} area`,
+          avg_response_time: worker.avg_response_time || '30-60 mins',
+          specializations: worker.specializations || ['General Service']
+        }));
+      }
+    } catch (zctaError) {
+      console.warn(`ZCTA worker search failed (attempt ${retryCount + 1}):`, zctaError);
+      
+      // Retry ZCTA on network errors
+      if (retryCount < maxRetries && (zctaError as Error).message.includes('timeout')) {
+        await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
+        return findZctaAvailableWorkers(zipcode, date, time, duration, retryCount + 1);
+      }
     }
     
     // Fallback to database-based worker finding
-    const { data: dbWorkers } = await supabase.rpc('find_available_workers_by_zip', {
-      p_zipcode: zipcode,
+    console.log('Falling back to database worker search for:', cleanZipcode);
+    const { data: dbWorkers, error: dbError } = await supabase.rpc('find_available_workers_by_zip', {
+      p_zipcode: cleanZipcode,
       p_date: date,
       p_time: time,
       p_duration_minutes: duration
     });
     
+    if (dbError) {
+      throw new Error(`Database search failed: ${dbError.message}`);
+    }
+    
     return (dbWorkers || []).map((worker: any) => ({
       ...worker,
-      assignment_source: 'database' as const
+      assignment_source: 'database' as const,
+      service_area: worker.service_area || `${cleanZipcode} area`,
+      avg_response_time: worker.avg_response_time || '45-90 mins',
+      specializations: worker.specializations || ['General Service']
     }));
     
   } catch (error) {
-    console.error('Error finding ZCTA available workers:', error);
+    console.error('Error finding available workers:', error);
+    
+    // Final retry for critical errors
+    if (retryCount < maxRetries) {
+      await new Promise(resolve => setTimeout(resolve, 2000 * (retryCount + 1)));
+      return findZctaAvailableWorkers(zipcode, date, time, duration, retryCount + 1);
+    }
+    
     return [];
   }
 };

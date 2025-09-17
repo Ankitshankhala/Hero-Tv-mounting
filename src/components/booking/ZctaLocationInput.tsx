@@ -77,14 +77,15 @@ export const ZctaLocationInput: React.FC<ZctaLocationInputProps> = ({
       clearTimeout(debounceTimeout);
     }
 
-    // Auto-validate after user stops typing
+  // Auto-validate after user stops typing (enhanced debouncing)
     if (autoValidate && cleanValue.length === 5) {
       const timeout = setTimeout(() => {
         triggerValidation(cleanValue);
-      }, 500);
+      }, 800); // Increased debounce for better UX
       setDebounceTimeout(timeout);
-    } else {
+    } else if (cleanValue.length < 5) {
       setValidationTriggered(false);
+      onValidationChange?.(false, null);
     }
   };
 
@@ -234,7 +235,10 @@ export const ZctaLocationInput: React.FC<ZctaLocationInputProps> = ({
                       <XCircle className="h-4 w-4 text-action-danger" />
                     )}
                     <span className="text-sm font-medium text-foreground">
-                      {coverageInfo.hasActive ? 'Service Available' : 'No Service Coverage'}
+                      {coverageInfo.hasActive 
+                        ? 'Service Available' 
+                        : `No workers available in area ${inputValue}`
+                      }
                     </span>
                   </div>
                   {coverageInfo.workerCount > 0 && (
@@ -245,29 +249,86 @@ export const ZctaLocationInput: React.FC<ZctaLocationInputProps> = ({
                   )}
                 </div>
                 
+                {/* No Service Message with Suggestions */}
+                {!coverageInfo.hasActive && (
+                  <div className="mt-3 p-3 bg-action-warning/10 border border-action-warning/30 rounded">
+                    <div className="text-sm text-action-warning font-medium mb-2">
+                      Service not available in ZIP code {inputValue}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      <p>• Please check if the ZIP code is correct</p>
+                      <p>• Try nearby ZIP codes for available service areas</p>
+                      <p>• Contact support if you need service in this area</p>
+                    </div>
+                  </div>
+                )}
+                
                 {/* Worker Coverage Details */}
                 {coverageInfo.hasActive && coverageInfo.workers && coverageInfo.workers.length > 0 && (
                   <div className="mt-3 space-y-2">
-                    <div className="text-xs font-medium text-muted-foreground mb-1">Available Workers:</div>
-                    <div className="space-y-1">
+                    <div className="text-xs font-medium text-muted-foreground mb-1">
+                      Available Workers in {zctaValidation?.city}, {zctaValidation?.state}:
+                    </div>
+                    <div className="space-y-2">
                       {coverageInfo.workers.slice(0, 3).map((worker: any, index: number) => (
-                        <div key={worker.id || index} className="flex items-center justify-between text-xs bg-muted/50 rounded p-2">
-                          <div>
-                            <span className="font-medium text-foreground">{worker.name}</span>
-                            {worker.city && <span className="text-muted-foreground ml-1">• {worker.city}</span>}
+                        <div key={worker.id || index} className="bg-muted/50 rounded p-3 border border-border">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center space-x-2">
+                              <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center">
+                                <span className="text-xs font-semibold text-primary">
+                                  {worker.name?.charAt(0)?.toUpperCase()}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="font-medium text-foreground text-sm">{worker.name}</span>
+                                {worker.city && (
+                                  <div className="text-xs text-muted-foreground">{worker.city}</div>
+                                )}
+                              </div>
+                            </div>
+                            {worker.coverage_source && (
+                              <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                worker.coverage_source === 'zcta' 
+                                  ? 'bg-action-info/20 text-action-info border border-action-info/30' 
+                                  : 'bg-muted text-muted-foreground border border-border'
+                              }`}>
+                                {worker.coverage_source === 'zcta' ? 'ZCTA Match' : 'Database'}
+                              </span>
+                            )}
                           </div>
-                          {worker.coverage_source && (
-                            <span className={`px-2 py-1 rounded text-xs ${
-                              worker.coverage_source === 'zcta' ? 'bg-action-info/20 text-action-info border border-action-info/30' : 'bg-muted text-muted-foreground border border-border'
-                            }`}>
-                              {worker.coverage_source === 'zcta' ? 'ZCTA' : 'Database'}
-                            </span>
+                          
+                          {/* Worker Details */}
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                              <span className="text-muted-foreground">Service Area:</span>
+                              <div className="text-foreground font-medium">
+                                {worker.service_area || 'Full coverage area'}
+                              </div>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Response Time:</span>
+                              <div className="text-foreground font-medium">
+                                {worker.avg_response_time || '30-60 mins'}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {worker.specializations && (
+                            <div className="mt-2 flex flex-wrap gap-1">
+                              {worker.specializations.slice(0, 3).map((spec: string, i: number) => (
+                                <span key={i} className="px-2 py-1 bg-primary/10 text-primary text-xs rounded">
+                                  {spec}
+                                </span>
+                              ))}
+                            </div>
                           )}
                         </div>
                       ))}
                       {coverageInfo.workers.length > 3 && (
-                        <div className="text-xs text-muted-foreground italic">
-                          +{coverageInfo.workers.length - 3} more workers available
+                        <div className="text-center p-2 bg-muted/30 rounded border border-dashed border-border">
+                          <span className="text-xs text-muted-foreground">
+                            +{coverageInfo.workers.length - 3} more qualified workers available
+                          </span>
                         </div>
                       )}
                     </div>
@@ -295,11 +356,21 @@ export const ZctaLocationInput: React.FC<ZctaLocationInputProps> = ({
               </div>
             )}
 
-            {/* Warnings for invalid codes */}
+            {/* Enhanced Error Messages */}
             {!zctaValidation.is_valid && (
               <div className="pt-2 border-t border-action-danger/30">
-                <div className="text-sm text-action-danger">
-                  <p>This ZCTA code is not recognized. Please verify the code or try a different location.</p>
+                <div className="p-3 bg-action-danger/10 border border-action-danger/30 rounded">
+                  <div className="text-sm text-action-danger font-medium mb-2">
+                    Invalid ZIP Code: {inputValue}
+                  </div>
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    <p>• Ensure you've entered a valid 5-digit US ZIP code</p>
+                    <p>• Double-check for typos or missing digits</p>
+                    <p>• Some ZIP codes may not be in our service database yet</p>
+                  </div>
+                  <div className="mt-2 text-xs text-action-info">
+                    <span className="font-medium">Need help?</span> Contact support for assistance with your location.
+                  </div>
                 </div>
               </div>
             )}
