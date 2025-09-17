@@ -313,6 +313,77 @@ export const useBookingOperations = () => {
         throw new Error(`Failed to confirm booking: ${updateError.message}`);
       }
 
+      // Auto-assign worker after confirmation - handle both authenticated users and guests
+      const guestInfo = updatedBooking.guest_customer_info as any;
+      const hasZipcode = updatedBooking.customer?.zip_code || guestInfo?.zipcode;
+      
+      if (hasZipcode) {
+        try {
+          // Explicitly call auto-assignment after booking confirmation
+          const { data: assignmentResult, error: assignmentError } = await supabase.rpc(
+            'auto_assign_workers_with_strict_zip_coverage', 
+            { p_booking_id: bookingId }
+          );
+          
+          if (assignmentError) {
+            console.error('Auto-assignment failed:', assignmentError);
+            toast({
+              title: "Booking Confirmed",
+              description: "Your booking is confirmed. We're working to assign a worker and will notify you soon.",
+            });
+          } else {
+            toast({
+              title: "Booking Confirmed & Worker Assigned",
+              description: "Your booking is confirmed and a worker has been assigned. You'll receive confirmation details shortly.",
+            });
+          }
+        } catch (error) {
+          console.error('Assignment error:', error);
+          toast({
+            title: "Booking Confirmed",
+            description: "Your booking is confirmed. We're working to assign a worker and will notify you soon.",
+          });
+        }
+      } else {
+        toast({
+          title: "Booking Confirmed",
+          description: "Your booking is confirmed. Please contact support to complete the service assignment.",
+        });
+      }
+
+      return updatedBooking;
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Payment succeeded but failed to confirm booking. Please contact support.",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+    try {
+      console.log('Confirming booking after payment:', { bookingId, paymentIntentId });
+
+      // First ensure the booking status is compatible, then update to confirmed
+      const { data: updatedBooking, error: updateError } = await supabase
+        .from('bookings')
+        .update({
+          status: 'confirmed' as const,
+          payment_status: 'authorized',
+          payment_intent_id: paymentIntentId
+        })
+        .eq('id', bookingId)
+        .select(`
+          *,
+          customer:users!customer_id(*),
+          service:services(*)
+        `)
+        .single();
+
+      if (updateError) {
+        throw new Error(`Failed to confirm booking: ${updateError.message}`);
+      }
+
       // Notifications (customer email/SMS) are handled by database triggers after assignment to avoid duplicates.
       // No direct email dispatch here.
 
@@ -322,9 +393,35 @@ export const useBookingOperations = () => {
       let assignmentCompleted = false;
       
       if (hasZipcode) {
-        // Let DB triggers handle auto-assignment; just inform the user
-        toast({
-          title: "Booking Confirmed",
+        try {
+          // Explicitly call auto-assignment after booking confirmation
+          const { data: assignmentResult, error: assignmentError } = await supabase.rpc(
+            'auto_assign_workers_with_strict_zip_coverage', 
+            { p_booking_id: bookingId }
+          );
+          
+          if (assignmentError) {
+            console.error('Auto-assignment failed:', assignmentError);
+            toast({
+              title: "Booking Confirmed",
+              description: "Your booking is confirmed. We're working to assign a worker and will notify you soon.",
+            });
+          } else {
+            toast({
+              title: "Booking Confirmed & Worker Assigned", 
+              description: "Your booking is confirmed and a worker has been assigned. You'll receive confirmation details shortly.",
+            });
+          }
+          assignmentCompleted = true;
+        } catch (error) {
+          console.error('Assignment error:', error);
+          toast({
+            title: "Booking Confirmed",
+            description: "Your booking is confirmed. We're working to assign a worker and will notify you soon.",
+          });
+          assignmentCompleted = true;
+        }
+      } else {
           description: "We’re assigning a worker now. You’ll be notified once confirmed.",
         });
         assignmentCompleted = true;
