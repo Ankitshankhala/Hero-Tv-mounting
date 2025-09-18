@@ -291,7 +291,7 @@ async function capturePayment(req: Request, stripe: Stripe, supabase: any) {
     .insert({
       booking_id: bookingId,
       amount: paymentIntent.amount / 100,
-      status: 'completed',
+      status: 'captured',
       payment_intent_id: booking.payment_intent_id,
       transaction_type: 'capture',
       payment_method: 'card',
