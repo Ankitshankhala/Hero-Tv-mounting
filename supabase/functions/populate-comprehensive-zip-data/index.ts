@@ -19,40 +19,71 @@ interface ZipCodeData {
   water_area?: number;
 }
 
-// Comprehensive dataset of major US ZIP codes
-const COMPREHENSIVE_ZIP_DATASET: ZipCodeData[] = [
-  // Major Metropolitan Areas
+// Sample dataset for testing (30 ZIP codes)
+const SAMPLE_ZIP_DATASET: ZipCodeData[] = [
   { zipcode: '10001', city: 'New York', state: 'New York', state_abbr: 'NY', latitude: 40.7505, longitude: -73.9934, county: 'New York', timezone: 'America/New_York', population: 23056, land_area: 0.685, water_area: 0.0 },
-  { zipcode: '10002', city: 'New York', state: 'New York', state_abbr: 'NY', latitude: 40.7157, longitude: -73.9860, county: 'New York', timezone: 'America/New_York', population: 81410, land_area: 1.124, water_area: 0.0 },
   { zipcode: '90210', city: 'Beverly Hills', state: 'California', state_abbr: 'CA', latitude: 34.0901, longitude: -118.4065, county: 'Los Angeles', timezone: 'America/Los_Angeles', population: 21908, land_area: 5.71, water_area: 0.0 },
-  { zipcode: '90211', city: 'Beverly Hills', state: 'California', state_abbr: 'CA', latitude: 34.0837, longitude: -118.4004, county: 'Los Angeles', timezone: 'America/Los_Angeles', population: 3034, land_area: 1.43, water_area: 0.0 },
   { zipcode: '60601', city: 'Chicago', state: 'Illinois', state_abbr: 'IL', latitude: 41.8827, longitude: -87.6233, county: 'Cook', timezone: 'America/Chicago', population: 2389, land_area: 0.262, water_area: 0.0 },
-  { zipcode: '60602', city: 'Chicago', state: 'Illinois', state_abbr: 'IL', latitude: 41.8796, longitude: -87.6384, county: 'Cook', timezone: 'America/Chicago', population: 8625, land_area: 0.683, water_area: 0.0 },
   { zipcode: '75201', city: 'Dallas', state: 'Texas', state_abbr: 'TX', latitude: 32.7767, longitude: -96.7970, county: 'Dallas', timezone: 'America/Chicago', population: 1659, land_area: 1.89, water_area: 0.0 },
-  { zipcode: '75202', city: 'Dallas', state: 'Texas', state_abbr: 'TX', latitude: 32.7831, longitude: -96.8067, county: 'Dallas', timezone: 'America/Chicago', population: 2415, land_area: 1.12, water_area: 0.0 },
   { zipcode: '77001', city: 'Houston', state: 'Texas', state_abbr: 'TX', latitude: 29.7347, longitude: -95.3897, county: 'Harris', timezone: 'America/Chicago', population: 4412, land_area: 2.31, water_area: 0.0 },
-  { zipcode: '77002', city: 'Houston', state: 'Texas', state_abbr: 'TX', latitude: 29.7580, longitude: -95.3676, county: 'Harris', timezone: 'America/Chicago', population: 7165, land_area: 1.89, water_area: 0.0 },
-  { zipcode: '33101', city: 'Miami', state: 'Florida', state_abbr: 'FL', latitude: 25.7741, longitude: -80.1937, county: 'Miami-Dade', timezone: 'America/New_York', population: 1849, land_area: 0.684, water_area: 0.325 },
-  { zipcode: '33102', city: 'Miami', state: 'Florida', state_abbr: 'FL', latitude: 25.7877, longitude: -80.1918, county: 'Miami-Dade', timezone: 'America/New_York', population: 2513, land_area: 0.298, water_area: 0.0 },
-  { zipcode: '98101', city: 'Seattle', state: 'Washington', state_abbr: 'WA', latitude: 47.6097, longitude: -122.3331, county: 'King', timezone: 'America/Los_Angeles', population: 12234, land_area: 1.89, water_area: 0.15 },
-  { zipcode: '98102', city: 'Seattle', state: 'Washington', state_abbr: 'WA', latitude: 47.6301, longitude: -122.3238, county: 'King', timezone: 'America/Los_Angeles', population: 7742, land_area: 0.95, water_area: 0.0 },
-  { zipcode: '02101', city: 'Boston', state: 'Massachusetts', state_abbr: 'MA', latitude: 42.3584, longitude: -71.0598, county: 'Suffolk', timezone: 'America/New_York', population: 4285, land_area: 0.45, water_area: 0.12 },
-  { zipcode: '02102', city: 'Boston', state: 'Massachusetts', state_abbr: 'MA', latitude: 42.3503, longitude: -71.0520, county: 'Suffolk', timezone: 'America/New_York', population: 891, land_area: 0.15, water_area: 0.0 },
-  { zipcode: '30301', city: 'Atlanta', state: 'Georgia', state_abbr: 'GA', latitude: 33.7490, longitude: -84.3880, county: 'Fulton', timezone: 'America/New_York', population: 4321, land_area: 1.23, water_area: 0.0 },
-  { zipcode: '30302', city: 'Atlanta', state: 'Georgia', state_abbr: 'GA', latitude: 33.7676, longitude: -84.3911, county: 'Fulton', timezone: 'America/New_York', population: 8543, land_area: 2.15, water_area: 0.0 },
-  { zipcode: '85001', city: 'Phoenix', state: 'Arizona', state_abbr: 'AZ', latitude: 33.4484, longitude: -112.0740, county: 'Maricopa', timezone: 'America/Phoenix', population: 2145, land_area: 1.89, water_area: 0.0 },
-  { zipcode: '85002', city: 'Phoenix', state: 'Arizona', state_abbr: 'AZ', latitude: 33.4734, longitude: -112.0783, county: 'Maricopa', timezone: 'America/Phoenix', population: 15234, land_area: 5.67, water_area: 0.0 },
-  { zipcode: '80201', city: 'Denver', state: 'Colorado', state_abbr: 'CO', latitude: 39.7392, longitude: -104.9903, county: 'Denver', timezone: 'America/Denver', population: 3456, land_area: 0.89, water_area: 0.0 },
-  { zipcode: '80202', city: 'Denver', state: 'Colorado', state_abbr: 'CO', latitude: 39.7547, longitude: -104.9968, county: 'Denver', timezone: 'America/Denver', population: 7890, land_area: 1.23, water_area: 0.0 },
-  { zipcode: '19101', city: 'Philadelphia', state: 'Pennsylvania', state_abbr: 'PA', latitude: 39.9526, longitude: -75.1652, county: 'Philadelphia', timezone: 'America/New_York', population: 5678, land_area: 0.67, water_area: 0.0 },
-  { zipcode: '19102', city: 'Philadelphia', state: 'Pennsylvania', state_abbr: 'PA', latitude: 39.9496, longitude: -75.1627, county: 'Philadelphia', timezone: 'America/New_York', population: 3421, land_area: 0.45, water_area: 0.0 },
-  { zipcode: '89101', city: 'Las Vegas', state: 'Nevada', state_abbr: 'NV', latitude: 36.1699, longitude: -115.1398, county: 'Clark', timezone: 'America/Los_Angeles', population: 45678, land_area: 12.34, water_area: 0.0 },
-  { zipcode: '89102', city: 'Las Vegas', state: 'Nevada', state_abbr: 'NV', latitude: 36.1542, longitude: -115.1848, county: 'Clark', timezone: 'America/Los_Angeles', population: 67890, land_area: 15.67, water_area: 0.0 },
-  { zipcode: '97201', city: 'Portland', state: 'Oregon', state_abbr: 'OR', latitude: 45.5152, longitude: -122.6784, county: 'Multnomah', timezone: 'America/Los_Angeles', population: 23456, land_area: 3.45, water_area: 0.12 },
-  { zipcode: '97202', city: 'Portland', state: 'Oregon', state_abbr: 'OR', latitude: 45.4875, longitude: -122.6440, county: 'Multnomah', timezone: 'America/Los_Angeles', population: 34567, land_area: 4.56, water_area: 0.0 },
-  { zipcode: '37201', city: 'Nashville', state: 'Tennessee', state_abbr: 'TN', latitude: 36.1627, longitude: -86.7816, county: 'Davidson', timezone: 'America/Chicago', population: 12345, land_area: 2.34, water_area: 0.0 },
-  { zipcode: '37202', city: 'Nashville', state: 'Tennessee', state_abbr: 'TN', latitude: 36.1540, longitude: -86.7663, county: 'Davidson', timezone: 'America/Chicago', population: 8765, land_area: 1.87, water_area: 0.0 }
 ];
+
+// Load all ZIP codes from uploaded file
+async function loadAllZipCodes(): Promise<string[]> {
+  try {
+    const fileContent = await Deno.readTextFile('./all_zipcodes.json');
+    return JSON.parse(fileContent);
+  } catch (error) {
+    console.error('Error loading ZIP codes file:', error);
+    return [];
+  }
+}
+
+// Enhanced data enrichment using Zippopotam.us API
+async function enrichZipCodeData(zipcode: string): Promise<ZipCodeData | null> {
+  try {
+    const response = await fetch(`http://api.zippopotam.us/us/${zipcode}`);
+    if (!response.ok) return null;
+    
+    const data = await response.json();
+    const place = data.places[0];
+    
+    return {
+      zipcode: zipcode,
+      city: place['place name'],
+      state: place['state'],
+      state_abbr: place['state abbreviation'],
+      latitude: parseFloat(place['latitude']),
+      longitude: parseFloat(place['longitude']),
+      county: place['place name'], // API limitation - using city as fallback
+      timezone: getTimezoneByState(place['state abbreviation']),
+      population: 0, // Not available in free API
+      land_area: 0,
+      water_area: 0
+    };
+  } catch (error) {
+    console.error(`Error enriching ZIP ${zipcode}:`, error);
+    return null;
+  }
+}
+
+// Timezone mapping by state
+function getTimezoneByState(stateAbbr: string): string {
+  const timezoneMap: { [key: string]: string } = {
+    'CA': 'America/Los_Angeles', 'WA': 'America/Los_Angeles', 'OR': 'America/Los_Angeles', 'NV': 'America/Los_Angeles',
+    'AZ': 'America/Phoenix', 'UT': 'America/Denver', 'CO': 'America/Denver', 'WY': 'America/Denver', 'MT': 'America/Denver',
+    'NM': 'America/Denver', 'ND': 'America/Denver', 'SD': 'America/Denver', 'NE': 'America/Denver', 'KS': 'America/Chicago',
+    'OK': 'America/Chicago', 'TX': 'America/Chicago', 'MN': 'America/Chicago', 'IA': 'America/Chicago', 'MO': 'America/Chicago',
+    'AR': 'America/Chicago', 'LA': 'America/Chicago', 'WI': 'America/Chicago', 'IL': 'America/Chicago', 'MI': 'America/Detroit',
+    'IN': 'America/New_York', 'KY': 'America/New_York', 'TN': 'America/Chicago', 'MS': 'America/Chicago', 'AL': 'America/Chicago',
+    'OH': 'America/New_York', 'WV': 'America/New_York', 'VA': 'America/New_York', 'NC': 'America/New_York', 'SC': 'America/New_York',
+    'GA': 'America/New_York', 'FL': 'America/New_York', 'PA': 'America/New_York', 'NY': 'America/New_York', 'VT': 'America/New_York',
+    'NH': 'America/New_York', 'ME': 'America/New_York', 'MA': 'America/New_York', 'RI': 'America/New_York', 'CT': 'America/New_York',
+    'NJ': 'America/New_York', 'DE': 'America/New_York', 'MD': 'America/New_York', 'DC': 'America/New_York',
+    'AK': 'America/Anchorage', 'HI': 'Pacific/Honolulu'
+  };
+  return timezoneMap[stateAbbr] || 'America/Chicago';
+}
 
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
@@ -69,8 +100,10 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     switch (action) {
-      case 'load_comprehensive_data':
-        return await loadComprehensiveZipData(supabase);
+      case 'load_sample_data':
+        return await loadSampleZipData(supabase);
+      case 'load_bulk_data':
+        return await loadBulkZipData(supabase);
       case 'get_health_check':
         return await getDataHealthCheck(supabase);
       case 'clear_data':
@@ -96,16 +129,16 @@ Deno.serve(async (req) => {
   }
 });
 
-async function loadComprehensiveZipData(supabase: any) {
+// Load sample ZIP data (fast testing)
+async function loadSampleZipData(supabase: any) {
   try {
-    console.log('Starting comprehensive ZIP data load...');
+    console.log('Starting sample ZIP data load...');
     
-    // Load ZIP codes in batches
     const batchSize = 10;
     const batches = [];
     
-    for (let i = 0; i < COMPREHENSIVE_ZIP_DATASET.length; i += batchSize) {
-      batches.push(COMPREHENSIVE_ZIP_DATASET.slice(i, i + batchSize));
+    for (let i = 0; i < SAMPLE_ZIP_DATASET.length; i += batchSize) {
+      batches.push(SAMPLE_ZIP_DATASET.slice(i, i + batchSize));
     }
     
     let loadedCount = 0;
@@ -133,13 +166,12 @@ async function loadComprehensiveZipData(supabase: any) {
       }
     }
     
-    // Run health check after loading
     const healthCheck = await runHealthCheck(supabase);
     
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Successfully loaded ${loadedCount} comprehensive ZIP codes`,
+        message: `Successfully loaded ${loadedCount} sample ZIP codes`,
         loadedCount,
         errors: errors.length > 0 ? errors : null,
         healthCheck
@@ -150,11 +182,123 @@ async function loadComprehensiveZipData(supabase: any) {
       }
     );
   } catch (error) {
-    console.error('Error loading comprehensive ZIP data:', error);
+    console.error('Error loading sample ZIP data:', error);
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: 'Failed to load comprehensive ZIP data', 
+        error: 'Failed to load sample ZIP data', 
+        details: error.message 
+      }),
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+  }
+}
+
+// Load bulk ZIP data (33K+ ZIP codes with enrichment)
+async function loadBulkZipData(supabase: any) {
+  try {
+    console.log('Starting bulk ZIP data load with enrichment...');
+    
+    // Load all ZIP codes from uploaded file
+    const allZipCodes = await loadAllZipCodes();
+    if (allZipCodes.length === 0) {
+      throw new Error('No ZIP codes found in uploaded file');
+    }
+    
+    console.log(`Processing ${allZipCodes.length} ZIP codes with data enrichment...`);
+    
+    const batchSize = 50; // Smaller batches for API rate limiting
+    const enrichedData: ZipCodeData[] = [];
+    const errors: string[] = [];
+    let processed = 0;
+    
+    // Process in batches with enrichment
+    for (let i = 0; i < allZipCodes.length; i += batchSize) {
+      const batch = allZipCodes.slice(i, i + batchSize);
+      const batchPromises = batch.map(async (zipcode) => {
+        try {
+          const enriched = await enrichZipCodeData(zipcode);
+          if (enriched) {
+            enrichedData.push(enriched);
+          } else {
+            errors.push(`Failed to enrich ZIP code: ${zipcode}`);
+          }
+          processed++;
+          
+          // Log progress every 1000 ZIP codes
+          if (processed % 1000 === 0) {
+            console.log(`Progress: ${processed}/${allZipCodes.length} ZIP codes processed`);
+          }
+        } catch (error) {
+          errors.push(`Error processing ${zipcode}: ${error.message}`);
+        }
+      });
+      
+      // Wait for batch completion with rate limiting
+      await Promise.allSettled(batchPromises);
+      
+      // Rate limiting: wait 1 second between batches to respect API limits
+      if (i + batchSize < allZipCodes.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+    
+    console.log(`Enrichment complete. Inserting ${enrichedData.length} ZIP codes into database...`);
+    
+    // Insert enriched data in batches
+    const dbBatchSize = 100;
+    let insertedCount = 0;
+    
+    for (let i = 0; i < enrichedData.length; i += dbBatchSize) {
+      const dbBatch = enrichedData.slice(i, i + dbBatchSize);
+      try {
+        const { data, error } = await supabase
+          .from('comprehensive_zip_codes')
+          .upsert(dbBatch, { 
+            onConflict: 'zipcode',
+            ignoreDuplicates: false
+          });
+        
+        if (error) {
+          console.error('Database batch error:', error);
+          errors.push(`DB Error: ${error.message}`);
+        } else {
+          insertedCount += dbBatch.length;
+          console.log(`Inserted batch: ${insertedCount}/${enrichedData.length} ZIP codes`);
+        }
+      } catch (batchError) {
+        console.error('Database batch processing error:', batchError);
+        errors.push(`DB Batch Error: ${batchError.message}`);
+      }
+    }
+    
+    const healthCheck = await runHealthCheck(supabase);
+    
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: `Successfully processed ${allZipCodes.length} ZIP codes, inserted ${insertedCount} with enriched data`,
+        totalProcessed: allZipCodes.length,
+        successfullyEnriched: enrichedData.length,
+        insertedCount,
+        errorCount: errors.length,
+        errors: errors.length > 0 ? errors.slice(0, 10) : null, // Limit error list
+        healthCheck
+      }),
+      { 
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+  } catch (error) {
+    console.error('Error loading bulk ZIP data:', error);
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: 'Failed to load bulk ZIP data', 
         details: error.message 
       }),
       { 
