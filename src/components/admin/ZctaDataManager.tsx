@@ -60,19 +60,30 @@ export const ZctaDataManager = () => {
 
   const checkZctaDataStatus = async () => {
     try {
-      const { data, error } = await supabase
-        .from('zcta_zipcodes')
-        .select('zcta_code', { count: 'exact' });
+      // Check both source and target tables
+      const [zctaResult, sourceResult] = await Promise.all([
+        supabase.from('zcta_zipcodes').select('zcta_code', { count: 'exact' }),
+        supabase.from('us_zcta_polygons').select('zcta5ce', { count: 'exact' })
+      ]);
 
-      if (!error && data) {
-        setStats({
-          recordsInserted: data.length,
-          totalRecords: data.length
-        });
-        setStatus(data.length > 0 ? 'success' : 'idle');
+      const zctaCount = zctaResult.data?.length || 0;
+      const sourceCount = sourceResult.data?.length || 0;
+
+      setStats({
+        recordsInserted: zctaCount,
+        totalRecords: sourceCount
+      });
+
+      if (sourceCount === 0) {
+        setStatus('error');
+      } else if (zctaCount > 0) {
+        setStatus('success');
+      } else {
+        setStatus('idle');
       }
     } catch (error) {
       console.error('Failed to check ZCTA data status:', error);
+      setStatus('error');
     }
   };
 
@@ -168,15 +179,29 @@ export const ZctaDataManager = () => {
           </Button>
         </div>
 
-        <div className="text-xs text-muted-foreground bg-blue-50 dark:bg-blue-950/10 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
-          <p className="font-medium mb-1">About Enhanced ZCTA System:</p>
-          <ul className="space-y-1">
-            <li>• Pre-processes all ZCTA polygon data into optimized lookup table</li>
-            <li>• Enables fast spatial queries using PostGIS indexing</li>
-            <li>• Eliminates client-side processing for better performance</li>
-            <li>• Supports reliable worker assignment based on ZIP coverage</li>
-          </ul>
-        </div>
+        {status === 'error' && stats?.totalRecords === 0 && (
+          <div className="text-xs text-muted-foreground bg-red-50 dark:bg-red-950/10 p-3 rounded-lg border border-red-200 dark:border-red-800">
+            <p className="font-medium mb-1 text-red-700 dark:text-red-300">No Source Data Available:</p>
+            <ul className="space-y-1">
+              <li>• The `us_zcta_polygons` table is empty</li>
+              <li>• ZCTA polygon data must be imported first</li>
+              <li>• Use the ZIP Data Manager to load ZCTA polygons</li>
+              <li>• Then return here to populate the ZCTA lookup table</li>
+            </ul>
+          </div>
+        )}
+
+        {status !== 'error' && (
+          <div className="text-xs text-muted-foreground bg-blue-50 dark:bg-blue-950/10 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+            <p className="font-medium mb-1">About Enhanced ZCTA System:</p>
+            <ul className="space-y-1">
+              <li>• Pre-processes all ZCTA polygon data into optimized lookup table</li>
+              <li>• Enables fast spatial queries using PostGIS indexing</li>
+              <li>• Eliminates client-side processing for better performance</li>
+              <li>• Supports reliable worker assignment based on ZIP coverage</li>
+            </ul>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
