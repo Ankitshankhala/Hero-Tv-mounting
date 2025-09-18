@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Search, MapPin, Users, Download, Eye, EyeOff, Filter, RefreshCw } from 'lucide-react';
-import { EnhancedWorkerServiceAreasMap } from './EnhancedWorkerServiceAreasMap';
+import { EnhancedServiceAreaMap } from './EnhancedServiceAreaMap';
 import { SpatialHealthDashboard } from './SpatialHealthDashboard';
 import { SpatialDataImporter } from './SpatialDataImporter';
 import { useAdminServiceAreas } from '@/hooks/useAdminServiceAreas';
@@ -219,7 +219,7 @@ export const AdminCoverageManager = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
-                <EnhancedWorkerServiceAreasMap 
+                <EnhancedServiceAreaMap 
                   workers={filteredWorkers.map(w => ({
                     ...w,
                     service_areas: (w.service_areas || []).map(area => ({
@@ -232,7 +232,7 @@ export const AdminCoverageManager = () => {
                   }))} 
                   selectedWorkerId={selectedWorkerId} 
                   showInactiveAreas={showInactiveAreas}
-                  showZipBoundaries={true}
+                  showZctaBoundaries={true}
                 />
               </CardContent>
             </Card>

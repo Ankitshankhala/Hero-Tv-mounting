@@ -216,7 +216,7 @@ export const ServiceAreaBoundaryIntegration: React.FC<{ workerId?: string }> = (
           <div className="space-y-2">
             <div>• <strong>ServiceAreaMap.tsx:</strong> Add boundary visualization</div>
             <div>• <strong>AdminServiceAreaMap.tsx:</strong> Show precise coverage areas</div>
-            <div>• <strong>EnhancedWorkerServiceAreasMap.tsx:</strong> Overlay boundaries on worker areas</div>
+            <div>• <strong>EnhancedServiceAreaMap.tsx:</strong> Overlay boundaries on worker areas</div>
             <div>• <strong>ZipcodeInput components:</strong> Show boundary preview on hover</div>
           </div>
         </CardContent>
