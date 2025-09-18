@@ -48,6 +48,7 @@ import { exportToCSV, exportToPDF } from '@/utils/exportUtils';
 import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { ZctaDataManager } from './ZctaDataManager';
+import { WorkerServiceAreasMap } from './WorkerServiceAreasMap';
 
 interface CoverageWorker {
   id: string;
@@ -455,13 +456,11 @@ export const AdminServiceAreasUnified = () => {
                     service_zipcodes: worker.service_zipcodes || []
                   }));
                   return (
-                     <div className="h-full flex items-center justify-center text-slate-400">
-                       <div className="text-center">
-                         <MapPin className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                         <p className="text-lg font-medium">Service Coverage Map</p>
-                         <p className="text-sm">Map functionality optimized for performance</p>
-                       </div>
-                     </div>
+                    <WorkerServiceAreasMap 
+                      workers={mappedWorkers}
+                      selectedWorkerId={selectedWorkerId}
+                      showInactiveAreas={showInactiveAreas}
+                    />
                   );
                 })()}
               </CardContent>
