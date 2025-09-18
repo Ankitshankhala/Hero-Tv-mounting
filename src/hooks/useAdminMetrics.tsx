@@ -79,12 +79,8 @@ export const useAdminMetrics = () => {
 
         if (usersError) throw usersError;
 
-        // Get reviews data
-        const { data: reviews, error: reviewsError } = await supabase
-          .from('reviews')
-          .select('rating');
-
-        if (reviewsError) throw reviewsError;
+        // Reviews are no longer tracked in database
+        const reviews: any[] = [];
 
         // Calculate current metrics
         const totalBookings = bookings?.length || 0;

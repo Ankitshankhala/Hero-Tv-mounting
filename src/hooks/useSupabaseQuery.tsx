@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useRetryableQuery } from '@/hooks/useRetryableQuery';
 
-type TableName = 'users' | 'bookings' | 'onsite_charges' | 'payment_sessions' | 'reviews' | 'services' | 'sms_logs' | 'transactions' | 'worker_availability' | 'worker_notifications' | 'worker_schedule';
+type TableName = 'users' | 'bookings' | 'services' | 'sms_logs' | 'transactions' | 'worker_availability' | 'worker_notifications' | 'worker_schedule';
 
 interface UseSupabaseQueryOptions {
   table: TableName;
@@ -54,9 +54,6 @@ export const useSupabaseQuery = (options: UseSupabaseQueryOptions) => {
           case 'services':
             queryBuilder = supabase.from('services').select(select);
             break;
-          case 'reviews':
-            queryBuilder = supabase.from('reviews').select(select);
-            break;
           case 'transactions':
             queryBuilder = supabase.from('transactions').select(select);
             break;
@@ -65,12 +62,6 @@ export const useSupabaseQuery = (options: UseSupabaseQueryOptions) => {
             break;
           case 'worker_schedule':
             queryBuilder = supabase.from('worker_schedule').select(select);
-            break;
-          case 'onsite_charges':
-            queryBuilder = supabase.from('onsite_charges').select(select);
-            break;
-          case 'payment_sessions':
-            queryBuilder = supabase.from('payment_sessions').select(select);
             break;
           case 'sms_logs':
             queryBuilder = supabase.from('sms_logs').select(select);

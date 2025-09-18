@@ -50,47 +50,6 @@ export type Database = {
         }
         Relationships: []
       }
-      booking_service_modifications: {
-        Row: {
-          booking_id: string
-          created_at: string | null
-          description: string | null
-          id: string
-          modification_type: string
-          price_change: number
-          service_name: string
-          worker_id: string
-        }
-        Insert: {
-          booking_id: string
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          modification_type: string
-          price_change: number
-          service_name: string
-          worker_id: string
-        }
-        Update: {
-          booking_id?: string
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          modification_type?: string
-          price_change?: number
-          service_name?: string
-          worker_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "booking_service_modifications_booking_id_fkey"
-            columns: ["booking_id"]
-            isOneToOne: false
-            referencedRelation: "bookings"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       booking_services: {
         Row: {
           base_price: number
@@ -536,53 +495,6 @@ export type Database = {
           },
         ]
       }
-      manual_charges: {
-        Row: {
-          amount: number
-          booking_id: string
-          charge_type: string
-          charged_by: string
-          created_at: string | null
-          description: string | null
-          id: string
-          processed_at: string | null
-          status: string | null
-          stripe_payment_intent_id: string | null
-        }
-        Insert: {
-          amount: number
-          booking_id: string
-          charge_type: string
-          charged_by: string
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          processed_at?: string | null
-          status?: string | null
-          stripe_payment_intent_id?: string | null
-        }
-        Update: {
-          amount?: number
-          booking_id?: string
-          charge_type?: string
-          charged_by?: string
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          processed_at?: string | null
-          status?: string | null
-          stripe_payment_intent_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "manual_charges_booking_id_fkey"
-            columns: ["booking_id"]
-            isOneToOne: false
-            referencedRelation: "bookings"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       notification_settings: {
         Row: {
           created_at: string
@@ -603,142 +515,6 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
-      }
-      onsite_charges: {
-        Row: {
-          added_by: string
-          amount: number
-          booking_id: string
-          created_at: string | null
-          description: string
-          id: string
-        }
-        Insert: {
-          added_by: string
-          amount: number
-          booking_id: string
-          created_at?: string | null
-          description: string
-          id?: string
-        }
-        Update: {
-          added_by?: string
-          amount?: number
-          booking_id?: string
-          created_at?: string | null
-          description?: string
-          id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "onsite_charges_added_by_fkey"
-            columns: ["added_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "onsite_charges_booking_id_fkey"
-            columns: ["booking_id"]
-            isOneToOne: false
-            referencedRelation: "bookings"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      payment_sessions: {
-        Row: {
-          created_at: string | null
-          id: string
-          session_id: string
-          status: Database["public"]["Enums"]["session_status"] | null
-          transaction_id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          session_id: string
-          status?: Database["public"]["Enums"]["session_status"] | null
-          transaction_id: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          session_id?: string
-          status?: Database["public"]["Enums"]["session_status"] | null
-          transaction_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "payment_sessions_transaction_id_fkey"
-            columns: ["transaction_id"]
-            isOneToOne: false
-            referencedRelation: "transactions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payment_sessions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      reviews: {
-        Row: {
-          booking_id: string
-          comments: string | null
-          created_at: string | null
-          customer_id: string
-          id: string
-          rating: number
-          worker_id: string
-        }
-        Insert: {
-          booking_id: string
-          comments?: string | null
-          created_at?: string | null
-          customer_id: string
-          id?: string
-          rating: number
-          worker_id: string
-        }
-        Update: {
-          booking_id?: string
-          comments?: string | null
-          created_at?: string | null
-          customer_id?: string
-          id?: string
-          rating?: number
-          worker_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "reviews_booking_id_fkey"
-            columns: ["booking_id"]
-            isOneToOne: false
-            referencedRelation: "bookings"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "reviews_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "reviews_worker_id_fkey"
-            columns: ["worker_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       rls_debug_logs: {
         Row: {
@@ -1033,54 +809,6 @@ export type Database = {
           },
         ]
       }
-      upload_chunks_metadata: {
-        Row: {
-          assembled_file_path: string | null
-          chunk_index: number
-          chunk_path: string | null
-          created_at: string | null
-          data_type: string | null
-          error_message: string | null
-          id: string
-          progress_current: number | null
-          progress_total: number | null
-          status: string
-          total_chunks: number
-          updated_at: string | null
-          upload_id: string
-        }
-        Insert: {
-          assembled_file_path?: string | null
-          chunk_index: number
-          chunk_path?: string | null
-          created_at?: string | null
-          data_type?: string | null
-          error_message?: string | null
-          id?: string
-          progress_current?: number | null
-          progress_total?: number | null
-          status?: string
-          total_chunks: number
-          updated_at?: string | null
-          upload_id: string
-        }
-        Update: {
-          assembled_file_path?: string | null
-          chunk_index?: number
-          chunk_path?: string | null
-          created_at?: string | null
-          data_type?: string | null
-          error_message?: string | null
-          id?: string
-          progress_current?: number | null
-          progress_total?: number | null
-          status?: string
-          total_chunks?: number
-          updated_at?: string | null
-          upload_id?: string
-        }
-        Relationships: []
-      }
       us_zcta_polygons: {
         Row: {
           created_at: string | null
@@ -1286,39 +1014,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      worker_booking_preferences: {
-        Row: {
-          booking_id: string
-          created_at: string
-          hidden_at: string | null
-          id: string
-          is_hidden: boolean
-          reason: string | null
-          updated_at: string
-          worker_id: string
-        }
-        Insert: {
-          booking_id: string
-          created_at?: string
-          hidden_at?: string | null
-          id?: string
-          is_hidden?: boolean
-          reason?: string | null
-          updated_at?: string
-          worker_id: string
-        }
-        Update: {
-          booking_id?: string
-          created_at?: string
-          hidden_at?: string | null
-          id?: string
-          is_hidden?: boolean
-          reason?: string | null
-          updated_at?: string
-          worker_id?: string
-        }
-        Relationships: []
       }
       worker_bookings: {
         Row: {

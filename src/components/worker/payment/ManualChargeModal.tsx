@@ -108,25 +108,8 @@ export const ManualChargeModal = ({ isOpen, onClose, booking, onChargeComplete }
 
     setLoading(true);
     try {
-      // First, record service modifications if any
-      if (chargeType === 'service_modification' && serviceModifications.length > 0) {
-        for (const mod of serviceModifications) {
-          if (mod.serviceName && mod.priceChange > 0) {
-            const { error: modError } = await supabase
-              .from('booking_service_modifications')
-              .insert({
-                booking_id: booking.id,
-                worker_id: booking.worker_id,
-                modification_type: mod.type,
-                service_name: mod.serviceName,
-                price_change: mod.type === 'addition' ? mod.priceChange : -mod.priceChange,
-                description: mod.description
-              });
-
-            if (modError) throw modError;
-          }
-        }
-      }
+      // Service modifications are no longer stored in separate table
+      // Modifications are tracked via description field only
 
       // CRITICAL FIX: Send amount in dollars, not cents
       // The edge function will handle the cent conversion
@@ -143,21 +126,8 @@ export const ManualChargeModal = ({ isOpen, onClose, booking, onChargeComplete }
 
       if (error) throw error;
 
-      // Record the charge in our database
-      const { error: recordError } = await supabase
-        .from('manual_charges')
-        .insert({
-          booking_id: booking.id,
-          charged_by: booking.worker_id,
-          charge_type: chargeType,
-          amount: totalAmount,
-          stripe_payment_intent_id: data.payment_intent_id,
-          description: description || `Manual charge for booking ${booking.id}`,
-          status: 'completed',
-          processed_at: new Date().toISOString()
-        });
-
-      if (recordError) throw recordError;
+      // Manual charges are now tracked via transactions table only
+      // The edge function creates the transaction record
 
       toast({
         title: "Charge Successful",
