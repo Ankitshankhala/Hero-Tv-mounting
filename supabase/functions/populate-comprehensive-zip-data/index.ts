@@ -31,10 +31,20 @@ const SAMPLE_ZIP_DATASET: ZipCodeData[] = [
 // Load all ZIP codes from uploaded file
 async function loadAllZipCodes(): Promise<string[]> {
   try {
+    console.log('Attempting to load ZIP codes file...');
     const fileContent = await Deno.readTextFile('./all_zipcodes.json');
-    return JSON.parse(fileContent);
+    const parsed = JSON.parse(fileContent);
+    console.log(`Successfully loaded ${parsed.length} ZIP codes from file`);
+    return parsed;
   } catch (error) {
     console.error('Error loading ZIP codes file:', error);
+    console.log('Checking if file exists...');
+    try {
+      const stat = await Deno.stat('./all_zipcodes.json');
+      console.log('File stats:', stat);
+    } catch (statError) {
+      console.error('File does not exist:', statError);
+    }
     return [];
   }
 }
@@ -92,11 +102,23 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { action } = await req.json();
+    console.log('Edge function called with method:', req.method);
+    
+    const requestBody = await req.json();
+    console.log('Request body:', requestBody);
+    const { action } = requestBody;
     
     // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    console.log('Environment check - URL exists:', !!supabaseUrl);
+    console.log('Environment check - Service key exists:', !!supabaseServiceKey);
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Missing required environment variables');
+    }
+    
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     switch (action) {
