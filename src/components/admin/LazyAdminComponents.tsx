@@ -2,11 +2,6 @@ import React, { lazy, Suspense } from 'react';
 import { Loader2 } from 'lucide-react';
 
 // Lazy load heavy components to improve initial page load
-export const LazyEnhancedWorkerServiceAreasMapImproved = lazy(
-  () => import('./EnhancedWorkerServiceAreasMapImproved').then(module => ({
-    default: module.EnhancedWorkerServiceAreasMapImproved
-  }))
-);
 
 export const LazyAdminServiceAreaMap = lazy(
   () => import('./AdminServiceAreaMap')

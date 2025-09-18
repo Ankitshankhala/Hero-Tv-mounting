@@ -882,7 +882,7 @@ const AdminServiceAreaMap = ({
         workerId,
         areaName: areaSelectionMode === 'new' ? areaName : selectedExistingArea?.area_name,
         polygon: currentPolygon,
-        zipCodes, // Include pre-computed ZIP codes
+        zipCodes: [], // Let database compute ZIP codes
         mode: areaSelectionMode === 'existing' ? 'update' : 'create',
         ...(areaSelectionMode === 'existing' && selectedExistingArea && {
           areaIdToUpdate: selectedExistingArea.id
@@ -911,7 +911,7 @@ const AdminServiceAreaMap = ({
 
       toast({
         title: "Success",
-        description: `${data.message || `${areaSelectionMode === 'existing' ? 'Updated' : 'Created'} service area successfully`}. Computed ${zipCodes.length} ZIP codes using complete ZCTA dataset.`,
+        description: `${data.message || `${areaSelectionMode === 'existing' ? 'Updated' : 'Created'} service area successfully`}. ZIP codes computed in database.`,
       });
 
       // Clear current polygon and refresh
@@ -1172,7 +1172,7 @@ const AdminServiceAreaMap = ({
                 setPolygonValid(isValid);
                 setValidationWarnings(warnings);
               }}
-              showZipPreview={true}
+              
             />
 
             <div className="flex gap-2">

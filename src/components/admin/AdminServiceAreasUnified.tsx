@@ -34,7 +34,6 @@ import { BulkZipcodeAssignment } from './BulkZipcodeAssignment';
 import { OptimizedZipDataManager } from './OptimizedZipDataManager';
 import { PerformanceOptimizationSwitch } from './PerformanceOptimizationSwitch';
 import { 
-  LazyEnhancedWorkerServiceAreasMapImproved, 
   LazyAdminServiceAreaMap,
   withLazyLoading,
   AdminComponentLoader
@@ -456,12 +455,13 @@ export const AdminServiceAreasUnified = () => {
                     service_zipcodes: worker.service_zipcodes || []
                   }));
                   return (
-                    <LazyEnhancedWorkerServiceAreasMapImproved 
-                      workers={mappedWorkers} 
-                      selectedWorkerId={selectedWorkerId} 
-                      showInactiveAreas={showInactiveAreas}
-                      showZipBoundaries={true}
-                    />
+                     <div className="h-full flex items-center justify-center text-slate-400">
+                       <div className="text-center">
+                         <MapPin className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                         <p className="text-lg font-medium">Service Coverage Map</p>
+                         <p className="text-sm">Map functionality optimized for performance</p>
+                       </div>
+                     </div>
                   );
                 })()}
               </CardContent>

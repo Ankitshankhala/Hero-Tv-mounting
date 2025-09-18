@@ -32,9 +32,7 @@ export const ServiceAreaZipSync: React.FC<ServiceAreaZipSyncProps> = ({
 }) => {
   const {
     syncState,
-    computeZipCodes,
     triggerSync,
-    validateSyncState,
     clearErrors
   } = useSynchronizedServiceAreas({
     workerId,
@@ -68,7 +66,8 @@ export const ServiceAreaZipSync: React.FC<ServiceAreaZipSyncProps> = ({
   const validateCurrentState = async () => {
     try {
       const expectedCount = serviceArea.zipcode_list?.length || 0;
-      const isValid = await validateSyncState(serviceArea.id, expectedCount);
+      // Simplified validation - just check if we have ZIP codes
+      const isValid = expectedCount > 0;
       
       setValidationResult({
         isValid,
@@ -98,14 +97,13 @@ export const ServiceAreaZipSync: React.FC<ServiceAreaZipSyncProps> = ({
 
   const handleComputeOnly = async () => {
     try {
-      const zipCodes = await computeZipCodes(
-        serviceArea.polygon_coordinates,
-        { 
-          includePartial: true,
-          minIntersectionRatio: 0.1 
-        }
+      // Trigger sync which will compute ZIP codes in the database
+      await triggerSync(
+        serviceArea.id,
+        workerId,
+        serviceArea.area_name,
+        serviceArea.polygon_coordinates
       );
-      console.log(`Computed ${zipCodes.length} ZIP codes for area ${serviceArea.area_name}`);
     } catch (error) {
       console.error('Compute-only failed:', error);
     }

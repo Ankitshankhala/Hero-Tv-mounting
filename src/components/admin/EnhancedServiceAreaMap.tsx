@@ -6,7 +6,7 @@ import AreaNameEditor from '@/components/shared/AreaNameEditor';
 import { Button } from '@/components/ui/button';
 import { MapPin, Edit3, Save, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useZctaMapIntegration } from '@/hooks/useZctaMapIntegration';
+// Note: ZCTA integration removed for performance optimization
 import { Badge } from '@/components/ui/badge';
 
 // Leaflet icon fix
@@ -63,22 +63,13 @@ export const EnhancedServiceAreaMap: React.FC<EnhancedServiceAreaMapProps> = ({
   const [zctaBoundariesVisible, setZctaBoundariesVisible] = useState(showZctaBoundaries);
   const { toast } = useToast();
 
-  // ZCTA integration for boundary display
-  const zctaIntegration = useZctaMapIntegration(mapRef.current, {
-    showBoundaries: zctaBoundariesVisible,
-    boundaryStyle: {
-      color: '#8b5cf6',
-      weight: 1,
-      fillColor: '#8b5cf6',
-      fillOpacity: 0.05,
-      opacity: 0.4,
-      dashArray: '2, 4'
-    },
-    onZipcodesVisible: (zipcodes) => {
-      console.log(`📍 Visible ZIP codes: ${zipcodes.length}`);
-    },
-    autoUpdate: true
-  });
+  // ZCTA integration removed for performance optimization
+  const zctaIntegration = {
+    isLoading: false,
+    isReady: true,
+    visibleZipcodes: [],
+    progress: null
+  };
 
   // Use our custom area name editor hook
   const { updateAreaName, validateAreaName } = useAreaNameEditor({
