@@ -2033,6 +2033,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
+      check_zip_data_health: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       cleanup_booking_inconsistencies: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -2209,6 +2213,13 @@ export type Database = {
       find_zipcodes_in_polygon_geojson: {
         Args: { min_overlap_percent?: number; polygon_geojson: Json }
         Returns: {
+          zipcode: string
+        }[]
+      }
+      find_zipcodes_in_service_area: {
+        Args: { p_include_boundaries?: boolean; p_polygon_coords: Json }
+        Returns: {
+          boundary_geojson: Json
           zipcode: string
         }[]
       }
@@ -2466,12 +2477,34 @@ export type Database = {
           worker_ids: string[]
         }[]
       }
+      get_batch_zip_coordinates: {
+        Args: { p_zipcodes: string[] }
+        Returns: {
+          city: string
+          latitude: number
+          longitude: number
+          state_abbr: string
+          zipcode: string
+        }[]
+      }
       get_comprehensive_zip_boundaries: {
         Args: { p_lat: number; p_lng: number; p_radius_km?: number }
         Returns: {
           boundary_geojson: Json
           distance_km: number
           zipcode: string
+        }[]
+      }
+      get_comprehensive_zip_coverage: {
+        Args: { p_zipcode: string }
+        Returns: {
+          city: string
+          has_coverage: boolean
+          latitude: number
+          longitude: number
+          state: string
+          state_abbr: string
+          worker_count: number
         }[]
       }
       get_current_user_role: {
@@ -2542,6 +2575,16 @@ export type Database = {
         Args: { p_worker_id: string }
         Returns: Json
       }
+      get_worker_zip_coordinates_batch: {
+        Args: { p_worker_id: string }
+        Returns: {
+          city: string
+          latitude: number
+          longitude: number
+          state_abbr: string
+          zipcode: string
+        }[]
+      }
       get_worker_zipcode_stats: {
         Args: { p_worker_id: string }
         Returns: {
@@ -2566,6 +2609,13 @@ export type Database = {
           worker_email: string
           worker_id: string
           worker_name: string
+        }[]
+      }
+      get_zcta_boundary: {
+        Args: { p_zipcode: string }
+        Returns: {
+          boundary_geojson: Json
+          zcta5ce: string
         }[]
       }
       get_zip_area_info: {

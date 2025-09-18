@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { getCachedZipCoverage } from '@/services/optimizedZipcodeService';
 
-interface ZipcodeValidationResult {
+interface OptimizedZipcodeValidationResult {
   isValid: boolean;
   hasServiceCoverage: boolean;
   workerCount: number;
@@ -9,20 +9,23 @@ interface ZipcodeValidationResult {
     city: string;
     state: string;
     stateAbbr: string;
+    latitude: number | null;
+    longitude: number | null;
   };
   isLoading: boolean;
   error?: string;
 }
 
-export const useZipcodeValidation = () => {
-  const [validationState, setValidationState] = useState<ZipcodeValidationResult>({
+// Optimized validation hook using comprehensive data and caching
+export const useOptimizedZipcodeValidation = () => {
+  const [validationState, setValidationState] = useState<OptimizedZipcodeValidationResult>({
     isValid: false,
     hasServiceCoverage: false,
     workerCount: 0,
     isLoading: false
   });
 
-  const validateZipcode = useCallback(async (zipcode: string): Promise<ZipcodeValidationResult> => {
+  const validateZipcode = useCallback(async (zipcode: string): Promise<OptimizedZipcodeValidationResult> => {
     // Basic format validation
     const cleanZip = zipcode.replace(/\D/g, '').slice(0, 5);
     if (!/^\d{5}$/.test(cleanZip)) {
@@ -40,7 +43,7 @@ export const useZipcodeValidation = () => {
     setValidationState(prev => ({ ...prev, isLoading: true, error: undefined }));
     
     try {
-      // Single optimized database call using comprehensive data
+      // Single optimized database call that gets everything
       const coverageData = await getCachedZipCoverage(cleanZip);
       
       const result = {
@@ -50,7 +53,9 @@ export const useZipcodeValidation = () => {
         locationData: {
           city: coverageData.city,
           state: coverageData.state,
-          stateAbbr: coverageData.state_abbr
+          stateAbbr: coverageData.state_abbr,
+          latitude: coverageData.latitude,
+          longitude: coverageData.longitude
         },
         isLoading: false
       };

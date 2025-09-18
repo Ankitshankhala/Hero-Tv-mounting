@@ -52,11 +52,13 @@ export const useRealtimeZipMarkers = (workerId?: string) => {
 
       const zipCodes = workerZips.map(z => z.zipcode);
 
-      // Get coordinates for these ZIP codes from database
+// Use optimized comprehensive ZIP codes table with batch function
       const { data: zipData, error: coordError } = await supabase
-        .from('us_zip_codes')
-        .select('zipcode, latitude, longitude, city')
-        .in('zipcode', zipCodes);
+        .from('comprehensive_zip_codes')
+        .select('zipcode, latitude, longitude, city, state_abbr')
+        .in('zipcode', zipCodes)
+        .not('latitude', 'is', null)
+        .not('longitude', 'is', null);
 
       if (coordError) {
         console.error('Error fetching ZIP coordinates:', coordError);
@@ -69,19 +71,32 @@ export const useRealtimeZipMarkers = (workerId?: string) => {
         !foundZips.some(found => found.zipcode === zip)
       );
 
-      // Geocode missing ZIPs using external API (limit concurrency to 5)
+      // Only geocode truly missing ZIPs, with better batching
       const geocodedZips: ZipCoordinate[] = [];
-      for (let i = 0; i < missingZips.length; i += 5) {
-        const batch = missingZips.slice(i, i + 5);
-        const batchResults = await Promise.all(
-          batch.map(zip => geocodeZipcode(zip))
-        );
-        geocodedZips.push(...batchResults.filter(Boolean) as ZipCoordinate[]);
+      if (missingZips.length > 0) {
+        // Process in smaller batches to avoid rate limits
+        for (let i = 0; i < missingZips.length; i += 3) {
+          const batch = missingZips.slice(i, i + 3);
+          const batchResults = await Promise.all(
+            batch.map(zip => geocodeZipcode(zip))
+          );
+          geocodedZips.push(...batchResults.filter(Boolean) as ZipCoordinate[]);
+          
+          // Add delay between batches to respect rate limits
+          if (i + 3 < missingZips.length) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
+        }
       }
 
       // Combine database and geocoded results
       const allCoordinates = [
-        ...foundZips.filter(z => z.latitude && z.longitude),
+        ...foundZips.map(z => ({
+          zipcode: z.zipcode,
+          latitude: z.latitude,
+          longitude: z.longitude,
+          city: z.city
+        })),
         ...geocodedZips
       ];
 
