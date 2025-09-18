@@ -138,66 +138,55 @@ serve(async (req) => {
       zipcodes = actualZipCodes;
       logStep('Using pre-computed ZIP codes from client', { count: zipcodes.length });
     } else {
-      logStep('Computing ZIP codes for service area', serviceAreaResult.id);
+      logStep('Computing ZCTA codes using enhanced database spatial queries');
       
       try {
-        const { data: computeResult, error: zipError } = await supabase
-          .rpc('compute_zipcodes_for_service_area', {
-            p_service_area_id: serviceAreaResult.id
-          });
+        // Use the new enhanced ZCTA spatial intersection function
+        const { data: zctaCodes, error: zctaError } = await supabase.rpc('get_zcta_codes_for_polygon', {
+          polygon_coords: geoJsonPolygon.coordinates[0]
+        });
 
-        if (zipError) {
-          logStep('ZIP code computation failed with RPC, trying fallback', zipError.message);
+        if (zctaError) {
+          logStep('ZCTA spatial query failed, using fallback', zctaError.message);
           
-          // Fallback: Use enhanced polygon-to-ZIP computation directly
-          const { data: polygonResult, error: polygonError } = await supabase
-            .rpc('compute_zipcodes_for_polygon', {
-              p_polygon_coords: geoJsonPolygon
-            });
-            
-          if (polygonError) {
-            logStep('Polygon ZIP computation also failed, using basic fallback', polygonError.message);
-            
-            // Super fallback: Check comprehensive_zip_codes with bounding box
-            const bounds = calculateBounds(polygon);
-            const { data: fallbackZips, error: fallbackError } = await supabase
-              .from('comprehensive_zip_codes')
-              .select('zipcode')
-              .gte('latitude', bounds.south)
-              .lte('latitude', bounds.north)
-              .gte('longitude', bounds.west)
-              .lte('longitude', bounds.east);
+          // Fallback: Use bounding box approach with us_zip_codes
+          const bounds = calculateBounds(polygon);
+          logStep('Using bounding box fallback', { bounds });
+          
+          const { data: fallbackZips, error: fallbackError } = await supabase
+            .from('us_zip_codes')
+            .select('zipcode')
+            .gte('latitude', bounds.south)
+            .lte('latitude', bounds.north)
+            .gte('longitude', bounds.west)
+            .lte('longitude', bounds.east);
               
-            if (!fallbackError && fallbackZips) {
-              zipcodes = fallbackZips.map(z => z.zipcode);
-              logStep('Used bounding box fallback', { count: zipcodes.length });
-            }
+          if (!fallbackError && fallbackZips) {
+            zipcodes = fallbackZips.map(z => z.zipcode);
+            logStep('Used bounding box fallback', { count: zipcodes.length });
           } else {
-            zipcodes = polygonResult || [];
+            // Final fallback: center-based lookup
+            const center = calculateCenter(polygon);
+            logStep('Using center-based ZIP lookup as final fallback', center);
+            
+            const { data: nearbyZips, error: nearbyError } = await supabase
+              .from('us_zip_codes')
+              .select('zipcode')
+              .order(`((latitude - ${center.lat})^2 + (longitude - ${center.lng})^2)`)
+              .limit(10);
+              
+            if (!nearbyError && nearbyZips) {
+              zipcodes = nearbyZips.map(z => z.zipcode);
+              logStep('Used center-based fallback', { count: zipcodes.length, center });
+            }
           }
         } else {
-          const zipResult = computeResult;
-          zipcodes = zipResult?.zipcodes || [];
-          logStep('ZIP computation successful via RPC', { count: zipcodes.length });
+          zipcodes = zctaCodes || [];
+          logStep('ZCTA computation successful via enhanced spatial query', { count: zipcodes.length });
         }
       } catch (computeError) {
-        logStep('All ZIP computation methods failed', computeError);
-        
-        // Final fallback: generate some reasonable ZIPs based on the polygon center
-        const center = calculateCenter(polygon);
-        logStep('Using center-based ZIP lookup as final fallback', center);
-        
-        // Try to find ZIPs near the center point
-        const { data: nearbyZips, error: nearbyError } = await supabase
-          .from('comprehensive_zip_codes')
-          .select('zipcode')
-          .order(`((latitude - ${center.lat})^2 + (longitude - ${center.lng})^2)`)
-          .limit(10);
-          
-        if (!nearbyError && nearbyZips) {
-          zipcodes = nearbyZips.map(z => z.zipcode);
-          logStep('Used center-based fallback', { count: zipcodes.length, center });
-        }
+        logStep('Enhanced ZCTA computation failed', computeError);
+        zipcodes = [];
       }
     }
 

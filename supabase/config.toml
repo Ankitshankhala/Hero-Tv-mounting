@@ -61,3 +61,6 @@ verify_jwt = false
 
 [functions.populate-comprehensive-zip-data]
 verify_jwt = false
+
+[functions.populate-zcta-data]
+verify_jwt = false

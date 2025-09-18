@@ -48,6 +48,7 @@ import { useToast } from '@/hooks/use-toast';
 import { exportToCSV, exportToPDF } from '@/utils/exportUtils';
 import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
+import { ZctaDataManager } from './ZctaDataManager';
 
 interface CoverageWorker {
   id: string;
@@ -286,6 +287,8 @@ export const AdminServiceAreasUnified = () => {
 
   return (
     <div className="p-6 space-y-6">
+      {/* Enhanced ZCTA Database Management */}
+      <ZctaDataManager />
 
       {/* Enhanced Header */}
       <div className="flex items-center justify-between">
