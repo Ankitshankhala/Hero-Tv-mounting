@@ -1,9 +1,11 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Loader2, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import concaveman from 'concaveman';
 
@@ -78,6 +80,8 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
     area: Worker['service_areas'][0];
     zipCodes: string[];
   } | null>(null);
+  const [mapLoading, setMapLoading] = useState(true);
+  const [mapError, setMapError] = useState<string | null>(null);
   // Convert stored coordinates to a GeoJSON Polygon if needed
   const toGeoJsonPolygon = (coords: any): any | null => {
     try {
@@ -104,75 +108,97 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
   };
 
   // Fetch full ZIP list intersecting the polygon, falling back to assigned ZIPs
-  const getZipcodesForArea = async (area: Worker['service_areas'][0], assignedZips: string[]): Promise<string[]> => {
+  const getZipcodesForArea = useCallback(async (area: Worker['service_areas'][0], assignedZips: string[]): Promise<string[]> => {
     const geo = toGeoJsonPolygon(area.polygon_coordinates);
     if (!geo) return [...new Set(assignedZips)].sort();
+    
     try {
-      const { data, error } = await supabase.rpc('zipcodes_intersecting_polygon', {
-        polygon_coords: geo
+      // Try the RPC function with better error handling
+      const { data, error } = await supabase.rpc('get_service_area_zipcodes_with_boundaries', {
+        polygon_coords: geo,
+        include_boundaries: false
       });
+      
       if (error) {
-        console.warn('zipcodes_intersecting_polygon failed:', error);
+        console.warn('Failed to get polygon intersecting ZIPs, using assigned ZIPs:', error.message);
         return [...new Set(assignedZips)].sort();
       }
-      const computed = Array.isArray(data) ? (data as string[]) : [];
+      
+      const computed = Array.isArray(data) ? data.map((item: any) => item.zipcode || item).filter(Boolean) : [];
       // Union computed with assigned
-      return [...new Set([...
-        computed,
-        ...assignedZips
-      ])].sort();
+      return [...new Set([...computed, ...assignedZips])].sort();
+      
     } catch (e) {
-      console.warn('Failed to compute ZIPs for area:', e);
+      console.warn('Failed to compute ZIPs for area, using assigned ZIPs:', e);
       return [...new Set(assignedZips)].sort();
     }
-  };
+  }, []);
 
   const [showZipOverlays, setShowZipOverlays] = useState<boolean>(true);
 
   // Initialize map
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
-    const map = L.map(mapContainerRef.current, {
-      center: [39.8283, -98.5795],
-      // Center of US
-      zoom: 5,
-      zoomControl: true
-    });
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
+    
+    console.log('Initializing Leaflet map...');
+    setMapLoading(true);
+    setMapError(null);
+    
+    try {
+      const map = L.map(mapContainerRef.current, {
+        center: [39.8283, -98.5795], // Center of US
+        zoom: 5,
+        zoomControl: true
+      });
+      
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 18
+      }).addTo(map);
+      
+      console.log('Leaflet map initialized successfully');
+      mapRef.current = map;
+      setMapLoading(false);
+      
+    } catch (error) {
+      console.error('Failed to initialize map:', error);
+      setMapError('Failed to initialize map');
+      setMapLoading(false);
+      return;
+    }
 
     // Add zoom event listener for dynamic ZIP labels
-    map.on('zoomend', () => {
-      const currentZoom = map.getZoom();
+    if (mapRef.current) {
+      mapRef.current.on('zoomend', () => {
+        const currentZoom = mapRef.current!.getZoom();
 
-      // Update ZIP marker visibility and labels based on zoom
-      if (polygonLayersRef.current instanceof Map) {
-        polygonLayersRef.current.forEach((layer, key) => {
-          if (key.includes('-zipcode') && layer instanceof L.CircleMarker) {
-            const baseRadius = currentZoom > 8 ? 12 : 8;
-            layer.setStyle({
-              radius: baseRadius
-            });
-
-            // Toggle permanent labels based on zoom level
-            const tooltip = layer.getTooltip();
-            if (tooltip) {
-              layer.unbindTooltip();
-              const zipcode = key.split('-').pop();
-              const content = tooltip.getContent() as string;
-              layer.bindTooltip(content, {
-                permanent: currentZoom > 11,
-                direction: 'top',
-                className: 'zip-label-tooltip',
-                offset: [0, -8]
+        // Update ZIP marker visibility and labels based on zoom
+        if (polygonLayersRef.current instanceof Map) {
+          polygonLayersRef.current.forEach((layer, key) => {
+            if (key.includes('-zipcode') && layer instanceof L.CircleMarker) {
+              const baseRadius = currentZoom > 8 ? 12 : 8;
+              layer.setStyle({
+                radius: baseRadius
               });
+
+              // Toggle permanent labels based on zoom level
+              const tooltip = layer.getTooltip();
+              if (tooltip) {
+                layer.unbindTooltip();
+                const zipcode = key.split('-').pop();
+                const content = tooltip.getContent() as string;
+                layer.bindTooltip(content, {
+                  permanent: currentZoom > 11,
+                  direction: 'top',
+                  className: 'zip-label-tooltip',
+                  offset: [0, -8]
+                });
+              }
             }
-          }
-        });
-      }
-    });
-    mapRef.current = map;
+          });
+        }
+      });
+    }
 
     // Cleanup function
     return () => {
@@ -479,9 +505,19 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
     return val > 0 ? 1 : 2;
   };
 
+  // Memoize filtered workers to prevent unnecessary re-renders
+  const filteredWorkers = useMemo(() => {
+    const workersToShow = selectedWorkerId 
+      ? (workers || []).filter(w => w.id === selectedWorkerId) 
+      : workers || [];
+    return workersToShow;
+  }, [workers, selectedWorkerId]);
+
   // Update polygons when workers or filters change
   useEffect(() => {
-    if (!mapRef.current || !polygonLayersRef.current) return;
+    if (!mapRef.current || !polygonLayersRef.current || mapLoading || mapError) return;
+    
+    console.log(`Rendering overview map for ${filteredWorkers.length} workers`);
 
     // Clear existing polygons and markers
     if (polygonLayersRef.current instanceof Map) {
@@ -490,9 +526,8 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
       });
       polygonLayersRef.current.clear();
     }
-    const workersToShow = selectedWorkerId ? (workers || []).filter(w => w.id === selectedWorkerId) : workers || [];
     let bounds: L.LatLngBounds | null = null;
-    workersToShow.forEach((worker, workerIndex) => {
+    filteredWorkers.forEach((worker, workerIndex) => {
       const workerColor = WORKER_COLORS[workerIndex % WORKER_COLORS.length];
       (worker.service_areas || []).forEach(area => {
         // Skip inactive areas unless specifically shown
@@ -563,7 +598,7 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
         padding: [20, 20]
       });
     }
-  }, [workers, selectedWorkerId, showInactiveAreas, showZipOverlays]);
+  }, [filteredWorkers, showInactiveAreas, showZipOverlays, mapLoading, mapError, getZipcodesForArea]);
   const handleCloseAreaInfo = () => {
     setSelectedAreaInfo(null);
   };
@@ -591,17 +626,40 @@ export const WorkerServiceAreasMap: React.FC<WorkerServiceAreasMapProps> = ({
       `}</style>
       
       <div className="relative h-full min-h-[500px]">
+        {/* Loading State */}
+        {mapLoading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-[1001]">
+            <div className="flex items-center gap-2">
+              <Loader2 className="h-6 w-6 animate-spin" />
+              <span>Loading map...</span>
+            </div>
+          </div>
+        )}
+
+        {/* Error State */}
+        {mapError && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-[1001]">
+            <Alert className="max-w-md">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                {mapError}. Please refresh the page to try again.
+              </AlertDescription>
+            </Alert>
+          </div>
+        )}
+
         {/* Enhanced Map Controls */}
         <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-2">
-          
-          
-          {/* Zoom hint */}
-          
+          {filteredWorkers.length > 0 && (
+            <div className="text-xs bg-background/90 px-2 py-1 rounded shadow">
+              Showing {filteredWorkers.length} worker{filteredWorkers.length !== 1 ? 's' : ''}
+            </div>
+          )}
         </div>
 
-      <div ref={mapContainerRef} className="w-full h-full rounded-lg overflow-hidden" style={{
-        minHeight: '500px'
-      }} />
+        <div ref={mapContainerRef} className="w-full h-full rounded-lg overflow-hidden" style={{
+          minHeight: '500px'
+        }} />
       
       {/* Selected Area Info Panel */}
       {selectedAreaInfo && <Card className="absolute top-4 right-4 max-w-sm z-[1000] shadow-lg">
