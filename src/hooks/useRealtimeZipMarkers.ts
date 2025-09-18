@@ -52,10 +52,10 @@ export const useRealtimeZipMarkers = (workerId?: string) => {
 
       const zipCodes = workerZips.map(z => z.zipcode);
 
-// Use optimized comprehensive ZIP codes table with batch function
+      // Try to get coordinates from the us_zip_codes table
       const { data: zipData, error: coordError } = await supabase
-        .from('comprehensive_zip_codes')
-        .select('zipcode, latitude, longitude, city, state_abbr')
+        .from('us_zip_codes')
+        .select('zipcode, latitude, longitude, city')
         .in('zipcode', zipCodes)
         .not('latitude', 'is', null)
         .not('longitude', 'is', null);

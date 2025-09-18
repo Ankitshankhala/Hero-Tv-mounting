@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
-import { useComprehensiveZipcodeValidation } from '@/hooks/useComprehensiveZipValidation';
 import { useOptimizedZipcodeValidation } from '@/hooks/useOptimizedZipcodeValidation';
 
 interface ZipcodeLocationInputProps {
@@ -27,12 +26,11 @@ export const ZipcodeLocationInput: React.FC<ZipcodeLocationInputProps> = ({
   const [zipcode, setZipcode] = useState(initialZipcode);
   const [isValidating, setIsValidating] = useState(false);
   
-  // Try comprehensive validation first, fallback to optimized
-  const { validateZipcode: validateComprehensive, result: comprehensiveResult } = useComprehensiveZipcodeValidation();
+  // Use optimized validation
   const optimizedValidation = useOptimizedZipcodeValidation();
   
-  // Use the best available result
-  const result = comprehensiveResult.isValid ? comprehensiveResult : {
+  // Use the optimized result
+  const result = {
     isValid: optimizedValidation.isValid,
     hasCoverage: optimizedValidation.hasServiceCoverage,
     workerCount: optimizedValidation.workerCount,
@@ -48,22 +46,17 @@ export const ZipcodeLocationInput: React.FC<ZipcodeLocationInputProps> = ({
     setIsValidating(true);
     
     try {
-      // Try comprehensive validation first
-      let validationResult = await validateComprehensive(zipcode);
-      
-      // If comprehensive fails, fallback to optimized
-      if (!validationResult.isValid) {
-        const optimizedResult = await optimizedValidation.validateZipcode(zipcode);
-        validationResult = {
-          isValid: optimizedResult.isValid,
-          hasCoverage: optimizedResult.hasServiceCoverage,
-          workerCount: optimizedResult.workerCount,
-          city: optimizedResult.locationData?.city,
-          state: optimizedResult.locationData?.state,
-          loading: false,
-          dataSource: 'optimized'
-        };
-      }
+      // Use optimized validation
+      const optimizedResult = await optimizedValidation.validateZipcode(zipcode);
+      const validationResult = {
+        isValid: optimizedResult.isValid,
+        hasCoverage: optimizedResult.hasServiceCoverage,
+        workerCount: optimizedResult.workerCount,
+        city: optimizedResult.locationData?.city,
+        state: optimizedResult.locationData?.state,
+        loading: false,
+        dataSource: 'optimized'
+      };
       
       if (validationResult.isValid) {
         onLocationConfirmed({
@@ -146,11 +139,9 @@ export const ZipcodeLocationInput: React.FC<ZipcodeLocationInputProps> = ({
               <span className="text-sm font-medium">
                 {result.city}, {result.state}
               </span>
-              {result.dataSource && (
-                <Badge variant={result.dataSource === 'comprehensive' ? 'default' : 'secondary'} className="text-xs">
-                  {result.dataSource === 'comprehensive' ? 'Enhanced' : 'Standard'}
-                </Badge>
-              )}
+              <Badge variant='secondary' className="text-xs">
+                Standard
+              </Badge>
             </div>
             
             <div className="flex items-center gap-2">

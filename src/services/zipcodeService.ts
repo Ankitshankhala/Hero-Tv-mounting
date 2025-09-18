@@ -17,9 +17,9 @@ export const lookupZipcode = async (zipcode: string): Promise<ZipcodeData | null
       return null;
     }
     
-    // First try comprehensive database lookup
+    // Try standard US ZIP codes table
     const { data: dbData, error: dbError } = await supabase
-      .from('comprehensive_zip_codes')
+      .from('us_zip_codes')
       .select('city, state, state_abbr')
       .eq('zipcode', cleanZipcode)
       .single();

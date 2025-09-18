@@ -34,22 +34,11 @@ export const PerformanceOptimizationSwitch: React.FC = () => {
     try {
       setLoading(true);
       
-      // Check comprehensive ZIP data count
-      const { count: zipCount } = await supabase
-        .from('comprehensive_zip_codes')
-        .select('*', { count: 'exact', head: true });
-      
-      // Check ZCTA boundary count
-      const { count: boundaryCount } = await supabase
-        .from('comprehensive_zcta_polygons')
-        .select('*', { count: 'exact', head: true });
-      
-      const isOptimized = (zipCount || 0) > 1000 && (boundaryCount || 0) > 100;
-      
+      // Since comprehensive system is removed, show standard metrics
       setMetrics({
-        comprehensiveZipCount: zipCount || 0,
-        ztcaBoundaryCount: boundaryCount || 0,
-        isOptimized,
+        comprehensiveZipCount: 0,
+        ztcaBoundaryCount: 0,
+        isOptimized: false,
         lastHealthCheck: new Date().toISOString()
       });
     } catch (error) {
