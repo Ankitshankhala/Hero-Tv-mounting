@@ -1679,6 +1679,16 @@ export type Database = {
         }
         Relationships: []
       }
+      zip_coverage_summary: {
+        Row: {
+          active_worker_ids: string[] | null
+          has_active_coverage: boolean | null
+          service_area_count: number | null
+          worker_count: number | null
+          zipcode: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       _postgis_deprecate: {
@@ -2573,6 +2583,14 @@ export type Database = {
           zipcode: string
         }[]
       }
+      get_zip_coverage_info: {
+        Args: { p_zipcode: string }
+        Returns: {
+          active_workers: string[]
+          has_coverage: boolean
+          worker_count: number
+        }[]
+      }
       get_zip_service_assignment: {
         Args: { p_zip: string }
         Returns: {
@@ -2869,6 +2887,10 @@ export type Database = {
       }
       rebuild_worker_overlay: {
         Args: { p_worker: string }
+        Returns: undefined
+      }
+      refresh_zip_coverage_summary: {
+        Args: Record<PropertyKey, never>
         Returns: undefined
       }
       repair_payment_inconsistencies: {
