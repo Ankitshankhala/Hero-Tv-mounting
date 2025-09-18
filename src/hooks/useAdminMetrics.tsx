@@ -170,7 +170,7 @@ export const useAdminMetrics = () => {
           bookingsGrowth,
           activeCustomers,
           customersGrowth,
-          completedJobs: completedBookings,
+          completedJobs: jobsThisMonth,
           jobsGrowth,
           pendingBookings,
           activeWorkers,
