@@ -1297,39 +1297,6 @@ export type Database = {
           },
         ]
       }
-      zcta_zipcodes: {
-        Row: {
-          bbox: unknown
-          created_at: string
-          id: string
-          land_area: number | null
-          polygon_geometry: unknown
-          updated_at: string
-          water_area: number | null
-          zcta_code: string
-        }
-        Insert: {
-          bbox: unknown
-          created_at?: string
-          id?: string
-          land_area?: number | null
-          polygon_geometry: unknown
-          updated_at?: string
-          water_area?: number | null
-          zcta_code: string
-        }
-        Update: {
-          bbox?: unknown
-          created_at?: string
-          id?: string
-          land_area?: number | null
-          polygon_geometry?: unknown
-          updated_at?: string
-          water_area?: number | null
-          zcta_code?: string
-        }
-        Relationships: []
-      }
     }
     Views: {
       geography_columns: {
