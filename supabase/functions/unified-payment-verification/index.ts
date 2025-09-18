@@ -150,7 +150,7 @@ serve(async (req) => {
           .from('bookings')
           .update({ 
             status: 'confirmed',
-            payment_status: 'completed'
+            payment_status: 'captured'
           })
           .eq('id', finalBookingId);
 
