@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
+import { useComprehensiveZctaBoundaries } from '@/hooks/useComprehensiveZctaBoundaries';
+import { useComprehensiveZipcodeValidation } from '@/hooks/useComprehensiveZipValidation';
 import { useZctaBoundaries } from '../hooks/useZctaBoundaries';
 import { useZipcodeValidation } from '../hooks/useZipcodeValidation';
 import { Card } from './ui/card';
@@ -25,8 +27,13 @@ export const ServiceCoverageMapWithBoundaries: React.FC<ServiceCoverageMapWithBo
   const [currentBoundary, setCurrentBoundary] = useState<L.GeoJSON | null>(null);
   const [zipInfo, setZipInfo] = useState<any>(null);
 
-  const { addBoundaryToMap, loading: boundaryLoading } = useZctaBoundaries();
-  const { validateZipcode } = useZipcodeValidation();
+  // Try comprehensive system first, fallback to legacy
+  const { validateZipcode: validateComprehensive, result: comprehensiveResult } = useComprehensiveZipcodeValidation();
+  const { validateZipcode: validateLegacy } = useZipcodeValidation();
+  const { addBoundaryToMap: addComprehensiveBoundary, loading: comprehensiveBoundaryLoading } = useComprehensiveZctaBoundaries();
+  const { addBoundaryToMap: addLegacyBoundary, loading: legacyBoundaryLoading } = useZctaBoundaries();
+  
+  const boundaryLoading = comprehensiveBoundaryLoading || legacyBoundaryLoading;
 
   // Initialize map
   useEffect(() => {
@@ -76,8 +83,19 @@ export const ServiceCoverageMapWithBoundaries: React.FC<ServiceCoverageMapWithBo
         setCurrentBoundary(null);
       }
 
-      // Validate zipcode and get info
-      const validation = await validateZipcode(targetZipcode);
+      // Try comprehensive validation first, fallback to legacy
+      let validation;
+      try {
+        validation = await validateComprehensive(targetZipcode);
+        // If comprehensive validation fails, try legacy
+        if (!validation.isValid) {
+          validation = await validateLegacy(targetZipcode);
+        }
+      } catch (error) {
+        console.warn('Comprehensive validation failed, using legacy:', error);
+        validation = await validateLegacy(targetZipcode);
+      }
+      
       setZipInfo(validation);
 
       if (!validation.isValid) {
@@ -85,34 +103,55 @@ export const ServiceCoverageMapWithBoundaries: React.FC<ServiceCoverageMapWithBo
         return;
       }
 
-      // Add boundary to map
-      const boundaryLayer = await addBoundaryToMap(mapRef.current, targetZipcode, {
-        color: validation.hasServiceCoverage ? '#10b981' : '#ef4444',
-        weight: 3,
-        fillColor: validation.hasServiceCoverage ? '#10b981' : '#ef4444',
-        fillOpacity: 0.2
-      });
+      // Try comprehensive boundary first, fallback to legacy
+      let boundaryLayer;
+      try {
+        boundaryLayer = await addComprehensiveBoundary(mapRef.current, targetZipcode, {
+          color: validation.hasCoverage ? '#10b981' : '#ef4444',
+          weight: 3,
+          fillColor: validation.hasCoverage ? '#10b981' : '#ef4444',
+          fillOpacity: 0.2
+        });
+      } catch (error) {
+        console.warn('Comprehensive boundary failed, using legacy:', error);
+        boundaryLayer = await addLegacyBoundary(mapRef.current, targetZipcode, {
+          color: validation.hasServiceCoverage ? '#10b981' : '#ef4444',
+          weight: 3,
+          fillColor: validation.hasServiceCoverage ? '#10b981' : '#ef4444',
+          fillOpacity: 0.2
+        });
+      }
 
       if (boundaryLayer) {
         setCurrentBoundary(boundaryLayer);
         
         // Add popup with service info
+        const dataSourceBadge = validation.dataSource ? 
+          `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 ml-2">
+            ${validation.dataSource === 'comprehensive' ? 'Enhanced' : 'Standard'}
+          </span>` : '';
+          
+        const hasCoverage = validation.hasCoverage || validation.hasServiceCoverage;
+        const workerCount = validation.workerCount || 0;
+        const city = validation.city || validation.locationData?.city;
+        const state = validation.state || validation.locationData?.state;
+        
         const popupContent = `
           <div class="p-2">
-            <h3 class="font-semibold text-lg">${targetZipcode}</h3>
-            <p class="text-sm text-gray-600">${validation.locationData?.city}, ${validation.locationData?.state}</p>
+            <h3 class="font-semibold text-lg">${targetZipcode}${dataSourceBadge}</h3>
+            <p class="text-sm text-gray-600">${city}, ${state}</p>
             <div class="mt-2">
               <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                validation.hasServiceCoverage 
+                hasCoverage 
                   ? 'bg-green-100 text-green-800' 
                   : 'bg-red-100 text-red-800'
               }">
-                ${validation.hasServiceCoverage ? '✓ Service Available' : '✗ No Service'}
+                ${hasCoverage ? '✓ Service Available' : '✗ No Service'}
               </span>
             </div>
-            ${validation.hasServiceCoverage ? `
+            ${hasCoverage ? `
               <div class="mt-2">
-                <p class="text-xs text-gray-500">${validation.workerCount} technician(s) available</p>
+                <p class="text-xs text-gray-500">${workerCount} technician(s) available</p>
                 <button 
                   onclick="window.requestBooking?.('${targetZipcode}')" 
                   class="mt-2 w-full bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
@@ -131,7 +170,8 @@ export const ServiceCoverageMapWithBoundaries: React.FC<ServiceCoverageMapWithBo
           onBookingRequested?.(zip);
         };
 
-        toast.success(`ZIP code ${targetZipcode} boundary loaded successfully`);
+        const performanceIndicator = validation.dataSource === 'comprehensive' ? ' (Enhanced Performance)' : '';
+        toast.success(`ZIP code ${targetZipcode} boundary loaded successfully${performanceIndicator}`);
       } else {
         toast.error('Could not load boundary data for this ZIP code');
       }
@@ -182,19 +222,26 @@ export const ServiceCoverageMapWithBoundaries: React.FC<ServiceCoverageMapWithBo
           <div className="mt-2 text-xs">
             <div className="flex items-center justify-between">
               <span className="text-gray-600">
-                {zipInfo.locationData?.city}, {zipInfo.locationData?.state}
+                {zipInfo.city || zipInfo.locationData?.city}, {zipInfo.state || zipInfo.locationData?.state}
               </span>
-              <span className={`px-2 py-1 rounded text-xs ${
-                zipInfo.hasServiceCoverage 
-                  ? 'bg-green-100 text-green-700' 
-                  : 'bg-red-100 text-red-700'
-              }`}>
-                {zipInfo.hasServiceCoverage ? 'Available' : 'No Service'}
-              </span>
+              <div className="flex items-center gap-1">
+                <span className={`px-2 py-1 rounded text-xs ${
+                  (zipInfo.hasCoverage || zipInfo.hasServiceCoverage)
+                    ? 'bg-green-100 text-green-700' 
+                    : 'bg-red-100 text-red-700'
+                }`}>
+                  {(zipInfo.hasCoverage || zipInfo.hasServiceCoverage) ? 'Available' : 'No Service'}
+                </span>
+                {zipInfo.dataSource && (
+                  <span className="px-1 py-0.5 rounded text-xs bg-blue-100 text-blue-700">
+                    {zipInfo.dataSource === 'comprehensive' ? 'Enhanced' : 'Standard'}
+                  </span>
+                )}
+              </div>
             </div>
-            {zipInfo.hasServiceCoverage && (
+            {(zipInfo.hasCoverage || zipInfo.hasServiceCoverage) && (
               <div className="text-gray-500 mt-1">
-                {zipInfo.workerCount} technician(s) available
+                {zipInfo.workerCount || 0} technician(s) available
               </div>
             )}
           </div>
