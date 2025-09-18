@@ -12,8 +12,7 @@ interface Worker {
   is_active: boolean;
   service_area_count: number;
   total_zipcodes: number;
-  zcta_zipcodes?: number; // ZCTA-computed unique ZIP count
-  zcta_total_area_zipcodes?: number; // ZCTA-computed total area ZIP count (with duplicates)
+  // Removed zcta_zipcodes references - now using us_zcta_polygons directly
   service_areas?: Array<{
     id: string;
     worker_id?: string;

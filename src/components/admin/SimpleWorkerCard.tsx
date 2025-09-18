@@ -5,8 +5,7 @@ interface Worker {
   id: string;
   name: string;
   is_active: boolean;
-  zcta_zipcodes?: number; // ZCTA-computed unique ZIP count
-  zcta_total_area_zipcodes?: number; // ZCTA-computed total area ZIP count (with duplicates)
+  // Removed zcta_zipcodes references - now using us_zcta_polygons directly
   service_areas?: Array<{
     id: string;
     area_name: string;
@@ -46,9 +45,9 @@ export const SimpleWorkerCard: React.FC<SimpleWorkerCardProps> = ({
     const activeAreas = worker.service_areas?.filter(area => area.is_active) || [];
     const areaCount = activeAreas.length;
     
-    // Use ZCTA-computed ZIP counts if available, otherwise fall back to database count
-    const uniqueZipCount = worker.zcta_zipcodes || worker.service_zipcodes?.length || 0;
-    const totalZipCount = worker.zcta_total_area_zipcodes || uniqueZipCount;
+    // Use database count directly (consolidated from us_zcta_polygons)
+    const uniqueZipCount = worker.service_zipcodes?.length || 0;
+    const totalZipCount = uniqueZipCount;
     
     if (areaCount === 0) return '0 areas';
     

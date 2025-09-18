@@ -60,23 +60,24 @@ export const ZctaDataManager = () => {
 
   const checkZctaDataStatus = async () => {
     try {
-      // Check both source and target tables
-      const [zctaResult, sourceResult] = await Promise.all([
-        supabase.from('zcta_zipcodes').select('zcta_code', { count: 'exact' }),
-        supabase.from('us_zcta_polygons').select('zcta5ce', { count: 'exact' })
-      ]);
+      // Check us_zcta_polygons table (consolidated source)
+      const { count: polygonCount } = await supabase
+        .from('us_zcta_polygons')
+        .select('*', { count: 'exact', head: true });
 
-      const zctaCount = zctaResult.data?.length || 0;
-      const sourceCount = sourceResult.data?.length || 0;
+      // Check us_zip_codes table 
+      const { count: zipCodeCount } = await supabase
+        .from('us_zip_codes')
+        .select('*', { count: 'exact', head: true });
 
       setStats({
-        recordsInserted: zctaCount,
-        totalRecords: sourceCount
+        recordsInserted: polygonCount || 0,
+        totalRecords: zipCodeCount || 0
       });
 
-      if (sourceCount === 0) {
+      if ((polygonCount || 0) === 0) {
         setStatus('error');
-      } else if (zctaCount > 0) {
+      } else if ((polygonCount || 0) > 0) {
         setStatus('success');
       } else {
         setStatus('idle');
@@ -134,7 +135,7 @@ export const ZctaDataManager = () => {
           
           {stats && (
             <div className="text-sm text-muted-foreground">
-              {stats.totalRecords.toLocaleString()} ZIP codes available
+              {stats.recordsInserted.toLocaleString()} ZCTA polygons | {stats.totalRecords.toLocaleString()} ZIP codes
             </div>
           )}
         </div>
@@ -179,7 +180,7 @@ export const ZctaDataManager = () => {
           </Button>
         </div>
 
-        {status === 'error' && stats?.totalRecords === 0 && (
+        {status === 'error' && stats?.recordsInserted === 0 && (
           <div className="text-xs text-muted-foreground bg-red-50 dark:bg-red-950/10 p-3 rounded-lg border border-red-200 dark:border-red-800">
             <p className="font-medium mb-1 text-red-700 dark:text-red-300">No Source Data Available:</p>
             <ul className="space-y-1">
