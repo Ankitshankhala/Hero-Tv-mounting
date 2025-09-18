@@ -296,6 +296,8 @@ export type Database = {
           created_at: string | null
           data_source: string | null
           id: string
+          internal_lat: number | null
+          internal_lng: number | null
           land_area: number | null
           latitude: number | null
           longitude: number | null
@@ -313,6 +315,8 @@ export type Database = {
           created_at?: string | null
           data_source?: string | null
           id?: string
+          internal_lat?: number | null
+          internal_lng?: number | null
           land_area?: number | null
           latitude?: number | null
           longitude?: number | null
@@ -330,6 +334,8 @@ export type Database = {
           created_at?: string | null
           data_source?: string | null
           id?: string
+          internal_lat?: number | null
+          internal_lng?: number | null
           land_area?: number | null
           latitude?: number | null
           longitude?: number | null
@@ -1692,39 +1698,6 @@ export type Database = {
           },
         ]
       }
-      zip_polygons: {
-        Row: {
-          city: string | null
-          created_at: string | null
-          geom: unknown
-          id: string
-          state_code: string
-          state_name: string | null
-          updated_at: string | null
-          zipcode: string
-        }
-        Insert: {
-          city?: string | null
-          created_at?: string | null
-          geom: unknown
-          id?: string
-          state_code: string
-          state_name?: string | null
-          updated_at?: string | null
-          zipcode: string
-        }
-        Update: {
-          city?: string | null
-          created_at?: string | null
-          geom?: unknown
-          id?: string
-          state_code?: string
-          state_name?: string | null
-          updated_at?: string | null
-          zipcode?: string
-        }
-        Relationships: []
-      }
     }
     Views: {
       geography_columns: {
@@ -2487,6 +2460,16 @@ export type Database = {
           zipcode: string
         }[]
       }
+      get_comprehensive_batch_zip_coordinates: {
+        Args: { p_zipcodes: string[] }
+        Returns: {
+          city: string
+          latitude: number
+          longitude: number
+          state_abbr: string
+          zipcode: string
+        }[]
+      }
       get_comprehensive_zip_boundaries: {
         Args: { p_lat: number; p_lng: number; p_radius_km?: number }
         Returns: {
@@ -2499,12 +2482,13 @@ export type Database = {
         Args: { p_zipcode: string }
         Returns: {
           city: string
+          data_source: string
           has_coverage: boolean
           latitude: number
           longitude: number
-          state: string
           state_abbr: string
           worker_count: number
+          zipcode: string
         }[]
       }
       get_current_user_role: {
