@@ -58,3 +58,6 @@ verify_jwt = false
 
 [functions.service-area-upsert]
 verify_jwt = false
+
+[functions.populate-comprehensive-zip-data]
+verify_jwt = false
