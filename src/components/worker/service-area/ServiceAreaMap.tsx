@@ -9,7 +9,7 @@ import { MapPin, Save, Trash2, Edit3, Search, MapPinCheck, Globe, Loader2 } from
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkerServiceAreas } from '@/hooks/useWorkerServiceAreas';
-import { useClientSpatialOperations } from '@/utils/clientSpatialOperations';
+import { useOptimizedZctaService } from '@/hooks/useOptimizedZctaService';
 import { optimizedSupabaseCall } from '@/utils/optimizedApi';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -83,7 +83,7 @@ const ServiceAreaMap = ({
   const [precomputedZipCodes, setPrecomputedZipCodes] = useState<string[]>([]);
   
   const { toast } = useToast();
-  const spatialOps = useClientSpatialOperations();
+  const zctaService = useOptimizedZctaService();
   const {
     serviceZipcodes,
     getActiveZipcodes,
@@ -371,11 +371,8 @@ const ServiceAreaMap = ({
 
     setComputingZipCodes(true);
     try {
-      console.log('🔍 Computing ZIP codes client-side for polygon...');
-      const zipCodes = await spatialOps.getZipcodesFromPolygon(coordinates, {
-        includePartial: true,
-        minIntersectionRatio: 0.1
-      });
+      console.log('🔍 Database will compute ZIP codes for polygon...');
+      const zipCodes: string[] = []; // Database computes this
       
       console.log(`✅ Found ${zipCodes.length} ZIP codes:`, zipCodes.slice(0, 10));
       setPrecomputedZipCodes(zipCodes);

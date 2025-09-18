@@ -12,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAdminServiceAreas } from '@/hooks/useAdminServiceAreas';
 import { PolygonValidator } from './PolygonValidator';
-import { useClientSpatialOperations } from '@/utils/clientSpatialOperations';
+import { useOptimizedZctaService } from '@/hooks/useOptimizedZctaService';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
@@ -80,7 +80,7 @@ const AdminServiceAreaMap = ({
     deleteWorkerServiceArea,
     refreshData 
   } = useAdminServiceAreas();
-  const spatialOps = useClientSpatialOperations();
+  const zctaService = useOptimizedZctaService();
 
   // Initialize map with enhanced debugging and proper sizing
   useEffect(() => {
@@ -874,14 +874,8 @@ const AdminServiceAreaMap = ({
     setSaving(true);
     
     try {
-      // Use client-side spatial operations to get ZIP codes first
-      console.log('🗺️ Computing ZIP codes using client-side ZCTA data...');
-      const zipCodes = await spatialOps.getZipcodesFromPolygon(currentPolygon, {
-        includePartial: true,
-        minIntersectionRatio: 0.1
-      });
-
-      console.log(`✅ Found ${zipCodes.length} ZIP codes using client-side operations`);
+      // Let the database compute ZIP codes from polygon
+      console.log('🗺️ Using database-only ZIP code computation...');
 
       // Prepare data for edge function
       const saveData = {

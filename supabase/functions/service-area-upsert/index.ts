@@ -130,62 +130,66 @@ serve(async (req) => {
       operation = 'created';
     }
 
-    // Use pre-computed ZIP codes if provided, otherwise compute them
+    // Use database-only approach for ZIP code computation
     let zipcodes: string[] = [];
     let skippedCount = 0;
     
     if (actualZipCodes && Array.isArray(actualZipCodes) && actualZipCodes.length > 0) {
       zipcodes = actualZipCodes;
       logStep('Using pre-computed ZIP codes from client', { count: zipcodes.length });
-    } else {
-      logStep('Computing ZCTA codes using enhanced database spatial queries');
+    } else if (polygon && polygon.length > 0) {
+      logStep('Computing ZIP codes using database-only ZCTA spatial queries');
       
       try {
-        // Use the new enhanced ZCTA spatial intersection function
+        // Primary: Use ZCTA spatial intersection function
         const { data: zctaCodes, error: zctaError } = await supabase.rpc('get_zcta_codes_for_polygon', {
           polygon_coords: geoJsonPolygon.coordinates[0]
         });
 
-        if (zctaError) {
-          logStep('ZCTA spatial query failed, using fallback', zctaError.message);
+        if (zctaError || !zctaCodes || zctaCodes.length === 0) {
+          logStep('ZCTA spatial query failed or empty, using ZIP code fallback', zctaError?.message);
           
-          // Fallback: Use bounding box approach with us_zip_codes
-          const bounds = calculateBounds(polygon);
-          logStep('Using bounding box fallback', { bounds });
+          // Fallback: Direct spatial query against ZIP codes using PostGIS
+          const polygonWKT = `POLYGON((${geoJsonPolygon.coordinates[0].map(coord => `${coord[0]} ${coord[1]}`).join(', ')}))`;
           
-          const { data: fallbackZips, error: fallbackError } = await supabase
+          const { data: spatialZips, error: spatialError } = await supabase
             .from('us_zip_codes')
             .select('zipcode')
-            .gte('latitude', bounds.south)
-            .lte('latitude', bounds.north)
-            .gte('longitude', bounds.west)
-            .lte('longitude', bounds.east);
-              
-          if (!fallbackError && fallbackZips) {
-            zipcodes = fallbackZips.map(z => z.zipcode);
-            logStep('Used bounding box fallback', { count: zipcodes.length });
-          } else {
-            // Final fallback: center-based lookup
-            const center = calculateCenter(polygon);
-            logStep('Using center-based ZIP lookup as final fallback', center);
+            .not('latitude', 'is', null)
+            .not('longitude', 'is', null)
+            .filter('location', 'intersects', `ST_GeomFromText('${polygonWKT}', 4326)`);
             
-            const { data: nearbyZips, error: nearbyError } = await supabase
+          if (!spatialError && spatialZips && spatialZips.length > 0) {
+            zipcodes = spatialZips.map(z => z.zipcode);
+            logStep('Used PostGIS spatial intersection fallback', { count: zipcodes.length });
+          } else {
+            // Final fallback: Bounding box approach
+            const bounds = calculateBounds(polygon);
+            logStep('Using bounding box fallback as last resort', { bounds });
+            
+            const { data: boundedZips, error: boundedError } = await supabase
               .from('us_zip_codes')
               .select('zipcode')
-              .order(`((latitude - ${center.lat})^2 + (longitude - ${center.lng})^2)`)
-              .limit(10);
-              
-            if (!nearbyError && nearbyZips) {
-              zipcodes = nearbyZips.map(z => z.zipcode);
-              logStep('Used center-based fallback', { count: zipcodes.length, center });
+              .gte('latitude', bounds.south)
+              .lte('latitude', bounds.north)
+              .gte('longitude', bounds.west)
+              .lte('longitude', bounds.east)
+              .limit(100); // Prevent excessive results
+                
+            if (!boundedError && boundedZips) {
+              zipcodes = boundedZips.map(z => z.zipcode);
+              logStep('Used bounded query fallback', { count: zipcodes.length });
+            } else {
+              logStep('All spatial queries failed', { boundedError });
+              zipcodes = [];
             }
           }
         } else {
-          zipcodes = zctaCodes || [];
-          logStep('ZCTA computation successful via enhanced spatial query', { count: zipcodes.length });
+          zipcodes = zctaCodes;
+          logStep('ZCTA spatial intersection successful', { count: zipcodes.length });
         }
       } catch (computeError) {
-        logStep('Enhanced ZCTA computation failed', computeError);
+        logStep('All ZIP computation methods failed', computeError);
         zipcodes = [];
       }
     }
