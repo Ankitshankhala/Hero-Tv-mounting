@@ -67,7 +67,7 @@ export const useAdminMetrics = () => {
             created_at,
             transaction_type
           `)
-          .in('status', ['completed', 'authorized'])
+          .in('status', ['captured', 'authorized'])
           .in('transaction_type', ['capture', 'charge']);
 
         if (transactionsError) throw transactionsError;
