@@ -81,9 +81,12 @@ export const getComprehensiveBatchZipCoordinates = async (zipcodes: string[]): P
   if (zipcodes.length === 0) return [];
   
   try {
-    const { data, error } = await supabase.rpc('get_comprehensive_batch_zip_coordinates', {
-      p_zipcodes: zipcodes
-    });
+    const { data, error } = await supabase
+      .from('comprehensive_zip_codes')
+      .select('zipcode, latitude, longitude, city, state_abbr')
+      .in('zipcode', zipcodes)
+      .not('latitude', 'is', null)
+      .not('longitude', 'is', null);
 
     if (error) {
       console.error('Error getting batch ZIP coordinates:', error);
@@ -102,16 +105,37 @@ export const getComprehensiveBatchZipCoordinates = async (zipcodes: string[]): P
  */
 export const getComprehensiveWorkerZipCoordinates = async (workerId: string): Promise<ComprehensiveZipCoordinate[]> => {
   try {
-    const { data, error } = await supabase.rpc('get_comprehensive_worker_zip_coordinates', {
-      p_worker_id: workerId
-    });
+    // First get the worker's service zipcodes
+    const { data: workerZips, error: workerError } = await supabase
+      .from('worker_service_zipcodes')
+      .select('zipcode')
+      .eq('worker_id', workerId);
 
-    if (error) {
-      console.error('Error getting worker ZIP coordinates:', error);
+    if (workerError) {
+      console.error('Error getting worker ZIP codes:', workerError);
       return [];
     }
 
-    return data || [];
+    if (!workerZips || workerZips.length === 0) {
+      return [];
+    }
+
+    const zipcodes = workerZips.map(item => item.zipcode);
+
+    // Then get comprehensive data for those zipcodes
+    const { data: zipData, error: zipError } = await supabase
+      .from('comprehensive_zip_codes')
+      .select('zipcode, latitude, longitude, city, state_abbr')
+      .in('zipcode', zipcodes)
+      .not('latitude', 'is', null)
+      .not('longitude', 'is', null);
+
+    if (zipError) {
+      console.error('Error getting ZIP coordinates:', zipError);
+      return [];
+    }
+
+    return zipData || [];
   } catch (error) {
     console.error('Error in getComprehensiveWorkerZipCoordinates:', error);
     return [];
@@ -123,16 +147,26 @@ export const getComprehensiveWorkerZipCoordinates = async (workerId: string): Pr
  */
 export const getComprehensiveZctaBoundary = async (zctaCode: string): Promise<ComprehensiveZctaBoundary | null> => {
   try {
-    const { data, error } = await supabase.rpc('get_comprehensive_zcta_boundary', {
-      p_zcta_code: zctaCode
-    });
+    const { data, error } = await supabase
+      .from('comprehensive_zcta_polygons')
+      .select('zcta5ce, geom, land_area, water_area, data_source')
+      .eq('zcta5ce', zctaCode)
+      .single();
 
     if (error) {
       console.error('Error getting ZCTA boundary:', error);
       return null;
     }
 
-    return data?.[0] || null;
+    if (!data) return null;
+
+    return {
+      zcta5ce: data.zcta5ce,
+      geom_geojson: data.geom,
+      land_area: data.land_area,
+      water_area: data.water_area,
+      data_source: data.data_source
+    };
   } catch (error) {
     console.error('Error in getComprehensiveZctaBoundary:', error);
     return null;

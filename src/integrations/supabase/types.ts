@@ -2470,6 +2470,26 @@ export type Database = {
           zipcode: string
         }[]
       }
+      get_comprehensive_worker_zip_coordinates: {
+        Args: { p_worker_id: string }
+        Returns: {
+          city: string
+          latitude: number
+          longitude: number
+          state_abbr: string
+          zipcode: string
+        }[]
+      }
+      get_comprehensive_zcta_boundary: {
+        Args: { p_zcta_code: string }
+        Returns: {
+          data_source: string
+          geom_geojson: Json
+          land_area: number
+          water_area: number
+          zcta5ce: string
+        }[]
+      }
       get_comprehensive_zip_boundaries: {
         Args: { p_lat: number; p_lng: number; p_radius_km?: number }
         Returns: {

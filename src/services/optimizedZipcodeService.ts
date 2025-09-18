@@ -38,7 +38,21 @@ export const getComprehensiveZipCoverage = async (zipcode: string): Promise<Serv
       };
     }
 
-    return data[0] || {
+    // Map the comprehensive result to the optimized interface
+    const result = data[0];
+    if (result) {
+      return {
+        has_coverage: result.has_coverage,
+        worker_count: result.worker_count,
+        city: result.city,
+        state: result.state_abbr, // Map state_abbr to state for backward compatibility
+        state_abbr: result.state_abbr,
+        latitude: result.latitude,
+        longitude: result.longitude
+      };
+    }
+    
+    return {
       has_coverage: false,
       worker_count: 0,
       city: 'Unknown',
