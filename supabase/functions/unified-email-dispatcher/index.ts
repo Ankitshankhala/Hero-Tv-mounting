@@ -13,12 +13,14 @@ const logStep = (step: string, details?: any) => {
 
 interface EmailRequest {
   bookingId?: string;
-  emailType: 'confirmation' | 'payment_reminder' | 'worker_welcome' | 'customer_welcome';
+  emailType?: 'confirmation' | 'payment_reminder' | 'worker_welcome' | 'customer_welcome';
   recipientEmail?: string;
   recipientType?: 'customer' | 'worker';
   templateData?: Record<string, any>;
   forceResend?: boolean;
   scheduledCheck?: boolean;
+  // Legacy parameters for backward compatibility
+  trigger?: 'scheduled_check' | 'manual';
 }
 
 serve(async (req) => {
@@ -34,15 +36,28 @@ serve(async (req) => {
       recipientType = 'customer',
       templateData = {},
       forceResend = false,
-      scheduledCheck = false
+      scheduledCheck = false,
+      trigger
     }: EmailRequest = await req.json();
 
+    // Handle legacy trigger parameter for backward compatibility
+    let processedEmailType = emailType;
+    let processedScheduledCheck = scheduledCheck;
+    
+    if (trigger === 'scheduled_check') {
+      processedEmailType = 'payment_reminder';
+      processedScheduledCheck = true;
+    } else if (trigger === 'manual' && bookingId) {
+      processedEmailType = 'confirmation';
+    }
+
     logStep('Starting unified email dispatch', { 
-      emailType, 
+      emailType: processedEmailType, 
       bookingId: bookingId ? 'provided' : null,
       recipientEmail: recipientEmail ? 'provided' : null,
       recipientType,
-      scheduledCheck
+      scheduledCheck: processedScheduledCheck,
+      trigger
     });
 
     const supabase = createClient(
@@ -51,24 +66,24 @@ serve(async (req) => {
     );
 
     // Handle scheduled check for payment reminders
-    if (scheduledCheck && emailType === 'payment_reminder') {
+    if (processedScheduledCheck && processedEmailType === 'payment_reminder') {
       return await handleScheduledPaymentReminders(supabase);
     }
 
     // Validate required parameters for specific email types
-    if (!bookingId && ['confirmation', 'payment_reminder'].includes(emailType)) {
-      throw new Error(`Booking ID is required for ${emailType} emails`);
+    if (!bookingId && ['confirmation', 'payment_reminder'].includes(processedEmailType)) {
+      throw new Error(`Booking ID is required for ${processedEmailType} emails`);
     }
 
-    if (!recipientEmail && ['worker_welcome', 'customer_welcome'].includes(emailType)) {
-      throw new Error(`Recipient email is required for ${emailType} emails`);
+    if (!recipientEmail && ['worker_welcome', 'customer_welcome'].includes(processedEmailType)) {
+      throw new Error(`Recipient email is required for ${processedEmailType} emails`);
     }
 
     // Route to appropriate email function
     let targetFunction: string;
     let requestBody: any = { ...templateData };
 
-    switch (emailType) {
+    switch (processedEmailType) {
       case 'confirmation':
         targetFunction = 'send-booking-confirmation-email';
         requestBody.bookingId = bookingId;
@@ -93,7 +108,7 @@ serve(async (req) => {
         break;
 
       default:
-        throw new Error(`Unsupported email type: ${emailType}`);
+        throw new Error(`Unsupported email type: ${processedEmailType}`);
     }
 
     // Check for recent duplicates if not forcing resend
@@ -103,12 +118,12 @@ serve(async (req) => {
         .from('email_logs')
         .select('id')
         .eq('booking_id', bookingId)
-        .eq('email_type', emailType)
+        .eq('email_type', processedEmailType)
         .gte('sent_at', oneHourAgo.toISOString())
         .limit(1);
 
       if (recentEmails && recentEmails.length > 0) {
-        logStep('Duplicate email prevented', { bookingId, emailType });
+        logStep('Duplicate email prevented', { bookingId, emailType: processedEmailType });
         return new Response(JSON.stringify({
           success: true,
           skipped: true,
@@ -130,14 +145,14 @@ serve(async (req) => {
 
     if (error) {
       logStep('Email function error', { error, targetFunction });
-      throw new Error(`Failed to send ${emailType}: ${error.message}`);
+      throw new Error(`Failed to send ${processedEmailType}: ${error.message}`);
     }
 
     logStep('Email sent successfully', { targetFunction, bookingId });
 
     return new Response(JSON.stringify({
       success: true,
-      emailType,
+      emailType: processedEmailType,
       targetFunction,
       data
     }), {
