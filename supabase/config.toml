@@ -47,9 +47,6 @@ enable_confirmations = false
 template = "Your code is {{ .Code }}"
 
 # Active edge functions - configured for maximum compatibility
-[functions.email-notification-orchestrator]
-verify_jwt = false
-
 [functions.enhanced-invoice-generator]
 verify_jwt = false
 
@@ -57,10 +54,4 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.service-area-upsert]
-verify_jwt = false
-
-[functions.populate-comprehensive-zip-data]
-verify_jwt = false
-
-[functions.populate-zcta-data]
 verify_jwt = false
