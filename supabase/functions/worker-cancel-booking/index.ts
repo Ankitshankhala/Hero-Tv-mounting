@@ -139,11 +139,12 @@ serve(async (req) => {
     );
 
   } catch (error) {
+    const errorMessage = error instanceof Error ? (error.message || "Failed to cancel booking") : "Failed to cancel booking";
     console.error("[WORKER-CANCEL] Error:", error);
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message || "Failed to cancel booking"
+        error: errorMessage
       }),
       { 
         headers: { ...corsHeaders, "Content-Type": "application/json" },

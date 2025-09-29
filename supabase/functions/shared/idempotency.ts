@@ -226,7 +226,8 @@ export async function withIdempotency<T>(
     return result;
   } catch (error) {
     // Update record with failure
-    await manager.updateIdempotencyRecord(recordId, 'failed', { error: error.message });
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    await manager.updateIdempotencyRecord(recordId, 'failed', { error: errorMessage });
     throw error;
   }
 }

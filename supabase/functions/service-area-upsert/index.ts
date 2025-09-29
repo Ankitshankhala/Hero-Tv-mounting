@@ -141,6 +141,11 @@ serve(async (req) => {
       logStep('Computing ZIP codes using database-only ZCTA spatial queries');
       
       try {
+        // Ensure geoJsonPolygon is defined
+        if (!geoJsonPolygon) {
+          throw new Error('GeoJSON polygon is undefined');
+        }
+        
         // Primary: Use ZCTA spatial intersection function
         const { data: zctaCodes, error: zctaError } = await supabase.rpc('get_zcta_codes_for_polygon', {
           polygon_coords: geoJsonPolygon.coordinates[0]
@@ -272,11 +277,12 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    logStep('Service area upsert failed', error.message);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logStep('Service area upsert failed', errorMessage);
     
     return new Response(JSON.stringify({
       success: false,
-      error: error.message,
+      error: errorMessage,
       timestamp: new Date().toISOString()
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

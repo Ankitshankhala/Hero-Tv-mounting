@@ -37,7 +37,7 @@ serve(async (req) => {
       const result = await supabase
         .from('bookings')
         .select(
-          `id, worker_id, status, scheduled_date, scheduled_start, customer_id, guest_customer_info, created_at, customer:users!bookings_customer_id_fkey(email, zip_code)`
+          `id, worker_id, status, scheduled_date, scheduled_start, customer_id, guest_customer_info, created_at, preferred_worker_id, customer:users!bookings_customer_id_fkey(email, zip_code)`
         )
         .eq('id', targetBookingId)
         .single();
@@ -57,7 +57,7 @@ serve(async (req) => {
       const result = await supabase
         .from('bookings')
         .select(
-          `id, worker_id, status, scheduled_date, scheduled_start, customer_id, guest_customer_info, created_at, customer:users!bookings_customer_id_fkey(email, zip_code)`
+          `id, worker_id, status, scheduled_date, scheduled_start, customer_id, guest_customer_info, created_at, preferred_worker_id, customer:users!bookings_customer_id_fkey(email, zip_code)`
         )
         .eq('status', 'confirmed')
         .is('worker_id', null)
@@ -84,7 +84,7 @@ serve(async (req) => {
     logStep('Booking found', { booking_id: booking.id });
 
     const zipCode = booking.customer_id
-      ? booking.customer?.zip_code
+      ? (booking.customer as any)?.zip_code
       : (booking.guest_customer_info?.zipcode || booking.guest_customer_info?.zip_code);
 
     if (!zipCode) {
@@ -171,7 +171,7 @@ serve(async (req) => {
 
     // First, check if preferred worker is available and in ZIP coverage
     if (preferredWorkerId) {
-      const preferredWorker = candidates.find(worker => worker.worker_id === preferredWorkerId);
+      const preferredWorker = candidates.find((worker: any) => worker.worker_id === preferredWorkerId);
       if (preferredWorker) {
         logStep('Preferred worker found and available', { 
           preferred_worker_id: preferredWorkerId,
@@ -200,7 +200,7 @@ serve(async (req) => {
       } else {
         logStep('Preferred worker not available or not in ZIP coverage', { 
           preferred_worker_id: preferredWorkerId,
-          available_workers: candidates.map(w => w.worker_id)
+          available_workers: candidates.map((w: any) => w.worker_id)
         });
       }
     }
@@ -262,6 +262,11 @@ serve(async (req) => {
 
 // Helper function to send notifications
 async function sendNotifications(booking: any, chosenWorker: any) {
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    { auth: { persistSession: false } }
+  );
   try {
     // Send worker assignment email and SMS
     try {

@@ -148,18 +148,18 @@ async function getWorkerBookings(req: Request, supabase: any, user: any) {
   let filteredBookings = bookings || [];
   
   if (!includeHidden) {
-    filteredBookings = bookings?.filter(booking => {
-      return !booking.worker_booking_preferences?.some(pref => pref.is_hidden);
+    filteredBookings = bookings?.filter((booking: any) => {
+      return !booking.worker_booking_preferences?.some((pref: any) => pref.is_hidden);
     }) || [];
   }
 
   // Calculate totals for each booking
-  const enrichedBookings = filteredBookings.map(booking => {
-    const totalServicePrice = booking.booking_services?.reduce((sum, service) => {
+  const enrichedBookings = filteredBookings.map((booking: any) => {
+    const totalServicePrice = booking.booking_services?.reduce((sum: any, service: any) => {
       return sum + (service.base_price * service.quantity);
     }, 0) || 0;
 
-    const latestTransaction = booking.transactions?.sort((a, b) => 
+    const latestTransaction = booking.transactions?.sort((a: any, b: any) => 
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     )[0];
 
@@ -167,7 +167,7 @@ async function getWorkerBookings(req: Request, supabase: any, user: any) {
       ...booking,
       total_service_price: totalServicePrice,
       latest_transaction: latestTransaction,
-      is_hidden: booking.worker_booking_preferences?.some(pref => pref.is_hidden) || false
+      is_hidden: booking.worker_booking_preferences?.some((pref: any) => pref.is_hidden) || false
     };
   });
 
@@ -175,8 +175,8 @@ async function getWorkerBookings(req: Request, supabase: any, user: any) {
     success: true,
     bookings: enrichedBookings,
     total_count: enrichedBookings.length,
-    hidden_count: (bookings || []).filter(b => 
-      b.worker_booking_preferences?.some(pref => pref.is_hidden)
+    hidden_count: (bookings || []).filter((b: any) => 
+      b.worker_booking_preferences?.some((pref: any) => pref.is_hidden)
     ).length
   }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -213,7 +213,7 @@ async function approveWorker(req: Request, supabase: any, userProfile: any) {
     .maybeSingle();
 
   const { data: authUsers } = await supabase.auth.admin.listUsers();
-  const existingAuthUser = authUsers.users.find(user => user.email === application.email);
+  const existingAuthUser = authUsers.users.find((user: any) => user.email === application.email);
 
   let workerId: string;
   let temporaryPassword: string | null = null;

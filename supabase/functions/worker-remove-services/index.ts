@@ -224,11 +224,12 @@ serve(async (req) => {
     );
 
   } catch (error) {
+    const errorMessage = error instanceof Error ? (error.message || "Failed to remove services") : "Failed to remove services";
     console.error("[WORKER-REMOVE] Error:", error);
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message || "Failed to remove services"
+        error: errorMessage
       }),
       { 
         headers: { ...corsHeaders, "Content-Type": "application/json" },

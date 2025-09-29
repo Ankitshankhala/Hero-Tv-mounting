@@ -43,10 +43,16 @@ serve(async (req) => {
         break;
         
       case 'backfill-service-area':
+        if (!serviceAreaId) {
+          throw new Error('Service area ID is required for backfill operation');
+        }
         result = await handleBackfillServiceArea(supabase, serviceAreaId);
         break;
         
       case 'draw-area-save':
+        if (!workerId) {
+          throw new Error('Worker ID is required for draw area save operation');
+        }
         result = await handleDrawAreaSave(supabase, data, workerId);
         break;
         
@@ -68,10 +74,11 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    logStep('Error in spatial operation', error.message);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logStep('Error in spatial operation', errorMessage);
     return new Response(
       JSON.stringify({ 
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: errorMessage,
         success: false 
       }),
       { 
@@ -126,7 +133,8 @@ async function handlePolygonToZipcodes(supabase: any, polygon: any) {
     };
 
   } catch (error) {
-    logStep('All ZIP computation methods failed', error.message);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logStep('All ZIP computation methods failed', errorMessage);
     throw error;
   }
 }
@@ -162,7 +170,8 @@ async function handleBackfillServiceArea(supabase: any, serviceAreaId: string) {
     };
 
   } catch (error) {
-    logStep('Enhanced backfill failed, trying manual method', error.message);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logStep('Enhanced backfill failed, trying manual method', errorMessage);
     
     // Fallback to manual method
     const { data: serviceArea, error: areaError } = await supabase
@@ -313,7 +322,8 @@ async function handleDrawAreaSave(supabase: any, data: any, workerId: string) {
     };
 
   } catch (error) {
-    logStep('Error in draw area save', error.message);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logStep('Error in draw area save', errorMessage);
     throw error;
   }
 }
@@ -421,10 +431,11 @@ async function handleHealthCheck(supabase: any) {
     };
     
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       success: false,
       checks,
-      errors: [...errors, error.message],
+      errors: [...errors, errorMessage],
       recommendations: ['Check database connectivity', 'Verify PostGIS installation']
     };
   }

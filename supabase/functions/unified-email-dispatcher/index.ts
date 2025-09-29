@@ -58,12 +58,13 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error(`[UNIFIED-EMAIL-DISPATCHER] Error in unified email dispatcher - ${JSON.stringify({ error: error.message })}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`[UNIFIED-EMAIL-DISPATCHER] Error in unified email dispatcher - ${JSON.stringify({ error: errorMessage })}`);
     
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message 
+        error: errorMessage 
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
