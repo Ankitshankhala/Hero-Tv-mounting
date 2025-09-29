@@ -22,6 +22,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Report edge functions count
+        run: |
+          echo "Counting edge functions in supabase/functions ..."
+          COUNT=$(ls -1 supabase/functions | wc -l || echo 0)
+          echo "Edge functions (local folders): $COUNT"
+          echo "Listing:"
+          ls -1 supabase/functions || true
+
       - name: Build app
         run: npm run build
 

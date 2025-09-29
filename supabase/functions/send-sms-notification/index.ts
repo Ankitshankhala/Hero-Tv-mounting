@@ -1,7 +1,7 @@
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
-import { Resend } from 'npm:resend@2.0.0';
+
 
 
 const corsHeaders = {
@@ -271,25 +271,12 @@ Reply Y to confirm or N if unavailable.`.trim();
           .maybeSingle();
 
         if (!recentAlert) {
-          const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
-          await resend.emails.send({
-            from: 'Hero TV Mounting <alerts@herotvmounting.com>',
-            to: ['Captain@herotvmounting.com'],
-            subject: 'ALERT: Worker SMS delivery failed',
-            html: `
-              <h2>Worker SMS Failed</h2>
-              <p><strong>Booking:</strong> ${bookingId}</p>
-              <p><strong>Worker:</strong> ${booking.worker?.name} (${booking.worker?.phone})</p>
-              <pre style="white-space:pre-wrap;background:#f5f5f5;padding:12px;border-radius:6px;">${JSON.stringify(twilioData, null, 2)}</pre>
-            `,
-          });
-
-          // Mark alert in logs to dedupe future alerts
+          // Record an admin alert log entry (no email dispatch to avoid npm:resend dependency)
           await supabaseClient.from('sms_logs').insert({
             booking_id: bookingId,
             recipient_number: 'admin_alert',
             recipient_name: 'System',
-            message: 'ALERT: Worker SMS delivery failed',
+            message: `ALERT: Worker SMS delivery failed - ${JSON.stringify(twilioData)}`,
             status: 'sent'
           });
         } else {
