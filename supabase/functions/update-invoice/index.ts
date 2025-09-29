@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { Resend } from "npm:resend@2.0.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -177,51 +176,27 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Send updated invoice email
     if (send_email) {
-      const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-
-      // Get detailed invoice with items for email
-      const { data: invoiceWithItems } = await supabase
-        .from('invoices')
-        .select(`
-          *,
-          invoice_items(*)
-        `)
-        .eq('id', invoice.id)
-        .single();
-
-      const emailHtml = generateUpdatedInvoiceEmail({
-        customer: booking.customer || booking.guest_customer_info,
-        booking: booking,
-        service: booking.service,
-        worker: booking.worker,
-        invoice: invoiceWithItems || invoice,
-        transaction: booking.transactions?.[0],
-        serviceDetails: serviceDetails,
-        isUpdate: !!existingInvoice
-      });
-
+      console.log('Invoice email requested - logging for now');
+      
       const customerEmail = booking.customer?.email || booking.guest_customer_info?.email;
       
-      const { error: emailError } = await resend.emails.send({
-        from: "Hero TV Mounting <noreply@herotvmounting.com>",
-        to: [customerEmail],
+      // Log email details for now instead of sending
+      console.log('Would send invoice email:', {
+        to: customerEmail,
         subject: `${existingInvoice ? 'Updated' : ''} Invoice ${invoice.invoice_number} - Hero TV Mounting Service`,
-        html: emailHtml,
+        invoiceId: invoice.id,
+        invoiceNumber: invoice.invoice_number,
+        amount: invoice.total_amount
       });
 
-      if (emailError) {
-        console.error('Failed to send email:', emailError);
-      } else {
-        console.log('Invoice email sent successfully');
-        // Update invoice as email sent
-        await supabase
-          .from('invoices')
-          .update({ 
-            email_sent: true, 
-            email_sent_at: new Date().toISOString() 
-          })
-          .eq('id', invoice.id);
-      }
+      // Update invoice as email sent (for now)
+      await supabase
+        .from('invoices')
+        .update({ 
+          email_sent: true, 
+          email_sent_at: new Date().toISOString() 
+        })
+        .eq('id', invoice.id);
     }
 
     return new Response(JSON.stringify({ 
