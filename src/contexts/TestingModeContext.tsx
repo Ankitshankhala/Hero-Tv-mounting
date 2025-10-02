@@ -94,12 +94,11 @@ export const getEffectiveMinimumAmount = (isTestingMode: boolean) => {
 
 export const getEffectiveServicePrice = (originalPrice: number, isTestingMode: boolean, lineIndex: number = 0) => {
   if (isTestingMode) {
-    // Reduced logging frequency - only log once per service type
-    const effectivePrice = lineIndex + 1;
+    // All services are $1 during testing mode
     if (Math.random() < 0.1) { // 10% chance to log
-      console.log(`Testing mode: true, Effective: $${effectivePrice}`);
+      console.log(`Testing mode: All services fixed at $1`);
     }
-    return effectivePrice;
+    return 1;
   }
   return originalPrice;
 };
