@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, XCircle, AlertCircle, CreditCard } from 'lucide-react';
-import { STRIPE_CONFIG, validateStripeConfig } from '@/lib/stripe-config';
+import { STRIPE_PUBLISHABLE_KEY, validateStripeConfig } from '@/lib/stripe';
 import { supabase } from '@/integrations/supabase/client';
 
 export const StripeConfigTest = () => {
@@ -26,7 +26,7 @@ export const StripeConfigTest = () => {
         name: 'Stripe Configuration',
         passed: configValidation.isValid,
         details: {
-          publishableKey: STRIPE_CONFIG.publishableKey ? 'Present' : 'Missing',
+          publishableKey: STRIPE_PUBLISHABLE_KEY ? 'Present' : 'Missing',
           keyType: configValidation.keyType,
           errors: configValidation.errors
         }
@@ -158,7 +158,7 @@ export const StripeConfigTest = () => {
       console.log('🔄 Testing Stripe.js loading...');
       try {
         const { loadStripe } = await import('@stripe/stripe-js');
-        const stripe = await loadStripe(STRIPE_CONFIG.publishableKey);
+        const stripe = await loadStripe(STRIPE_PUBLISHABLE_KEY);
         results.tests.stripeJs = {
           name: 'Stripe.js Loading',
           passed: !!stripe,

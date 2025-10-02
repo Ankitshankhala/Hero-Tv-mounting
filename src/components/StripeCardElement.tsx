@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { loadStripe, Stripe } from '@stripe/stripe-js';
-import { STRIPE_CONFIG, validateStripeConfig } from '@/lib/stripe-config';
+import { STRIPE_PUBLISHABLE_KEY, validateStripeConfig } from '@/lib/stripe';
 
 interface StripeCardElementProps {
   onReady: (stripe: any, elements: any, cardElement: any) => void;
@@ -65,7 +65,7 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
       initializationRef.current = true;
       setLoadingMessage('Loading payment system...');
 
-      const stripe: Stripe | null = await loadStripe(STRIPE_CONFIG.publishableKey);
+      const stripe: Stripe | null = await loadStripe(STRIPE_PUBLISHABLE_KEY);
 
       if (!stripe || !mountedRef.current) {
         throw new Error('Failed to load Stripe.js');
