@@ -44,8 +44,8 @@ export const mapStripeStatus = (stripeStatus: string, context: 'payment_intent' 
       return {
         internal_status: 'captured',
         payment_status: 'captured',
-        booking_status: 'confirmed',
-        user_message: 'Payment captured successfully - booking confirmed',
+        booking_status: 'completed',
+        user_message: 'Payment completed successfully',
         action_required: false
       };
 
