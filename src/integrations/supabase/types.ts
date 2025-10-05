@@ -1750,8 +1750,13 @@ export type Database = {
           p_zipcode: string
         }
         Returns: {
-          distance_priority: number
+          distance_miles: number
+          has_conflict: boolean
+          is_available: boolean
+          worker_email: string
           worker_id: string
+          worker_name: string
+          worker_phone: string
         }[]
       }
       find_available_workers_polygon: {

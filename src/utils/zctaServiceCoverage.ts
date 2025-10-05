@@ -200,6 +200,11 @@ export const findZctaAvailableWorkers = async (
     });
     
     if (dbError) {
+      // Handle enum validation errors gracefully - return empty array instead of throwing
+      if (dbError.message?.includes('invalid input value for enum day_of_week')) {
+        console.error('Database configuration error - day_of_week enum mismatch. Migration may be pending.');
+        return [];
+      }
       throw new Error(`Database search failed: ${dbError.message}`);
     }
     
