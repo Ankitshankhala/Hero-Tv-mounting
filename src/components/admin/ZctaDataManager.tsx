@@ -44,8 +44,51 @@ export const ZctaDataManager = () => {
         });
       }, 2000);
 
-      // Call the import-zcta-data edge function
-      const { data, error } = await supabase.functions.invoke('import-zcta-data');
+      // Auto-retry the import edge function to work around timeouts/transient network errors
+      const maxAttempts = 5;
+      let attempt = 0;
+      let lastData: any = null;
+      let lastError: any = null;
+
+      while (attempt < maxAttempts) {
+        attempt++;
+        try {
+          const { data, error } = await supabase.functions.invoke('import-zcta-data');
+
+          lastData = data;
+          lastError = error;
+
+          // If no error and data indicates remaining > 0, keep looping
+          if (!error && data?.success) {
+            const newlyImported = data.imported || 0;
+            const remaining = data.remainingEstimated ?? null;
+
+            // If we still have remaining and imported something, try another pass
+            if ((remaining === null || remaining > 0) && newlyImported > 0) {
+              toast.info(`Pass ${attempt}: Imported ${newlyImported.toLocaleString()} records... continuing`);
+              continue;
+            }
+          }
+
+          // If error is timeout-like or fetch error, attempt again
+          if (error && (error.message?.includes('timeout') || error.message?.includes('FunctionsRelayError') || error.message?.includes('FunctionsFetchError') || error.message?.includes('Failed to fetch'))) {
+            toast.warning(`Import pass ${attempt} had a transient error. Retrying...`);
+            continue;
+          }
+
+          // Otherwise break after this attempt
+          break;
+        } catch (invokeErr: any) {
+          lastError = invokeErr;
+          const msg = String(invokeErr?.message || invokeErr);
+          if (msg.includes('timeout') || msg.includes('FunctionsRelayError') || msg.includes('FunctionsFetchError') || msg.includes('Failed to fetch')) {
+            toast.warning(`Import pass ${attempt} had a transient error. Retrying...`);
+            continue;
+          }
+          // Non-transient error
+          break;
+        }
+      }
 
       clearInterval(pollInterval);
 
@@ -60,35 +103,41 @@ export const ZctaDataManager = () => {
         totalRecords: 33791
       });
 
-      if (error) {
-        // Edge function timed out but may have inserted partial data
-        if (error.message?.includes('timeout') || error.message?.includes('FunctionsRelayError')) {
-          const percentComplete = Math.round(((finalCount || 0) / 33791) * 100);
-          toast.warning(`Import timed out after inserting ${(finalCount || 0).toLocaleString()} records (${percentComplete}%). Click "Populate ZCTA Data" again to continue.`);
-          setStatus('idle');
-        } else {
-          throw error;
-        }
-      } else if (data?.success) {
-        const newlyImported = data.imported || 0;
-        const skipped = data.skippedExisting || 0;
-        const remaining = data.remainingEstimated || 0;
-        
-        if (remaining === 0 || finalCount >= 33000) {
+      // Interpret the last result
+      if (lastError && !(lastError.message?.includes('timeout') || lastError.message?.includes('FunctionsRelayError') || lastError.message?.includes('FunctionsFetchError') || lastError.message?.includes('Failed to fetch'))) {
+        setStatus('error');
+        toast.error(`Import failed: ${lastError.message || 'Unknown error'}`);
+      } else if (lastData?.success) {
+        const newlyImported = lastData.imported || 0;
+        const skipped = lastData.skippedExisting || 0;
+        const remaining = lastData.remainingEstimated ?? (33791 - (finalCount || 0));
+
+        if (remaining <= 0 || (finalCount || 0) >= 33000) {
           setStatus('success');
-          toast.success(`ZCTA import complete! ${finalCount.toLocaleString()} total records in database.`);
+          toast.success(`ZCTA import complete! ${Number(finalCount || 0).toLocaleString()} total records in database.`);
         } else if (newlyImported === 0 && skipped > 0) {
           setStatus('idle');
-          toast.info(`All records already imported. ${finalCount.toLocaleString()} total ZCTAs in database.`);
+          toast.info(`All records already imported. ${Number(finalCount || 0).toLocaleString()} total ZCTAs in database.`);
         } else {
           setStatus('idle');
-          toast.info(`Imported ${newlyImported.toLocaleString()} new ZCTAs (skipped ${skipped.toLocaleString()} existing). ${remaining.toLocaleString()} remaining. Click again to continue.`);
+          toast.info(`Imported ${Number(newlyImported).toLocaleString()} new ZCTAs (skipped ${Number(skipped).toLocaleString()} existing). ~${Number(remaining).toLocaleString()} remaining. Click again to continue.`);
         }
+      } else {
+        // Transient error case: likely partial progress occurred
+        const percentComplete = Math.round(((finalCount || 0) / 33791) * 100);
+        setStatus('idle');
+        toast.warning(`Import session ended. ${Number(finalCount || 0).toLocaleString()} records total (${percentComplete}%). Click "Populate ZCTA Data" again to continue.`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to populate ZCTA data:', error);
-      setStatus('error');
-      toast.error(`Failed to populate ZCTA data: ${error.message}`);
+      const msg = String(error?.message || error);
+      if (msg.includes('timeout') || msg.includes('FunctionsRelayError') || msg.includes('FunctionsFetchError') || msg.includes('Failed to fetch')) {
+        setStatus('idle');
+        toast.warning('Import session ended due to a transient error. Click "Populate ZCTA Data" again to continue.');
+      } else {
+        setStatus('error');
+        toast.error(`Failed to populate ZCTA data: ${msg}`);
+      }
     } finally {
       setIsPopulating(false);
     }
