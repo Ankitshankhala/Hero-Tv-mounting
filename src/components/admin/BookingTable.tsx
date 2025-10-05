@@ -4,6 +4,7 @@ import { Edit, Trash2, Eye, UserPlus, Calendar, DollarSign, CreditCard, Send, X,
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatBookingTimeForContext, US_TIMEZONES, DEFAULT_SERVICE_TIMEZONE } from '@/utils/timeUtils';
 import { BookingEmailStatus } from './BookingEmailStatus';
 import { archiveBooking } from '@/utils/serviceHelpers';
@@ -210,21 +211,21 @@ export const BookingTable = ({
 
       <div className="rounded-md border">
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="border-b bg-muted/50">
-              <tr>
-                <th className="text-left p-3 font-medium">Booking ID</th>
-                <th className="text-left p-3 font-medium">Customer</th>
-                <th className="text-left p-3 font-medium">Services</th>
-                <th className="text-left p-3 font-medium">Worker</th>
-                <th className="text-left p-3 font-medium">Date & Time</th>
-                <th className="text-left p-3 font-medium">Amount</th>
-                <th className="text-left p-3 font-medium">Status</th>
-                <th className="text-left p-3 font-medium">Payment</th>
-                <th className="text-right p-3 font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Booking ID</TableHead>
+                <TableHead>Customer</TableHead>
+                <TableHead>Services</TableHead>
+                <TableHead>Worker</TableHead>
+                <TableHead>Date & Time</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Payment</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {bookings.map((booking) => {
                 const services = formatServices(booking);
                 const formattedDateTime = formatBookingTimeForContext(
@@ -236,9 +237,9 @@ export const BookingTable = ({
                 const isExpanded = expandedRows.has(booking.id);
                 
                 return (
-                  <div key={booking.id}>
-                    <tr className="border-b hover:bg-muted/25">
-                      <td className="p-3">
+                  <>
+                    <TableRow key={booking.id}>
+                      <TableCell>
                         <div className="flex items-center gap-2">
                           <Button
                             variant="ghost"
@@ -252,8 +253,8 @@ export const BookingTable = ({
                             {booking.id.slice(0, 8)}
                           </div>
                         </div>
-                      </td>
-                     <td className="p-3">
+                      </TableCell>
+                     <TableCell>
                        <div className="space-y-1">
                          <div className="font-medium">
                            {getCustomerName(booking)}
@@ -265,8 +266,8 @@ export const BookingTable = ({
                            {getCustomerPhone(booking)}
                          </div>
                        </div>
-                     </td>
-                     <td className="p-3">
+                     </TableCell>
+                     <TableCell>
                        <div className="space-y-1">
                          {services.length > 0 ? renderServiceLines(services) : (
                            <div className="text-sm text-muted-foreground">
@@ -274,8 +275,8 @@ export const BookingTable = ({
                            </div>
                          )}
                        </div>
-                     </td>
-                     <td className="p-3">
+                     </TableCell>
+                     <TableCell>
                        {booking.worker ? (
                          <div className="space-y-1">
                            <div className="font-medium">{booking.worker.name}</div>
@@ -314,29 +315,29 @@ export const BookingTable = ({
                             </Button>
                           </div>
                         )}
-                     </td>
-                    <td className="p-3">
+                     </TableCell>
+                    <TableCell>
                       <div className="space-y-1">
                         <div className="font-medium">{formattedDateTime}</div>
                         <div className="text-xs text-muted-foreground">
                           Created: {format(new Date(booking.created_at), 'MMM dd, yyyy')}
                         </div>
                       </div>
-                    </td>
-                     <td className="p-3">
+                    </TableCell>
+                     <TableCell>
                        <div className="font-medium">
                          ${Number(booking.stripe_authorized_amount || booking.total_price || 0).toFixed(2)}
                          {enriching && !booking.stripe_authorized_amount && (
                            <div className="text-xs text-muted-foreground">Updating...</div>
                          )}
                        </div>
-                     </td>
-                    <td className="p-3">
+                     </TableCell>
+                    <TableCell>
                       <Badge variant={getStatusVariant(booking.status)}>
                         {booking.status}
                       </Badge>
-                    </td>
-                    <td className="p-3">
+                    </TableCell>
+                    <TableCell>
                       <div className="space-y-1">
                         <Badge variant={getPaymentStatusVariant(booking.payment_status || booking.stripe_payment_status)}>
                           {booking.payment_status || booking.stripe_payment_status || 'unknown'}
@@ -347,8 +348,8 @@ export const BookingTable = ({
                           </div>
                         )}
                       </div>
-                    </td>
-                    <td className="p-3">
+                    </TableCell>
+                    <TableCell>
                       <div className="flex gap-1 justify-end">
                         {showPendingPaymentActions ? (
                           <>
@@ -412,26 +413,26 @@ export const BookingTable = ({
                           </>
                         )}
                       </div>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                   
                   {/* Expanded row for email status */}
                   {isExpanded && (
-                    <tr className="border-b bg-muted/10">
-                      <td colSpan={9} className="p-4">
+                    <TableRow className="border-b bg-muted/10">
+                      <TableCell colSpan={9} className="p-4">
                         <BookingEmailStatus 
                           bookingId={booking.id} 
                           workerId={booking.worker_id || undefined}
                           compact={false}
                         />
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   )}
-                </div>
+                </>
                 );
               })}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </div>
     </div>
