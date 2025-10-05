@@ -45,13 +45,22 @@ serve(async (req) => {
 
     // Prepare batches
     for (const feature of geoJson.features) {
-      const zcta = feature.properties?.ZCTA5CE20 || feature.properties?.ZCTA5CE10;
+      // Check multiple possible ZCTA property names
+      let zcta = feature.properties?.ZCTA5CE20 
+               || feature.properties?.ZCTA5CE10 
+               || feature.properties?.ZCTA5CE
+               || feature.properties?.GEOID20
+               || feature.properties?.GEOID10
+               || feature.properties?.GEOID;
       
       if (!zcta || !feature.geometry) {
         console.warn('[ZCTA Import] Skipping invalid feature:', feature.properties);
         errors++;
         continue;
       }
+
+      // Normalize ZCTA to 5-digit string
+      zcta = String(zcta).trim().padStart(5, '0').substring(0, 5);
 
       batches.push({
         zcta5ce: zcta,
