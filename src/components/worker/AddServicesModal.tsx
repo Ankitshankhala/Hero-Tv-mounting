@@ -189,16 +189,55 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
         return;
       }
 
-      // Increment was successful!
-      if (data.incremented) {
+      // Step 3: Mark job as completed
+      const { error: updateError } = await supabase
+        .from('bookings')
+        .update({ status: 'completed' })
+        .eq('id', job.id);
+
+      if (updateError) {
+        console.error('Error marking job complete:', updateError);
         toast({
-          title: "Services Added & Payment Updated",
-          description: `Added ${cart.length} service(s). Authorization increased to $${data.new_amount.toFixed(2)}. Customer notified.`,
+          title: "Services Added",
+          description: "Services added but failed to mark job complete. Please use 'Mark Complete' button.",
+          variant: "destructive",
+        });
+        setCart([]);
+        onClose();
+        onServicesAdded?.();
+        return;
+      }
+
+      // Step 4: Capture the full payment amount
+      if (job.payment_intent_id) {
+        const { data: captureData, error: captureError } = await supabase.functions.invoke('capture-payment-intent', {
+          body: { 
+            payment_intent_id: job.payment_intent_id,
+            booking_id: job.id 
+          }
+        });
+
+        if (captureError || !captureData?.success) {
+          toast({
+            title: "Services Added & Job Completed",
+            description: "Payment capture failed. Use the Charge button to retry.",
+            variant: "destructive",
+          });
+          setCart([]);
+          onClose();
+          onServicesAdded?.();
+          return;
+        }
+
+        // Complete success!
+        toast({
+          title: "Job Completed & Payment Captured",
+          description: `Added ${cart.length} service(s) and charged full amount of $${data.new_amount.toFixed(2)}`,
         });
       } else {
         toast({
-          title: "Services Added Successfully",
-          description: `Added ${cart.length} service(s) to booking`,
+          title: "Job Completed",
+          description: `Added ${cart.length} service(s) and marked job complete`,
         });
       }
 
@@ -404,7 +443,7 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
                     className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold py-3"
                   >
                     <CreditCard className="h-5 w-5 mr-2" />
-                    {processing ? 'Processing...' : `Add Services & Charge Customer $${getTotalPrice().toFixed(2)}`}
+                    {processing ? 'Processing...' : `Complete Job & Charge Full Amount $${getTotalPrice().toFixed(2)}`}
                   </Button>
                 </CardContent>
               </Card>
