@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Trash2, Phone, MapPin, CreditCard, DollarSign, Plus, Users, Clock, Archive } from 'lucide-react';
+import { Trash2, Phone, MapPin, CreditCard, DollarSign, Plus, Users, Clock, Archive, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PaymentCaptureButton } from './PaymentCaptureButton';
@@ -9,6 +9,7 @@ import { ReassignJobModal } from './ReassignJobModal';
 import { RescheduleJobModal } from './RescheduleJobModal';
 import { archiveBooking } from '@/utils/serviceHelpers';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 interface JobActionsProps {
   job: any;
   onStatusUpdate: (jobId: string, newStatus: string) => void;
@@ -46,17 +47,48 @@ const JobActions = ({
   const canAddCharges = (job.status === 'in_progress' || job.status === 'confirmed') && 
     job.payment_status !== 'captured' && 
     job.payment_status !== 'completed';
-  const canCapturePayment = (
+  
+  // Show "Charge" button only when job is completed AND payment is authorized
+  const canCapturePayment = job.status === 'completed' && (
     job.payment_status === 'authorized' || 
     job.status === 'payment_authorized' ||
     job.payment_status === 'capture_failed'
-  ) && job.status !== 'completed';
+  );
+  
+  // Show "Mark Complete" button when job is in progress/confirmed AND payment is authorized
+  const canMarkComplete = (job.status === 'in_progress' || job.status === 'confirmed' || job.status === 'payment_authorized') && 
+    job.payment_status === 'authorized';
+  
   const canCollectPayment = job.payment_status === 'failed' || job.payment_status === 'cancelled';
   const canAddServices = job.status === 'confirmed' || job.status === 'in_progress' || job.status === 'payment_authorized';
   const canModifyServices = job.status === 'confirmed' || job.status === 'in_progress' || job.status === 'payment_authorized';
   const isPaymentPaid = job.payment_status === 'captured' || job.payment_status === 'completed';
   const canReassignOrReschedule = job.status !== 'completed' && job.status !== 'cancelled';
   const canArchive = job.status === 'completed' && (job.payment_status === 'captured' || job.payment_status === 'completed');
+
+  const handleMarkComplete = async () => {
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .update({ status: 'completed' })
+        .eq('id', job.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Job Marked Complete",
+        description: "The job has been marked as completed. You can now capture the payment.",
+      });
+      onJobUpdated?.();
+    } catch (error) {
+      console.error('Error marking job complete:', error);
+      toast({
+        title: "Error",
+        description: "Failed to mark the job as complete. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleArchiveJob = async () => {
     try {
@@ -120,7 +152,20 @@ const JobActions = ({
         
         <MapAppSelector address={getCustomerAddress()} />
         
+        {/* Mark Complete button - shows before payment can be captured */}
+        {canMarkComplete && (
+          <Button 
+            size="sm" 
+            variant="default"
+            onClick={handleMarkComplete}
+            className="job-button bg-green-600 hover:bg-green-700 text-white transition-all duration-200"
+          >
+            <CheckCircle className="h-4 w-4 mr-2" />
+            Mark Complete
+          </Button>
+        )}
         
+        {/* Charge button - only shows after job is completed */}
         {canCapturePayment && <PaymentCaptureButton bookingId={job.id} paymentStatus={job.payment_status} bookingStatus={job.status} onCaptureSuccess={onCaptureSuccess} />}
         
         {canCollectPayment && (
