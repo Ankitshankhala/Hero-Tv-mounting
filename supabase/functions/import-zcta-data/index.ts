@@ -20,18 +20,11 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    // Read the GeoJSON file from the public directory
-    const geojsonUrl = `${Deno.env.get('SUPABASE_URL')?.replace('https://', 'https://')}/zcta2020_web.geojson`;
-    console.log('[ZCTA Import] Fetching GeoJSON from:', geojsonUrl);
+    // Read the GeoJSON file from Supabase Storage
+    const storageUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/zcta-data/zcta2020_web.geojson`;
+    console.log('[ZCTA Import] Fetching GeoJSON from Supabase Storage:', storageUrl);
     
-    // Try to fetch from public directory first, fallback to storage bucket
-    let geoJsonResponse;
-    try {
-      geoJsonResponse = await fetch(`${new URL(req.url).origin}/zcta2020_web.geojson`);
-    } catch (e) {
-      console.log('[ZCTA Import] Failed to fetch from public, trying storage bucket');
-      geoJsonResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/zcta2020_web.geojson`);
-    }
+    const geoJsonResponse = await fetch(storageUrl);
 
     if (!geoJsonResponse.ok) {
       throw new Error(`Failed to fetch GeoJSON: ${geoJsonResponse.statusText}`);
