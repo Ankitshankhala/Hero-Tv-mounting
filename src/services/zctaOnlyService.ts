@@ -144,34 +144,65 @@ export class ZctaOnlyService {
     durationMinutes: number = 60
   ): Promise<WorkerAreaAssignment[]> {
     try {
-      // Use direct database query for finding workers
-      const { data, error } = await supabase
+      // Step 1: Get worker and service area IDs for the zipcode
+      const { data: zipcodeData, error: zipcodeError } = await supabase
         .from('worker_service_zipcodes')
-        .select(`
-          worker_id,
-          worker:users!inner(name, email, phone),
-          service_area:worker_service_areas!inner(id, area_name)
-        `)
-        .eq('zipcode', zctaCode)
-        .eq('worker.is_active', true)
-        .eq('service_area.is_active', true);
+        .select('worker_id, service_area_id')
+        .eq('zipcode', zctaCode);
 
-      if (error) {
-        console.error('Find workers error:', error);
-        throw error;
+      if (zipcodeError) {
+        console.error('Find zipcode data error:', zipcodeError);
+        throw zipcodeError;
       }
 
-      return (data || []).map((item: any) => ({
-        worker_id: item.worker_id,
-        worker_name: item.worker?.name || '',
-        worker_email: item.worker?.email || '',
-        worker_phone: item.worker?.phone || '',
-        area_id: item.service_area?.id || '',
-        area_name: item.service_area?.area_name || '',
-        zcta_code: zctaCode,
-        distance_priority: 1,
-        data_source: 'direct_match'
-      }));
+      if (!zipcodeData || zipcodeData.length === 0) {
+        return [];
+      }
+
+      // Step 2: Get worker details
+      const workerIds = [...new Set(zipcodeData.map(z => z.worker_id))];
+      const { data: workers, error: workerError } = await supabase
+        .from('users')
+        .select('id, name, email, phone')
+        .in('id', workerIds)
+        .eq('is_active', true)
+        .eq('role', 'worker');
+
+      if (workerError) {
+        console.error('Find workers error:', workerError);
+        throw workerError;
+      }
+
+      // Step 3: Get service area details
+      const areaIds = [...new Set(zipcodeData.map(z => z.service_area_id).filter(Boolean))];
+      const { data: areas, error: areaError } = await supabase
+        .from('worker_service_areas')
+        .select('id, area_name')
+        .in('id', areaIds)
+        .eq('is_active', true);
+
+      if (areaError) {
+        console.error('Find areas error:', areaError);
+        throw areaError;
+      }
+
+      // Step 4: Combine the data
+      return zipcodeData.map(zData => {
+        const worker = workers?.find(w => w.id === zData.worker_id);
+        const area = areas?.find(a => a.id === zData.service_area_id);
+
+        return {
+          worker_id: zData.worker_id,
+          worker_name: worker?.name || '',
+          worker_email: worker?.email || '',
+          worker_phone: worker?.phone || '',
+          area_id: area?.id || '',
+          area_name: area?.area_name || '',
+          zcta_code: zctaCode,
+          distance_priority: 1,
+          data_source: 'direct_match'
+        };
+      }).filter(w => w.worker_name); // Filter out any without worker data
     } catch (error) {
       console.error('Error finding available workers:', error);
       return [];
