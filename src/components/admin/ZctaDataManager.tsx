@@ -108,8 +108,10 @@ export const ZctaDataManager = () => {
         setStatus('error');
         toast.error(`Import failed: ${lastError.message || 'Unknown error'}`);
       } else if (lastData?.success) {
-        const newlyImported = lastData.imported || 0;
-        const skipped = lastData.skippedExisting || 0;
+        const newlyImported = Number(lastData.imported || 0);
+        const skipped = Number(lastData.skippedExisting || 0);
+        const invalid = Number(lastData.invalid || 0);
+        const hardErrors = Number(lastData.hardErrors ?? lastData.errors ?? 0);
         const remaining = lastData.remainingEstimated ?? (33791 - (finalCount || 0));
 
         if (remaining <= 0 || (finalCount || 0) >= 33000) {
@@ -120,7 +122,7 @@ export const ZctaDataManager = () => {
           toast.info(`All records already imported. ${Number(finalCount || 0).toLocaleString()} total ZCTAs in database.`);
         } else {
           setStatus('idle');
-          toast.info(`Imported ${Number(newlyImported).toLocaleString()} new ZCTAs (skipped ${Number(skipped).toLocaleString()} existing). ~${Number(remaining).toLocaleString()} remaining. Click again to continue.`);
+          toast.info(`Imported ${newlyImported.toLocaleString()} new • skipped ${skipped.toLocaleString()} • invalid ${invalid.toLocaleString()} • errors ${hardErrors.toLocaleString()}. ~${Number(remaining).toLocaleString()} remaining. Click again to continue.`);
         }
       } else {
         // Transient error case: likely partial progress occurred

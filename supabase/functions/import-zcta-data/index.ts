@@ -69,11 +69,39 @@ serve(async (req) => {
 
     let imported = 0;
     let skippedExisting = 0;
-    let errors = 0;
-    const BATCH_SIZE = 50;
-    const batches: any[] = [];
+    let invalid = 0;
+    let hardErrors = 0;
+    const WINDOW_SIZE = 20;
+    const pending: any[] = [];
 
-    // Prepare batches
+    // Helper: recursively insert a batch, splitting on errors to isolate bad records
+    const insertBatch = async (items: any[]): Promise<{ imported: number; hardErrors: number }> => {
+      if (items.length === 0) return { imported: 0, hardErrors: 0 };
+
+      try {
+        const { data, error } = await supabase.rpc('insert_zcta_batch', { batch_data: items });
+        if (error) {
+          throw error;
+        }
+        const inserted = typeof data === 'number' ? data : items.length;
+        return { imported: inserted, hardErrors: 0 };
+      } catch (err) {
+        // If batch failed, split and try smaller batches
+        if (items.length > 1) {
+          const mid = Math.floor(items.length / 2);
+          const left = await insertBatch(items.slice(0, mid));
+          const right = await insertBatch(items.slice(mid));
+          return { imported: left.imported + right.imported, hardErrors: left.hardErrors + right.hardErrors };
+        } else {
+          // Single item failing - log and skip
+          const bad = items[0];
+          console.error('[ZCTA Import] Hard failure for ZCTA:', bad?.zcta5ce, err);
+          return { imported: 0, hardErrors: 1 };
+        }
+      }
+    };
+
+    // Prepare pending inserts
     for (const feature of geoJson.features) {
       // Check multiple possible ZCTA property names
       let zcta = feature.properties?.ZCTA5CE20 
@@ -85,7 +113,7 @@ serve(async (req) => {
       
       if (!zcta || !feature.geometry) {
         console.warn('[ZCTA Import] Skipping invalid feature:', feature.properties);
-        errors++;
+        invalid++;
         continue;
       }
 
@@ -98,53 +126,23 @@ serve(async (req) => {
         continue;
       }
 
-      batches.push({
+      pending.push({
         zcta5ce: zcta,
         geom: JSON.stringify(feature.geometry),
         land_area: feature.properties?.ALAND20 || feature.properties?.ALAND10 || null,
         water_area: feature.properties?.AWATER20 || feature.properties?.AWATER10 || null
       });
-
-      // Process batch when it reaches BATCH_SIZE
-      if (batches.length >= BATCH_SIZE) {
-        try {
-          const { data, error } = await supabase.rpc('insert_zcta_batch', { 
-            batch_data: batches 
-          });
-          
-          if (error) {
-            console.error('[ZCTA Import] Batch insert error:', error);
-            errors += batches.length;
-          } else {
-            imported += batches.length;
-            console.log(`[ZCTA Import] Progress: Imported ${imported}, Skipped ${skippedExisting}, Errors ${errors} (Total processed: ${imported + skippedExisting + errors}/${totalFeatures})`);
-          }
-        } catch (batchError) {
-          console.error('[ZCTA Import] Batch processing error:', batchError);
-          errors += batches.length;
-        }
-        
-        batches.length = 0; // Clear batch
-      }
     }
 
-    // Import remaining records
-    if (batches.length > 0) {
-      try {
-        const { error } = await supabase.rpc('insert_zcta_batch', { 
-          batch_data: batches 
-        });
-        
-        if (error) {
-          console.error('[ZCTA Import] Final batch error:', error);
-          errors += batches.length;
-        } else {
-          imported += batches.length;
-        }
-      } catch (finalError) {
-        console.error('[ZCTA Import] Final batch processing error:', finalError);
-        errors += batches.length;
-      }
+    // Insert in windows with fault tolerance
+    for (let i = 0; i < pending.length; i += WINDOW_SIZE) {
+      const windowItems = pending.slice(i, i + WINDOW_SIZE);
+      const result = await insertBatch(windowItems);
+      imported += result.imported;
+      hardErrors += result.hardErrors;
+
+      const processed = imported + skippedExisting + invalid + hardErrors;
+      console.log(`[ZCTA Import] Progress: Imported ${imported}, Skipped ${skippedExisting}, Invalid ${invalid}, HardErrors ${hardErrors} (Total processed: ${processed}/${totalFeatures})`);
     }
 
     // Verify import count
@@ -154,17 +152,19 @@ serve(async (req) => {
 
     const remainingEstimated = totalFeatures - (count || 0);
 
-    console.log(`[ZCTA Import] Import complete. Skipped existing: ${skippedExisting}, Imported: ${imported}, Errors: ${errors}, DB Count: ${count}, Remaining: ${remainingEstimated}`);
+    console.log(`[ZCTA Import] Import complete. Skipped existing: ${skippedExisting}, Imported: ${imported}, Invalid: ${invalid}, HardErrors: ${hardErrors}, DB Count: ${count}, Remaining: ${remainingEstimated}`);
 
     return new Response(JSON.stringify({ 
       success: true, 
       imported,
       skippedExisting,
-      errors,
-      totalProcessed: imported + skippedExisting + errors,
+      invalid,
+      hardErrors,
+      errors: hardErrors,
+      totalProcessed: imported + skippedExisting + invalid + hardErrors,
       databaseCount: count,
       remainingEstimated,
-      message: `Successfully imported ${imported} new ZCTAs (${skippedExisting} already existed, ${errors} errors)`
+      message: `Imported ${imported} new • skipped ${skippedExisting} • invalid ${invalid} • errors ${hardErrors}`
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
