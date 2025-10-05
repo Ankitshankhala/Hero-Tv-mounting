@@ -17,20 +17,24 @@ export const ZctaDataManager = () => {
   } | null>(null);
 
   const populateZctaData = async () => {
+    if (!confirm('This will import ~33,000 ZCTA polygon boundaries from zcta2020_web.geojson. This process may take 5-15 minutes. Continue?')) {
+      return;
+    }
+
     setIsPopulating(true);
     setStatus('populating');
     setProgress(0);
 
     try {
-      toast.info('Starting ZCTA data population...');
+      toast.info('Starting ZCTA polygon import (this may take 5-15 minutes)...');
       
       // Simulate progress during the operation
       const progressInterval = setInterval(() => {
         setProgress(prev => Math.min(prev + 10, 90));
       }, 500);
 
-      // Call the populate function
-      const { data, error } = await supabase.functions.invoke('populate-zcta-data');
+      // Call the import-zcta-data edge function
+      const { data, error } = await supabase.functions.invoke('import-zcta-data');
 
       clearInterval(progressInterval);
       setProgress(100);
@@ -42,10 +46,10 @@ export const ZctaDataManager = () => {
       if (data.success) {
         setStatus('success');
         setStats({
-          recordsInserted: data.recordsInserted,
-          totalRecords: data.totalRecords
+          recordsInserted: data.imported || data.databaseCount || 0,
+          totalRecords: data.totalProcessed || 0
         });
-        toast.success(`ZCTA data populated successfully! ${data.recordsInserted} records processed.`);
+        toast.success(`ZCTA data imported successfully! ${data.imported} of ${data.totalProcessed} records imported${data.errors ? ` (${data.errors} errors)` : ''}`);
       } else {
         throw new Error(data.error || 'Unknown error occurred');
       }
@@ -60,27 +64,22 @@ export const ZctaDataManager = () => {
 
   const checkZctaDataStatus = async () => {
     try {
-      // Check us_zcta_polygons table (consolidated source)
+      // Check us_zcta_polygons table (the one we actually query for spatial intersections)
       const { count: polygonCount } = await supabase
         .from('us_zcta_polygons')
         .select('*', { count: 'exact', head: true });
 
-      // Check us_zip_codes table 
-      const { count: zipCodeCount } = await supabase
-        .from('us_zip_codes')
-        .select('*', { count: 'exact', head: true });
-
       setStats({
         recordsInserted: polygonCount || 0,
-        totalRecords: zipCodeCount || 0
+        totalRecords: 33144 // Expected total ZCTA codes in US
       });
 
       if ((polygonCount || 0) === 0) {
         setStatus('error');
-      } else if ((polygonCount || 0) > 0) {
-        setStatus('success');
+      } else if ((polygonCount || 0) < 30000) {
+        setStatus('idle'); // Partial data
       } else {
-        setStatus('idle');
+        setStatus('success'); // Full dataset
       }
     } catch (error) {
       console.error('Failed to check ZCTA data status:', error);
@@ -97,10 +96,10 @@ export const ZctaDataManager = () => {
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
           <Database className="h-5 w-5" />
-          Enhanced ZCTA Database System
+          ZCTA Polygon Data Import
         </CardTitle>
         <CardDescription>
-          Populate and manage the enhanced ZCTA ZIP code lookup database for improved performance
+          Import US Census Bureau ZCTA (ZIP Code Tabulation Area) boundary polygons for spatial queries
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -135,7 +134,7 @@ export const ZctaDataManager = () => {
           
           {stats && (
             <div className="text-sm text-muted-foreground">
-              {stats.recordsInserted.toLocaleString()} ZCTA polygons | {stats.totalRecords.toLocaleString()} ZIP codes
+              {stats.recordsInserted.toLocaleString()} / {stats.totalRecords.toLocaleString()} ZCTA polygons imported
             </div>
           )}
         </div>
@@ -144,7 +143,7 @@ export const ZctaDataManager = () => {
           <div className="space-y-2">
             <Progress value={progress} className="w-full" />
             <p className="text-sm text-muted-foreground">
-              Populating ZCTA database... {progress}%
+              Importing ZCTA polygons... {progress}% (this may take 5-15 minutes)
             </p>
           </div>
         )}
@@ -182,24 +181,24 @@ export const ZctaDataManager = () => {
 
         {status === 'error' && stats?.recordsInserted === 0 && (
           <div className="text-xs text-muted-foreground bg-red-50 dark:bg-red-950/10 p-3 rounded-lg border border-red-200 dark:border-red-800">
-            <p className="font-medium mb-1 text-red-700 dark:text-red-300">No Source Data Available:</p>
+            <p className="font-medium mb-1 text-red-700 dark:text-red-300">No ZCTA Polygons Found:</p>
             <ul className="space-y-1">
               <li>• The `us_zcta_polygons` table is empty</li>
-              <li>• ZCTA polygon data must be imported first</li>
-              <li>• Use the ZIP Data Manager to load ZCTA polygons</li>
-              <li>• Then return here to populate the ZCTA lookup table</li>
+              <li>• Click "Populate ZCTA Data" to import ~33,000 ZCTA boundaries</li>
+              <li>• Import will take 5-15 minutes to complete</li>
+              <li>• Required for polygon-based worker assignment</li>
             </ul>
           </div>
         )}
 
         {status !== 'error' && (
           <div className="text-xs text-muted-foreground bg-blue-50 dark:bg-blue-950/10 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
-            <p className="font-medium mb-1">About Enhanced ZCTA System:</p>
+            <p className="font-medium mb-1">About ZCTA Polygon Import:</p>
             <ul className="space-y-1">
-              <li>• Pre-processes all ZCTA polygon data into optimized lookup table</li>
-              <li>• Enables fast spatial queries using PostGIS indexing</li>
-              <li>• Eliminates client-side processing for better performance</li>
-              <li>• Supports reliable worker assignment based on ZIP coverage</li>
+              <li>• Imports official US Census Bureau ZCTA boundary polygons</li>
+              <li>• Enables spatial intersection queries for worker service areas</li>
+              <li>• Uses PostGIS spatial indexing for fast performance</li>
+              <li>• Required for accurate ZIP code coverage detection</li>
             </ul>
           </div>
         )}
