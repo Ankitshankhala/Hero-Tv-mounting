@@ -70,16 +70,19 @@ export const ZctaDataManager = () => {
           throw error;
         }
       } else if (data?.success) {
-        const recordsInserted = data.imported || data.databaseCount || finalCount || 0;
-        const totalProcessed = data.totalProcessed || 33791;
+        const newlyImported = data.imported || 0;
+        const skipped = data.skippedExisting || 0;
+        const remaining = data.remainingEstimated || 0;
         
-        if (recordsInserted >= 33000) {
+        if (remaining === 0 || finalCount >= 33000) {
           setStatus('success');
-          toast.success(`ZCTA data fully imported! ${recordsInserted.toLocaleString()} records.`);
+          toast.success(`ZCTA import complete! ${finalCount.toLocaleString()} total records in database.`);
+        } else if (newlyImported === 0 && skipped > 0) {
+          setStatus('idle');
+          toast.info(`All records already imported. ${finalCount.toLocaleString()} total ZCTAs in database.`);
         } else {
           setStatus('idle');
-          const percentComplete = Math.round((recordsInserted / totalProcessed) * 100);
-          toast.info(`Partial import complete: ${recordsInserted.toLocaleString()} of ${totalProcessed.toLocaleString()} (${percentComplete}%). Click "Populate ZCTA Data" again to continue.`);
+          toast.info(`Imported ${newlyImported.toLocaleString()} new ZCTAs (skipped ${skipped.toLocaleString()} existing). ${remaining.toLocaleString()} remaining. Click again to continue.`);
         }
       }
     } catch (error) {

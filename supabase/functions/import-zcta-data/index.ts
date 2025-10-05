@@ -20,6 +20,35 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
+    // Fetch all existing ZCTA codes to skip duplicates
+    console.log('[ZCTA Import] Fetching existing ZCTA codes from database...');
+    const existingZctas = new Set<string>();
+    const PAGE_SIZE = 10000;
+    let page = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from('us_zcta_polygons')
+        .select('zcta5ce')
+        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+
+      if (error) {
+        console.error('[ZCTA Import] Error fetching existing ZCTAs:', error);
+        throw error;
+      }
+
+      if (data && data.length > 0) {
+        data.forEach(row => existingZctas.add(row.zcta5ce));
+        console.log(`[ZCTA Import] Loaded ${existingZctas.size} existing ZCTAs (page ${page + 1})`);
+      }
+
+      hasMore = data && data.length === PAGE_SIZE;
+      page++;
+    }
+
+    console.log(`[ZCTA Import] Total existing ZCTAs in database: ${existingZctas.size}`);
+
     // Read the GeoJSON file from Supabase Storage
     const storageUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/zcta-data/zcta2020_web.geojson`;
     console.log('[ZCTA Import] Fetching GeoJSON from Supabase Storage:', storageUrl);
@@ -39,8 +68,9 @@ serve(async (req) => {
     }
 
     let imported = 0;
+    let skippedExisting = 0;
     let errors = 0;
-    const BATCH_SIZE = 50; // Smaller batches for large geometry data
+    const BATCH_SIZE = 50;
     const batches: any[] = [];
 
     // Prepare batches
@@ -62,6 +92,12 @@ serve(async (req) => {
       // Normalize ZCTA to 5-digit string
       zcta = String(zcta).trim().padStart(5, '0').substring(0, 5);
 
+      // Skip if already exists in database
+      if (existingZctas.has(zcta)) {
+        skippedExisting++;
+        continue;
+      }
+
       batches.push({
         zcta5ce: zcta,
         geom: JSON.stringify(feature.geometry),
@@ -81,7 +117,7 @@ serve(async (req) => {
             errors += batches.length;
           } else {
             imported += batches.length;
-            console.log(`[ZCTA Import] Progress: ${imported}/${totalFeatures} (${Math.round(imported/totalFeatures*100)}%)`);
+            console.log(`[ZCTA Import] Progress: Imported ${imported}, Skipped ${skippedExisting}, Errors ${errors} (Total processed: ${imported + skippedExisting + errors}/${totalFeatures})`);
           }
         } catch (batchError) {
           console.error('[ZCTA Import] Batch processing error:', batchError);
@@ -116,15 +152,19 @@ serve(async (req) => {
       .from('us_zcta_polygons')
       .select('*', { count: 'exact', head: true });
 
-    console.log(`[ZCTA Import] Import complete. Processed: ${imported + errors}, Imported: ${imported}, Errors: ${errors}, DB Count: ${count}`);
+    const remainingEstimated = totalFeatures - (count || 0);
+
+    console.log(`[ZCTA Import] Import complete. Skipped existing: ${skippedExisting}, Imported: ${imported}, Errors: ${errors}, DB Count: ${count}, Remaining: ${remainingEstimated}`);
 
     return new Response(JSON.stringify({ 
       success: true, 
       imported,
+      skippedExisting,
       errors,
-      totalProcessed: imported + errors,
+      totalProcessed: imported + skippedExisting + errors,
       databaseCount: count,
-      message: `Successfully imported ${imported} of ${totalFeatures} ZCTA polygons (${errors} errors)`
+      remainingEstimated,
+      message: `Successfully imported ${imported} new ZCTAs (${skippedExisting} already existed, ${errors} errors)`
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
