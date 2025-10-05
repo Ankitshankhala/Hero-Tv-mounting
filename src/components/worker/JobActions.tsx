@@ -68,23 +68,53 @@ const JobActions = ({
 
   const handleMarkComplete = async () => {
     try {
-      const { error } = await supabase
+      // Step 1: Mark job as completed
+      const { error: updateError } = await supabase
         .from('bookings')
         .update({ status: 'completed' })
         .eq('id', job.id);
 
-      if (error) throw error;
+      if (updateError) throw updateError;
 
-      toast({
-        title: "Job Marked Complete",
-        description: "The job has been marked as completed. You can now capture the payment.",
-      });
+      // Step 2: Automatically capture the authorized payment
+      if (job.payment_intent_id) {
+        const { data: captureData, error: captureError } = await supabase.functions.invoke('capture-payment-intent', {
+          body: { 
+            payment_intent_id: job.payment_intent_id,
+            booking_id: job.id 
+          }
+        });
+
+        if (captureError || !captureData?.success) {
+          // Job is completed but payment capture failed
+          toast({
+            title: "Job Completed",
+            description: "Job marked complete but payment capture failed. Use the Charge button to retry.",
+            variant: "destructive",
+          });
+          onJobUpdated?.();
+          return;
+        }
+
+        // Success: both completed and charged
+        toast({
+          title: "Job Completed & Payment Captured",
+          description: `Successfully charged $${(job.booking_services?.reduce((sum: number, s: any) => sum + (s.base_price * s.quantity), 0) || 0).toFixed(2)}`,
+        });
+      } else {
+        // No payment intent, just mark complete
+        toast({
+          title: "Job Marked Complete",
+          description: "The job has been marked as completed.",
+        });
+      }
+
       onJobUpdated?.();
     } catch (error) {
-      console.error('Error marking job complete:', error);
+      console.error('Error completing job:', error);
       toast({
         title: "Error",
-        description: "Failed to mark the job as complete. Please try again.",
+        description: "Failed to complete the job. Please try again.",
         variant: "destructive",
       });
     }
