@@ -262,7 +262,7 @@ serve(async (req) => {
       logStep("Starting booking update", { booking_id: transactionData.booking_id });
       
       const bookingUpdate: any = {
-        payment_status: safeStatus,
+        payment_status: safeStatus === 'completed' ? 'captured' : safeStatus,
         updated_at: new Date().toISOString()
       };
 
