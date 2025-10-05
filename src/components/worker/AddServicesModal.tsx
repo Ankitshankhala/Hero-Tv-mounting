@@ -7,6 +7,7 @@ import { ServiceCard } from '@/components/ServiceCard';
 import { TvMountingModal } from '@/components/TvMountingModal';
 import { InlineStripePaymentForm } from './payment/InlineStripePaymentForm';
 import { PaymentVerificationForm } from './payment/PaymentVerificationForm';
+import { ReauthorizePaymentDialog } from './payment/ReauthorizePaymentDialog';
 import { CartItem } from '@/types';
 import { usePublicServicesData } from '@/hooks/usePublicServicesData';
 import { supabase } from '@/integrations/supabase/client';
@@ -42,11 +43,19 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
   const [showTvModal, setShowTvModal] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [showReauthorizeDialog, setShowReauthorizeDialog] = useState(false);
   const [paymentData, setPaymentData] = useState<{
     clientSecret: string;
     amount: number;
     paymentIntentId: string;
     sessionId?: string;
+  } | null>(null);
+  const [reauthorizeData, setReauthorizeData] = useState<{
+    original_amount: number;
+    new_amount: number;
+    client_secret: string;
+    old_payment_intent: string;
+    new_payment_intent: string;
   } | null>(null);
   const { services, loading } = usePublicServicesData();
   const { toast } = useToast();
@@ -131,14 +140,22 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
     try {
       const totalAmount = getTotalPrice();
       
-      // Use the updated add-booking-services function that handles payment intent updates
+      // Calculate current booking amount
+      const currentAmount = job.booking_services?.reduce((sum: number, bs: any) => 
+        sum + (bs.base_price * bs.quantity), 0
+      ) || job.service?.base_price || 0;
+
+      // Use the new add-booking-services function that handles incremental authorization
       const { data, error } = await supabase.functions.invoke('add-booking-services', {
         body: {
           booking_id: job.id,
           testing_mode: isTestingMode,
           services: cart.map(item => ({
-            service_id: item.id,
-            quantity: item.quantity
+            id: item.id,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            configuration: item.options || {}
           }))
         }
       });
@@ -152,47 +169,38 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
         throw new Error(data?.error || 'Failed to add services and update payment authorization');
       }
 
-      // Check if inline payment is required (for new PaymentIntents)
-      if (data.requires_inline_payment && data.client_secret) {
+      // Check if card doesn't support increment and requires new payment
+      if (data.requires_new_payment && data.client_secret) {
         toast({
-          title: "Payment Required",
-          description: "Please provide payment details to complete the service addition.",
+          title: "Payment Re-authorization Required",
+          description: "Your card doesn't support authorization updates. Please re-enter card details.",
         });
 
-        // Show inline payment form
-        setPaymentData({
-          clientSecret: data.client_secret,
-          amount: data.total_amount || data.additional_amount,
-          paymentIntentId: data.payment_intent_id
+        // Show reauthorize payment dialog
+        setReauthorizeData({
+          original_amount: currentAmount,
+          new_amount: data.new_amount,
+          client_secret: data.client_secret,
+          old_payment_intent: data.old_payment_intent,
+          new_payment_intent: data.new_payment_intent
         });
-        setShowPaymentForm(true);
+        setShowReauthorizeDialog(true);
         setProcessing(false);
         return;
       }
 
-      // Check if additional payment is required (for updated PaymentIntents)
-      if (data.requires_additional_payment && data.payment_intent_client_secret) {
+      // Increment was successful!
+      if (data.incremented) {
         toast({
-          title: "Payment Required",
-          description: "Please provide payment details to complete the service addition.",
+          title: "Services Added & Payment Updated",
+          description: `Added ${cart.length} service(s). Authorization increased to $${data.new_amount.toFixed(2)}. Customer notified.`,
         });
-
-        // Show inline payment form for additional payment
-        setPaymentData({
-          clientSecret: data.payment_intent_client_secret,
-          amount: data.additional_amount,
-          paymentIntentId: data.payment_intent_id
+      } else {
+        toast({
+          title: "Services Added Successfully",
+          description: `Added ${cart.length} service(s) to booking`,
         });
-        setShowPaymentForm(true);
-        setProcessing(false);
-        return;
       }
-
-      // Payment was updated successfully, no additional payment needed
-      toast({
-        title: "Services Added Successfully",
-        description: `Added ${cart.length} service(s) and updated payment authorization for $${totalAmount.toFixed(2)}`,
-      });
 
       // Reset cart and close modal
       setCart([]);
@@ -206,7 +214,7 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
       console.error('Error adding services and charging:', error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to add services and charge customer",
+        description: error instanceof Error ? error.message : "Failed to add services",
         variant: "destructive",
       });
     } finally {
@@ -424,6 +432,28 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
           onClose={() => setShowTvModal(false)}
           onAddToCart={handleTvMountingComplete}
           services={services}
+        />
+      )}
+
+      {/* Reauthorize Payment Dialog */}
+      {showReauthorizeDialog && reauthorizeData && (
+        <ReauthorizePaymentDialog
+          isOpen={showReauthorizeDialog}
+          onClose={() => {
+            setShowReauthorizeDialog(false);
+            setReauthorizeData(null);
+          }}
+          booking_id={job.id}
+          original_amount={reauthorizeData.original_amount}
+          new_amount={reauthorizeData.new_amount}
+          client_secret={reauthorizeData.client_secret}
+          old_payment_intent={reauthorizeData.old_payment_intent}
+          new_payment_intent={reauthorizeData.new_payment_intent}
+          onSuccess={() => {
+            setCart([]);
+            onClose();
+            onServicesAdded?.();
+          }}
         />
       )}
     </>

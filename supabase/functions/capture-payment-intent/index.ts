@@ -44,7 +44,8 @@ serve(async (req) => {
       id: booking.id,
       status: booking.status,
       payment_status: booking.payment_status,
-      payment_intent_id: booking.payment_intent_id
+      payment_intent_id: booking.payment_intent_id,
+      pending_payment_amount: booking.pending_payment_amount
     });
 
     // Validate booking is ready for capture
@@ -59,6 +60,39 @@ serve(async (req) => {
     const intentId = payment_intent_id || booking.payment_intent_id;
     if (!intentId) {
       throw new Error('No payment intent ID found');
+    }
+
+    // PRE-CAPTURE CHECK: If pending_payment_amount exists and is greater than original, try increment
+    if (booking.pending_payment_amount) {
+      const pendingAmountCents = Math.round(booking.pending_payment_amount * 100);
+      
+      try {
+        console.log('[CAPTURE-PAYMENT] Pre-capture increment check:', { pending_amount: booking.pending_payment_amount });
+        
+        const updatedIntent = await stripe.paymentIntents.incrementAuthorization(
+          intentId,
+          { amount: pendingAmountCents }
+        );
+
+        if (updatedIntent.status === 'requires_capture') {
+          console.log('[CAPTURE-PAYMENT] Pre-capture increment successful');
+          
+          // Create increment transaction record
+          await supabase
+            .from('transactions')
+            .insert({
+              booking_id: booking.id,
+              amount: booking.pending_payment_amount,
+              status: 'authorized',
+              payment_intent_id: intentId,
+              transaction_type: 'increment',
+              payment_method: 'card'
+            });
+        }
+      } catch (incrementError: any) {
+        console.error('[CAPTURE-PAYMENT] Pre-capture increment failed:', incrementError.message);
+        // Continue with capture anyway - worker may have created new payment intent
+      }
     }
 
     // Capture the payment through Stripe

@@ -49,3 +49,12 @@ verify_jwt = false
 
 [functions.capture-payment-intent]
 verify_jwt = false
+
+[functions.add-booking-services]
+verify_jwt = false
+
+[functions.send-increment-notification]
+verify_jwt = false
+
+[functions.cancel-payment-intent]
+verify_jwt = false
