@@ -146,13 +146,39 @@ serve(async (req) => {
           throw new Error('GeoJSON polygon is undefined');
         }
         
+        // Log polygon details for debugging
+        console.log('🔍 ZCTA Query Debug:', {
+          polygonPointCount: geoJsonPolygon.coordinates[0].length,
+          firstPoint: geoJsonPolygon.coordinates[0][0],
+          lastPoint: geoJsonPolygon.coordinates[0][geoJsonPolygon.coordinates[0].length - 1],
+          sampleCoordinates: geoJsonPolygon.coordinates[0].slice(0, 3)
+        });
+        
         // Primary: Use ZCTA spatial intersection function
         const { data: zctaCodes, error: zctaError } = await supabase.rpc('get_zcta_codes_for_polygon', {
           polygon_coords: geoJsonPolygon.coordinates[0]
         });
 
-        if (zctaError || !zctaCodes || zctaCodes.length === 0) {
-          logStep('ZCTA spatial query failed or empty, using ZIP code fallback', zctaError?.message);
+        // Log ZCTA query result
+        console.log('📊 ZCTA Query Result:', {
+          success: !zctaError,
+          error: zctaError?.message,
+          errorCode: zctaError?.code,
+          errorHint: zctaError?.hint,
+          codesFound: zctaCodes?.length || 0,
+          codes: zctaCodes?.slice(0, 10) // First 10 codes for preview
+        });
+
+        if (zctaError) {
+          // Check if it's the missing data error
+          if (zctaError.message?.includes('us_zcta_polygons')) {
+            throw new Error('ZCTA spatial database not populated. Run import-zcta-data edge function to load data.');
+          }
+          logStep('ZCTA spatial query ERROR', { error: zctaError.message, code: zctaError.code });
+        }
+        
+        if (!zctaCodes || zctaCodes.length === 0) {
+          logStep('ZCTA spatial query returned no results - polygon may be outside coverage area or database is empty');
           
           // Fallback: Direct spatial query against ZIP codes using PostGIS
           const polygonWKT = `POLYGON((${geoJsonPolygon.coordinates[0].map(coord => `${coord[0]} ${coord[1]}`).join(', ')}))`;

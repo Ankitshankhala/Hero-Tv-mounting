@@ -2306,6 +2306,10 @@ export type Database = {
         Args: { zipcode_data: Json }
         Returns: number
       }
+      insert_zcta_batch: {
+        Args: { batch_data: Json }
+        Returns: number
+      }
       is_sms_enabled: {
         Args: Record<PropertyKey, never>
         Returns: boolean
