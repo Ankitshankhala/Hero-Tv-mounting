@@ -17,7 +17,7 @@ export const ZctaDataManager = () => {
   } | null>(null);
 
   const populateZctaData = async () => {
-    if (!confirm('This will import ~33,000 ZCTA polygon boundaries from zcta2020_web.geojson. This process may take 5-15 minutes. Continue?')) {
+    if (!confirm('This will import ~33,000 ZCTA polygon boundaries from zcta2020_web.geojson. Due to function timeout limits, you may need to run this 3-4 times to complete. Each run resumes where it left off. Continue?')) {
       return;
     }
 
@@ -26,32 +26,61 @@ export const ZctaDataManager = () => {
     setProgress(0);
 
     try {
-      toast.info('Starting ZCTA polygon import (this may take 5-15 minutes)...');
+      toast.info('Starting ZCTA polygon import...');
       
-      // Simulate progress during the operation
-      const progressInterval = setInterval(() => {
-        setProgress(prev => Math.min(prev + 10, 90));
-      }, 500);
+      // Poll database every 2 seconds for real-time progress
+      const pollInterval = setInterval(async () => {
+        const { count: currentCount } = await supabase
+          .from('us_zcta_polygons')
+          .select('*', { count: 'exact', head: true });
+        
+        const totalExpected = 33791; // From GeoJSON
+        const currentProgress = Math.min(Math.round(((currentCount || 0) / totalExpected) * 100), 99);
+        
+        setProgress(currentProgress);
+        setStats({
+          recordsInserted: currentCount || 0,
+          totalRecords: totalExpected
+        });
+      }, 2000);
 
       // Call the import-zcta-data edge function
       const { data, error } = await supabase.functions.invoke('import-zcta-data');
 
-      clearInterval(progressInterval);
+      clearInterval(pollInterval);
+
+      // Final status check
+      const { count: finalCount } = await supabase
+        .from('us_zcta_polygons')
+        .select('*', { count: 'exact', head: true });
+
       setProgress(100);
+      setStats({
+        recordsInserted: finalCount || 0,
+        totalRecords: 33791
+      });
 
       if (error) {
-        throw error;
-      }
-
-      if (data.success) {
-        setStatus('success');
-        setStats({
-          recordsInserted: data.imported || data.databaseCount || 0,
-          totalRecords: data.totalProcessed || 0
-        });
-        toast.success(`ZCTA data imported successfully! ${data.imported} of ${data.totalProcessed} records imported${data.errors ? ` (${data.errors} errors)` : ''}`);
-      } else {
-        throw new Error(data.error || 'Unknown error occurred');
+        // Edge function timed out but may have inserted partial data
+        if (error.message?.includes('timeout') || error.message?.includes('FunctionsRelayError')) {
+          const percentComplete = Math.round(((finalCount || 0) / 33791) * 100);
+          toast.warning(`Import timed out after inserting ${(finalCount || 0).toLocaleString()} records (${percentComplete}%). Click "Populate ZCTA Data" again to continue.`);
+          setStatus('idle');
+        } else {
+          throw error;
+        }
+      } else if (data?.success) {
+        const recordsInserted = data.imported || data.databaseCount || finalCount || 0;
+        const totalProcessed = data.totalProcessed || 33791;
+        
+        if (recordsInserted >= 33000) {
+          setStatus('success');
+          toast.success(`ZCTA data fully imported! ${recordsInserted.toLocaleString()} records.`);
+        } else {
+          setStatus('idle');
+          const percentComplete = Math.round((recordsInserted / totalProcessed) * 100);
+          toast.info(`Partial import complete: ${recordsInserted.toLocaleString()} of ${totalProcessed.toLocaleString()} (${percentComplete}%). Click "Populate ZCTA Data" again to continue.`);
+        }
       }
     } catch (error) {
       console.error('Failed to populate ZCTA data:', error);
