@@ -146,13 +146,16 @@ serve(async (req) => {
       const stripeStatus = stripeObject.status || stripeObject.payment_status;
       
       if (stripeStatus === 'paid' || stripeStatus === 'succeeded') {
+        // Only update to confirmed if booking is in pending/payment states
+        // Don't override completed status set by workers
         const { error: bookingError } = await supabase
           .from('bookings')
           .update({ 
             status: 'confirmed',
             payment_status: 'captured'
           })
-          .eq('id', finalBookingId);
+          .eq('id', finalBookingId)
+          .in('status', ['pending', 'payment_pending', 'payment_authorized']);
 
         if (bookingError) {
           logStep('Failed to update booking', { error: bookingError });

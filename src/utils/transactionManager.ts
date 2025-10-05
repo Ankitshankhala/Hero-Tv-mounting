@@ -288,8 +288,11 @@ export class TransactionManager {
 
       switch (latestTransaction.status) {
         case 'completed':
-          bookingPaymentStatus = 'completed';
-          bookingStatus = 'completed';
+        case 'captured':
+          bookingPaymentStatus = 'captured';
+          // Only set to confirmed if not already in a later status
+          // Workers manually mark as completed after finishing work
+          bookingStatus = 'confirmed';
           break;
         case 'authorized':
           bookingPaymentStatus = 'authorized';
