@@ -210,6 +210,8 @@ export class TransactionManager {
 
   /**
    * Record payment capture
+   * Note: This creates a capture transaction but does NOT change booking.status
+   * The booking should already be 'completed' by the worker before capture
    */
   async recordCapture(paymentIntentId: string, amount?: number): Promise<PaymentOperationResult> {
     try {
@@ -217,10 +219,14 @@ export class TransactionManager {
       const authTransaction = await this.findTransactionByPaymentIntent(paymentIntentId);
       
       if (authTransaction) {
-        // Update existing transaction to captured
-        return await this.updateTransaction(authTransaction.id, {
+        // Create new capture transaction (don't modify authorization record)
+        return await this.createTransaction({
+          booking_id: authTransaction.booking_id,
+          amount: amount || authTransaction.amount,
           status: 'completed',
+          payment_intent_id: paymentIntentId,
           transaction_type: 'capture',
+          payment_method: 'card',
         });
       } else {
         // Create new capture transaction if authorization not found

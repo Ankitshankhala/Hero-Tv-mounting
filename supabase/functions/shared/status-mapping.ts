@@ -44,8 +44,8 @@ export const mapStripeStatus = (stripeStatus: string, context: 'payment_intent' 
       return {
         internal_status: 'captured',
         payment_status: 'captured',
-        booking_status: 'confirmed',
-        user_message: 'Payment captured - booking confirmed',
+        booking_status: 'confirmed', // Don't change to 'completed' - that's set when worker finishes job
+        user_message: 'Payment captured successfully',
         action_required: false
       };
 

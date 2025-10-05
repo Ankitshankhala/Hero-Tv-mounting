@@ -237,50 +237,11 @@ const WorkerDashboard = () => {
       }
       console.log('Status updated successfully:', data);
 
-      // Handle payment capture for completed jobs with authorized payments
-      if (newStatus === 'completed' && data?.payment_status === 'authorized') {
-        console.log('Job completed with authorized payment, capturing payment automatically...');
-        try {
-          const {
-            data: captureResult,
-            error: captureError
-          } = await supabase.functions.invoke('capture-payment-intent', {
-            body: {
-              booking_id: jobId // Fixed: use booking_id instead of bookingId
-            }
-          });
-          if (captureError) {
-            console.error('Payment capture failed:', captureError);
-            toast({
-              title: "Job Completed",
-              description: "Job marked as completed, but payment capture failed. Please contact admin.",
-              variant: "destructive"
-            });
-          } else if (captureResult?.success) {
-            toast({
-              title: "Job Completed & Payment Captured",
-              description: `Job completed successfully and payment of $${captureResult.amount_captured?.toFixed(2)} has been captured.`
-            });
-          } else {
-            toast({
-              title: "Job Completed",
-              description: "Job marked as completed. Payment capture status unknown."
-            });
-          }
-        } catch (captureError) {
-          console.error('Payment capture error:', captureError);
-          toast({
-            title: "Job Completed",
-            description: "Job marked as completed, but payment capture failed. Please contact admin.",
-            variant: "destructive"
-          });
-        }
-      } else {
-        toast({
-          title: "Success",
-          description: `Job status updated to ${newStatus}`
-        });
-      }
+      // Job marked as completed - payment capture is now a separate action
+      toast({
+        title: "Success",
+        description: `Job status updated to ${newStatus}`
+      });
 
       // Update local state immediately for responsive UI and refresh from server
       setJobs(prevJobs => prevJobs.map(job => job.id === jobId ? {
