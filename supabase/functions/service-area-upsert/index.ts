@@ -249,39 +249,81 @@ serve(async (req) => {
     if (zipcodes.length > 0) {
       logStep('Storing ZIP codes in database', { count: zipcodes.length });
       
-      // Clear existing ZIP codes for this service area (if updating)
-      await supabase
-        .from('worker_service_zipcodes')
-        .delete()
-        .eq('service_area_id', serviceAreaResult.id);
-      
-      // Insert new ZIP codes in batches using UPSERT to handle duplicates
-      const batchSize = 100;
-      for (let i = 0; i < zipcodes.length; i += batchSize) {
-        const batch = zipcodes.slice(i, i + batchSize);
-        const zipInserts = batch.map(zipcode => ({
-          worker_id: workerId,
-          service_area_id: serviceAreaResult.id,
-          zipcode: zipcode,
-          from_polygon: true,
-          from_manual: false
-        }));
-        
-        // Use UPSERT to handle duplicate (worker_id, zipcode) constraints
-        const { error: zipInsertError } = await supabase
+      // Only clear existing ZIPs if mode is 'replace_all' (and only for THIS worker)
+      if (mode === 'replace_all') {
+        logStep('Replace mode: clearing existing ZIPs for this service area');
+        await supabase
           .from('worker_service_zipcodes')
-          .upsert(zipInserts, {
-            onConflict: 'worker_id,zipcode',
-            ignoreDuplicates: false
-          });
-          
-        if (zipInsertError) {
-          logStep('Failed to upsert ZIP batch', { batch: i/batchSize + 1, error: zipInsertError.message });
-          throw new Error(`Failed to insert ZIP codes: ${zipInsertError.message}`);
-        }
+          .delete()
+          .eq('service_area_id', serviceAreaResult.id)
+          .eq('worker_id', workerId); // Critical: only delete for THIS worker
       }
       
-      logStep('ZIP codes stored successfully', { total: zipcodes.length });
+      // Get existing ZIP codes for THIS service area to avoid duplicates
+      const { data: existingAreaZips } = await supabase
+        .from('worker_service_zipcodes')
+        .select('zipcode')
+        .eq('service_area_id', serviceAreaResult.id)
+        .eq('worker_id', workerId);
+      
+      const existingZipSet = new Set(existingAreaZips?.map(z => z.zipcode) || []);
+      const newZipsOnly = zipcodes.filter(zip => !existingZipSet.has(zip));
+      
+      logStep('Filtered ZIPs for this service area', {
+        total: zipcodes.length,
+        existing: existingZipSet.size,
+        new: newZipsOnly.length
+      });
+      
+      // Insert only new ZIP codes (not already in THIS service area)
+      if (newZipsOnly.length > 0) {
+        const batchSize = 100;
+        let insertedCount = 0;
+        let conflictCount = 0;
+        
+        for (let i = 0; i < newZipsOnly.length; i += batchSize) {
+          const batch = newZipsOnly.slice(i, i + batchSize);
+          const zipInserts = batch.map(zipcode => ({
+            worker_id: workerId,
+            service_area_id: serviceAreaResult.id,
+            zipcode: zipcode,
+            from_polygon: true,
+            from_manual: false
+          }));
+          
+          // Use INSERT (not upsert) to avoid stealing ZIPs from other service areas
+          const { data: insertedZips, error: zipInsertError } = await supabase
+            .from('worker_service_zipcodes')
+            .insert(zipInserts)
+            .select();
+          
+          if (zipInsertError) {
+            // If conflict occurs (ZIP already exists for this worker in another area), log it
+            if (zipInsertError.code === '23505') { // Unique constraint violation
+              conflictCount += batch.length;
+              logStep('ZIP conflict detected (worker already covers these ZIPs in another area)', {
+                batch: i/batchSize + 1,
+                count: batch.length
+              });
+            } else {
+              logStep('Failed to insert ZIP batch', { 
+                batch: i/batchSize + 1, 
+                error: zipInsertError.message,
+                code: zipInsertError.code
+              });
+              throw new Error(`Failed to insert ZIP codes: ${zipInsertError.message}`);
+            }
+          } else {
+            insertedCount += insertedZips?.length || 0;
+          }
+        }
+        
+        logStep('ZIP codes stored successfully', { 
+          inserted: insertedCount,
+          conflicts: conflictCount,
+          total: newZipsOnly.length
+        });
+      }
     }
 
     const executionTime = performance.now() - startTime;
