@@ -17,7 +17,7 @@ export const ZctaDataManager = () => {
   } | null>(null);
 
   const populateZctaData = async () => {
-    if (!confirm('This will import ~33,000 ZCTA polygon boundaries from zcta2020_web.geojson. Due to function timeout limits, you may need to run this 3-4 times to complete. Each run resumes where it left off. Continue?')) {
+    if (!confirm('This will import ~33,791 ZCTA polygon boundaries. We will auto-resume until complete. Continue?')) {
       return;
     }
 
@@ -25,69 +25,92 @@ export const ZctaDataManager = () => {
     setStatus('populating');
     setProgress(0);
 
+    const TOTAL_EXPECTED = 33791;
+    const isTransient = (msg: string) => (
+      /timeout|FunctionsRelayError|FunctionsFetchError|Failed to fetch|413|Payload Too Large|429|Too Many Requests|5\d{2}|Gateway Timeout/i.test(msg)
+    );
+
     try {
       toast.info('Starting ZCTA polygon import...');
-      
+
       // Poll database every 2 seconds for real-time progress
+      let prevCount = 0;
       const pollInterval = setInterval(async () => {
         const { count: currentCount } = await supabase
           .from('us_zcta_polygons')
           .select('*', { count: 'exact', head: true });
-        
-        const totalExpected = 33791; // From GeoJSON
-        const currentProgress = Math.min(Math.round(((currentCount || 0) / totalExpected) * 100), 99);
-        
+
+        prevCount = currentCount || prevCount;
+        const currentProgress = Math.min(Math.round(((currentCount || 0) / TOTAL_EXPECTED) * 100), 99);
         setProgress(currentProgress);
         setStats({
           recordsInserted: currentCount || 0,
-          totalRecords: totalExpected
+          totalRecords: TOTAL_EXPECTED,
         });
       }, 2000);
 
-      // Auto-retry the import edge function to work around timeouts/transient network errors
-      const maxAttempts = 5;
-      let attempt = 0;
-      let lastData: any = null;
-      let lastError: any = null;
+      let pass = 0;
+      let consecutiveTransient = 0;
+      let continueImport = true;
+      let sessionTotals = { imported: 0, skipped: 0, invalid: 0, errors: 0 };
 
-      while (attempt < maxAttempts) {
-        attempt++;
-        try {
-          const { data, error } = await supabase.functions.invoke('import-zcta-data');
+      while (continueImport) {
+        pass++;
+        const { data, error } = await supabase.functions.invoke('import-zcta-data');
 
-          lastData = data;
-          lastError = error;
+        const lastMsg = String(error?.message || data?.lastErrorMessage || '');
+        const transient = error ? isTransient(lastMsg) : false;
 
-          // If no error and data indicates remaining > 0, keep looping
-          if (!error && data?.success) {
-            const newlyImported = data.imported || 0;
-            const remaining = data.remainingEstimated ?? null;
+        // Update session totals if provided
+        if (data?.imported) sessionTotals.imported += Number(data.imported);
+        if (data?.skippedExisting) sessionTotals.skipped += Number(data.skippedExisting);
+        if (data?.invalid) sessionTotals.invalid += Number(data.invalid);
+        if (data?.hardErrors ?? data?.errors) sessionTotals.errors += Number(data.hardErrors ?? data.errors);
 
-            // If we still have remaining and imported something, try another pass
-            if ((remaining === null || remaining > 0) && newlyImported > 0) {
-              toast.info(`Pass ${attempt}: Imported ${newlyImported.toLocaleString()} records... continuing`);
-              continue;
+        // Get current DB count to detect forward progress
+        const { count: afterCount } = await supabase
+          .from('us_zcta_polygons')
+          .select('*', { count: 'exact', head: true });
+
+        const progressed = (afterCount || 0) > prevCount || (Number(data?.imported || 0) > 0);
+        prevCount = afterCount || prevCount;
+
+        const remaining = (typeof data?.remainingEstimated === 'number')
+          ? data.remainingEstimated
+          : (TOTAL_EXPECTED - (afterCount || 0));
+
+        const more = Boolean(data?.moreRemaining) || remaining > 0;
+
+        if (error) {
+          if (transient && progressed) {
+            consecutiveTransient = 0;
+            toast.info(`Pass ${pass}: transient issue but progress observed. Continuing…`);
+          } else if (transient) {
+            consecutiveTransient++;
+            toast.warning(`Pass ${pass}: transient error (${lastMsg || 'network'}). Retrying…`);
+            if (consecutiveTransient >= 3) {
+              toast.error('Multiple transient errors in a row. Pausing import. You can click again to resume.');
+              break;
             }
+          } else {
+            // Non-transient error: stop this session
+            toast.error(`Import error: ${lastMsg || 'Unknown error'}`);
+            break;
           }
-
-          // If error is timeout-like or fetch error, attempt again
-          if (error && (error.message?.includes('timeout') || error.message?.includes('FunctionsRelayError') || error.message?.includes('FunctionsFetchError') || error.message?.includes('Failed to fetch'))) {
-            toast.warning(`Import pass ${attempt} had a transient error. Retrying...`);
-            continue;
+        } else {
+          consecutiveTransient = 0;
+          if (data?.imported || data?.skippedExisting) {
+            toast.info(`Pass ${pass}: +${Number(data.imported || 0).toLocaleString()} imported • skipped ${Number(data.skippedExisting || 0).toLocaleString()} • ~${Math.max(0, remaining).toLocaleString()} remaining`);
           }
-
-          // Otherwise break after this attempt
-          break;
-        } catch (invokeErr: any) {
-          lastError = invokeErr;
-          const msg = String(invokeErr?.message || invokeErr);
-          if (msg.includes('timeout') || msg.includes('FunctionsRelayError') || msg.includes('FunctionsFetchError') || msg.includes('Failed to fetch')) {
-            toast.warning(`Import pass ${attempt} had a transient error. Retrying...`);
-            continue;
-          }
-          // Non-transient error
-          break;
         }
+
+        // Continue if there is more work
+        continueImport = more;
+        if (!continueImport) break;
+
+        // Small backoff between passes
+        const delayMs = Math.min(2000, 500 * pass);
+        await new Promise((r) => setTimeout(r, delayMs));
       }
 
       clearInterval(pollInterval);
@@ -97,45 +120,26 @@ export const ZctaDataManager = () => {
         .from('us_zcta_polygons')
         .select('*', { count: 'exact', head: true });
 
-      setProgress(100);
+      setProgress(Math.min(100, Math.round(((finalCount || 0) / TOTAL_EXPECTED) * 100)));
       setStats({
         recordsInserted: finalCount || 0,
-        totalRecords: 33791
+        totalRecords: TOTAL_EXPECTED,
       });
 
-      // Interpret the last result
-      if (lastError && !(lastError.message?.includes('timeout') || lastError.message?.includes('FunctionsRelayError') || lastError.message?.includes('FunctionsFetchError') || lastError.message?.includes('Failed to fetch'))) {
-        setStatus('error');
-        toast.error(`Import failed: ${lastError.message || 'Unknown error'}`);
-      } else if (lastData?.success) {
-        const newlyImported = Number(lastData.imported || 0);
-        const skipped = Number(lastData.skippedExisting || 0);
-        const invalid = Number(lastData.invalid || 0);
-        const hardErrors = Number(lastData.hardErrors ?? lastData.errors ?? 0);
-        const remaining = lastData.remainingEstimated ?? (33791 - (finalCount || 0));
-
-        if (remaining <= 0 || (finalCount || 0) >= 33000) {
-          setStatus('success');
-          toast.success(`ZCTA import complete! ${Number(finalCount || 0).toLocaleString()} total records in database.`);
-        } else if (newlyImported === 0 && skipped > 0) {
-          setStatus('idle');
-          toast.info(`All records already imported. ${Number(finalCount || 0).toLocaleString()} total ZCTAs in database.`);
-        } else {
-          setStatus('idle');
-          toast.info(`Imported ${newlyImported.toLocaleString()} new • skipped ${skipped.toLocaleString()} • invalid ${invalid.toLocaleString()} • errors ${hardErrors.toLocaleString()}. ~${Number(remaining).toLocaleString()} remaining. Click again to continue.`);
-        }
+      const remaining = Math.max(0, TOTAL_EXPECTED - (finalCount || 0));
+      if (remaining <= 0 || (finalCount || 0) >= 33000) {
+        setStatus('success');
+        toast.success(`ZCTA import complete! ${Number(finalCount || 0).toLocaleString()} total records.`);
       } else {
-        // Transient error case: likely partial progress occurred
-        const percentComplete = Math.round(((finalCount || 0) / 33791) * 100);
         setStatus('idle');
-        toast.warning(`Import session ended. ${Number(finalCount || 0).toLocaleString()} records total (${percentComplete}%). Click "Populate ZCTA Data" again to continue.`);
+        toast.info(`Session done. Imported ${sessionTotals.imported.toLocaleString()} • skipped ${sessionTotals.skipped.toLocaleString()} • invalid ${sessionTotals.invalid.toLocaleString()} • errors ${sessionTotals.errors.toLocaleString()}. ~${remaining.toLocaleString()} remaining. Click again to resume.`);
       }
     } catch (error: any) {
       console.error('Failed to populate ZCTA data:', error);
       const msg = String(error?.message || error);
-      if (msg.includes('timeout') || msg.includes('FunctionsRelayError') || msg.includes('FunctionsFetchError') || msg.includes('Failed to fetch')) {
+      if (isTransient(msg)) {
         setStatus('idle');
-        toast.warning('Import session ended due to a transient error. Click "Populate ZCTA Data" again to continue.');
+        toast.warning('Import ended due to a transient error. Click again to resume.');
       } else {
         setStatus('error');
         toast.error(`Failed to populate ZCTA data: ${msg}`);
@@ -154,7 +158,7 @@ export const ZctaDataManager = () => {
 
       setStats({
         recordsInserted: polygonCount || 0,
-        totalRecords: 33144 // Expected total ZCTA codes in US
+        totalRecords: 33791
       });
 
       if ((polygonCount || 0) === 0) {
