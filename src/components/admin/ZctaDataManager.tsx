@@ -247,6 +247,11 @@ export const ZctaDataManager = () => {
                 <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                 Populating...
               </>
+            ) : stats && stats.recordsInserted > 0 && stats.recordsInserted < stats.totalRecords ? (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Resume Import ({Math.round((stats.recordsInserted / stats.totalRecords) * 100)}% Complete)
+              </>
             ) : (
               <>
                 <Database className="h-4 w-4 mr-2" />
@@ -265,6 +270,18 @@ export const ZctaDataManager = () => {
             Check Status
           </Button>
         </div>
+
+        {stats && stats.recordsInserted > 0 && stats.recordsInserted < stats.totalRecords && !isPopulating && (
+          <div className="text-xs text-muted-foreground bg-amber-50 dark:bg-amber-950/10 p-3 rounded-lg border border-amber-200 dark:border-amber-800">
+            <p className="font-medium mb-1 text-amber-700 dark:text-amber-300">Import Incomplete:</p>
+            <ul className="space-y-1">
+              <li>• Currently at {Math.round((stats.recordsInserted / stats.totalRecords) * 100)}% ({stats.recordsInserted.toLocaleString()} / {stats.totalRecords.toLocaleString()})</li>
+              <li>• ~{(stats.totalRecords - stats.recordsInserted).toLocaleString()} ZCTA polygons remaining</li>
+              <li>• Click "Resume Import" to continue from where it left off</li>
+              <li>• Estimated {Math.ceil((stats.totalRecords - stats.recordsInserted) / 11000)} more batch(es) needed</li>
+            </ul>
+          </div>
+        )}
 
         {status === 'error' && stats?.recordsInserted === 0 && (
           <div className="text-xs text-muted-foreground bg-red-50 dark:bg-red-950/10 p-3 rounded-lg border border-red-200 dark:border-red-800">
