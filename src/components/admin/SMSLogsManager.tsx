@@ -31,10 +31,11 @@ export const SMSLogsManager = () => {
     });
   }, [smsLogs, searchTerm, filterType]);
 
-  const getStatusBadge = (status: 'sent' | 'failed') => {
+  const getStatusBadge = (status: 'sent' | 'failed' | 'pending') => {
     const statusConfig = {
       sent: { label: 'Sent', variant: 'default' as const },
       failed: { label: 'Failed', variant: 'destructive' as const },
+      pending: { label: 'Pending', variant: 'secondary' as const },
     };
     
     const config = statusConfig[status] || statusConfig.sent;

@@ -4026,7 +4026,7 @@ export type Database = {
         | "captured"
         | "cancelled"
       session_status: "created" | "paid" | "expired" | "cancelled"
-      sms_status: "sent" | "failed"
+      sms_status: "sent" | "failed" | "pending"
       user_role: "customer" | "worker" | "admin"
     }
     CompositeTypes: {
@@ -4191,7 +4191,7 @@ export const Constants = {
         "cancelled",
       ],
       session_status: ["created", "paid", "expired", "cancelled"],
-      sms_status: ["sent", "failed"],
+      sms_status: ["sent", "failed", "pending"],
       user_role: ["customer", "worker", "admin"],
     },
   },

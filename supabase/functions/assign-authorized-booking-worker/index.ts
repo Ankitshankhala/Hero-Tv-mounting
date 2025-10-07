@@ -109,7 +109,7 @@ serve(async (req) => {
 
     // Use strict ZIP-based assignment only - no fallback assignments
     const { data: candidates, error: workerError } = await supabase.rpc('find_available_workers_by_zip', {
-      p_customer_zipcode: zipCode,
+      p_zipcode: zipCode,
       p_date: booking.scheduled_date,
       p_time: booking.scheduled_start,
       p_duration_minutes: 60,

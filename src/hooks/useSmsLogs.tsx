@@ -7,7 +7,7 @@ interface SmsLogData {
   recipient_number: string;
   recipient_name: string | null;
   message: string;
-  status: 'sent' | 'failed';
+  status: 'sent' | 'failed' | 'pending';
   created_at: string | null;
   sent_at: string | null;
   error_message: string | null;
