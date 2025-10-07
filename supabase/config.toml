@@ -58,3 +58,6 @@ verify_jwt = false
 
 [functions.cancel-payment-intent]
 verify_jwt = false
+
+[functions.stripe-transactions-sync]
+verify_jwt = false

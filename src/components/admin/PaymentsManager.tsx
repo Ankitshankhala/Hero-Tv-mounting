@@ -46,6 +46,7 @@ interface PaymentStats {
 export const PaymentsManager = () => {
   const [filterType, setFilterType] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [dateFilter, setDateFilter] = useState('all'); // New: date range filter
   const [selectedPayment, setSelectedPayment] = useState<any>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -195,7 +196,25 @@ export const PaymentsManager = () => {
                          customerEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          transaction.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (transaction.booking_id && transaction.booking_id.toLowerCase().includes(searchTerm.toLowerCase()));
-    return matchesFilter && matchesSearch;
+    
+    // Date filtering
+    let matchesDate = true;
+    if (dateFilter !== 'all') {
+      const transactionDate = new Date(transaction.created_at);
+      const now = new Date();
+      
+      if (dateFilter === 'august') {
+        matchesDate = transactionDate.getMonth() === 7 && transactionDate.getFullYear() === 2024;
+      } else if (dateFilter === 'september') {
+        matchesDate = transactionDate.getMonth() === 8 && transactionDate.getFullYear() === 2024;
+      } else if (dateFilter === 'october') {
+        matchesDate = transactionDate.getMonth() === 9 && transactionDate.getFullYear() === 2024;
+      } else if (dateFilter === 'november') {
+        matchesDate = transactionDate.getMonth() === 10 && transactionDate.getFullYear() === 2024;
+      }
+    }
+    
+    return matchesFilter && matchesSearch && matchesDate;
   });
 
   if (loading) {
@@ -295,6 +314,18 @@ export const PaymentsManager = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="flex-1"
             />
+            <Select value={dateFilter} onValueChange={setDateFilter}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Filter by month" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Months</SelectItem>
+                <SelectItem value="november">November 2024</SelectItem>
+                <SelectItem value="october">October 2024</SelectItem>
+                <SelectItem value="september">September 2024</SelectItem>
+                <SelectItem value="august">August 2024</SelectItem>
+              </SelectContent>
+            </Select>
             <Select value={filterType} onValueChange={setFilterType}>
               <SelectTrigger className="w-48">
                 <SelectValue placeholder="Filter by status" />
