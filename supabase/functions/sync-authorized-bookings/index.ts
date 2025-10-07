@@ -57,7 +57,7 @@ serve(async (req) => {
           const { error: updateError } = await supabase
             .from('bookings')
             .update({
-              status: 'payment_authorized',
+              status: 'confirmed',
               payment_status: 'authorized',
               updated_at: new Date().toISOString()
             })

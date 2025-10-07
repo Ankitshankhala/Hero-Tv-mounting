@@ -293,8 +293,8 @@ serve(async (req) => {
         });
 
         if (currentBooking?.status === 'pending' || currentBooking?.status === 'payment_pending') {
-          bookingUpdate.status = 'payment_authorized';
-          logStep("Setting booking status to payment_authorized due to authorized payment");
+          bookingUpdate.status = 'confirmed';
+          logStep("Setting booking status to confirmed due to authorized payment");
         }
       }
 
