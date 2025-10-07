@@ -58,6 +58,24 @@ serve(async (req) => {
       throw new Error('Customer email not found');
     }
 
+    // Check if email already sent (idempotency)
+    const { data: existingLog } = await supabase
+      .from('email_logs')
+      .select('id')
+      .eq('booking_id', booking_id)
+      .eq('recipient_email', customerEmail)
+      .eq('email_type', 'increment_notification')
+      .eq('status', 'sent')
+      .maybeSingle();
+
+    if (existingLog) {
+      console.log('[SEND-INCREMENT-NOTIFICATION] Email already sent, returning cached response');
+      return new Response(
+        JSON.stringify({ success: true, message: 'Email already sent', cached: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Get added services (recent ones)
     const addedServices = booking.booking_services
       ?.slice(-Math.ceil(added_amount / 10)) // Rough estimate of recent services

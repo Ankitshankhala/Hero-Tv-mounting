@@ -270,11 +270,11 @@ async function sendNotifications(booking: any, chosenWorker: any) {
   try {
     // Send worker assignment email and SMS
     try {
-      // Send email notification with force to ensure delivery
+      // Send email notification
       const { error: emailError } = await supabase.functions.invoke(
         'send-worker-assignment-notification',
         {
-          body: { bookingId: booking.id, workerId: chosenWorker.worker_id, force: true },
+          body: { bookingId: booking.id, workerId: chosenWorker.worker_id },
         }
       );
       if (emailError) {
