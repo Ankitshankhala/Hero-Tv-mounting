@@ -92,9 +92,9 @@ export const TvMountingConfigModal: React.FC<TvMountingConfigModalProps> = ({
           <div>
             <h2 className="text-2xl font-bold text-gray-900 flex items-center">
               <Monitor className="mr-3 h-6 w-6 text-blue-500" />
-              TV Mounting Configuration
+              Mount TV Configuration
             </h2>
-            <p className="text-gray-600 mt-1">Configure TV mounting options for this booking</p>
+            <p className="text-gray-600 mt-1">Configure Mount TV options for this booking</p>
           </div>
           <button
             onClick={onClose}
@@ -138,7 +138,7 @@ export const TvMountingConfigModal: React.FC<TvMountingConfigModalProps> = ({
               </button>
             </div>
             <div className="mt-3 text-sm text-gray-600">
-              <div>Base TV Mounting: ${calculateTvMountingPrice(numberOfTvs)}</div>
+              <div>Base Mount TV: ${calculateTvMountingPrice(numberOfTvs)}</div>
               {numberOfTvs > 1 && (
                 <div className="text-xs mt-1">
                   1st TV: $90, 2nd TV: $60{numberOfTvs > 2 && `, Additional TVs: $75 each`}

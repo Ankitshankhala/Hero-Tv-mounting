@@ -9,8 +9,8 @@ export function calculateServiceLinePrice(service: BookingService): number {
   let price = Number(service.base_price) || 0;
   const config = service.configuration || {};
 
-  // TV Mounting specific pricing
-  if (service.service_name === 'TV Mounting') {
+  // Mount TV specific pricing
+  if (service.service_name === 'Mount TV') {
     if (config.over65) price += 50;
     if (config.frameMount) price += 75;
     if (config.wallType === 'steel' || config.wallType === 'brick' || config.wallType === 'concrete') {

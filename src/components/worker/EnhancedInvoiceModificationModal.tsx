@@ -48,8 +48,8 @@ export const EnhancedInvoiceModificationModal = ({
     let price = service.base_price;
     const config = service.configuration || {};
 
-    // TV Mounting specific pricing
-    if (service.service_name === 'TV Mounting') {
+    // Mount TV specific pricing
+    if (service.service_name === 'Mount TV') {
       if (config.over65) price += 50;
       if (config.frameMount) price += 75;
       if (config.wallType === 'stone' || config.wallType === 'brick' || config.wallType === 'tile') {
@@ -341,8 +341,8 @@ export const EnhancedInvoiceModificationModal = ({
 
   const handleTvMountingComplete = async (configuration: any) => {
     try {
-      // Find TV mounting service and update its configuration
-      const tvService = services.find(s => s.service_name === 'TV Mounting');
+      // Find Mount TV service and update its configuration
+      const tvService = services.find(s => s.service_name === 'Mount TV');
       if (tvService) {
         await updateServiceConfiguration(tvService.id, configuration);
       }

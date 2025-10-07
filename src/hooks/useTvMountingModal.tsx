@@ -22,7 +22,7 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
   ]);
 
   // Find services from database - use allServices to include non-visible add-ons
-  const tvMountingService = allServices.find(s => s.name === 'TV Mounting');
+  const tvMountingService = allServices.find(s => s.name === 'Mount TV');
   const over65Service = allServices.find(s => s.name === 'Over 65" TV Add-on');
   const frameMountService = allServices.find(s => s.name === 'Frame Mount Add-on');
   const stoneWallService = allServices.find(s => s.name === 'Steel/Brick/Concrete Wall');
@@ -126,7 +126,7 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
     
     selectedServices.push({
       id: tvMountingService.id,
-      name: `TV Mounting${numberOfTvs > 1 ? ` (${numberOfTvs} TVs)` : ''}`,
+      name: `Mount TV${numberOfTvs > 1 ? ` (${numberOfTvs} TVs)` : ''}`,
       price: basePrice,
       quantity: 1
     });
@@ -208,7 +208,7 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
   };
 
   const buildCartItemName = () => {
-    let name = `TV Mounting${numberOfTvs > 1 ? ` (${numberOfTvs} TVs)` : ''}`;
+    let name = `Mount TV${numberOfTvs > 1 ? ` (${numberOfTvs} TVs)` : ''}`;
     const addOns = [];
     
     const over65Count = tvConfigurations.filter(config => config.over65).length;

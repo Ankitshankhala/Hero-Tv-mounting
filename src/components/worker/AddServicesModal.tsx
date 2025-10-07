@@ -24,7 +24,7 @@ interface AddServicesModalProps {
 
 const getServiceImage = (serviceName: string) => {
   const imageMap: { [key: string]: string } = {
-    'TV Mounting': '/lovable-uploads/9b4cf239-a12b-4275-9ca2-a4abafb59c40.png',
+    'Mount TV': '/lovable-uploads/9b4cf239-a12b-4275-9ca2-a4abafb59c40.png',
     'Full Motion Mount': '/lovable-uploads/77f65da7-38bc-4d01-afdd-bb998049c77b.png',
     'Flat Mount': '/lovable-uploads/4a49b814-b16a-4daf-aa91-3a52fcbb5fae.png',
     'Cover Cables': '/lovable-uploads/6889f051-f5b1-4f2a-a093-a09693378bd4.png',
@@ -62,7 +62,7 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
   const { isTestingMode } = useTestingMode();
 
   const handleServiceClick = (serviceId: string, serviceName: string) => {
-    if (serviceName === 'TV Mounting') {
+    if (serviceName === 'Mount TV') {
       setShowTvModal(true);
     } else {
       // For other services, just add to cart

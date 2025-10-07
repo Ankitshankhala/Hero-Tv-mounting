@@ -46,8 +46,8 @@ export const TvMountingModal = ({ open, onClose, onAddToCart, services }: TvMoun
               <span className="text-white font-bold">📺</span>
             </div>
             <div>
-              <DialogTitle className="text-xl font-bold text-white">TV Mounting Configuration</DialogTitle>
-              <p className="text-slate-400 text-sm">Customize your TV mounting service for each TV</p>
+              <DialogTitle className="text-xl font-bold text-white">Mount TV Configuration</DialogTitle>
+              <p className="text-slate-400 text-sm">Customize your Mount TV service for each TV</p>
             </div>
           </div>
         </DialogHeader>
@@ -84,7 +84,7 @@ export const TvMountingModal = ({ open, onClose, onAddToCart, services }: TvMoun
               </button>
             </div>
             <div className="bg-slate-700 rounded-lg p-3">
-              <p className="text-slate-300 text-sm mb-2">Base TV Mounting: ${calculateTvMountingPrice(numberOfTvs)}</p>
+              <p className="text-slate-300 text-sm mb-2">Base Mount TV: ${calculateTvMountingPrice(numberOfTvs)}</p>
               {numberOfTvs > 1 && (
                 <div className="text-xs text-slate-400 space-y-1">
                   <div>• 1st TV: $90</div>

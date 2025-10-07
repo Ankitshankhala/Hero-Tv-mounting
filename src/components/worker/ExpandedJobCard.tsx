@@ -154,11 +154,11 @@ export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onCollaps
 
   const specialInstructions = getSpecialInstructions();
 
-  // Group TV Mounting services with their add-ons
+  // Group Mount TV services with their add-ons
   const groupTvMountingServices = (services: BookingService[]) => {
-    const tvMountingService = services.find(s => s.service_name === 'TV Mounting');
+    const tvMountingService = services.find(s => s.service_name === 'Mount TV');
     const addOnServices = services.filter(s => 
-      s.service_name !== 'TV Mounting' && (
+      s.service_name !== 'Mount TV' && (
         s.service_name.includes('Add-on') ||
         s.service_name.includes('Over 65') ||
         s.service_name.includes('Frame Mount') ||
@@ -167,7 +167,7 @@ export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onCollaps
       )
     );
     const otherServices = services.filter(s => 
-      s.service_name !== 'TV Mounting' && !addOnServices.includes(s)
+      s.service_name !== 'Mount TV' && !addOnServices.includes(s)
     );
 
     return { tvMountingService, addOnServices, otherServices };
@@ -186,7 +186,7 @@ export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onCollaps
 
     return (
       <div className="space-y-2">
-        {/* TV Mounting with add-ons */}
+        {/* Mount TV with add-ons */}
         {tvMountingService && (
           <div className="text-sm">
             <div className="font-medium text-foreground">
@@ -200,7 +200,7 @@ export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onCollaps
               </div>
             ))}
             
-            {/* Show configuration for TV mounting */}
+            {/* Show configuration for Mount TV */}
             {tvMountingService.configuration && (
               <div className="ml-4 mt-1 space-y-1 text-muted-foreground">
                 {tvMountingService.configuration.wallType && (
@@ -220,7 +220,7 @@ export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onCollaps
           </div>
         )}
 
-        {/* Other non-TV mounting services */}
+        {/* Other non-Mount TV services */}
         {otherServices.map((service, index) => (
           <div key={`other-${index}`} className="text-sm">
             <div className="font-medium text-foreground">

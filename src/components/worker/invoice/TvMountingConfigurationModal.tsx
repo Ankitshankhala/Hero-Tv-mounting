@@ -89,9 +89,9 @@ export const TvMountingConfigurationModal: React.FC<TvMountingConfigurationModal
             </div>
             <div>
               <DialogTitle className="text-xl font-bold text-card-foreground">
-                Configure TV Mounting Service
+                Configure Mount TV Service
               </DialogTitle>
-              <p className="text-muted-foreground text-sm">Customize your TV mounting service for each TV</p>
+              <p className="text-muted-foreground text-sm">Customize your Mount TV service for each TV</p>
             </div>
           </div>
         </DialogHeader>
