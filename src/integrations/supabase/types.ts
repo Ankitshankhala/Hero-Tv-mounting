@@ -92,6 +92,13 @@ export type Database = {
             referencedRelation: "bookings"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_booking_services_booking"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_booking_status_inconsistencies"
+            referencedColumns: ["id"]
+          },
         ]
       }
       bookings: {
@@ -480,10 +487,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "fk_invoices_booking"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_booking_status_inconsistencies"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "invoices_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_booking_status_inconsistencies"
             referencedColumns: ["id"]
           },
           {
@@ -675,6 +696,13 @@ export type Database = {
             referencedRelation: "bookings"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "sms_logs_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_booking_status_inconsistencies"
+            referencedColumns: ["id"]
+          },
         ]
       }
       spatial_ref_sys: {
@@ -798,6 +826,13 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_booking_status_inconsistencies"
             referencedColumns: ["id"]
           },
           {
@@ -1058,6 +1093,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "worker_bookings_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_booking_status_inconsistencies"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "worker_bookings_worker_id_fkey"
             columns: ["worker_id"]
             isOneToOne: false
@@ -1106,6 +1148,13 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "worker_coverage_notifications_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_booking_status_inconsistencies"
             referencedColumns: ["id"]
           },
           {
@@ -1338,6 +1387,39 @@ export type Database = {
           f_table_schema?: unknown | null
           srid?: number | null
           type?: string | null
+        }
+        Relationships: []
+      }
+      v_booking_status_inconsistencies: {
+        Row: {
+          created_at: string | null
+          id: string | null
+          inconsistency_type: string | null
+          payment_intent_id: string | null
+          payment_status: string | null
+          recommended_status: string | null
+          status: Database["public"]["Enums"]["booking_status"] | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string | null
+          inconsistency_type?: never
+          payment_intent_id?: string | null
+          payment_status?: string | null
+          recommended_status?: never
+          status?: Database["public"]["Enums"]["booking_status"] | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string | null
+          inconsistency_type?: never
+          payment_intent_id?: string | null
+          payment_status?: string | null
+          recommended_status?: never
+          status?: Database["public"]["Enums"]["booking_status"] | null
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -1600,6 +1682,10 @@ export type Database = {
       calculate_cancellation_deadline: {
         Args: { scheduled_date: string; scheduled_start: string }
         Returns: string
+      }
+      check_and_repair_booking_consistency: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
       }
       check_booking_inconsistencies: {
         Args: Record<PropertyKey, never>
