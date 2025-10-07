@@ -337,14 +337,14 @@ export const BookingTable = ({
                         {booking.status}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                     <TableCell>
                       <div className="space-y-1">
                         <Badge variant={getPaymentStatusVariant(booking.payment_status || booking.stripe_payment_status)}>
                           {booking.payment_status || booking.stripe_payment_status || 'unknown'}
                         </Badge>
                         {booking.payment_intent_id && (
                           <div className="text-xs text-muted-foreground font-mono">
-                            {booking.payment_intent_id.slice(-8)}
+                            {booking.payment_intent_id?.slice(-8)}
                           </div>
                         )}
                       </div>
