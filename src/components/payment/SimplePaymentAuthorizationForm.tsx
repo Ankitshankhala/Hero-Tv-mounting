@@ -199,46 +199,24 @@ export const SimplePaymentAuthorizationForm = ({
       if (paymentIntent?.status === 'requires_capture' || paymentIntent?.status === 'succeeded') {
         console.log('✅ Payment authorized successfully!');
         
-        // Handle payment success and update all statuses
+        // Update transaction and booking status after successful authorization
         try {
-          console.log('Processing payment success for payment intent:', intentData.payment_intent_id);
+          console.log('Updating transaction status for payment intent:', intentData.payment_intent_id);
           
-          const { data: successData, error: successError } = await supabase.functions.invoke(
-            'handle-payment-success',
+          const { data: updateData, error: updateError } = await supabase.functions.invoke(
+            'update-transaction-status',
             {
               body: {
                 payment_intent_id: intentData.payment_intent_id,
-                booking_id: bookingId
+                status: 'requires_capture' // This will map to 'authorized' in the function
               }
             }
           );
           
-          if (successError || !successData?.success) {
-            console.error('Payment success handler failed:', successError);
-            console.warn('Payment was authorized but processing failed');
+          if (updateError) {
+            console.error('Transaction status update failed:', updateError);
           } else {
-            console.log('Payment success processed successfully:', successData);
-          }
-
-          // CRITICAL FIX: Always verify payment intent after authorization to ensure consistency
-          try {
-            const { data: verifyData, error: verifyError } = await supabase.functions.invoke(
-              'verify-payment-intent',
-              {
-                body: {
-                  payment_intent_id: intentData.payment_intent_id,
-                  booking_id: bookingId
-                }
-              }
-            );
-
-            if (verifyError) {
-              console.error('Payment verification failed:', verifyError);
-            } else {
-              console.log('Payment verification completed:', verifyData);
-            }
-          } catch (verifyErr) {
-            console.error('Payment verification error:', verifyErr);
+            console.log('Transaction and booking status updated successfully:', updateData);
           }
           
           console.log('Payment authorization flow completed successfully');
@@ -247,7 +225,6 @@ export const SimplePaymentAuthorizationForm = ({
           console.error('Error updating transaction status:', error);
           
           // Since payment is authorized in Stripe, we should still succeed
-          // The database inconsistency can be resolved later
           console.warn('Transaction update error, but payment authorized. Proceeding with success.');
           onAuthorizationSuccess(intentData.payment_intent_id);
         }
