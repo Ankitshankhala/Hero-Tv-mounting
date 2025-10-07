@@ -96,6 +96,13 @@ export type Database = {
             foreignKeyName: "fk_booking_services_booking"
             columns: ["booking_id"]
             isOneToOne: false
+            referencedRelation: "v_booking_payment_status_monitor"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_booking_services_booking"
+            columns: ["booking_id"]
+            isOneToOne: false
             referencedRelation: "v_booking_status_inconsistencies"
             referencedColumns: ["id"]
           },
@@ -490,6 +497,13 @@ export type Database = {
             foreignKeyName: "fk_invoices_booking"
             columns: ["booking_id"]
             isOneToOne: false
+            referencedRelation: "v_booking_payment_status_monitor"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_invoices_booking"
+            columns: ["booking_id"]
+            isOneToOne: false
             referencedRelation: "v_booking_status_inconsistencies"
             referencedColumns: ["id"]
           },
@@ -498,6 +512,13 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_booking_payment_status_monitor"
             referencedColumns: ["id"]
           },
           {
@@ -700,6 +721,13 @@ export type Database = {
             foreignKeyName: "sms_logs_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: false
+            referencedRelation: "v_booking_payment_status_monitor"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sms_logs_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
             referencedRelation: "v_booking_status_inconsistencies"
             referencedColumns: ["id"]
           },
@@ -826,6 +854,13 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_booking_payment_status_monitor"
             referencedColumns: ["id"]
           },
           {
@@ -1096,6 +1131,13 @@ export type Database = {
             foreignKeyName: "worker_bookings_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: false
+            referencedRelation: "v_booking_payment_status_monitor"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "worker_bookings_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
             referencedRelation: "v_booking_status_inconsistencies"
             referencedColumns: ["id"]
           },
@@ -1148,6 +1190,13 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "worker_coverage_notifications_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_booking_payment_status_monitor"
             referencedColumns: ["id"]
           },
           {
@@ -1387,6 +1436,36 @@ export type Database = {
           f_table_schema?: unknown | null
           srid?: number | null
           type?: string | null
+        }
+        Relationships: []
+      }
+      v_booking_payment_status_monitor: {
+        Row: {
+          booking_status: Database["public"]["Enums"]["booking_status"] | null
+          consistency_status: string | null
+          created_at: string | null
+          id: string | null
+          payment_intent_id: string | null
+          payment_status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          booking_status?: Database["public"]["Enums"]["booking_status"] | null
+          consistency_status?: never
+          created_at?: string | null
+          id?: string | null
+          payment_intent_id?: string | null
+          payment_status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          booking_status?: Database["public"]["Enums"]["booking_status"] | null
+          consistency_status?: never
+          created_at?: string | null
+          id?: string | null
+          payment_intent_id?: string | null
+          payment_status?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
