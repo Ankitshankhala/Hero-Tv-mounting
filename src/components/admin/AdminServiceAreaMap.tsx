@@ -72,6 +72,8 @@ const AdminServiceAreaMap = ({
   const [customDrawingMode, setCustomDrawingMode] = useState(false);
   const [customPolygonPoints, setCustomPolygonPoints] = useState<L.LatLng[]>([]);
   const [customPolygonLayer, setCustomPolygonLayer] = useState<L.Polyline | null>(null);
+  const [precomputedZipCodes, setPrecomputedZipCodes] = useState<string[]>([]);
+  const [computingZipCodes, setComputingZipCodes] = useState(false);
   
   const { toast } = useToast();
   const { 
@@ -81,6 +83,60 @@ const AdminServiceAreaMap = ({
     refreshData 
   } = useAdminServiceAreas();
   const zctaService = useOptimizedZctaService();
+
+  // Fetch ZIP codes for a drawn polygon using ZCTA spatial query
+  const fetchZipCodesForPolygon = async (polygon: Array<{lat: number, lng: number}>) => {
+    setComputingZipCodes(true);
+    setPrecomputedZipCodes([]);
+    
+    try {
+      // Convert polygon to GeoJSON format
+      const geoJsonPolygon = {
+        type: 'Polygon',
+        coordinates: [[
+          ...polygon.map(p => [p.lng, p.lat]),
+          [polygon[0].lng, polygon[0].lat] // Close polygon
+        ]]
+      };
+      
+      console.log('🔍 Fetching ZIP codes for polygon:', {
+        pointCount: polygon.length,
+        samplePoint: polygon[0]
+      });
+      
+      // Call database function for accurate ZCTA-based results
+      const { data: zipCodes, error } = await supabase.rpc('get_zcta_codes_for_polygon', {
+        polygon_coords: geoJsonPolygon.coordinates[0]
+      });
+      
+      if (error) {
+        console.error('ZIP code fetch error:', error);
+        throw error;
+      }
+      
+      const foundZips = zipCodes || [];
+      setPrecomputedZipCodes(foundZips);
+      
+      console.log('✅ ZIP codes found:', foundZips.length);
+      
+      // Show success toast
+      toast({
+        title: "ZIP Codes Found",
+        description: `${foundZips.length} ZIP codes intersect with your polygon`,
+      });
+      
+    } catch (error) {
+      console.error('Failed to fetch ZIP codes:', error);
+      toast({
+        title: "Error",
+        description: "Failed to compute ZIP codes. Please try again.",
+        variant: "destructive"
+      });
+      setPrecomputedZipCodes([]);
+    } finally {
+      setComputingZipCodes(false);
+    }
+  };
 
   // Initialize map with enhanced debugging and proper sizing
   useEffect(() => {
@@ -505,6 +561,10 @@ const AdminServiceAreaMap = ({
           }
         
         setCurrentPolygon(coordinates);
+        
+        // Immediately compute ZIP codes using ZCTA data
+        fetchZipCodesForPolygon(coordinates);
+        
         setShowAreaSelection(true);
         
         // Set default selection based on existing areas
@@ -877,19 +937,22 @@ const AdminServiceAreaMap = ({
       // Let the database compute ZIP codes from polygon
       console.log('🗺️ Using database-only ZIP code computation...');
 
-      // Prepare data for edge function
+      // Prepare data for edge function with pre-computed ZIP codes
       const saveData = {
         workerId,
         areaName: areaSelectionMode === 'new' ? areaName : selectedExistingArea?.area_name,
         polygon: currentPolygon,
-        zipCodes: [], // Let database compute ZIP codes
+        zipCodes: precomputedZipCodes, // Use pre-computed ZIP codes from client
         mode: areaSelectionMode === 'existing' ? 'update' : 'create',
         ...(areaSelectionMode === 'existing' && selectedExistingArea && {
           areaIdToUpdate: selectedExistingArea.id
         })
       };
 
-      console.log('📡 Calling service-area-upsert edge function with:', saveData);
+      console.log('📡 Calling service-area-upsert edge function with:', {
+        ...saveData,
+        zipCodeCount: precomputedZipCodes.length
+      });
 
       const { data, error } = await supabase.functions.invoke('service-area-upsert', {
         body: saveData
@@ -1023,6 +1086,7 @@ const AdminServiceAreaMap = ({
   const cancelDrawing = () => {
     setCurrentPolygon(null);
     setShowAreaSelection(false);
+    setPrecomputedZipCodes([]); // Clear pre-computed ZIP codes
     drawnItemsRef.current?.clearLayers();
   };
 
@@ -1162,6 +1226,26 @@ const AdminServiceAreaMap = ({
                     </option>
                   ))}
                 </select>
+              </div>
+            )}
+
+            {/* ZIP Code Count Badge */}
+            {computingZipCodes ? (
+              <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span className="text-sm">Computing ZIP codes...</span>
+              </div>
+            ) : precomputedZipCodes.length > 0 ? (
+              <div className="flex items-center gap-2 p-3 bg-green-500/10 border border-green-500/20 rounded-md">
+                <CheckCircle className="h-4 w-4 text-green-500" />
+                <span className="text-sm font-medium">
+                  ✅ {precomputedZipCodes.length} ZIP codes selected
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-md">
+                <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                <span className="text-sm">No ZIP codes found in this area</span>
               </div>
             )}
 
