@@ -144,6 +144,7 @@ export type Database = {
           status: Database["public"]["Enums"]["booking_status"] | null
           stripe_customer_id: string | null
           stripe_payment_method_id: string | null
+          tip_amount: number | null
           updated_at: string | null
           worker_id: string | null
         }
@@ -175,6 +176,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["booking_status"] | null
           stripe_customer_id?: string | null
           stripe_payment_method_id?: string | null
+          tip_amount?: number | null
           updated_at?: string | null
           worker_id?: string | null
         }
@@ -206,6 +208,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["booking_status"] | null
           stripe_customer_id?: string | null
           stripe_payment_method_id?: string | null
+          tip_amount?: number | null
           updated_at?: string | null
           worker_id?: string | null
         }
@@ -818,6 +821,7 @@ export type Database = {
       transactions: {
         Row: {
           amount: number
+          base_amount: number | null
           booking_id: string | null
           cancellation_reason: string | null
           cancelled_at: string | null
@@ -834,10 +838,12 @@ export type Database = {
           refund_amount: number | null
           status: Database["public"]["Enums"]["payment_status"] | null
           stripe_refund_id: string | null
+          tip_amount: number | null
           transaction_type: string | null
         }
         Insert: {
           amount: number
+          base_amount?: number | null
           booking_id?: string | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
@@ -854,10 +860,12 @@ export type Database = {
           refund_amount?: number | null
           status?: Database["public"]["Enums"]["payment_status"] | null
           stripe_refund_id?: string | null
+          tip_amount?: number | null
           transaction_type?: string | null
         }
         Update: {
           amount?: number
+          base_amount?: number | null
           booking_id?: string | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
@@ -874,6 +882,7 @@ export type Database = {
           refund_amount?: number | null
           status?: Database["public"]["Enums"]["payment_status"] | null
           stripe_refund_id?: string | null
+          tip_amount?: number | null
           transaction_type?: string | null
         }
         Relationships: [
@@ -1580,6 +1589,28 @@ export type Database = {
           payment_status?: string | null
         }
         Relationships: []
+      }
+      worker_tips_summary: {
+        Row: {
+          average_tip: number | null
+          last_tip_date: string | null
+          max_tip: number | null
+          min_tip: number | null
+          total_bookings_with_tips: number | null
+          total_tips_received: number | null
+          worker_email: string | null
+          worker_id: string | null
+          worker_name: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       zip_coverage_summary: {
         Row: {
@@ -2425,6 +2456,19 @@ export type Database = {
         Args: { state_abbreviation: string }
         Returns: number
       }
+      get_tip_analytics: {
+        Args: { p_end_date?: string; p_start_date?: string }
+        Returns: {
+          avg_tip: number
+          bookings_with_tips: number
+          max_tip: number
+          tip_percentage: number
+          total_bookings: number
+          total_tips: number
+          worker_id: string
+          worker_name: string
+        }[]
+      }
       get_worker_active_zipcodes: {
         Args: { p_worker_id: string }
         Returns: string[]
@@ -2432,6 +2476,24 @@ export type Database = {
       get_worker_count_by_zip: {
         Args: { p_zipcode: string }
         Returns: number
+      }
+      get_worker_tips_detail: {
+        Args: {
+          p_end_date?: string
+          p_start_date?: string
+          p_worker_id: string
+        }
+        Returns: {
+          base_amount: number
+          booking_date: string
+          booking_id: string
+          customer_email: string
+          customer_name: string
+          payment_status: string
+          service_name: string
+          tip_amount: number
+          total_amount: number
+        }[]
       }
       get_worker_weekly_availability: {
         Args: { p_worker_id: string }
@@ -2802,6 +2864,10 @@ export type Database = {
       }
       rebuild_worker_overlay: {
         Args: { p_worker: string }
+        Returns: undefined
+      }
+      refresh_worker_tips_summary: {
+        Args: Record<PropertyKey, never>
         Returns: undefined
       }
       refresh_zip_coverage_summary: {
