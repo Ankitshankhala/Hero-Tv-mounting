@@ -317,6 +317,54 @@ export type Database = {
         }
         Relationships: []
       }
+      invoice_audit_log: {
+        Row: {
+          change_reason: string | null
+          changed_by: string | null
+          created_at: string | null
+          id: string
+          invoice_id: string
+          new_data: Json | null
+          old_data: Json | null
+          operation: string
+        }
+        Insert: {
+          change_reason?: string | null
+          changed_by?: string | null
+          created_at?: string | null
+          id?: string
+          invoice_id: string
+          new_data?: Json | null
+          old_data?: Json | null
+          operation: string
+        }
+        Update: {
+          change_reason?: string | null
+          changed_by?: string | null
+          created_at?: string | null
+          id?: string
+          invoice_id?: string
+          new_data?: Json | null
+          old_data?: Json | null
+          operation?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_audit_log_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_audit_log_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "v_invoice_payment_reconciliation"
+            referencedColumns: ["invoice_id"]
+          },
+        ]
+      }
       invoice_items: {
         Row: {
           created_at: string | null
@@ -357,11 +405,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "fk_invoice_items_invoice"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "v_invoice_payment_reconciliation"
+            referencedColumns: ["invoice_id"]
+          },
+          {
             foreignKeyName: "invoice_items_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
             referencedRelation: "invoices"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "v_invoice_payment_reconciliation"
+            referencedColumns: ["invoice_id"]
           },
         ]
       }
@@ -429,13 +491,16 @@ export type Database = {
           delivery_attempts: number | null
           delivery_status: string | null
           due_date: string
+          email_attempts: number | null
           email_sent: boolean | null
           email_sent_at: string | null
           id: string
           invoice_date: string
           invoice_number: string
           last_delivery_attempt: string | null
+          last_email_attempt: string | null
           pdf_generated: boolean | null
+          pdf_generated_at: string | null
           pdf_storage_path: string | null
           pdf_url: string | null
           state_code: string | null
@@ -444,6 +509,9 @@ export type Database = {
           tax_rate: number | null
           total_amount: number
           updated_at: string | null
+          void_at: string | null
+          void_reason: string | null
+          voided_by: string | null
         }
         Insert: {
           amount: number
@@ -454,13 +522,16 @@ export type Database = {
           delivery_attempts?: number | null
           delivery_status?: string | null
           due_date?: string
+          email_attempts?: number | null
           email_sent?: boolean | null
           email_sent_at?: string | null
           id?: string
           invoice_date?: string
           invoice_number: string
           last_delivery_attempt?: string | null
+          last_email_attempt?: string | null
           pdf_generated?: boolean | null
+          pdf_generated_at?: string | null
           pdf_storage_path?: string | null
           pdf_url?: string | null
           state_code?: string | null
@@ -469,6 +540,9 @@ export type Database = {
           tax_rate?: number | null
           total_amount: number
           updated_at?: string | null
+          void_at?: string | null
+          void_reason?: string | null
+          voided_by?: string | null
         }
         Update: {
           amount?: number
@@ -479,13 +553,16 @@ export type Database = {
           delivery_attempts?: number | null
           delivery_status?: string | null
           due_date?: string
+          email_attempts?: number | null
           email_sent?: boolean | null
           email_sent_at?: string | null
           id?: string
           invoice_date?: string
           invoice_number?: string
           last_delivery_attempt?: string | null
+          last_email_attempt?: string | null
           pdf_generated?: boolean | null
+          pdf_generated_at?: string | null
           pdf_storage_path?: string | null
           pdf_url?: string | null
           state_code?: string | null
@@ -494,6 +571,9 @@ export type Database = {
           tax_rate?: number | null
           total_amount?: number
           updated_at?: string | null
+          void_at?: string | null
+          void_reason?: string | null
+          voided_by?: string | null
         }
         Relationships: [
           {
@@ -1559,6 +1639,80 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      v_invoice_payment_reconciliation: {
+        Row: {
+          booking_id: string | null
+          booking_payment_status: string | null
+          booking_status: Database["public"]["Enums"]["booking_status"] | null
+          delivery_status: string | null
+          email_sent: boolean | null
+          invoice_amount: number | null
+          invoice_id: string | null
+          invoice_number: string | null
+          invoice_status: string | null
+          recommended_status: string | null
+          total_captured: number | null
+          total_refunded: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_invoices_booking"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_invoices_booking"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_booking_payment_status_monitor"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_invoices_booking"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_booking_status_inconsistencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_invoices_booking"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_missing_transactions"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "invoices_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_booking_payment_status_monitor"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_booking_status_inconsistencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_missing_transactions"
+            referencedColumns: ["booking_id"]
+          },
+        ]
       }
       v_missing_transactions: {
         Row: {

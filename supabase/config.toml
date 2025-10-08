@@ -61,3 +61,12 @@ verify_jwt = false
 
 [functions.stripe-transactions-sync]
 verify_jwt = false
+
+[functions.generate-invoice]
+verify_jwt = false
+
+[functions.worker-remove-services]
+verify_jwt = false
+
+[functions.send-invoice-email]
+verify_jwt = false

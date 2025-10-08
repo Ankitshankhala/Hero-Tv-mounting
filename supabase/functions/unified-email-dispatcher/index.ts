@@ -68,6 +68,24 @@ serve(async (req) => {
           body: { booking_id: bookingId }
         });
         break;
+
+      case 'invoice':
+        emailResponse = await supabase.functions.invoke('send-invoice-email', {
+          body: { 
+            booking_id: bookingId,
+            recipient_email: recipientEmail
+          }
+        });
+        break;
+
+      case 'invoice_updated':
+        emailResponse = await supabase.functions.invoke('send-invoice-email', {
+          body: { 
+            booking_id: bookingId,
+            recipient_email: recipientEmail
+          }
+        });
+        break;
         
       default:
         throw new Error(`Unknown email type: ${emailType}`);

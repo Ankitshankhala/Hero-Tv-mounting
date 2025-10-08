@@ -9,23 +9,25 @@ export const useInvoiceOperations = () => {
   const { toast } = useToast();
   // Email functionality removed
 
-  const generateInvoice = async (bookingId: string, sendEmail = false) => {
+  const generateInvoice = async (bookingId: string, sendEmail = true, forceRegenerate = false) => {
     setLoading(true);
     try {
-      // Generate invoice without automatic email sending
       const { data, error } = await supabase.functions.invoke('generate-invoice', {
         body: { 
           booking_id: bookingId,
-          send_email: false // Always disable automatic email, we'll handle it separately
+          send_email: sendEmail,
+          force_regenerate: forceRegenerate
         }
       });
 
       if (error) throw error;
 
-      // Email functionality removed - invoice generated without email
+      const emailStatus = data?.invoice?.email_sent ? ' and email sent' : '';
+      const regenerated = data?.regenerated ? 'regenerated' : 'generated';
+      
       toast({
         title: "Success",
-        description: "Invoice generated successfully",
+        description: `Invoice ${regenerated} successfully${emailStatus}`,
       });
 
       return data;
@@ -33,7 +35,7 @@ export const useInvoiceOperations = () => {
       console.error('Error generating invoice:', error);
       toast({
         title: "Error",
-        description: "Failed to generate invoice",
+        description: error instanceof Error ? error.message : "Failed to generate invoice",
         variant: "destructive",
       });
       throw error;
