@@ -1,8 +1,11 @@
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { formatBookingTimeForContext, DEFAULT_SERVICE_TIMEZONE } from '@/utils/timeUtils';
+import { RefundBookingModal } from './RefundBookingModal';
+import { DollarSign } from 'lucide-react';
 
 interface BookingDetailsModalProps {
   booking: any;
@@ -43,6 +46,8 @@ const getPaymentStatusVariant = (status: string | undefined) => {
 };
 
 export const BookingDetailsModal = ({ booking, isOpen, onClose }: BookingDetailsModalProps) => {
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  
   if (!booking) return null;
 
   const customerName = booking.guest_customer_info?.name || booking.customer?.name || 'Guest Customer';
@@ -208,6 +213,22 @@ export const BookingDetailsModal = ({ booking, isOpen, onClose }: BookingDetails
                   <p className="mt-1 font-mono text-sm">{booking.payment_intent_id}</p>
                 </div>
               )}
+              {/* Refund Button */}
+              {booking.payment_intent_id && 
+               ['authorized', 'completed', 'captured'].includes(booking.payment_status) &&
+               booking.status !== 'cancelled' && (
+                <div className="pt-2">
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setShowRefundModal(true)}
+                    className="w-full"
+                  >
+                    <DollarSign className="h-4 w-4 mr-2" />
+                    Issue Refund
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -216,6 +237,17 @@ export const BookingDetailsModal = ({ booking, isOpen, onClose }: BookingDetails
           <Button onClick={onClose}>Close</Button>
         </div>
       </DialogContent>
+
+      {/* Refund Modal */}
+      <RefundBookingModal
+        isOpen={showRefundModal}
+        onClose={() => setShowRefundModal(false)}
+        booking={booking}
+        onRefundComplete={() => {
+          setShowRefundModal(false);
+          onClose();
+        }}
+      />
     </Dialog>
   );
 };

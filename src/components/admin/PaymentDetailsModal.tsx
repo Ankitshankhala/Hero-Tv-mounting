@@ -1,10 +1,11 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { CreditCard, Calendar, DollarSign, User, MapPin, Phone, Mail } from 'lucide-react';
+import { RefundBookingModal } from './RefundBookingModal';
 
 interface PaymentDetailsModalProps {
   isOpen: boolean;
@@ -28,6 +29,8 @@ const formatDate = (dateString: string) => {
 };
 
 const PaymentDetailsModal = ({ isOpen, onClose, payment }: PaymentDetailsModalProps) => {
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  
   if (!payment) return null;
 
   const getStatusBadge = (status: string) => {
@@ -193,8 +196,13 @@ const PaymentDetailsModal = ({ isOpen, onClose, payment }: PaymentDetailsModalPr
           {/* Actions */}
           <div className="flex justify-between items-center">
             <div className="flex space-x-2">
-              {payment.status === 'completed' && (
-                <Button variant="outline" size="sm">
+              {payment.status === 'completed' && payment.booking && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowRefundModal(true)}
+                >
+                  <DollarSign className="h-4 w-4 mr-2" />
                   Issue Refund
                 </Button>
               )}
@@ -208,6 +216,19 @@ const PaymentDetailsModal = ({ isOpen, onClose, payment }: PaymentDetailsModalPr
           </div>
         </div>
       </DialogContent>
+
+      {/* Refund Modal */}
+      {payment.booking && (
+        <RefundBookingModal
+          isOpen={showRefundModal}
+          onClose={() => setShowRefundModal(false)}
+          booking={payment.booking}
+          onRefundComplete={() => {
+            setShowRefundModal(false);
+            onClose();
+          }}
+        />
+      )}
     </Dialog>
   );
 };
