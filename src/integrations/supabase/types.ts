@@ -1744,6 +1744,15 @@ export type Database = {
         }
         Relationships: []
       }
+      v_sms_delivery_stats: {
+        Row: {
+          count: number | null
+          date: string | null
+          status: Database["public"]["Enums"]["sms_status"] | null
+          success_rate: number | null
+        }
+        Relationships: []
+      }
       worker_tips_summary: {
         Row: {
           average_tip: number | null
@@ -2252,6 +2261,10 @@ export type Database = {
       fix_booking_payment_status: {
         Args: { p_booking_id: string; p_payment_intent_id: string }
         Returns: Json
+      }
+      format_phone_e164: {
+        Args: { phone_input: string }
+        Returns: string
       }
       generate_invoice_number: {
         Args: Record<PropertyKey, never>

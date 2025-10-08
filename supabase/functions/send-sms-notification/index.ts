@@ -6,6 +6,39 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+/**
+ * Formats phone number to E.164 standard (required by Twilio)
+ * E.164 format: +[country code][subscriber number]
+ * Example: +12025551234
+ */
+function formatPhoneE164(phone: string | null | undefined): string | null {
+  if (!phone) return null;
+  
+  // Remove all non-digit characters
+  const digitsOnly = phone.replace(/\D/g, '');
+  
+  // Handle empty or invalid phone numbers
+  if (digitsOnly.length < 10) {
+    console.warn(`[SMS-E164] Invalid phone length: ${digitsOnly.length}`);
+    return null;
+  }
+  
+  // Handle 10-digit US numbers (add +1 prefix)
+  if (digitsOnly.length === 10) {
+    return `+1${digitsOnly}`;
+  }
+  
+  // Handle 11-digit numbers starting with 1 (US numbers)
+  if (digitsOnly.length === 11 && digitsOnly.startsWith('1')) {
+    return `+${digitsOnly}`;
+  }
+  
+  // For other formats, add + prefix if not present
+  const formatted = digitsOnly.startsWith('+') ? phone : `+${digitsOnly}`;
+  console.log(`[SMS-E164] Formatted ${phone} -> ${formatted}`);
+  return formatted;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -66,7 +99,7 @@ serve(async (req) => {
 
     if (booking.worker?.phone) {
       // Send to worker
-      recipientPhone = booking.worker.phone;
+      recipientPhone = formatPhoneE164(booking.worker.phone);
       recipientName = booking.worker.name || 'Worker';
       
       const customerName = booking.customer?.name || 
@@ -79,10 +112,10 @@ serve(async (req) => {
     }
 
     if (!recipientPhone) {
-      throw new Error('No valid recipient phone number found');
+      throw new Error('No valid recipient phone number found or invalid phone format');
     }
 
-    console.log(`[SMS-NOTIFICATION] Sending SMS to ${recipientPhone}`);
+    console.log(`[SMS-NOTIFICATION] Sending SMS to ${recipientPhone} (E.164 format)`);
 
     // Validate Twilio credentials
     const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
