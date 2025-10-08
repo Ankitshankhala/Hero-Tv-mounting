@@ -147,29 +147,48 @@ const handler = async (req: Request): Promise<Response> => {
         }
       });
 
+    // Get customer email
+    const { data: customerData } = await supabase
+      .from('users')
+      .select('email')
+      .eq('id', booking.customer_id)
+      .single();
+
     // Send notifications
     try {
+      console.log('Sending reassignment notifications...');
+      
       // Notify new worker
-      await supabase.functions.invoke('smart-email-dispatcher', {
+      await supabase.functions.invoke('unified-email-dispatcher', {
         body: {
           bookingId: requestData.bookingId,
-          workerId: requestData.newWorkerId,
-          emailType: 'worker_assignment',
-          source: 'worker_reassignment'
+          recipientEmail: newWorker.email,
+          emailType: 'booking_confirmed'
         }
       });
 
-      // Notify customer of reassignment
-      await supabase.functions.invoke('smart-email-dispatcher', {
-        body: {
-          bookingId: requestData.bookingId,
-          emailType: 'customer_reassignment',
-          source: 'worker_reassignment'
-        }
-      });
+      // Notify customer of reassignment if we have their email
+      if (customerData?.email) {
+        await supabase.functions.invoke('unified-email-dispatcher', {
+          body: {
+            bookingId: requestData.bookingId,
+            recipientEmail: customerData.email,
+            emailType: 'booking_confirmed'
+          }
+        });
+      }
+      
+      console.log('Reassignment notifications sent successfully');
     } catch (emailError) {
       console.error('Email notification failed:', emailError);
-      // Don't fail the whole operation for email issues
+      // Log but don't fail - reassignment succeeded even if emails failed
+      await supabase.from('sms_logs').insert({
+        booking_id: requestData.bookingId,
+        recipient_number: 'system',
+        message: 'Reassignment email notification failed',
+        status: 'failed',
+        error_message: emailError.message
+      });
     }
 
     console.log('Booking reassigned successfully');

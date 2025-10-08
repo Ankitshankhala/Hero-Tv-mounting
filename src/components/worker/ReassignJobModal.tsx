@@ -38,7 +38,9 @@ export const ReassignJobModal = ({ isOpen, onClose, bookingId, onSuccess }: Reas
   const fetchEligibleWorkers = async () => {
     setFetchingWorkers(true);
     try {
-      const response = await fetch(`https://ggvplltpwsnvtcbpazbe.supabase.co/functions/v1/get-eligible-workers?bookingId=${bookingId}`, {
+      console.log('Fetching eligible workers for booking:', bookingId);
+      
+      const response = await fetch(`https://ggvplltpwsnvtcbpazbe.supabase.co/functions/v1/worker-operations/eligible-workers?bookingId=${bookingId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -47,6 +49,7 @@ export const ReassignJobModal = ({ isOpen, onClose, bookingId, onSuccess }: Reas
       });
 
       const data = await response.json();
+      console.log('Eligible workers response:', data);
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to fetch workers');
@@ -58,10 +61,10 @@ export const ReassignJobModal = ({ isOpen, onClose, bookingId, onSuccess }: Reas
         throw new Error(data?.error || 'Failed to fetch workers');
       }
     } catch (error) {
-      console.error('Error fetching workers:', error);
+      console.error('Error fetching eligible workers:', error);
       toast({
-        title: "Error",
-        description: "Failed to fetch available workers",
+        title: "Error Loading Workers",
+        description: error instanceof Error ? error.message : "Failed to fetch available workers. Please try again.",
         variant: "destructive",
       });
     } finally {
