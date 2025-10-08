@@ -30,6 +30,7 @@ const LazyInvoicesManager = lazy(() => import('@/components/admin/InvoicesManage
 const LazyInvoiceMonitoringPanel = lazy(() => import('@/components/admin/InvoiceMonitoringPanel').then(m => ({ default: m.InvoiceMonitoringPanel })));
 const LazyEmailLogsManager = lazy(() => import('@/components/admin/EmailLogsManager').then(m => ({ default: m.EmailLogsManager })));
 const LazyNotificationsSettings = lazy(() => import('@/components/admin/NotificationsSettings').then(m => ({ default: m.NotificationsSettings })));
+const LazyTipAnalyticsDashboard = lazy(() => import('@/components/admin/TipAnalyticsDashboard').then(m => ({ default: m.TipAnalyticsDashboard })));
 
 
 // Loading component for lazy-loaded components
@@ -155,6 +156,8 @@ const Admin = () => {
       case 'coverage':
       case 'service-areas':
         return wrapWithSuspense(LazyAdminServiceAreasUnified);
+      case 'tips':
+        return wrapWithSuspense(LazyTipAnalyticsDashboard);
       case 'settings':
         return wrapWithSuspense(LazyNotificationsSettings);
       case 'invoice-monitoring':

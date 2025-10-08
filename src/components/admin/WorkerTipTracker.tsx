@@ -46,12 +46,12 @@ export function WorkerTipTracker() {
     try {
       setLoading(true);
       
-      // Query bookings with tips and join worker information
+      // Use the new tip_amount column for efficient querying
       const { data, error } = await supabase
         .from('bookings')
         .select(`
           worker_id,
-          guest_customer_info,
+          tip_amount,
           scheduled_date,
           created_at,
           users!worker_id (
@@ -59,7 +59,7 @@ export function WorkerTipTracker() {
           )
         `)
         .not('worker_id', 'is', null)
-        .not('guest_customer_info->tip_amount', 'is', null);
+        .gt('tip_amount', 0);
 
       if (error) throw error;
 
@@ -71,8 +71,7 @@ export function WorkerTipTracker() {
       }>();
 
       data?.forEach((booking) => {
-        const guestInfo = booking.guest_customer_info as any;
-        const tipAmount = parseFloat(guestInfo?.tip_amount || '0');
+        const tipAmount = Number(booking.tip_amount);
         if (tipAmount > 0 && booking.worker_id) {
           const users = booking.users as any;
           const existing = workerTipMap.get(booking.worker_id) || {
@@ -114,30 +113,35 @@ export function WorkerTipTracker() {
     try {
       setSelectedWorkerId(workerId);
       
+      // Use the new tip_amount column
       const { data, error } = await supabase
         .from('bookings')
         .select(`
           id,
-          guest_customer_info,
+          tip_amount,
           scheduled_date,
-          created_at
+          created_at,
+          customer_id,
+          guest_customer_info,
+          users!customer_id (
+            name
+          )
         `)
         .eq('worker_id', workerId)
-        .not('guest_customer_info->tip_amount', 'is', null);
+        .gt('tip_amount', 0);
 
       if (error) throw error;
 
       const details: TipDetail[] = data
-        ?.filter(booking => {
+        ?.map(booking => {
+          const users = booking.users as any;
           const guestInfo = booking.guest_customer_info as any;
-          return parseFloat(guestInfo?.tip_amount || '0') > 0;
-        })
-        .map(booking => {
-          const guestInfo = booking.guest_customer_info as any;
+          const customerName = users?.name || guestInfo?.name || 'Guest Customer';
+          
           return {
             booking_id: booking.id,
-            customer_name: guestInfo?.name || 'Guest Customer',
-            tip_amount: parseFloat(guestInfo?.tip_amount || '0'),
+            customer_name: customerName,
+            tip_amount: Number(booking.tip_amount),
             service_date: booking.scheduled_date,
             created_at: booking.created_at
           };
