@@ -36,8 +36,11 @@ serve(async (req) => {
     const { booking_id, service_ids } = await req.json();
 
     if (!booking_id || !Array.isArray(service_ids) || service_ids.length === 0) {
+      console.error("[WORKER-REMOVE] Invalid request: missing booking_id or service_ids");
       throw new Error("Booking ID and service IDs are required");
     }
+
+    console.log(`[WORKER-REMOVE] Processing removal request for booking ${booking_id}, services: ${service_ids.join(', ')}`);
 
     // Verify worker has access to this booking using service role
     const { data: booking, error: bookingError } = await supabaseService
@@ -46,8 +49,20 @@ serve(async (req) => {
       .eq('id', booking_id)
       .single();
 
-    if (bookingError || !booking || booking.worker_id !== user.id) {
-      throw new Error("Booking not found or access denied");
+    if (bookingError || !booking) {
+      console.error("[WORKER-REMOVE] Booking not found:", bookingError);
+      throw new Error("Booking not found");
+    }
+
+    if (booking.worker_id !== user.id) {
+      console.error("[WORKER-REMOVE] Access denied: worker_id mismatch");
+      throw new Error("Access denied");
+    }
+
+    // Phase 4: Prevent removing from completed bookings
+    if (booking.status === 'completed') {
+      console.error("[WORKER-REMOVE] Cannot remove services from completed booking");
+      throw new Error("Cannot remove services from completed bookings");
     }
 
     // Get services to be removed with their details
@@ -57,8 +72,25 @@ serve(async (req) => {
       .eq('booking_id', booking_id)
       .in('id', service_ids);
 
-    if (servicesError || !servicesToRemove?.length) {
+    if (servicesError) {
+      console.error("[WORKER-REMOVE] Error fetching services:", servicesError);
+      throw new Error("Failed to fetch services to remove");
+    }
+
+    if (!servicesToRemove?.length) {
+      console.error("[WORKER-REMOVE] No services found to remove");
       throw new Error("Services not found");
+    }
+
+    // Phase 4: Check if we're removing all services
+    const { count: totalServicesCount } = await supabaseService
+      .from('booking_services')
+      .select('*', { count: 'exact', head: true })
+      .eq('booking_id', booking_id);
+
+    if (totalServicesCount === servicesToRemove.length) {
+      console.error("[WORKER-REMOVE] Cannot remove all services from booking");
+      throw new Error("Cannot remove all services. At least one service must remain.");
     }
 
     // Calculate total amount to refund
@@ -142,19 +174,25 @@ serve(async (req) => {
       .update({ has_modifications: true })
       .eq('id', booking_id);
 
-    // Create service modification records
+    // Phase 1: Create service modification records in correct table
     const modificationRecords = servicesToRemove.map(service => ({
       booking_id: booking_id,
       worker_id: user.id,
       service_name: service.service_name,
       modification_type: 'removed',
       price_change: -(service.base_price * service.quantity),
-      description: 'Removed by worker'
+      old_configuration: service.configuration || {},
+      new_configuration: {}
     }));
 
-    await supabaseService
-      .from('booking_service_modifications')
+    const { error: modError } = await supabaseService
+      .from('invoice_service_modifications')
       .insert(modificationRecords);
+
+    if (modError) {
+      console.error("[WORKER-REMOVE] Failed to create modification records:", modError);
+      throw new Error("Failed to log service modifications");
+    }
 
     console.log(`[WORKER-REMOVE] Created ${modificationRecords.length} modification records`);
 
@@ -166,12 +204,28 @@ serve(async (req) => {
           apiVersion: "2023-10-16",
         });
 
+        console.log(`[WORKER-REMOVE] Retrieving payment intent ${booking.payment_intent_id}`);
         const paymentIntent = await stripe.paymentIntents.retrieve(booking.payment_intent_id);
         
         if (paymentIntent.status === 'succeeded') {
+          // Phase 4: Check if already refunded
+          const { data: existingRefund } = await supabaseService
+            .from('transactions')
+            .select('*')
+            .eq('booking_id', booking_id)
+            .eq('payment_intent_id', booking.payment_intent_id)
+            .eq('transaction_type', 'refund')
+            .maybeSingle();
+
+          if (existingRefund) {
+            console.error("[WORKER-REMOVE] Payment already refunded");
+            throw new Error("This booking has already been refunded");
+          }
+
           // Payment already captured - create partial refund
           const refundAmountCents = Math.round(refundAmount * 100);
           
+          console.log(`[WORKER-REMOVE] Creating refund of $${refundAmount} (${refundAmountCents} cents)`);
           refundResult = await stripe.refunds.create({
             payment_intent: booking.payment_intent_id,
             amount: refundAmountCents,
@@ -185,7 +239,7 @@ serve(async (req) => {
 
           console.log(`[WORKER-REMOVE] Partial refund created: ${refundResult.id} for $${refundAmount}`);
 
-          await supabaseService.from('transactions').insert({
+          const { error: txError } = await supabaseService.from('transactions').insert({
             booking_id: booking_id,
             payment_intent_id: booking.payment_intent_id,
             amount: -refundAmount, // Negative for refund
@@ -194,13 +248,20 @@ serve(async (req) => {
             stripe_refund_id: refundResult.id,
             cancellation_reason: 'Services removed by worker'
           });
+
+          if (txError) {
+            console.error("[WORKER-REMOVE] Failed to create transaction record:", txError);
+          }
         } else if (paymentIntent.status === 'requires_capture') {
           // Payment not captured yet - let capture function handle reduced amount
           console.log(`[WORKER-REMOVE] Payment pending capture, reduced amount will be captured later`);
+        } else {
+          console.log(`[WORKER-REMOVE] Payment status: ${paymentIntent.status}, no refund needed`);
         }
       } catch (stripeError) {
         console.error(`[WORKER-REMOVE] Stripe refund failed:`, stripeError);
-        // Continue even if refund fails - log the issue
+        // Phase 2: Better error message
+        throw new Error(`Failed to process refund: ${stripeError.message || "Unknown error"}`);
       }
     }
 
@@ -212,24 +273,39 @@ serve(async (req) => {
       status: 'sent'
     });
 
+    // Phase 2: Enhanced success response
     return new Response(
       JSON.stringify({
         success: true,
         message: "Services removed successfully",
-        removed_services: servicesToRemove.length,
-        refund_amount: refundAmount,
-        refund_id: refundResult?.id || null
+        data: {
+          removed_services: servicesToRemove.length,
+          service_names: servicesToRemove.map(s => s.service_name),
+          refund_amount: refundAmount,
+          refund_id: refundResult?.id || null,
+          invoice_updated: !!invoice
+        }
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
   } catch (error) {
-    const errorMessage = error instanceof Error ? (error.message || "Failed to remove services") : "Failed to remove services";
-    console.error("[WORKER-REMOVE] Error:", error);
+    // Phase 2: Enhanced error handling and logging
+    const errorMessage = error instanceof Error ? error.message : "Failed to remove services";
+    const errorDetails = error instanceof Error ? error.stack : String(error);
+    
+    console.error("[WORKER-REMOVE] Error:", {
+      message: errorMessage,
+      details: errorDetails,
+      user_id: user?.id,
+      timestamp: new Date().toISOString()
+    });
+
     return new Response(
       JSON.stringify({
         success: false,
-        error: errorMessage
+        error: errorMessage,
+        timestamp: new Date().toISOString()
       }),
       { 
         headers: { ...corsHeaders, "Content-Type": "application/json" },
