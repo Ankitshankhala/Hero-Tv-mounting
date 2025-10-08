@@ -8,7 +8,7 @@ const corsHeaders = {
 
 const TOTAL_EXPECTED = 33791; // Expected ZCTA features in the GeoJSON
 const START_WINDOW_SIZE = 8; // Start small to avoid 413s
-const MAX_WINDOWS_PER_RUN = 400; // Cap work per invocation to avoid timeouts
+const MAX_WINDOWS_PER_RUN = 600; // Cap work per invocation to avoid timeouts (increased from 400)
 const MAX_BATCH_JSON_BYTES = 9 * 1024 * 1024; // ~9MB guard against payload too large
 const MAX_RPC_ATTEMPTS = 3;
 const BACKOFF_SERIES = [500, 1000, 2000];
@@ -200,9 +200,9 @@ serve(async (req) => {
         const processed = imported + skippedExisting + invalid + hardErrors;
         console.log(`[ZCTA Import] Progress: Imported ${imported}, Skipped ${skippedExisting}, Invalid ${invalid}, HardErrors ${hardErrors} (windows ${processedWindows})`);
 
-        // If we successfully inserted a full window, consider gently increasing the window size (optional)
-        if (result.imported === windowItems.length && windowSize < 64) {
-          windowSize = Math.min(64, windowSize + 1);
+        // If we successfully inserted a full window, consider gently increasing the window size
+        if (result.imported === windowItems.length && windowSize < 96) {
+          windowSize = Math.min(96, windowSize + 1);
         }
       } catch (e) {
         const msg = String((e as Error)?.message || e);
@@ -225,10 +225,11 @@ serve(async (req) => {
       .from('us_zcta_polygons')
       .select('*', { count: 'exact', head: true });
 
+    const pendingCount = pending.length - i;
     const remainingEstimated = Math.max(0, (TOTAL_EXPECTED || 0) - (count || 0));
-    const moreRemaining = i < pending.length || remainingEstimated > 0;
+    const moreRemaining = pendingCount > 0 || remainingEstimated > 0;
 
-    console.log(`[ZCTA Import] Invocation end. Imported: ${imported}, Skipped: ${skippedExisting}, Invalid: ${invalid}, HardErrors: ${hardErrors}, DB Count: ${count}, RemainingEst: ${remainingEstimated}, MoreRemaining: ${moreRemaining}`);
+    console.log(`[ZCTA Import] Invocation end. TotalFeatures: ${totalFeatures}, Imported: ${imported}, Skipped: ${skippedExisting}, Invalid: ${invalid}, HardErrors: ${hardErrors}, PendingCount: ${pendingCount}, DB Count: ${count}, RemainingEst: ${remainingEstimated}, MoreRemaining: ${moreRemaining}`);
 
     return new Response(
       JSON.stringify({
@@ -238,6 +239,8 @@ serve(async (req) => {
         invalid,
         hardErrors,
         databaseCount: count,
+        totalFeatures,
+        pendingCount,
         remainingEstimated,
         moreRemaining,
         lastErrorCode,
