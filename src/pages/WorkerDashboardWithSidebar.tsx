@@ -14,6 +14,7 @@ import { WorkerProfileSettings } from '@/components/worker/WorkerProfileSettings
 import WorkerDashboardLoading from '@/components/worker/WorkerDashboardLoading';
 import WorkerLoginForm from '@/components/worker/WorkerLoginForm';
 import CoverageNotifications from '@/components/worker/CoverageNotifications';
+import { ImpersonationBanner } from '@/components/worker/ImpersonationBanner';
 // TODO: Import CreateBookingModal when available
 // import CreateBookingModal from '@/components/worker/CreateBookingModal';
 import { TourProvider } from '@/contexts/TourContext';
@@ -238,11 +239,14 @@ export function WorkerDashboardWithSidebar() {
   return (
     <TourProvider>
       <SidebarProvider>
-        <div className="min-h-screen flex w-full bg-background">
-          <WorkerSidebar jobStats={jobStats} />
+        <div className="min-h-screen flex flex-col w-full bg-background">
+          <ImpersonationBanner />
           
-          <div className="flex-1 flex flex-col">
-            <WorkerDashboardHeader workerName={profile?.name || 'Worker'} />
+          <div className="flex flex-1 w-full">
+            <WorkerSidebar jobStats={jobStats} />
+            
+            <div className="flex-1 flex flex-col">
+              <WorkerDashboardHeader workerName={profile?.name || 'Worker'} />
             
             <main className="flex-1 overflow-auto">
               <Routes>
@@ -285,6 +289,7 @@ export function WorkerDashboardWithSidebar() {
                 <Route path="*" element={<Navigate to="/worker-dashboard" replace />} />
               </Routes>
             </main>
+            </div>
           </div>
         </div>
 

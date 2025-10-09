@@ -33,6 +33,7 @@ interface WorkerTableRowProps {
   removingWorkerId: string | null;
   reactivatingWorkerId: string | null;
   deletingWorkerId: string | null;
+  renderCustomActions?: () => React.ReactNode;
 }
 
 export const WorkerTableRow = ({ 
@@ -47,7 +48,8 @@ export const WorkerTableRow = ({
   onSetWeeklyAvailability,
   removingWorkerId,
   reactivatingWorkerId,
-  deletingWorkerId
+  deletingWorkerId,
+  renderCustomActions
 }: WorkerTableRowProps) => {
   const [futureAvailableScheduleCount, setFutureAvailableScheduleCount] = useState<number>(0);
 
@@ -187,6 +189,8 @@ export const WorkerTableRow = ({
       </TableCell>
       <TableCell>
         <div className="flex space-x-2">
+          {renderCustomActions && renderCustomActions()}
+          
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>

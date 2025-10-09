@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_impersonation_sessions: {
+        Row: {
+          admin_id: string
+          created_at: string
+          ended_at: string | null
+          id: string
+          ip_address: string | null
+          reason: string | null
+          started_at: string
+          updated_at: string
+          user_agent: string | null
+          worker_id: string
+        }
+        Insert: {
+          admin_id: string
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          ip_address?: string | null
+          reason?: string | null
+          started_at?: string
+          updated_at?: string
+          user_agent?: string | null
+          worker_id: string
+        }
+        Update: {
+          admin_id?: string
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          ip_address?: string | null
+          reason?: string | null
+          started_at?: string
+          updated_at?: string
+          user_agent?: string | null
+          worker_id?: string
+        }
+        Relationships: []
+      }
       booking_audit_log: {
         Row: {
           booking_id: string | null
@@ -2161,6 +2200,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      end_impersonation_session: {
+        Args: { p_session_id?: string }
+        Returns: boolean
+      }
       equals: {
         Args: { geom1: unknown; geom2: unknown }
         Returns: boolean
@@ -2493,6 +2536,16 @@ export type Database = {
       geomfromewkt: {
         Args: { "": string }
         Returns: unknown
+      }
+      get_active_impersonation: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          session_id: string
+          started_at: string
+          worker_email: string
+          worker_id: string
+          worker_name: string
+        }[]
       }
       get_available_time_slots: {
         Args: {
@@ -4143,6 +4196,10 @@ export type Database = {
       st_zmin: {
         Args: { "": unknown }
         Returns: number
+      }
+      start_impersonation_session: {
+        Args: { p_reason?: string; p_worker_id: string }
+        Returns: string
       }
       text: {
         Args: { "": unknown }

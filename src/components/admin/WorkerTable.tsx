@@ -9,6 +9,7 @@ import { WorkerCalendarModal } from './worker-table/WorkerCalendarModal';
 import { WorkerPasswordManager } from './WorkerPasswordManager';
 import { WorkerWeeklyAvailabilityModal } from './WorkerWeeklyAvailabilityModal';
 import { AdminWorkerCoverageModal } from './AdminWorkerCoverageModal';
+import { ViewAsWorkerButton } from './ViewAsWorkerButton';
 
 interface Worker {
   id: string;
@@ -211,6 +212,13 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
                 removingWorkerId={removingWorkerId}
                 reactivatingWorkerId={reactivatingWorkerId}
                 deletingWorkerId={deletingWorkerId}
+                renderCustomActions={() => (
+                  <ViewAsWorkerButton
+                    workerId={worker.id}
+                    workerName={worker.name}
+                    workerEmail={worker.email}
+                  />
+                )}
               />
             ))}
           </TableBody>
