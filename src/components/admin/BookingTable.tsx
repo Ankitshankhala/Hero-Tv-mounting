@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { Edit, Trash2, Eye, UserPlus, Calendar, DollarSign, CreditCard, Send, X, ChevronDown, ChevronUp, Archive } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -106,6 +107,10 @@ interface BookingTableProps {
   showPendingPaymentActions?: boolean;
   onSendReminder?: (booking: Booking) => void;
   onCancelBooking?: (booking: Booking) => void;
+  selectedBookingIds?: string[];
+  onSelectBooking?: (bookingId: string, checked: boolean) => void;
+  onSelectAll?: (checked: boolean) => void;
+  showBulkActions?: boolean;
 }
 
 export const BookingTable = ({ 
@@ -120,7 +125,11 @@ export const BookingTable = ({
   enriching = false,
   showPendingPaymentActions = false,
   onSendReminder,
-  onCancelBooking
+  onCancelBooking,
+  selectedBookingIds = [],
+  onSelectBooking,
+  onSelectAll,
+  showBulkActions = false
 }: BookingTableProps) => {
   const [displayTimezone, setDisplayTimezone] = useState(DEFAULT_SERVICE_TIMEZONE);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -214,6 +223,14 @@ export const BookingTable = ({
           <Table>
             <TableHeader>
               <TableRow>
+                {showBulkActions && (
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={selectedBookingIds.length === bookings.length && bookings.length > 0}
+                      onCheckedChange={onSelectAll}
+                    />
+                  </TableHead>
+                )}
                 <TableHead>Booking ID</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Services</TableHead>
@@ -239,6 +256,16 @@ export const BookingTable = ({
                 return (
                   <>
                     <TableRow key={booking.id}>
+                      {showBulkActions && (
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedBookingIds.includes(booking.id)}
+                            onCheckedChange={(checked) => 
+                              onSelectBooking?.(booking.id, checked as boolean)
+                            }
+                          />
+                        </TableCell>
+                      )}
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Button
@@ -419,7 +446,7 @@ export const BookingTable = ({
                   {/* Expanded row for email status */}
                   {isExpanded && (
                     <TableRow className="border-b bg-muted/10">
-                      <TableCell colSpan={9} className="p-4">
+                      <TableCell colSpan={showBulkActions ? 10 : 9} className="p-4">
                         <BookingEmailStatus 
                           bookingId={booking.id} 
                           workerId={booking.worker_id || undefined}

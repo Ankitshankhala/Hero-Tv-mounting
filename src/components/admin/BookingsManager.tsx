@@ -12,7 +12,7 @@ import { EditBookingModal } from './EditBookingModal';
 import { BookingDetailsModal } from './BookingDetailsModal';
 import { DeleteBookingModal } from './DeleteBookingModal';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Calendar } from 'lucide-react';
+import { RefreshCw, Calendar, Archive } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -30,6 +30,7 @@ export const BookingsManager = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
+  const [selectedBookingIds, setSelectedBookingIds] = useState<string[]>([]);
   const { user } = useAuth();
 
   // Use our enhanced booking manager hook
@@ -183,6 +184,48 @@ export const BookingsManager = () => {
     }
   };
 
+  const handleBulkArchive = async () => {
+    if (selectedBookingIds.length === 0) {
+      toast.error('Please select bookings to archive');
+      return;
+    }
+
+    try {
+      const { supabase } = await import('@/integrations/supabase/client');
+      
+      const { error } = await supabase
+        .from('bookings')
+        .update({ 
+          is_archived: true, 
+          archived_at: new Date().toISOString() 
+        })
+        .in('id', selectedBookingIds);
+
+      if (error) throw error;
+
+      toast.success(`Archived ${selectedBookingIds.length} booking${selectedBookingIds.length > 1 ? 's' : ''}`);
+      setSelectedBookingIds([]);
+      fetchBookings(true);
+    } catch (error) {
+      console.error('Bulk archive failed:', error);
+      toast.error('Failed to archive bookings');
+    }
+  };
+
+  const handleSelectBooking = (bookingId: string, checked: boolean) => {
+    setSelectedBookingIds(prev => 
+      checked 
+        ? [...prev, bookingId]
+        : prev.filter(id => id !== bookingId)
+    );
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    setSelectedBookingIds(
+      checked ? filteredBookings.map((b: any) => b.id) : []
+    );
+  };
+
   return (
     <AuthGuard allowedRoles={['admin']}>
       <div className="space-y-6">
@@ -194,6 +237,17 @@ export const BookingsManager = () => {
                 <span>Bookings Management</span>
               </CardTitle>
               <div className="flex items-center space-x-4">
+                {selectedBookingIds.length > 0 && (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={handleBulkArchive}
+                    className="flex items-center space-x-2"
+                  >
+                    <Archive className="h-4 w-4" />
+                    <span>Archive Selected ({selectedBookingIds.length})</span>
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   size="sm"
@@ -240,6 +294,10 @@ export const BookingsManager = () => {
                   showPendingPaymentActions={archiveFilter === 'pending_payments'}
                   onSendReminder={handleSendReminder}
                   onCancelBooking={handleCancelBooking}
+                  selectedBookingIds={selectedBookingIds}
+                  onSelectBooking={handleSelectBooking}
+                  onSelectAll={handleSelectAll}
+                  showBulkActions={archiveFilter === 'new_bookings'}
                 />
               </>
             )}
