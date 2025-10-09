@@ -208,12 +208,24 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
         return;
       }
 
-      // Step 4: Capture the full payment amount
+      // Step 4: Refresh job data to get latest payment_intent_id
+      const { data: refreshedJob, error: refreshError } = await supabase
+        .from('bookings')
+        .select('payment_intent_id')
+        .eq('id', job.id)
+        .single();
+
+      if (refreshError) {
+        console.error('[ADD-SERVICES] Failed to refresh job data:', refreshError);
+      } else {
+        console.log('[ADD-SERVICES] Using refreshed payment_intent_id:', refreshedJob?.payment_intent_id);
+      }
+
+      // Step 5: Capture the full payment amount
       if (job.payment_intent_id) {
         const { data: captureData, error: captureError } = await supabase.functions.invoke('capture-payment-intent', {
           body: { 
-            payment_intent_id: job.payment_intent_id,
-            booking_id: job.id 
+            booking_id: job.id  // Only send booking_id - edge function will fetch payment_intent_id
           }
         });
 
@@ -227,6 +239,22 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
           onClose();
           onServicesAdded?.();
           return;
+        }
+
+        // Step 6: Explicitly archive the job after successful capture
+        const { error: archiveError } = await supabase
+          .from('bookings')
+          .update({ 
+            is_archived: true, 
+            archived_at: new Date().toISOString() 
+          })
+          .eq('id', job.id);
+        
+        if (archiveError) {
+          console.error('[ADD-SERVICES] Auto-archive failed:', archiveError);
+          // Log but don't fail - trigger should handle it
+        } else {
+          console.log('[ADD-SERVICES] Job explicitly archived after capture');
         }
 
         // Complete success!
