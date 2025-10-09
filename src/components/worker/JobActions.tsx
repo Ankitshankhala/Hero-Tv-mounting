@@ -80,8 +80,7 @@ const JobActions = ({
       if (job.payment_intent_id) {
         const { data: captureData, error: captureError } = await supabase.functions.invoke('capture-payment-intent', {
           body: { 
-            payment_intent_id: job.payment_intent_id,
-            booking_id: job.id 
+            booking_id: job.id  // Only send booking_id, let edge function look up payment_intent_id
           }
         });
 

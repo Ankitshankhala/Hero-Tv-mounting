@@ -48,14 +48,13 @@ serve(async (req) => {
       pending_payment_amount: booking.pending_payment_amount
     });
 
-    // Validate booking is ready for capture
-    if (booking.status !== 'completed') {
-      throw new Error(`Cannot capture payment for booking with status: ${booking.status}. Job must be completed first.`);
+    // Validate payment is ready for capture (removed strict booking.status check to avoid race conditions)
+    if (booking.payment_status !== 'authorized') {
+      throw new Error(`Cannot capture payment with status: ${booking.payment_status}. Payment must be authorized first.`);
     }
 
-    if (booking.payment_status !== 'authorized') {
-      throw new Error(`Cannot capture payment with status: ${booking.payment_status}. Payment must be authorized.`);
-    }
+    // Log booking status for debugging, but don't block capture
+    console.log('[CAPTURE-PAYMENT] Booking status:', booking.status, '(capture allowed regardless of booking status)');
 
     const intentId = payment_intent_id || booking.payment_intent_id;
     if (!intentId) {
