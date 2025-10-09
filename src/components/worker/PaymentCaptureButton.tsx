@@ -70,8 +70,8 @@ export const PaymentCaptureButton = ({
       }
 
       const captureRequest = { 
-        bookingId: bookingId, // Use consistent naming
-        capturedBy: 'worker'
+        booking_id: bookingId, // Use snake_case for edge function
+        captured_by: 'worker'
       };
       
       console.log('Capture request:', captureRequest);
