@@ -163,7 +163,7 @@ const handler = async (req: Request): Promise<Response> => {
         body: {
           bookingId: requestData.bookingId,
           recipientEmail: newWorker.email,
-          emailType: 'booking_confirmed'
+          emailType: 'worker_assignment'
         }
       });
 
@@ -173,7 +173,7 @@ const handler = async (req: Request): Promise<Response> => {
           body: {
             bookingId: requestData.bookingId,
             recipientEmail: customerData.email,
-            emailType: 'booking_confirmed'
+            emailType: 'booking_confirmation'
           }
         });
       }
