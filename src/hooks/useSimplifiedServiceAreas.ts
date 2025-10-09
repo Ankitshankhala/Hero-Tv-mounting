@@ -64,7 +64,7 @@ export const useSimplifiedServiceAreas = (options: SyncOptions = {}) => {
           workerId,
           areaIdToUpdate: areaId,
           areaName,
-          zipCodes: zipCodes,
+          zipCodes: zipCodes.length > 0 ? zipCodes : undefined, // Only send if we have ZIP codes
           polygon: polygonPoints || [],
           mode: areaId ? 'update' : 'create'
         }
@@ -115,11 +115,18 @@ export const useSimplifiedServiceAreas = (options: SyncOptions = {}) => {
     areaId: string,
     workerId: string,
     areaName: string,
-    polygonPoints: Array<{ lat: number; lng: number }>
+    polygonPoints: Array<{ lat: number; lng: number }>,
+    precomputedZipCodes?: string[]
   ): Promise<boolean> => {
     try {
-      // Let the database compute ZIP codes from polygon
-      return await syncToBackend(areaId, workerId, areaName, [], polygonPoints);
+      // Use pre-computed ZIP codes if provided, otherwise let backend compute from polygon
+      return await syncToBackend(
+        areaId, 
+        workerId, 
+        areaName, 
+        precomputedZipCodes || [], 
+        polygonPoints
+      );
     } catch (error) {
       console.error('Manual sync failed:', error);
       return false;
