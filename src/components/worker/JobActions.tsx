@@ -32,6 +32,7 @@ const JobActions = ({
 }: JobActionsProps) => {
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [captureFailedAfterComplete, setCaptureFailedAfterComplete] = useState(false);
   const { toast } = useToast();
   const callCustomer = (phone: string) => {
     initiatePhoneCall(phone);
@@ -48,12 +49,12 @@ const JobActions = ({
     job.payment_status !== 'captured' && 
     job.payment_status !== 'completed';
   
-  // Show "Charge" button only when job is completed AND payment is authorized
-  const canCapturePayment = job.status === 'completed' && (
+  // Show "Charge" button only when job is completed AND payment is authorized, or when capture just failed
+  const canCapturePayment = (job.status === 'completed' && (
     job.payment_status === 'authorized' || 
     job.status === 'payment_authorized' ||
     job.payment_status === 'capture_failed'
-  );
+  )) || captureFailedAfterComplete;
   
   // Show "Mark Complete" button when job is in progress/confirmed AND payment is authorized
   const canMarkComplete = (job.status === 'in_progress' || job.status === 'confirmed' || job.status === 'payment_authorized') && 
@@ -85,7 +86,8 @@ const JobActions = ({
         });
 
         if (captureError || !captureData?.success) {
-          // Job is completed but payment capture failed
+          // Job is completed but payment capture failed - immediately show Charge button
+          setCaptureFailedAfterComplete(true);
           toast({
             title: "Job Completed",
             description: "Job marked complete but payment capture failed. Use the Charge button to retry.",
@@ -96,6 +98,7 @@ const JobActions = ({
         }
 
         // Success: both completed and charged
+        setCaptureFailedAfterComplete(false);
         toast({
           title: "Job Completed & Payment Captured",
           description: `Successfully charged $${(job.booking_services?.reduce((sum: number, s: any) => sum + (s.base_price * s.quantity), 0) || 0).toFixed(2)}`,
