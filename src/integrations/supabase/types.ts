@@ -3021,10 +3021,6 @@ export type Database = {
         Args: { p_zipcode: string }
         Returns: number
       }
-      reassign_expired_acknowledgments: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
       rebuild_overlays_for_area_workers: {
         Args: { p_area_id: string }
         Returns: undefined
