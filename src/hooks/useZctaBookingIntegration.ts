@@ -204,12 +204,14 @@ export const useZipcodeValidationCompat = () => {
     clearError
   } = useZctaBookingIntegration();
 
+  const [validationData, setValidationData] = useState<any>(null);
+
   const validateZipcode = useCallback(async (zipcode: string) => {
     try {
       // Single combined call instead of Promise.all with duplicate queries - MASSIVE PERFORMANCE BOOST!
       const { validation, coverage } = await zctaOnlyService.validateZctaCodeWithCoverage(zipcode);
       
-      return {
+      const result = {
         isValid: validation.is_valid,
         hasServiceCoverage: coverage.hasActive,
         workerCount: coverage.workerCount,
@@ -230,8 +232,12 @@ export const useZipcodeValidationCompat = () => {
         // Workers already loaded!
         workers: coverage.workers
       };
+      
+      setValidationData(result);
+      return result;
     } catch (err) {
       console.error('Validation error:', err);
+      setValidationData(null);
       throw err;
     }
   }, []);
@@ -243,7 +249,8 @@ export const useZipcodeValidationCompat = () => {
     clearError,
     // Expose raw ZCTA results for enhanced functionality
     zctaValidation: validationResult,
-    coverageInfo: coverageResult
+    coverageInfo: coverageResult,
+    validationData
   };
 };
 

@@ -46,7 +46,8 @@ export const ZctaLocationInput: React.FC<ZctaLocationInputProps> = ({
     error,
     clearError,
     zctaValidation,
-    coverageInfo
+    coverageInfo,
+    validationData
   } = useZipcodeValidationCompat();
 
   // Debounced validation
@@ -212,32 +213,32 @@ export const ZctaLocationInput: React.FC<ZctaLocationInputProps> = ({
             </Alert>
           )}
           
-          {zctaValidation && zctaValidation.is_valid && coverageInfo && coverageInfo.hasActive && (
+          {zctaValidation && zctaValidation.is_valid && validationData?.hasServiceCoverage && (
             <Alert className="bg-action-success/10 border-action-success/30">
               <CheckCircle className="h-4 w-4 text-action-success" />
               <AlertDescription className="text-action-success">
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="font-semibold">Service Available!</div>
-              {coverageInfo.workers && coverageInfo.workers.length > 0 && (
-                <div className="text-sm mt-1">
-                  {coverageInfo.workers.length === 1 ? (
-                    <span>
-                      {coverageInfo.workers[0].name || 'Technician'} - {coverageInfo.workers[0].city || 'Service Area'}
-                    </span>
-                  ) : (
-                    <div>
-                      <div className="font-medium">{coverageInfo.workers.length} technicians available</div>
-                      <div className="text-xs mt-1 opacity-90">
-                        {coverageInfo.workers
-                          .filter(w => w.name)
-                          .map(w => w.name)
-                          .join(', ') || 'Multiple technicians'}
+                    {validationData.workers && validationData.workers.length > 0 && (
+                      <div className="text-sm mt-1">
+                        {validationData.workers.length === 1 ? (
+                          <span>
+                            {validationData.workers[0].worker_name || 'Technician'} - {validationData.workers[0].area_name || 'Service Area'}
+                          </span>
+                        ) : (
+                          <div>
+                            <div className="font-medium">{validationData.workers.length} technicians available</div>
+                            <div className="text-xs mt-1 opacity-90">
+                              {validationData.workers
+                                .filter((w: any) => w.worker_name)
+                                .map((w: any) => w.worker_name)
+                                .join(', ')}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  )}
-                </div>
-              )}
+                    )}
                     {zctaValidation.data_source === 'worker_assignment' && (
                       <div className="text-xs mt-1 opacity-75">
                         ✓ Verified worker coverage area
@@ -250,7 +251,7 @@ export const ZctaLocationInput: React.FC<ZctaLocationInputProps> = ({
             </Alert>
           )}
 
-          {zctaValidation && zctaValidation.is_valid && coverageInfo && !coverageInfo.hasActive && (
+          {zctaValidation && zctaValidation.is_valid && validationData && !validationData.hasServiceCoverage && (
             <Alert className="bg-action-warning/10 border-action-warning/30">
               <AlertTriangle className="h-4 w-4 text-action-warning" />
               <AlertDescription className="text-action-warning">
