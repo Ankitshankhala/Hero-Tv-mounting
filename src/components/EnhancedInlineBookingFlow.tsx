@@ -409,12 +409,29 @@ export const EnhancedInlineBookingFlow = ({
 
               {/* Step 2: Contact & Location */}
               {currentStep === 2 && (
-                <ContactLocationStep
-                  formData={formData}
-                  setFormData={setFormData}
-                  handleZipcodeChange={handleZipcodeChange}
-                  onZctaValidationChange={handleZctaValidationChange}
-                />
+                <>
+                  <ContactLocationStep
+                    formData={formData}
+                    setFormData={setFormData}
+                    handleZipcodeChange={handleZipcodeChange}
+                    onZctaValidationChange={handleZctaValidationChange}
+                  />
+                  
+                  {/* Validation Error Messages */}
+                  {!isStep2Valid && formData.zipcode && formData.zipcode.length === 5 && (
+                    <div className="mt-4 p-3 bg-orange-900/20 border border-orange-500/30 rounded-lg">
+                      <div className="text-sm text-orange-200">
+                        {!formData.customerName && <div>❌ Name required</div>}
+                        {!formData.customerEmail && <div>❌ Email required</div>}
+                        {!formData.customerPhone && <div>❌ Phone required</div>}
+                        {!formData.address && <div>❌ Address required</div>}
+                        {!formData.houseNumber && <div>❌ Unit number required</div>}
+                        {formData.customerName && formData.customerEmail && formData.customerPhone && 
+                         formData.address && formData.houseNumber && <div>⚠️ Validating service coverage...</div>}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
               {/* Step 3: Schedule */}

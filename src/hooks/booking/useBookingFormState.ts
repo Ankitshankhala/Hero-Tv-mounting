@@ -80,9 +80,31 @@ export const useBookingFormState = (selectedServices: ServiceItem[] = []) => {
   const [hasServiceCoverage, setHasServiceCoverage] = useState(false);
 
   const handleZctaValidationChange = (isValid: boolean, hasCoverage: boolean) => {
-    // Update coverage state for blocking form progression
-    console.log('ZCTA Validation:', { isValid, hasCoverage });
-    setHasServiceCoverage(isValid && hasCoverage);
+    const finalCoverageState = isValid && hasCoverage;
+    
+    console.log('🔍 ZCTA Validation Update:', { 
+      isValid, 
+      hasCoverage, 
+      finalValue: finalCoverageState,
+      timestamp: new Date().toISOString()
+    });
+    
+    setHasServiceCoverage(finalCoverageState);
+    
+    // Debug: Track complete Step 2 validation state
+    console.log('📊 Step 2 Validation State:', {
+      customerName: !!formData.customerName,
+      customerEmail: !!formData.customerEmail,
+      customerPhone: !!formData.customerPhone,
+      address: !!formData.address,
+      zipcode: !!formData.zipcode,
+      houseNumber: !!formData.houseNumber,
+      hasServiceCoverage: finalCoverageState,
+      willUnblockStep2: !!(formData.customerName && formData.customerEmail && 
+                          formData.customerPhone && formData.address && 
+                          formData.zipcode && formData.houseNumber && 
+                          finalCoverageState)
+    });
   };
 
   const isStep1Valid = services.length > 0 && isMinimumCartMet;

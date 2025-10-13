@@ -86,7 +86,8 @@ export const ContactLocationStep = ({
             }}
             onValidationChange={(isValid, validation) => {
               if (onZctaValidationChange && validation) {
-                onZctaValidationChange(isValid, validation.coverageInfo?.hasActive || false);
+                // CRITICAL FIX: Access hasServiceCoverage directly from validation result
+                onZctaValidationChange(isValid, validation.hasServiceCoverage || false);
               }
             }}
             placeholder="Enter ZIP code (e.g., 75201)"
