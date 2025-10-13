@@ -32,6 +32,7 @@ export class ZctaOnlyService {
 
   /**
    * Validate ZCTA code and get comprehensive location data
+   * Priority: worker_service_zipcodes → us_zcta_polygons → us_zip_codes → external API
    */
   async validateZctaCode(zctaCode: string): Promise<ZctaValidationResult> {
     const cacheKey = zctaCode.replace(/[^\d]/g, '').substring(0, 5);
@@ -42,37 +43,111 @@ export class ZctaOnlyService {
     }
 
     try {
-      // Use from() query for better type safety
-      const { data, error } = await supabase
-        .from('us_zip_codes')
-        .select('zipcode, city, state, state_abbr, latitude, longitude')
+      console.debug(`[ZCTA Validation] Checking ZIP: ${cacheKey}`);
+
+      // STEP 1: Check if workers are assigned to this ZIP (highest priority)
+      const { data: workerZips, error: workerError } = await supabase
+        .from('worker_service_zipcodes')
+        .select(`
+          zipcode,
+          service_area:worker_service_areas(area_name, worker:users(name))
+        `)
         .eq('zipcode', cacheKey)
-        .single();
+        .limit(1);
 
-      if (error && error.code !== 'PGRST116') {
-        console.error('ZCTA validation error:', error);
-        throw error;
-      }
-
-      if (data) {
+      if (workerZips && workerZips.length > 0) {
+        const serviceArea = workerZips[0].service_area as any;
+        const areaName = serviceArea?.area_name || 'Service Area';
+        
+        console.debug(`[ZCTA Validation] ✓ Found in worker assignments: ${areaName}`);
+        
         const result: ZctaValidationResult = {
           is_valid: true,
-          zcta_code: data.zipcode,
+          zcta_code: cacheKey,
           has_boundary_data: true,
           can_use_for_service: true,
-          city: data.city,
-          state: data.state,
-          state_abbr: data.state_abbr,
+          city: areaName,
+          state: 'Service Coverage',
+          state_abbr: 'SC',
           total_area_sq_miles: 0,
-          centroid_lat: data.latitude ? parseFloat(data.latitude.toString()) : 0,
-          centroid_lng: data.longitude ? parseFloat(data.longitude.toString()) : 0,
+          centroid_lat: 0,
+          centroid_lng: 0,
+          data_source: 'worker_assignment'
+        };
+        this.cache.set(cacheKey, result);
+        return result;
+      }
+
+      console.debug(`[ZCTA Validation] No worker assignments, checking ZCTA polygons...`);
+
+      // STEP 2: Check us_zcta_polygons table (33,792 records)
+      const { data: zctaData, error: zctaError } = await supabase
+        .from('us_zcta_polygons')
+        .select('zcta5ce, land_area, water_area')
+        .eq('zcta5ce', cacheKey)
+        .single();
+
+      if (zctaData) {
+        console.debug(`[ZCTA Validation] ✓ Found in ZCTA polygons: ${cacheKey}`);
+        
+        const result: ZctaValidationResult = {
+          is_valid: true,
+          zcta_code: zctaData.zcta5ce,
+          has_boundary_data: true,
+          can_use_for_service: true,
+          city: 'ZIP ' + zctaData.zcta5ce,
+          state: 'United States',
+          state_abbr: 'US',
+          total_area_sq_miles: zctaData.land_area ? parseFloat(zctaData.land_area.toString()) : 0,
+          centroid_lat: 0,
+          centroid_lng: 0,
           data_source: 'zcta_boundary'
         };
         this.cache.set(cacheKey, result);
         return result;
       }
 
-      // Fallback result for invalid codes
+      console.debug(`[ZCTA Validation] Not in ZCTA polygons, checking us_zip_codes fallback...`);
+
+      // STEP 3: Check us_zip_codes table (fallback with city/state data)
+      const { data: zipData, error: zipError } = await supabase
+        .from('us_zip_codes')
+        .select('zipcode, city, state, state_abbr, latitude, longitude')
+        .eq('zipcode', cacheKey)
+        .single();
+
+      if (zipData) {
+        console.debug(`[ZCTA Validation] ✓ Found in us_zip_codes: ${zipData.city}, ${zipData.state_abbr}`);
+        
+        const result: ZctaValidationResult = {
+          is_valid: true,
+          zcta_code: zipData.zipcode,
+          has_boundary_data: true,
+          can_use_for_service: true,
+          city: zipData.city,
+          state: zipData.state,
+          state_abbr: zipData.state_abbr,
+          total_area_sq_miles: 0,
+          centroid_lat: zipData.latitude ? parseFloat(zipData.latitude.toString()) : 0,
+          centroid_lng: zipData.longitude ? parseFloat(zipData.longitude.toString()) : 0,
+          data_source: 'postal_only'
+        };
+        this.cache.set(cacheKey, result);
+        return result;
+      }
+
+      console.debug(`[ZCTA Validation] Not in database, trying external API...`);
+
+      // STEP 4: External API fallback (Zippopotam)
+      const externalResult = await this.validateZipWithExternal(cacheKey);
+      if (externalResult) {
+        this.cache.set(cacheKey, externalResult);
+        return externalResult;
+      }
+
+      console.warn(`[ZCTA Validation] ✗ Invalid ZIP code: ${cacheKey}`);
+
+      // STEP 5: Invalid ZIP code
       const fallbackResult: ZctaValidationResult = {
         is_valid: false,
         zcta_code: cacheKey,
@@ -84,7 +159,7 @@ export class ZctaOnlyService {
         total_area_sq_miles: 0,
         centroid_lat: 0,
         centroid_lng: 0,
-        data_source: 'invalid'
+        data_source: 'not_found'
       };
 
       this.cache.set(cacheKey, fallbackResult);
@@ -92,6 +167,49 @@ export class ZctaOnlyService {
     } catch (error) {
       console.error('Error validating ZCTA code:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Validate ZIP code using external API (Zippopotam)
+   */
+  private async validateZipWithExternal(zipcode: string): Promise<ZctaValidationResult | null> {
+    try {
+      const response = await fetch(`https://api.zippopotam.us/us/${zipcode}`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      });
+
+      if (!response.ok) {
+        console.debug(`[ZCTA Validation] External API returned ${response.status} for ${zipcode}`);
+        return null;
+      }
+
+      const data = await response.json();
+      const place = data.places?.[0];
+
+      if (!place) {
+        return null;
+      }
+
+      console.debug(`[ZCTA Validation] ✓ Found via external API: ${place['place name']}, ${place['state abbreviation']}`);
+
+      return {
+        is_valid: true,
+        zcta_code: zipcode,
+        has_boundary_data: false,
+        can_use_for_service: true,
+        city: place['place name'] || 'Unknown',
+        state: place.state || 'Unknown',
+        state_abbr: place['state abbreviation'] || 'US',
+        total_area_sq_miles: 0,
+        centroid_lat: parseFloat(place.latitude) || 0,
+        centroid_lng: parseFloat(place.longitude) || 0,
+        data_source: 'postal_only'
+      };
+    } catch (error) {
+      console.error('External ZIP validation error:', error);
+      return null;
     }
   }
 

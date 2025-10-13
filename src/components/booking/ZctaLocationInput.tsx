@@ -225,6 +225,11 @@ export const ZctaLocationInput: React.FC<ZctaLocationInputProps> = ({
                         {coverageInfo.workers[0].city} - {coverageInfo.workers.length} {coverageInfo.workers.length === 1 ? 'worker' : 'workers'} available
                       </div>
                     )}
+                    {zctaValidation.data_source === 'worker_assignment' && (
+                      <div className="text-xs mt-1 opacity-75">
+                        ✓ Verified worker coverage area
+                      </div>
+                    )}
                   </div>
                   <Users className="h-5 w-5 text-action-success" />
                 </div>

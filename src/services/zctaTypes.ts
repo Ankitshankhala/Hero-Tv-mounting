@@ -10,7 +10,7 @@ export interface ZctaValidationResult {
   total_area_sq_miles: number;
   centroid_lat: number;
   centroid_lng: number;
-  data_source: 'zcta_boundary' | 'postal_only' | 'not_found' | 'invalid';
+  data_source: 'worker_assignment' | 'zcta_boundary' | 'postal_only' | 'not_found' | 'invalid';
 }
 
 export interface WorkerAreaAssignment {
