@@ -110,6 +110,33 @@ export const useBookingOperations = () => {
         throw new Error('Valid zipcode is required for service location');
       }
 
+      // PHASE 1: Verify ZIP coverage before creating booking
+      console.log('🔍 Verifying ZIP coverage before booking creation...');
+      const { data: coverageData, error: coverageError } = await supabase.rpc(
+        'zip_has_active_coverage',
+        { p_zipcode: formData.zipcode }
+      );
+
+      if (coverageError) {
+        console.error('❌ Coverage check failed:', coverageError);
+        throw new Error('Unable to verify service coverage. Please try again.');
+      }
+
+      if (!coverageData) {
+        const { data: workerCount } = await supabase.rpc(
+          'get_worker_count_by_zip',
+          { p_zipcode: formData.zipcode }
+        );
+        
+        throw new Error(
+          `We don't currently serve ZIP code ${formData.zipcode}. ` +
+          `This area has ${workerCount || 0} worker(s) available. ` +
+          'Please choose a different location or contact us for service expansion.'
+        );
+      }
+
+      console.log('✅ ZIP coverage verified for', formData.zipcode);
+
       if (!formData.city || formData.city.trim().length < 2) {
         throw new Error('City information is required');
       }
@@ -327,10 +354,50 @@ export const useBookingOperations = () => {
           
           if (assignmentError) {
             console.error('Auto-assignment failed:', assignmentError);
+            // PHASE 3: Enhanced error handling for assignment failures
             toast({
-              title: "Booking Confirmed",
-              description: "Your booking is confirmed. We're working to assign a worker and will notify you soon.",
+              title: "Assignment Pending",
+              description: "Your payment is secured. We're finding the best available worker and will notify you within 1 hour.",
+              variant: "default",
             });
+            
+            // Flag for admin attention
+            await supabase
+              .from('bookings')
+              .update({ 
+                status: 'pending',
+                requires_manual_payment: true
+              })
+              .eq('id', bookingId);
+              
+            // Create urgent admin alert
+            await supabase
+              .from('sms_logs')
+              .insert({
+                booking_id: bookingId,
+                recipient_number: 'admin',
+                message: `URGENT: Booking ${bookingId} authorized payment but auto-assignment failed`,
+                status: 'pending'
+              });
+          } else if (assignmentResult && assignmentResult[0]?.assignment_status === 'no_zip_coverage') {
+            // This should NEVER happen if we validated ZIP beforehand
+            console.error('❌ CRITICAL: Payment authorized but no ZIP coverage!');
+            
+            toast({
+              title: "Assignment Issue",
+              description: "Your payment is secured. Our team will contact you within 1 hour to schedule your service.",
+              variant: "destructive",
+            });
+            
+            // Create urgent admin alert
+            await supabase
+              .from('sms_logs')
+              .insert({
+                booking_id: bookingId,
+                recipient_number: 'admin',
+                message: `URGENT: Booking ${bookingId} authorized payment but no worker coverage in ZIP`,
+                status: 'pending'
+              });
           } else {
             toast({
               title: "Booking Confirmed & Worker Assigned",

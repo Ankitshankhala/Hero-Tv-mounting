@@ -2139,7 +2139,7 @@ export type Database = {
         Args:
           | { min_overlap_percent?: number; service_area_id: string }
           | { p_service_area_id: string }
-        Returns: string[]
+        Returns: Json
       }
       create_service_area_audit_log: {
         Args:
@@ -2665,10 +2665,6 @@ export type Database = {
           | { include_boundaries?: boolean; polygon_coords: Json }
         Returns: {
           boundary_geojson: Json
-          city: string
-          overlap_percent: number
-          state: string
-          state_abbr: string
           zipcode: string
         }[]
       }

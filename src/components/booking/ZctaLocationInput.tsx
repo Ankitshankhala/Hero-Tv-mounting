@@ -182,27 +182,36 @@ export const ZctaLocationInput: React.FC<ZctaLocationInputProps> = ({
         </Alert>
       )}
 
-      {/* Service Coverage Results */}
+      {/* Service Coverage Results - PHASE 5: Enhanced UI */}
       {showDetails && validationTriggered && coverageInfo && !isLoading && (
-        <div className="flex items-center space-x-2">
+        <div className="mt-3">
           {coverageInfo.hasActive ? (
-            <>
-              <MapPin className="h-4 w-4 text-action-success" />
-              <span className="text-sm font-medium text-action-success">
-                {coverageInfo.workers && coverageInfo.workers.length > 0 && (
-                  <>
-                    {coverageInfo.workers[0].city} - {coverageInfo.workers.length === 1 ? 'Worker' : 'Workers'}: {coverageInfo.workers.map((worker: any) => worker.name).join(', ')}
-                  </>
-                )}
-              </span>
-            </>
+            <Alert className="bg-action-success/10 border-action-success/30">
+              <CheckCircle className="h-4 w-4 text-action-success" />
+              <AlertDescription className="text-action-success">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-semibold">Service Available!</div>
+                    {coverageInfo.workers && coverageInfo.workers.length > 0 && (
+                      <div className="text-sm mt-1">
+                        {coverageInfo.workers[0].city} - {coverageInfo.workers.length} {coverageInfo.workers.length === 1 ? 'worker' : 'workers'} available
+                      </div>
+                    )}
+                  </div>
+                  <Users className="h-5 w-5 text-action-success" />
+                </div>
+              </AlertDescription>
+            </Alert>
           ) : (
-            <>
+            <Alert variant="destructive" className="bg-action-danger/10 border-action-danger/30">
               <XCircle className="h-4 w-4 text-action-danger" />
-              <span className="text-sm font-medium text-action-danger">
-                No workers available in this area
-              </span>
-            </>
+              <AlertDescription className="text-action-danger">
+                <div className="font-semibold mb-1">Service Not Available</div>
+                <div className="text-sm">
+                  We don't currently serve ZIP code {inputValue}. Please choose a different location or contact us for service expansion.
+                </div>
+              </AlertDescription>
+            </Alert>
           )}
         </div>
       )}
