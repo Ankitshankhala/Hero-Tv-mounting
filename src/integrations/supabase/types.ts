@@ -3078,6 +3078,13 @@ export type Database = {
         Args: { p_worker: string }
         Returns: undefined
       }
+      recover_stuck_payment_authorized_bookings: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          assignment_triggered: boolean
+          booking_id: string
+        }[]
+      }
       refresh_worker_tips_summary: {
         Args: Record<PropertyKey, never>
         Returns: undefined

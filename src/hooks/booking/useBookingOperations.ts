@@ -316,11 +316,11 @@ export const useBookingOperations = () => {
     try {
       console.log('Confirming booking after payment:', { bookingId, paymentIntentId });
 
-      // First ensure the booking status is compatible, then update to confirmed
+      // Step 1: Update booking to payment_authorized (NOT confirmed yet - worker assignment will set that)
       const { data: updatedBooking, error: updateError } = await supabase
         .from('bookings')
         .update({
-          status: 'confirmed' as const,
+          status: 'payment_authorized' as const,
           payment_status: 'authorized',
           payment_intent_id: paymentIntentId
         })
@@ -336,7 +336,28 @@ export const useBookingOperations = () => {
         throw new Error(`Failed to confirm booking: ${updateError.message}`);
       }
 
-      // Auto-assign worker after confirmation - handle both authenticated users and guests
+      console.debug('[confirmBookingAfterPayment] Booking status updated to payment_authorized');
+
+      // Step 2: Explicitly trigger worker assignment (backup to database trigger)
+      try {
+        console.debug('[confirmBookingAfterPayment] Triggering worker assignment explicitly');
+        const { data: assignmentData, error: assignmentError } = await supabase.functions.invoke(
+          'assign-authorized-booking-worker',
+          { body: { booking_id: bookingId } }
+        );
+
+        if (assignmentError) {
+          console.warn('[confirmBookingAfterPayment] Worker assignment invocation error:', assignmentError);
+          // Don't throw - the database trigger should handle this
+        } else {
+          console.debug('[confirmBookingAfterPayment] Worker assignment triggered:', assignmentData);
+        }
+      } catch (assignError) {
+        console.warn('[confirmBookingAfterPayment] Worker assignment failed, relying on DB trigger:', assignError);
+        // Continue - the database trigger will handle assignment
+      }
+
+      // Step 3: Show user feedback
       const guestInfo = updatedBooking.guest_customer_info as any;
       const hasZipcode = updatedBooking.customer?.zip_code || guestInfo?.zipcode;
       
