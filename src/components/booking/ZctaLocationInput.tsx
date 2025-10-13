@@ -58,6 +58,12 @@ export const ZctaLocationInput: React.FC<ZctaLocationInputProps> = ({
     
     try {
       const result = await validateZipcode(code);
+      console.debug('ZIP validation result:', { 
+        zipcode: code, 
+        isValid: result.isValid, 
+        city: result.locationData?.city,
+        hasServiceCoverage: result.hasServiceCoverage 
+      });
       onValidationChange?.(result.isValid, result);
     } catch (error) {
       console.error('Validation error:', error);
@@ -108,9 +114,15 @@ export const ZctaLocationInput: React.FC<ZctaLocationInputProps> = ({
 
   const getInputStatus = () => {
     if (isLoading) return 'loading';
-    if (!validationTriggered || !coverageInfo) return 'default';
-    if (coverageInfo.hasActive) return 'valid';
-    return 'invalid';
+    if (!validationTriggered) return 'default';
+    
+    // Distinguish between invalid ZIP format vs valid ZIP with no coverage
+    if (zctaValidation && !zctaValidation.is_valid) return 'invalid';
+    if (coverageInfo && coverageInfo.hasActive) return 'valid';
+    if (coverageInfo && !coverageInfo.hasActive) return 'valid-no-coverage';
+    if (error) return 'unknown';
+    
+    return 'default';
   };
 
   const getInputClassName = () => {
@@ -133,8 +145,12 @@ export const ZctaLocationInput: React.FC<ZctaLocationInputProps> = ({
         return <Loader2 className="h-4 w-4 animate-spin text-action-info" />;
       case 'valid':
         return <CheckCircle className="h-4 w-4 text-action-success" />;
+      case 'valid-no-coverage':
+        return <AlertTriangle className="h-4 w-4 text-action-warning" />;
       case 'invalid':
         return <XCircle className="h-4 w-4 text-action-danger" />;
+      case 'unknown':
+        return <Info className="h-4 w-4 text-muted-foreground" />;
       default:
         return <MapPin className="h-4 w-4 text-muted-foreground" />;
     }
@@ -182,10 +198,22 @@ export const ZctaLocationInput: React.FC<ZctaLocationInputProps> = ({
         </Alert>
       )}
 
-      {/* Service Coverage Results - PHASE 5: Enhanced UI */}
-      {showDetails && validationTriggered && coverageInfo && !isLoading && (
+      {/* Service Coverage Results - Enhanced messaging */}
+      {showDetails && validationTriggered && !isLoading && (
         <div className="mt-3">
-          {coverageInfo.hasActive ? (
+          {zctaValidation && !zctaValidation.is_valid && (
+            <Alert variant="destructive" className="bg-action-danger/10 border-action-danger/30">
+              <XCircle className="h-4 w-4 text-action-danger" />
+              <AlertDescription className="text-action-danger">
+                <div className="font-semibold mb-1">Invalid ZIP Code</div>
+                <div className="text-sm">
+                  Please enter a valid 5-digit US ZIP code.
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          {zctaValidation && zctaValidation.is_valid && coverageInfo && coverageInfo.hasActive && (
             <Alert className="bg-action-success/10 border-action-success/30">
               <CheckCircle className="h-4 w-4 text-action-success" />
               <AlertDescription className="text-action-success">
@@ -202,13 +230,27 @@ export const ZctaLocationInput: React.FC<ZctaLocationInputProps> = ({
                 </div>
               </AlertDescription>
             </Alert>
-          ) : (
-            <Alert variant="destructive" className="bg-action-danger/10 border-action-danger/30">
-              <XCircle className="h-4 w-4 text-action-danger" />
-              <AlertDescription className="text-action-danger">
-                <div className="font-semibold mb-1">Service Not Available</div>
+          )}
+
+          {zctaValidation && zctaValidation.is_valid && coverageInfo && !coverageInfo.hasActive && (
+            <Alert className="bg-action-warning/10 border-action-warning/30">
+              <AlertTriangle className="h-4 w-4 text-action-warning" />
+              <AlertDescription className="text-action-warning">
+                <div className="font-semibold mb-1">Valid ZIP, Limited Coverage</div>
                 <div className="text-sm">
-                  We don't currently serve ZIP code {inputValue}. Please choose a different location or contact us for service expansion.
+                  Currently outside our service area. You can still book - we'll confirm coverage and assign a worker shortly.
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {error && zctaValidation && zctaValidation.is_valid && (
+            <Alert className="bg-muted/50 border-border">
+              <Info className="h-4 w-4 text-muted-foreground" />
+              <AlertDescription className="text-muted-foreground">
+                <div className="font-semibold mb-1">Coverage Check Unavailable</div>
+                <div className="text-sm">
+                  Please continue with your booking. We'll confirm service availability shortly.
                 </div>
               </AlertDescription>
             </Alert>

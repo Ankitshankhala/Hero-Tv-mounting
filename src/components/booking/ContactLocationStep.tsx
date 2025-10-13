@@ -82,6 +82,13 @@ export const ContactLocationStep = ({
             onChange={(zipcode) => {
               handleZipcodeChange(zipcode);
             }}
+            onValidationChange={(isValid, data) => {
+              console.debug('ZIP validation change:', { isValid, data });
+              if (isValid && data?.locationData?.city) {
+                const cityState = `${data.locationData.city}, ${data.locationData.stateAbbr || ''}`;
+                handleZipcodeChange(formData.zipcode, cityState);
+              }
+            }}
             placeholder="Enter ZIP code (e.g., 75201)"
             showDetails={true}
             autoValidate={true}

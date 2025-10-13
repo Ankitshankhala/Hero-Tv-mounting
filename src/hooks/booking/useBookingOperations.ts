@@ -110,45 +110,41 @@ export const useBookingOperations = () => {
         throw new Error('Valid zipcode is required for service location');
       }
 
-      // PHASE 1: Verify ZIP coverage before creating booking
-      console.log('🔍 Verifying ZIP coverage before booking creation...');
-      const { data: coverageData, error: coverageError } = await supabase.rpc(
-        'zip_has_active_coverage',
-        { p_zipcode: formData.zipcode }
-      );
-
-      if (coverageError) {
-        console.error('❌ Coverage check failed:', coverageError);
-        throw new Error('Unable to verify service coverage. Please try again.');
-      }
-
-      if (!coverageData) {
-        const { data: workerCount } = await supabase.rpc(
-          'get_worker_count_by_zip',
+      // Non-blocking coverage check - log but don't fail
+      console.debug('🔍 Checking ZIP coverage (non-blocking)...');
+      try {
+        const { data: coverageData, error: coverageError } = await supabase.rpc(
+          'zip_has_active_coverage',
           { p_zipcode: formData.zipcode }
         );
-        
-        throw new Error(
-          `We don't currently serve ZIP code ${formData.zipcode}. ` +
-          `This area has ${workerCount || 0} worker(s) available. ` +
-          'Please choose a different location or contact us for service expansion.'
-        );
+
+        if (coverageError) {
+          console.warn('Coverage check RPC error (proceeding anyway):', coverageError);
+        } else {
+          console.debug('Coverage result:', { zipcode: formData.zipcode, hasCoverage: coverageData });
+        }
+      } catch (coverageCheckError) {
+        console.warn('Coverage check failed (proceeding anyway):', coverageCheckError);
       }
 
-      console.log('✅ ZIP coverage verified for', formData.zipcode);
-
-      if (!formData.city || formData.city.trim().length < 2) {
-        throw new Error('City information is required');
+      // Derive city if missing from ZIP validation
+      let effectiveCity = formData.city;
+      if (!effectiveCity || effectiveCity.trim().length < 2) {
+        console.debug('City missing, attempting to derive from ZIP...');
+        try {
+          const zipData = await validateUSZipcode(formData.zipcode);
+          if (zipData?.city) {
+            effectiveCity = zipData.city;
+            console.debug('Derived city from ZIP:', effectiveCity);
+          }
+        } catch (zipError) {
+          console.warn('Could not derive city from ZIP:', zipError);
+        }
       }
 
       if (!formData.address || formData.address.trim().length < 5) {
         throw new Error('Street address is required');
       }
-
-      // Unit number is now optional
-      // if (!formData.houseNumber || formData.houseNumber.trim().length === 0) {
-      //   throw new Error('Unit number is required');
-      // }
 
       // Validate scheduling information
       if (!formData.selectedDate) {
@@ -227,7 +223,7 @@ export const useBookingOperations = () => {
           address: formData.address,
           unit: formData.houseNumber,
           apartment_name: formData.apartmentName,
-          city: formData.city,
+          city: effectiveCity,
           zipcode: formData.zipcode,
           tip_amount: formData.tipAmount || 0,
           preferred_worker_id: (formData as any).preferredWorkerId || null,
