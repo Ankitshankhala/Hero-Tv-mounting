@@ -109,13 +109,11 @@ export const PaymentAuthorizationForm = ({
             amount: amount, // Send in dollars, edge function will convert to cents
             currency: 'usd',
             booking_id: bookingId,
+            customer_email: customerEmail,
+            customer_name: customerName,
             idempotency_key: crypto.randomUUID(),
             user_id: user?.id || null,
             testing_mode: isTestingMode, // Pass testing mode flag
-            guest_customer_info: !user ? {
-              email: customerEmail,
-              name: customerName,
-            } : undefined,
           },
         }
       );
