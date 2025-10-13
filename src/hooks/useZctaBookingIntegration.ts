@@ -205,31 +205,36 @@ export const useZipcodeValidationCompat = () => {
   } = useZctaBookingIntegration();
 
   const validateZipcode = useCallback(async (zipcode: string) => {
-    const [validation, coverage] = await Promise.all([
-      validateZctaCode(zipcode),
-      checkCoverage(zipcode)
-    ]);
-
-    return {
-      isValid: validation.is_valid,
-      hasServiceCoverage: coverage.hasActive,
-      workerCount: coverage.workerCount,
-      locationData: {
-        city: validation.city,
-        state: validation.state,
-        stateAbbr: validation.state_abbr,
-        latitude: validation.centroid_lat,
-        longitude: validation.centroid_lng
-      },
-      // Enhanced ZCTA-specific data
-      zctaData: {
-        has_boundary_data: validation.has_boundary_data,
-        total_area_sq_miles: validation.total_area_sq_miles,
-        data_source: validation.data_source,
-        can_use_for_service: validation.can_use_for_service
-      }
-    };
-  }, [validateZctaCode, checkCoverage]);
+    try {
+      // Single combined call instead of Promise.all with duplicate queries - MASSIVE PERFORMANCE BOOST!
+      const { validation, coverage } = await zctaOnlyService.validateZctaCodeWithCoverage(zipcode);
+      
+      return {
+        isValid: validation.is_valid,
+        hasServiceCoverage: coverage.hasActive,
+        workerCount: coverage.workerCount,
+        locationData: {
+          city: validation.city,
+          state: validation.state,
+          stateAbbr: validation.state_abbr,
+          latitude: validation.centroid_lat,
+          longitude: validation.centroid_lng
+        },
+        // Enhanced ZCTA-specific data
+        zctaData: {
+          has_boundary_data: validation.has_boundary_data,
+          total_area_sq_miles: validation.total_area_sq_miles,
+          data_source: validation.data_source,
+          can_use_for_service: validation.can_use_for_service
+        },
+        // Workers already loaded!
+        workers: coverage.workers
+      };
+    } catch (err) {
+      console.error('Validation error:', err);
+      throw err;
+    }
+  }, []);
 
   return {
     validateZipcode,

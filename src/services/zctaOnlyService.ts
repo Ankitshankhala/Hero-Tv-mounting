@@ -88,9 +88,16 @@ export class ZctaOnlyService {
         .single();
 
       if (zctaData) {
-        console.debug(`[ZCTA Validation] ✓ Found in ZCTA polygons: ${cacheKey}, fetching city name...`);
+        console.debug(`[ZCTA Validation] ✓ Found in ZCTA polygons: ${cacheKey}`);
         
-        // Get city/state from external API
+        // Check if we already have worker data from Step 1 (cached) - SKIP external API call!
+        const cachedWorkerData = this.cache.get(cacheKey);
+        if (cachedWorkerData && cachedWorkerData.data_source === 'worker_assignment') {
+          console.debug(`[ZCTA Validation] ⚡ Using cached worker data, skipping external API`);
+          return cachedWorkerData;
+        }
+        
+        // Only call external API if NO worker assignment exists
         const externalData = await this.validateZipWithExternal(cacheKey);
         
         const result: ZctaValidationResult = {
@@ -523,6 +530,98 @@ export class ZctaOnlyService {
       console.error('Error checking active coverage:', error);
       return false;
     }
+  }
+
+  /**
+   * Combined validation + coverage check in a single optimized call
+   * This eliminates duplicate database queries for maximum performance
+   */
+  async validateZctaCodeWithCoverage(zctaCode: string): Promise<{
+    validation: ZctaValidationResult;
+    coverage: { hasActive: boolean; workerCount: number; workers: WorkerAreaAssignment[] };
+  }> {
+    const cacheKey = zctaCode.replace(/[^\d]/g, '').substring(0, 5);
+    console.debug(`[Combined Validation] Starting for ${cacheKey}...`);
+    
+    // Single database query to get ALL worker data at once
+    const { data: workerZips, error } = await supabase
+      .from('worker_service_zipcodes')
+      .select(`
+        zipcode,
+        worker_id,
+        service_area_id,
+        service_area:worker_service_areas(
+          id,
+          area_name,
+          is_active,
+          worker:users(id, name, email, phone, city, is_active)
+        )
+      `)
+      .eq('zipcode', cacheKey);
+
+    if (workerZips && workerZips.length > 0) {
+      console.debug(`[Combined Validation] ✓ Found ${workerZips.length} worker assignments`);
+      
+      // Filter active workers and service areas
+      const activeWorkerZips = workerZips.filter((w: any) => 
+        w.service_area?.is_active === true && 
+        w.service_area?.worker?.is_active === true
+      );
+      
+      const areaName = workerZips[0].service_area?.area_name || 'Service Area';
+      
+      const validation: ZctaValidationResult = {
+        is_valid: true,
+        zcta_code: cacheKey,
+        has_boundary_data: true,
+        can_use_for_service: true,
+        city: areaName,
+        state: 'Service Coverage',
+        state_abbr: 'SC',
+        total_area_sq_miles: 0,
+        centroid_lat: 0,
+        centroid_lng: 0,
+        data_source: 'worker_assignment'
+      };
+      
+      // Cache the validation result
+      this.cache.set(cacheKey, validation);
+      
+      const workers: WorkerAreaAssignment[] = activeWorkerZips.map((w: any) => ({
+        worker_id: w.worker_id,
+        worker_name: w.service_area?.worker?.name || '',
+        worker_email: w.service_area?.worker?.email || '',
+        worker_phone: w.service_area?.worker?.phone || '',
+        area_id: w.service_area?.id || '',
+        area_name: w.service_area?.area_name || '',
+        zcta_code: cacheKey,
+        distance_priority: 1,
+        data_source: 'direct_match'
+      }));
+      
+      console.debug(`[Combined Validation] ⚡ Instant result: ${workers.length} workers found`);
+      
+      return {
+        validation,
+        coverage: {
+          hasActive: activeWorkerZips.length > 0,
+          workerCount: activeWorkerZips.length,
+          workers
+        }
+      };
+    }
+    
+    // No workers - fall back to regular validation (external API will be called)
+    console.debug(`[Combined Validation] No workers found, falling back to regular validation`);
+    const validation = await this.validateZctaCode(zctaCode);
+    return {
+      validation,
+      coverage: {
+        hasActive: false,
+        workerCount: 0,
+        workers: []
+      }
+    };
   }
 
   /**

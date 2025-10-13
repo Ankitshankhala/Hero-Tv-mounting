@@ -83,11 +83,11 @@ export const ZctaLocationInput: React.FC<ZctaLocationInputProps> = ({
       clearTimeout(debounceTimeout);
     }
 
-  // Auto-validate after user stops typing (enhanced debouncing)
+  // Auto-validate after user stops typing (fast debounce for instant feedback)
     if (autoValidate && cleanValue.length === 5) {
       const timeout = setTimeout(() => {
         triggerValidation(cleanValue);
-      }, 800); // Increased debounce for better UX
+      }, 300); // Fast debounce for instant worker display
       setDebounceTimeout(timeout);
     } else if (cleanValue.length < 5) {
       setValidationTriggered(false);
@@ -276,11 +276,11 @@ export const ZctaLocationInput: React.FC<ZctaLocationInputProps> = ({
         </div>
       )}
 
-      {/* Loading State */}
+      {/* Loading State - Optimistic with ZIP display */}
       {isLoading && (
-        <div className="flex items-center justify-center p-4 text-sm text-muted-foreground">
+        <div className="flex items-center justify-center p-4 text-sm text-muted-foreground animate-pulse">
           <Loader2 className="h-4 w-4 animate-spin mr-2" />
-          Checking service availability...
+          🔍 Checking availability in {inputValue}...
         </div>
       )}
     </div>
