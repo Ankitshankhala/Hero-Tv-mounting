@@ -95,13 +95,12 @@ export const ZctaLocationInput: React.FC<ZctaLocationInputProps> = ({
     }
   };
 
-  // Update input when value prop changes
+  // Update input when value prop changes (without race condition)
   useEffect(() => {
-    setInputValue(value);
-    if (autoValidate && value.length === 5 && value !== inputValue) {
-      triggerValidation(value);
+    if (value !== inputValue && value.length === 5) {
+      setInputValue(value);
     }
-  }, [value, triggerValidation, autoValidate, inputValue]);
+  }, [value]);
 
   // Cleanup timeout on unmount
   useEffect(() => {

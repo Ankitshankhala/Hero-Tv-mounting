@@ -64,16 +64,8 @@ export const useBookingFormState = (selectedServices: ServiceItem[] = []) => {
     return Math.max(0, MINIMUM_BOOKING_AMOUNT - serviceTotal);
   }, [MINIMUM_BOOKING_AMOUNT, serviceTotal]);
 
-  const handleZipcodeChange = (zipcode: string, cityState?: string) => {
+  const handleZipcodeChange = (zipcode: string) => {
     setFormData(prev => ({ ...prev, zipcode }));
-    
-    if (cityState) {
-      const [city, state] = cityState.split(', ');
-      setFormData(prev => ({ 
-        ...prev,
-        city: city || prev.city
-      }));
-    }
   };
 
   const isStep1Valid = services.length > 0 && isMinimumCartMet;
