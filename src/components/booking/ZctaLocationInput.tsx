@@ -220,11 +220,25 @@ export const ZctaLocationInput: React.FC<ZctaLocationInputProps> = ({
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="font-semibold">Service Available!</div>
-                    {coverageInfo.workers && coverageInfo.workers.length > 0 && (
-                      <div className="text-sm mt-1">
-                        {coverageInfo.workers[0].city} - {coverageInfo.workers.length} {coverageInfo.workers.length === 1 ? 'worker' : 'workers'} available
+              {coverageInfo.workers && coverageInfo.workers.length > 0 && (
+                <div className="text-sm mt-1">
+                  {coverageInfo.workers.length === 1 ? (
+                    <span>
+                      {coverageInfo.workers[0].name || 'Technician'} - {coverageInfo.workers[0].city || 'Service Area'}
+                    </span>
+                  ) : (
+                    <div>
+                      <div className="font-medium">{coverageInfo.workers.length} technicians available</div>
+                      <div className="text-xs mt-1 opacity-90">
+                        {coverageInfo.workers
+                          .filter(w => w.name)
+                          .map(w => w.name)
+                          .join(', ') || 'Multiple technicians'}
                       </div>
-                    )}
+                    </div>
+                  )}
+                </div>
+              )}
                     {zctaValidation.data_source === 'worker_assignment' && (
                       <div className="text-xs mt-1 opacity-75">
                         ✓ Verified worker coverage area
