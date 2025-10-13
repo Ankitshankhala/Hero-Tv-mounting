@@ -3123,6 +3123,24 @@ export type Database = {
           | { p_batch_limit?: number; p_lookback_minutes?: number }
         Returns: Json
       }
+      select_best_available_worker: {
+        Args: {
+          p_date: string
+          p_duration_minutes?: number
+          p_preferred_worker_id?: string
+          p_time: string
+          p_zipcode: string
+        }
+        Returns: {
+          availability_score: number
+          selection_reason: string
+          worker_email: string
+          worker_id: string
+          worker_name: string
+          worker_phone: string
+          workload_count: number
+        }[]
+      }
       send_email_for_booking: {
         Args: { p_booking_id: string }
         Returns: Json
