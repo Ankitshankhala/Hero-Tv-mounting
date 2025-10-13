@@ -88,19 +88,22 @@ export class ZctaOnlyService {
         .single();
 
       if (zctaData) {
-        console.debug(`[ZCTA Validation] ✓ Found in ZCTA polygons: ${cacheKey}`);
+        console.debug(`[ZCTA Validation] ✓ Found in ZCTA polygons: ${cacheKey}, fetching city name...`);
+        
+        // Get city/state from external API
+        const externalData = await this.validateZipWithExternal(cacheKey);
         
         const result: ZctaValidationResult = {
           is_valid: true,
           zcta_code: zctaData.zcta5ce,
           has_boundary_data: true,
           can_use_for_service: true,
-          city: 'ZIP ' + zctaData.zcta5ce,
-          state: 'United States',
-          state_abbr: 'US',
+          city: externalData?.city || 'Unknown City',
+          state: externalData?.state || 'United States',
+          state_abbr: externalData?.state_abbr || 'US',
           total_area_sq_miles: zctaData.land_area ? parseFloat(zctaData.land_area.toString()) : 0,
-          centroid_lat: 0,
-          centroid_lng: 0,
+          centroid_lat: externalData?.centroid_lat || 0,
+          centroid_lng: externalData?.centroid_lng || 0,
           data_source: 'zcta_boundary'
         };
         this.cache.set(cacheKey, result);
