@@ -76,40 +76,8 @@ export const useBookingFormState = (selectedServices: ServiceItem[] = []) => {
     }
   };
 
-  // PHASE 1: Track service coverage state
-  const [hasServiceCoverage, setHasServiceCoverage] = useState(false);
-
-  const handleZctaValidationChange = (isValid: boolean, hasCoverage: boolean) => {
-    const finalCoverageState = isValid && hasCoverage;
-    
-    console.log('🔍 ZCTA Validation Update:', { 
-      isValid, 
-      hasCoverage, 
-      finalValue: finalCoverageState,
-      timestamp: new Date().toISOString()
-    });
-    
-    setHasServiceCoverage(finalCoverageState);
-    
-    // Debug: Track complete Step 2 validation state
-    console.log('📊 Step 2 Validation State:', {
-      customerName: !!formData.customerName,
-      customerEmail: !!formData.customerEmail,
-      customerPhone: !!formData.customerPhone,
-      address: !!formData.address,
-      zipcode: !!formData.zipcode,
-      houseNumber: !!formData.houseNumber,
-      hasServiceCoverage: finalCoverageState,
-      willUnblockStep2: !!(formData.customerName && formData.customerEmail && 
-                          formData.customerPhone && formData.address && 
-                          formData.zipcode && formData.houseNumber && 
-                          finalCoverageState)
-    });
-  };
-
   const isStep1Valid = services.length > 0 && isMinimumCartMet;
-  // PHASE 1: Step 2 is only valid if service coverage is confirmed
-  const isStep2Valid = formData.customerName && formData.customerEmail && formData.customerPhone && formData.address && formData.zipcode && formData.houseNumber && hasServiceCoverage;
+  const isStep2Valid = formData.customerName && formData.customerEmail && formData.customerPhone && formData.address && formData.zipcode && formData.houseNumber;
   const isStep3Valid = formData.selectedDate && formData.selectedTime;
 
   return {
@@ -129,8 +97,6 @@ export const useBookingFormState = (selectedServices: ServiceItem[] = []) => {
     isStep1Valid,
     isStep2Valid,
     isStep3Valid,
-    hasServiceCoverage,
-    MINIMUM_BOOKING_AMOUNT,
-    handleZctaValidationChange
+    MINIMUM_BOOKING_AMOUNT
   };
 };

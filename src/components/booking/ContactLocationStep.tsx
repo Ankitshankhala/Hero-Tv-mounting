@@ -12,14 +12,12 @@ interface ContactLocationStepProps {
   formData: BookingFormData;
   setFormData: React.Dispatch<React.SetStateAction<BookingFormData>>;
   handleZipcodeChange: (zipcode: string, cityState?: string) => void;
-  onZctaValidationChange?: (isValid: boolean, hasServiceCoverage: boolean) => void;
 }
 
-export const ContactLocationStep = ({
-  formData,
-  setFormData,
-  handleZipcodeChange,
-  onZctaValidationChange
+export const ContactLocationStep = ({ 
+  formData, 
+  setFormData, 
+  handleZipcodeChange
 }: ContactLocationStepProps) => {
   return (
     <div className="space-y-6">
@@ -83,12 +81,6 @@ export const ContactLocationStep = ({
             value={formData.zipcode}
             onChange={(zipcode) => {
               handleZipcodeChange(zipcode);
-            }}
-            onValidationChange={(isValid, validation) => {
-              if (onZctaValidationChange && validation) {
-                // CRITICAL FIX: Access hasServiceCoverage directly from validation result
-                onZctaValidationChange(isValid, validation.hasServiceCoverage || false);
-              }
             }}
             placeholder="Enter ZIP code (e.g., 75201)"
             showDetails={true}
