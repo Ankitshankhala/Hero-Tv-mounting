@@ -109,12 +109,10 @@ export const SimplePaymentAuthorizationForm = ({
             amount, // Pass amount in dollars, edge function will convert to cents
             currency: 'usd',
             idempotency_key: idempotencyKey,
-            user_id: user?.id,
+            user_id: user?.id || null,
             booking_id: bookingId,
-            guest_customer_info: !user ? {
-              name: customerName,
-              email: customerEmail
-            } : undefined,
+            customer_email: customerEmail,
+            customer_name: customerName,
             testing_mode: process.env.NODE_ENV === 'development',
           },
         }

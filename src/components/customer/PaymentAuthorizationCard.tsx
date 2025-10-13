@@ -88,10 +88,8 @@ export const PaymentAuthorizationCard = ({
           booking_id: bookingId,
           idempotency_key: crypto.randomUUID(),
           user_id: null, // This is for guest customer use
-          guest_customer_info: {
-            name: customerName,
-            email: customerEmail
-          },
+          customer_email: customerEmail,
+          customer_name: customerName,
           testing_mode: process.env.NODE_ENV === 'development',
         }
       });

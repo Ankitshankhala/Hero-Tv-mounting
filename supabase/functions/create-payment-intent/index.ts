@@ -24,9 +24,20 @@ serve(async (req) => {
     const stripe = new Stripe(stripeSecretKey, { apiVersion: '2023-10-16' });
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
-    const { booking_id, amount, customer_email, customer_name } = await req.json();
+    const payload = await req.json();
+    
+    // Normalize customer email and name for backward compatibility
+    const customer_email = payload.customer_email || payload.guest_customer_info?.email;
+    const customer_name = payload.customer_name || payload.guest_customer_info?.name || 'Guest Customer';
+    const booking_id = payload.booking_id;
+    const amount = payload.amount;
 
-    console.log('[CREATE-PAYMENT-INTENT] Request:', { booking_id, amount, customer_email });
+    console.log('[CREATE-PAYMENT-INTENT] Keys present:', {
+      has_booking_id: !!booking_id,
+      has_amount: typeof amount === 'number',
+      has_customer_email: !!customer_email,
+      has_guest_info: !!payload.guest_customer_info
+    });
 
     // Validate required fields
     if (!booking_id || !amount || !customer_email) {

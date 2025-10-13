@@ -46,18 +46,22 @@ export class ZctaOnlyService {
       console.debug(`[ZCTA Validation] Checking ZIP: ${cacheKey}`);
 
       // STEP 1: Check if workers are assigned to this ZIP (highest priority)
+      // Use simpler query to avoid PostgREST embedding issues
       const { data: workerZips, error: workerError } = await supabase
         .from('worker_service_zipcodes')
-        .select(`
-          zipcode,
-          service_area:worker_service_areas(area_name, worker:users(name))
-        `)
+        .select('zipcode, service_area_id')
         .eq('zipcode', cacheKey)
         .limit(1);
 
       if (workerZips && workerZips.length > 0) {
-        const serviceArea = workerZips[0].service_area as any;
-        const areaName = serviceArea?.area_name || 'Service Area';
+        // Fetch service area details separately
+        const { data: areas } = await supabase
+          .from('worker_service_areas')
+          .select('area_name, worker_id')
+          .eq('id', workerZips[0].service_area_id)
+          .limit(1);
+        
+        const areaName = areas?.[0]?.area_name || 'Service Area';
         
         console.debug(`[ZCTA Validation] ✓ Found in worker assignments: ${areaName}`);
         

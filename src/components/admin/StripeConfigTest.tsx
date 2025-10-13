@@ -40,7 +40,9 @@ export const StripeConfigTest = () => {
             amount: 10.00,
             currency: 'usd',
             booking_id: 'test-booking-id',
-            user_id: 'test-user-id'
+            user_id: 'test-user-id',
+            customer_email: 'test@example.com',
+            customer_name: 'Test User'
           }
         });
         
