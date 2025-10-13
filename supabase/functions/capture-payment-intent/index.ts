@@ -106,24 +106,45 @@ serve(async (req) => {
     const capturedAmount = paymentIntent.amount / 100; // Convert from cents
     console.log('[CAPTURE-PAYMENT] Successfully captured:', capturedAmount);
 
-    // Create capture transaction record
+    // Update existing transaction record from 'authorized' to 'completed'
     const { data: transaction, error: transactionError } = await supabase
       .from('transactions')
-      .insert({
-        booking_id: booking.id,
-        amount: capturedAmount,
+      .update({
         status: 'completed',
-        payment_intent_id: intentId,
         transaction_type: 'capture',
-        payment_method: 'card',
-        captured_at: new Date().toISOString()
+        captured_at: new Date().toISOString(),
+        amount: capturedAmount // Update amount in case of incremental auth
       })
+      .eq('booking_id', booking.id)
+      .eq('payment_intent_id', intentId)
+      .eq('status', 'authorized')
       .select()
       .single();
 
     if (transactionError) {
-      console.error('[CAPTURE-PAYMENT] Transaction record error:', transactionError);
-      throw new Error('Failed to create transaction record');
+      console.error('[CAPTURE-PAYMENT] Transaction update error:', transactionError);
+      
+      // Fallback: If no authorized transaction exists, create a new one
+      const { data: newTransaction, error: insertError } = await supabase
+        .from('transactions')
+        .insert({
+          booking_id: booking.id,
+          amount: capturedAmount,
+          status: 'completed',
+          payment_intent_id: intentId,
+          transaction_type: 'capture',
+          payment_method: 'card',
+          captured_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+        
+      if (insertError) {
+        console.error('[CAPTURE-PAYMENT] Fallback insert also failed:', insertError);
+        throw new Error('Failed to update or create transaction record');
+      }
+      
+      console.log('[CAPTURE-PAYMENT] Created new transaction record (fallback)');
     }
 
     // Update booking payment_status to 'captured' (do NOT change booking.status)
