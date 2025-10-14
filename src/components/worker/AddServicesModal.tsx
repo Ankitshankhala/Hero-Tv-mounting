@@ -189,39 +189,7 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
         return;
       }
 
-      // Step 3: Mark job as completed
-      const { error: updateError } = await supabase
-        .from('bookings')
-        .update({ status: 'completed' })
-        .eq('id', job.id);
-
-      if (updateError) {
-        console.error('Error marking job complete:', updateError);
-        toast({
-          title: "Services Added",
-          description: "Services added but failed to mark job complete. Please use 'Mark Complete' button.",
-          variant: "destructive",
-        });
-        setCart([]);
-        onClose();
-        onServicesAdded?.();
-        return;
-      }
-
-      // Step 4: Refresh job data to get latest payment_intent_id
-      const { data: refreshedJob, error: refreshError } = await supabase
-        .from('bookings')
-        .select('payment_intent_id')
-        .eq('id', job.id)
-        .single();
-
-      if (refreshError) {
-        console.error('[ADD-SERVICES] Failed to refresh job data:', refreshError);
-      } else {
-        console.log('[ADD-SERVICES] Using refreshed payment_intent_id:', refreshedJob?.payment_intent_id);
-      }
-
-      // Step 5: Capture the full payment amount
+      // Step 3: Capture the full payment amount FIRST (before marking complete)
       if (job.payment_intent_id) {
         const { data: captureData, error: captureError } = await supabase.functions.invoke('capture-payment-intent', {
           body: { 
@@ -231,8 +199,8 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
 
         if (captureError || !captureData?.success) {
           toast({
-            title: "Services Added & Job Completed",
-            description: "Payment capture failed. Use the Charge button to retry.",
+            title: "Services Added",
+            description: "Services added but payment capture failed. Job not completed. Use the Charge button to retry.",
             variant: "destructive",
           });
           setCart([]);
@@ -241,7 +209,26 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
           return;
         }
 
-        // Step 6: Explicitly archive the job after successful capture
+        // Step 4: Mark job as completed ONLY after successful payment capture
+        const { error: updateError } = await supabase
+          .from('bookings')
+          .update({ status: 'completed' })
+          .eq('id', job.id);
+
+        if (updateError) {
+          console.error('Error marking job complete:', updateError);
+          toast({
+            title: "Payment Captured",
+            description: "Payment captured but failed to mark job complete. Please use 'Mark Complete' button.",
+            variant: "destructive",
+          });
+          setCart([]);
+          onClose();
+          onServicesAdded?.();
+          return;
+        }
+
+        // Step 5: Explicitly archive the job after successful completion
         const { error: archiveError } = await supabase
           .from('bookings')
           .update({ 
@@ -471,7 +458,7 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
                     className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold py-3"
                   >
                     <CreditCard className="h-5 w-5 mr-2" />
-                    {processing ? 'Processing...' : `Complete Job & Charge Full Amount $${getTotalPrice().toFixed(2)}`}
+                    {processing ? 'Processing...' : `Charge Full Amount & Complete Job $${getTotalPrice().toFixed(2)}`}
                   </Button>
                 </CardContent>
               </Card>
