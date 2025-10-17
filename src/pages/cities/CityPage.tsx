@@ -105,7 +105,7 @@ const CityPage = () => {
       "name": `Hero TV Mounting — ${city.city}`,
       "description": `Professional TV mounting services in ${city.fullName}`,
       "url": canonicalUrl,
-      "telephone": "+1-737-272-9971",
+      "telephone": "+1-575-208-8997",
       "address": {
         "@type": "PostalAddress",
         "addressLocality": city.city,

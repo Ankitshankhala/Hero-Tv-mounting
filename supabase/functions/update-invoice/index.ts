@@ -345,7 +345,7 @@ function generateUpdatedInvoiceEmail(data: any): string {
       <p>If you have any questions about this invoice or our services, please don't hesitate to contact us:</p>
       <ul>
         <li>Email: Captain@herotvmounting.com</li>
-        <li>Phone: +1 737-272-9971</li>
+        <li>Phone: +1 575-208-8997</li>
         <li>Website: www.herotvmounting.com</li>
       </ul>
       

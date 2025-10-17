@@ -213,10 +213,10 @@ const BookingSuccess = () => {
             <p className="text-white mb-2">Need to make changes or have questions?</p>
             <p className="text-slate-300 mb-4">Contact us at:</p>
             <a 
-              href="tel:+17372729971"
+              href="tel:+15752088997"
               className="text-blue-400 hover:text-blue-300 text-xl font-semibold"
             >
-              +1 737-272-9971
+              +1 575-208-8997
             </a>
           </CardContent>
         </Card>

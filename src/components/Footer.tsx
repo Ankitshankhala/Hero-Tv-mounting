@@ -37,7 +37,7 @@ export const Footer = () => {
                 Technician Portal
               </a>
               <a 
-                href="tel:+17372729971" 
+                href="tel:+15752088997" 
                 className="text-slate-400 hover:text-slate-300 transition-colors duration-200"
               >
                 Contact Us

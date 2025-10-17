@@ -80,10 +80,10 @@ export const Header = () => {
         
         <div className="text-center">
           <a 
-            href="tel:+17372729971"
+            href="tel:+15752088997"
             className="text-2xl md:text-3xl text-blue-400 hover:text-blue-300 transition-colors duration-200 font-semibold"
           >
-            +1 737-272-9971
+            +1 575-208-8997
           </a>
         </div>
       </div>
