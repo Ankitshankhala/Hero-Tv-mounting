@@ -216,7 +216,7 @@ const BookingSuccess = () => {
               href="tel:+15752088997"
               className="text-blue-400 hover:text-blue-300 text-xl font-semibold"
             >
-              +1 575-208-8997
+              575-208-8997
             </a>
           </CardContent>
         </Card>
