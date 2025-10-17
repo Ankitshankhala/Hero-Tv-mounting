@@ -78,13 +78,25 @@ export const Header = () => {
           </h1>
         </div>
         
-        <div className="text-center">
-          <a 
-            href="tel:+15752088997"
-            className="text-2xl md:text-3xl text-blue-400 hover:text-blue-300 transition-colors duration-200 font-semibold"
-          >
-            575-208-8997
-          </a>
+        <div className="text-center space-y-2">
+          <div>
+            <a 
+              href="tel:+17372729971"
+              className="text-2xl md:text-3xl text-blue-400 hover:text-blue-300 transition-colors duration-200 font-semibold"
+            >
+              737-272-9971
+            </a>
+            <p className="text-sm text-slate-400 mt-1">(Business Owner)</p>
+          </div>
+          <div>
+            <a 
+              href="tel:+15752088997"
+              className="text-2xl md:text-3xl text-blue-400 hover:text-blue-300 transition-colors duration-200 font-semibold"
+            >
+              575-208-8997
+            </a>
+            <p className="text-sm text-slate-400 mt-1">(Austin Callers)</p>
+          </div>
         </div>
       </div>
     </header>
