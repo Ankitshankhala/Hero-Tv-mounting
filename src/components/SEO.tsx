@@ -28,13 +28,13 @@ export const SEO: React.FC<SEOProps> = ({ title, description, canonical, noindex
       {safeDescription && <meta property="og:description" content={safeDescription} />}
       {canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
       <meta property="og:type" content="website" />
-      <meta property="og:image" content="/assets/images/og-image.png" />
+      <meta property="og:image" content="/og-image.jpg" />
       
       {/* Twitter Card tags */}
       <meta name="twitter:card" content="summary_large_image" />
       {title && <meta name="twitter:title" content={title} />}
       {safeDescription && <meta name="twitter:description" content={safeDescription} />}
-      <meta name="twitter:image" content="/assets/images/twitter-image.png" />
+      <meta name="twitter:image" content="/twitter-image.jpg" />
       
       {/* Single H1 rule is enforced in pages; this component manages head only */}
       {Array.isArray(jsonLd)

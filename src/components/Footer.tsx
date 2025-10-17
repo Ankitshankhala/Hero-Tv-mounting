@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { Facebook, Instagram, Linkedin } from 'lucide-react';
 
 export const Footer = () => {
   return (
@@ -41,6 +42,39 @@ export const Footer = () => {
               >
                 Contact Us
               </a>
+            </div>
+            
+            <div className="flex flex-col space-y-3 text-center md:text-left">
+              <div className="text-slate-300 font-semibold mb-1">Follow Us</div>
+              <div className="flex gap-4 justify-center md:justify-start">
+                <a 
+                  href="https://facebook.com/herotvmounting" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  aria-label="Visit our Facebook page"
+                  className="text-slate-400 hover:text-blue-500 transition-colors duration-200"
+                >
+                  <Facebook className="h-5 w-5" />
+                </a>
+                <a 
+                  href="https://instagram.com/herotvmounting" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  aria-label="Visit our Instagram page"
+                  className="text-slate-400 hover:text-pink-500 transition-colors duration-200"
+                >
+                  <Instagram className="h-5 w-5" />
+                </a>
+                <a 
+                  href="https://linkedin.com/company/herotvmounting" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  aria-label="Visit our LinkedIn page"
+                  className="text-slate-400 hover:text-blue-400 transition-colors duration-200"
+                >
+                  <Linkedin className="h-5 w-5" />
+                </a>
+              </div>
             </div>
           </div>
         </div>
