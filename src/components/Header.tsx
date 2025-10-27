@@ -53,7 +53,7 @@ export const Header = () => {
             <a href="tel:+17372729971" className="text-2xl md:text-3xl text-blue-400 hover:text-blue-300 transition-colors duration-200 font-semibold">
               737-272-9971
             </a>
-            <p className="text-sm text-slate-400 mt-1">(Business Owner)</p>
+            
           </div>
           
         </div>
