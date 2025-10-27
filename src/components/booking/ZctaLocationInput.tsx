@@ -251,12 +251,13 @@ export const ZctaLocationInput: React.FC<ZctaLocationInputProps> = ({
           )}
 
           {zctaValidation && zctaValidation.is_valid && coverageInfo && !coverageInfo.hasActive && (
-            <Alert className="bg-action-warning/10 border-action-warning/30">
-              <AlertTriangle className="h-4 w-4 text-action-warning" />
-              <AlertDescription className="text-action-warning">
-                <div className="font-semibold mb-1">Valid ZIP, Limited Coverage</div>
+            <Alert className="bg-action-danger/10 border-action-danger/30">
+              <XCircle className="h-4 w-4 text-action-danger" />
+              <AlertDescription className="text-action-danger">
+                <div className="font-semibold mb-1">Service Not Available</div>
                 <div className="text-sm">
-                  Currently outside our service area. You can still book - we'll confirm coverage and assign a worker shortly.
+                  We don't currently service ZIP code {inputValue}. 
+                  <a href="/contact" className="underline ml-1 hover:text-action-danger/80">Contact us</a> to request coverage in your area.
                 </div>
               </AlertDescription>
             </Alert>

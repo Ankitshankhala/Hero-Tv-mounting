@@ -362,8 +362,8 @@ export const ScheduleStep = ({
               console.log('Continue to payment...');
               setFormData(prev => ({ ...prev, continueToPayment: true }));
             }}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-12 py-4 rounded-lg font-semibold text-lg shadow-lg transition-all duration-200 hover:shadow-xl"
-            disabled={loading}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-12 py-4 rounded-lg font-semibold text-lg shadow-lg transition-all duration-200 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={loading || workerCount === 0}
           >
             {loading ? (
               <div className="flex items-center space-x-2">

@@ -110,22 +110,24 @@ export const useBookingOperations = () => {
         throw new Error('Valid zipcode is required for service location');
       }
 
-      // Non-blocking coverage check - log but don't fail
-      console.debug('🔍 Checking ZIP coverage (non-blocking)...');
-      try {
-        const { data: coverageData, error: coverageError } = await supabase.rpc(
-          'zip_has_active_coverage',
-          { p_zipcode: formData.zipcode }
-        );
+      // CRITICAL: BLOCKING coverage check - prevent bookings without workers
+      console.debug('🔍 Checking ZIP coverage (BLOCKING - will fail if no coverage)...');
+      const { data: coverageData, error: coverageError } = await supabase.rpc(
+        'zip_has_active_coverage',
+        { p_zipcode: formData.zipcode }
+      );
 
-        if (coverageError) {
-          console.warn('Coverage check RPC error (proceeding anyway):', coverageError);
-        } else {
-          console.debug('Coverage result:', { zipcode: formData.zipcode, hasCoverage: coverageData });
-        }
-      } catch (coverageCheckError) {
-        console.warn('Coverage check failed (proceeding anyway):', coverageCheckError);
+      if (coverageError) {
+        console.error('Coverage check RPC error:', coverageError);
+        throw new Error('Unable to verify service coverage. Please try again or contact support.');
       }
+
+      if (!coverageData) {
+        console.warn('No coverage found for ZIP:', formData.zipcode);
+        throw new Error(`Sorry, we don't currently service ZIP code ${formData.zipcode}. Please contact us to request coverage in your area.`);
+      }
+
+      console.debug('✅ Coverage confirmed for ZIP:', formData.zipcode);
 
       // Derive city if missing from ZIP validation
       let effectiveCity = formData.city;
