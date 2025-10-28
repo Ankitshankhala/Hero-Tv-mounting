@@ -251,7 +251,7 @@ export const TvMountingConfigModal: React.FC<TvMountingConfigModalProps> = ({
                           )}
                         </div>
                         <p className="text-gray-600 text-xs">
-                          Professional soundbar mounting service (+$40)
+                          Professional soundbar mounting service (equipment not included) (+$40)
                         </p>
                       </div>
                     </label>

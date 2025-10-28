@@ -129,7 +129,7 @@ export const IndividualTvConfig: React.FC<IndividualTvConfigProps> = ({
                 )}
               </div>
               <p className="text-slate-400 text-xs">
-                Professional soundbar mounting service (+$40)
+                Professional soundbar mounting service (equipment not included) (+$40)
               </p>
             </div>
           </label>

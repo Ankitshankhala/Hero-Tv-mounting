@@ -163,7 +163,7 @@ export const TvMountingModal = ({ open, onClose, onAddToCart, services }: TvMoun
                       <div className="flex-1">
                         <div className="font-medium text-white">Mount Soundbar</div>
                         <div className="text-sm text-slate-400">
-                          Additional soundbar mounting (+$40)
+                          Additional soundbar mounting (equipment not included) (+$40)
                         </div>
                       </div>
                     </label>
