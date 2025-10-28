@@ -51,7 +51,7 @@ export const TvQuantitySelector: React.FC<TvQuantitySelectorProps> = ({
         <div>Base TV Mounting: ${calculateTvMountingPrice(numberOfTvs)}</div>
         {numberOfTvs > 1 && (
           <div className="text-xs mt-1">
-            1st TV: $90, 2nd TV: $60{numberOfTvs > 2 && `, Additional TVs: $75 each`}
+            1st TV: $100, 2nd TV: $85{numberOfTvs > 2 && `, Additional TVs: $75 each`}
           </div>
         )}
       </div>

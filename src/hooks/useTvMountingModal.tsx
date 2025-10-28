@@ -33,9 +33,9 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
     
     for (let i = 1; i <= numTvs; i++) {
       if (i === 1) {
-        totalPrice += 90; // First TV: $90
+        totalPrice += 100; // First TV: $100
       } else if (i === 2) {
-        totalPrice += 60; // Second TV: $60
+        totalPrice += 85; // Second TV: $85
       } else {
         totalPrice += 75; // Third TV and beyond: $75 each
       }
