@@ -261,6 +261,28 @@ export class ZctaOnlyService {
 
   /**
    * Find available workers for a ZCTA code with area information
+   * 
+   * ⚠️ IMPORTANT: This method returns workers who service ANY ZIP in their areas,
+   * not necessarily the specific requested ZIP. It uses geographic data which can
+   * result in false positives when polygons overlap.
+   * 
+   * ✅ RECOMMENDED USE CASES:
+   * - Worker assignment UI (showing all workers in a general area)
+   * - Service area management and visualization
+   * - Coverage analysis and reporting
+   * - Admin tools and dashboards
+   * 
+   * ❌ DO NOT USE FOR:
+   * - Customer-facing booking calendar (use get_available_time_slots RPC)
+   * - Availability checking for specific addresses (use find_available_workers_by_zip RPC)
+   * - Auto-assignment logic (use database RPCs with strict matching)
+   * 
+   * For booking calendars, use database RPC functions instead:
+   * - get_available_time_slots(p_zipcode, p_date, p_service_duration_minutes) - for calendar display
+   * - find_available_workers_by_zip(p_zipcode, p_date, p_time, p_duration_minutes) - for worker selection
+   * 
+   * These functions enforce STRICT ZIP CODE MATCHING based on the
+   * worker_service_zipcodes table, preventing geographic false positives.
    */
   async findAvailableWorkersWithAreaInfo(
     zctaCode: string,

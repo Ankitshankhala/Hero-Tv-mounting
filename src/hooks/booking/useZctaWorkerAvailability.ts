@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { formatInTimeZone, toZonedTime } from 'date-fns-tz';
 import { supabase } from '@/integrations/supabase/client';
 import { findZctaAvailableWorkers } from '@/utils/zctaServiceCoverage';
+import { zctaOnlyService } from '@/services/zctaOnlyService';
 
 /**
  * Enhanced worker availability hook that uses ZCTA data for improved accuracy
@@ -76,53 +77,43 @@ export const useZctaWorkerAvailability = () => {
       const isToday = dateStr === todayStr;
       const currentHour = nowInChicago.getHours();
       
+      // ✅ HYBRID APPROACH: ZCTA for validation/location, Database for strict worker matching
       let availabilityDataSource: 'zcta' | 'database' = 'database';
       let allAvailableSlots: any[] = [];
-
-      // Try ZCTA-based availability first for multiple time slots
+      
+      // PHASE 1: ZCTA Validation (optional - for location data enrichment)
+      // This doesn't affect booking logic but enriches UX with city/state info
       try {
-        const zctaAvailabilityPromises = timeSlots.map(async (timeSlot) => {
-          const workers = await findZctaAvailableWorkers(zipcode, dateStr, timeSlot, 60);
-          return {
-            time_slot: timeSlot,
-            worker_ids: workers.map(w => w.worker_id),
-            workers: workers
-          };
-        });
-
-        const zctaResults = await Promise.all(zctaAvailabilityPromises);
-        const zctaSlots = zctaResults.filter(result => result.worker_ids.length > 0);
-
-        if (zctaSlots.length > 0) {
-          allAvailableSlots = zctaSlots;
-          availabilityDataSource = 'zcta';
-          setAvailabilitySource('zcta');
+        const validation = await zctaOnlyService.validateZctaCode(zipcode);
+        if (validation.is_valid) {
+          console.log(`[Hybrid Availability] ✓ ZCTA validated: ${validation.city}, ${validation.state_abbr}`);
         }
       } catch (zctaError) {
-        console.warn('ZCTA availability check failed, falling back to database:', zctaError);
+        console.warn('[Hybrid Availability] ZCTA validation skipped:', zctaError);
+      }
+      
+      // PHASE 2: Database Lookup (STRICT ZIP MATCHING - source of truth for workers)
+      console.log('[Hybrid Availability] Fetching workers via database (strict ZIP match)');
+      const { data: availableSlots, error } = await supabase.rpc('get_available_time_slots', {
+        p_zipcode: zipcode,
+        p_date: dateStr,
+        p_service_duration_minutes: 60
+      });
+
+      if (error) {
+        console.error('[Hybrid Availability] Error fetching available time slots:', error);
+        setAvailableSlots([]);
+        setBlockedSlots([]);
+        setWorkerCount(0);
+        setAvailabilitySource('none');
+        return;
       }
 
-      // Fallback to database if ZCTA didn't provide results
-      if (allAvailableSlots.length === 0) {
-        const { data: availableSlots, error } = await supabase.rpc('get_available_time_slots', {
-          p_zipcode: zipcode,
-          p_date: dateStr,
-          p_service_duration_minutes: 60
-        });
-
-        if (error) {
-          console.error('Error fetching available time slots:', error);
-          setAvailableSlots([]);
-          setBlockedSlots([]);
-          setWorkerCount(0);
-          setAvailabilitySource('none');
-          return;
-        }
-
-        allAvailableSlots = availableSlots || [];
-        availabilityDataSource = 'database';
-        setAvailabilitySource('database');
-      }
+      allAvailableSlots = availableSlots || [];
+      availabilityDataSource = 'database';
+      setAvailabilitySource('database');
+      
+      console.log(`[Hybrid Availability] Found ${allAvailableSlots.length} slots via database (strict ZIP match)`);
 
       // Extract available time slots and worker count
       const slots = allAvailableSlots.map(slot => {

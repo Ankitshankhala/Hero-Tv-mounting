@@ -78,23 +78,24 @@ export const getZctaServiceCoverage = async (customerZipcode: string): Promise<Z
       dbWorkerCount = databaseCoverage.value.workerCount;
     }
 
-    // Determine final coverage and source
-    let finalCoverage = false;
-    let finalWorkerCount = 0;
-    let coverageSource: 'zcta' | 'database' | 'both' | 'none' = 'none';
+    // ✅ DATABASE IS SOURCE OF TRUTH: Only database coverage counts for booking
+    const finalCoverage = dbHasCoverage;
+    const finalWorkerCount = dbWorkerCount; // Actual workers who service this exact ZIP
 
-    if (zctaHasCoverage && dbHasCoverage) {
-      finalCoverage = true;
-      finalWorkerCount = Math.max(zctaWorkerCount, dbWorkerCount); // Use higher count
+    let coverageSource: 'zcta' | 'database' | 'both' | 'none' = 'none';
+    
+    if (dbHasCoverage && zctaData?.is_valid) {
+      // Best case: Database coverage + ZCTA location enrichment
       coverageSource = 'both';
-    } else if (zctaHasCoverage) {
-      finalCoverage = true;
-      finalWorkerCount = zctaWorkerCount;
-      coverageSource = 'zcta';
     } else if (dbHasCoverage) {
-      finalCoverage = true;
-      finalWorkerCount = dbWorkerCount;
+      // Good case: Database coverage only
       coverageSource = 'database';
+    } else if (zctaHasCoverage) {
+      // ⚠️ ZCTA thinks there's coverage but database disagrees
+      // This means worker service areas overlap geographically but
+      // the worker hasn't explicitly added this ZIP
+      coverageSource = 'none';
+      console.warn(`[Coverage Check] ZIP ${cleanZipcode} has ZCTA geographic overlap but no explicit worker service coverage. Worker may need to add this ZIP to their service areas.`);
     }
 
     const result: ZctaServiceCoverageData = {
@@ -159,39 +160,12 @@ export const findZctaAvailableWorkers = async (
     if (!cleanZipcode || cleanZipcode.length !== 5) {
       throw new Error('Invalid ZIP code format');
     }
-    
-    // Try ZCTA-based worker finding first with retry logic
-    let zctaWorkers = [];
-    try {
-      zctaWorkers = await Promise.race([
-        zctaOnlyService.findAvailableWorkersWithAreaInfo(cleanZipcode, date, time, duration),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('ZCTA service timeout')), 10000)
-        )
-      ]) as any[];
-      
-      if (zctaWorkers.length > 0) {
-        return zctaWorkers.map(worker => ({
-          ...worker,
-          assignment_source: 'zcta' as const,
-          // Enhanced worker details
-          service_area: worker.service_area || `${cleanZipcode} area`,
-          avg_response_time: worker.avg_response_time || '30-60 mins',
-          specializations: worker.specializations || ['General Service']
-        }));
-      }
-    } catch (zctaError) {
-      console.warn(`ZCTA worker search failed (attempt ${retryCount + 1}):`, zctaError);
-      
-      // Retry ZCTA on network errors
-      if (retryCount < maxRetries && (zctaError as Error).message.includes('timeout')) {
-        await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
-        return findZctaAvailableWorkers(zipcode, date, time, duration, retryCount + 1);
-      }
-    }
-    
-    // Fallback to database-based worker finding
-    console.log('Falling back to database worker search for:', cleanZipcode);
+
+    // ✅ NEW: Skip ZCTA worker lookup, go directly to database for strict ZIP matching
+    // ZCTA is now only used for validation/location in the booking flow, not worker finding
+    console.log('[Worker Finder] Using strict ZIP matching for worker availability:', cleanZipcode);
+
+    // Use database RPC with strict ZIP matching
     const { data: dbWorkers, error: dbError } = await supabase.rpc('find_available_workers_by_zip', {
       p_zipcode: cleanZipcode,
       p_date: date,
