@@ -11,6 +11,7 @@ import { AssignWorkerModal } from './AssignWorkerModal';
 import { EditBookingModal } from './EditBookingModal';
 import { BookingDetailsModal } from './BookingDetailsModal';
 import { DeleteBookingModal } from './DeleteBookingModal';
+import { CleanupMonitor } from './CleanupMonitor';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, Calendar, Archive } from 'lucide-react';
 import { toast } from 'sonner';
@@ -229,6 +230,8 @@ export const BookingsManager = () => {
   return (
     <AuthGuard allowedRoles={['admin']}>
       <div className="space-y-6">
+        <CleanupMonitor />
+        
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">

@@ -41,20 +41,13 @@ export const CleanupMonitor = () => {
   });
 
   // Query cleanup history from sms_logs
-  const { data: cleanupHistory } = useQuery<Array<{
-    id: string;
-    sent_at: string;
-    message: string;
-    phone_number: string;
-    status: string;
-  }>>({
+  const { data: cleanupHistory } = useQuery({
     queryKey: ['cleanup-history'],
     queryFn: async () => {
       const { data } = await supabase
         .from('sms_logs')
-        .select('*')
-        .eq('phone_number', 'SYSTEM')
-        .like('message', '%cleanup%')
+        .select('id, sent_at, message, status')
+        .ilike('message', '%cleanup%')
         .order('sent_at', { ascending: false })
         .limit(5);
 
