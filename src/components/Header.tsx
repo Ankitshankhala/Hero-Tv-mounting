@@ -12,7 +12,7 @@ export const Header = () => {
   const handleLogout = async () => {
     await signOut();
   };
-  return <header className="relative bg-gradient-to-r from-slate-900 to-slate-800 text-white">
+  return <header className="relative bg-slate-900 text-white">
       <div className="relative container mx-auto px-4 py-12">
         <div className="absolute top-4 right-4 flex space-x-2">
           {user ? <div className="flex items-center space-x-2">
