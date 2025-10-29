@@ -24,13 +24,18 @@ serve(async (req) => {
     
     console.log(`[WORKER-ASSIGNMENT-EMAIL] Processing notification for booking ${bookingId}, worker ${workerId}`);
 
-    // Fetch booking and worker details
+    // Fetch booking with complete details
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
       .select(`
         *,
-        service:services(name),
-        customer:users!customer_id(name, email)
+        booking_services (
+          id,
+          quantity,
+          service_name,
+          base_price
+        ),
+        customer:users!customer_id(name, email, phone)
       `)
       .eq('id', bookingId)
       .single();
@@ -48,6 +53,37 @@ serve(async (req) => {
     if (workerError || !worker) {
       throw new Error(`Failed to fetch worker: ${workerError?.message}`);
     }
+
+    // Extract customer information (from users table or guest_customer_info)
+    const guestInfo = booking.guest_customer_info || {};
+    const customerInfo = {
+      name: booking.customer?.name || guestInfo.name || 'Guest',
+      email: booking.customer?.email || guestInfo.email || '',
+      phone: booking.customer?.phone || guestInfo.phone || '',
+      address: guestInfo.address || booking.address || '',
+      unit: guestInfo.unit || booking.house_number || '',
+      apartment: guestInfo.apartment_name || booking.apartment_name || '',
+      city: guestInfo.city || booking.city || '',
+      zipcode: guestInfo.zipcode || booking.zipcode || ''
+    };
+
+    // Build service items list
+    const serviceItems = booking.booking_services && booking.booking_services.length > 0
+      ? booking.booking_services.map(bs => `${bs.service_name} x${bs.quantity}`).join('<br>')
+      : 'Service details not available';
+
+    // Format date and time
+    const scheduledDate = booking.scheduled_date 
+      ? new Date(booking.scheduled_date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+      : 'Date TBD';
+    const scheduledTime = booking.scheduled_start || 'Time TBD';
+
+    // Extract special instructions
+    const specialInstructions = booking.special_instructions || 'No special instructions provided';
+    
+    console.log('[WORKER-EMAIL] Service items:', serviceItems);
+    console.log('[WORKER-EMAIL] Customer info:', customerInfo);
+    console.log('[WORKER-EMAIL] Special instructions:', specialInstructions);
 
     // Check if email already sent (idempotency)
     const { data: existingLog } = await supabase
@@ -71,18 +107,74 @@ serve(async (req) => {
     const emailData = await resend.emails.send({
       from: 'Hero TV Mounting <bookings@herotvmounting.com>',
       to: [worker.email],
-      subject: `New Assignment: ${booking.service.name}`,
+      subject: `NEW JOB ASSIGNMENT - ${scheduledDate}`,
       html: `
-        <h2>New Booking Assignment</h2>
-        <p>Hi ${worker.name},</p>
-        <p>You have been assigned to a new booking:</p>
-        <ul>
-          <li><strong>Service:</strong> ${booking.service.name}</li>
-          <li><strong>Date:</strong> ${booking.scheduled_date}</li>
-          <li><strong>Time:</strong> ${booking.scheduled_start}</li>
-          <li><strong>Customer:</strong> ${booking.customer?.name || 'Guest'}</li>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Job Assignment</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+        <h1 style="color: #2c3e50; margin: 0 0 10px 0; font-size: 24px;">NEW JOB ASSIGNMENT</h1>
+        <h2 style="color: #e74c3c; margin: 0; font-size: 20px;">Hero TV Mounting</h2>
+    </div>
+
+    <div style="margin-bottom: 25px;">
+        <h3 style="background-color: #3498db; color: white; padding: 10px; margin: 0 0 15px 0; border-radius: 5px;">Worker:</h3>
+        <p style="margin: 0; font-size: 18px; font-weight: bold;">${worker.name}</p>
+    </div>
+
+    <div style="margin-bottom: 25px;">
+        <h3 style="background-color: #3498db; color: white; padding: 10px; margin: 0 0 15px 0; border-radius: 5px;">Service:</h3>
+        <p style="margin: 0;">${serviceItems}</p>
+        <p style="margin: 5px 0 0 0;"><strong>Date & Time:</strong><br>
+            ${scheduledDate}, ${scheduledTime}</p>
+    </div>
+
+    <div style="margin-bottom: 25px;">
+        <h3 style="background-color: #3498db; color: white; padding: 10px; margin: 0 0 15px 0; border-radius: 5px;">Customer Information:</h3>
+        <p style="margin: 0;"><strong>Name:</strong> ${customerInfo.name}</p>
+        <p style="margin: 5px 0;"><strong>Address:</strong> ${customerInfo.address}</p>
+        ${customerInfo.unit ? `<p style="margin: 5px 0;"><strong>Unit:</strong> ${customerInfo.unit}</p>` : ''}
+        ${customerInfo.apartment ? `<p style="margin: 5px 0;"><strong>Apartment:</strong> ${customerInfo.apartment}</p>` : ''}
+        <p style="margin: 5px 0;"><strong>City:</strong> ${customerInfo.city}${customerInfo.zipcode ? `, ${customerInfo.zipcode}` : ''}</p>
+        <p style="margin: 5px 0;"><strong>Phone:</strong> ${customerInfo.phone}</p>
+        <p style="margin: 5px 0;"><strong>Email:</strong> ${customerInfo.email}</p>
+    </div>
+
+    <div style="margin-bottom: 25px;">
+        <h3 style="background-color: #3498db; color: white; padding: 10px; margin: 0 0 15px 0; border-radius: 5px;">Notes:</h3>
+        <p style="margin: 0; background-color: #f8f9fa; padding: 15px; border-radius: 5px;">${customerInfo.address}
+${customerInfo.unit ? `Unit: ${customerInfo.unit}` : ''}
+${customerInfo.apartment ? `Apartment: ${customerInfo.apartment}` : ''}
+Contact: ${customerInfo.name}
+Phone: ${customerInfo.phone}
+Email: ${customerInfo.email}
+ZIP: ${customerInfo.zipcode}
+Special Instructions: ${specialInstructions}</p>
+    </div>
+
+    <div style="margin-bottom: 25px;">
+        <h3 style="background-color: #e67e22; color: white; padding: 10px; margin: 0 0 15px 0; border-radius: 5px;">Important Reminders:</h3>
+        <ul style="margin: 0; padding-left: 20px;">
+            <li>Arrive 15 minutes early for setup</li>
+            <li>Bring all necessary tools and equipment</li>
+            <li>Contact customer if running late</li>
+            <li>Complete job documentation after service</li>
         </ul>
-        <p>Please acknowledge this assignment in your dashboard.</p>
+    </div>
+
+    <div style="background-color: #2c3e50; color: white; padding: 20px; border-radius: 5px; text-align: center;">
+        <h3 style="margin: 0 0 10px 0;">Support Contact:</h3>
+        <p style="margin: 5px 0;"><strong>Email:</strong> Captain@herotvmounting.com</p>
+        <p style="margin: 5px 0;"><strong>Phone:</strong> +1 737-272-9971</p>
+        <p style="margin: 15px 0 0 0; font-size: 18px; font-weight: bold;">Good luck with your assignment!</p>
+    </div>
+</body>
+</html>
       `,
     });
 
@@ -90,8 +182,8 @@ serve(async (req) => {
     await supabase.from('email_logs').insert({
       booking_id: bookingId,
       recipient_email: worker.email,
-      subject: `New Assignment: ${booking.service.name}`,
-      message: 'Worker assignment notification',
+      subject: `NEW JOB ASSIGNMENT - ${scheduledDate}`,
+      message: 'Worker assignment notification with complete details',
       email_type: 'worker_assignment',
       status: 'sent',
       external_id: emailData.data?.id,
