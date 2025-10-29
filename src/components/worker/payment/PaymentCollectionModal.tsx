@@ -10,6 +10,8 @@ import PaymentAmountInput from './PaymentAmountInput';
 import PaymentNotesInput from './PaymentNotesInput';
 import { InlineStripePaymentForm } from './InlineStripePaymentForm';
 import { usePaymentProcessing } from './usePaymentProcessing';
+import SavedPaymentMethodCard from './SavedPaymentMethodCard';
+import { useSavedPaymentMethods } from '@/hooks/useSavedPaymentMethods';
 
 interface PaymentCollectionModalProps {
   isOpen: boolean;
@@ -19,7 +21,7 @@ interface PaymentCollectionModalProps {
 }
 
 interface PaymentFormData {
-  paymentMethod: 'cash' | 'online';
+  paymentMethod: 'cash' | 'online' | 'saved';
   amount: string;
   notes: string;
 }
@@ -39,10 +41,18 @@ const PaymentCollectionModal = ({ isOpen, onClose, job, onPaymentCollected }: Pa
     onClose
   });
 
+  const { paymentMethod, loading: loadingPaymentMethod, chargeSavedMethod } = useSavedPaymentMethods(job?.customer_email);
+
   if (!isOpen) return null;
 
+  const hasSavedPaymentMethod = paymentMethod && paymentMethod.stripe_default_payment_method_id;
+
   const handleSubmit = async (data: PaymentFormData) => {
-    await processPayment(data.paymentMethod, data.amount, data.notes);
+    if (data.paymentMethod === 'saved') {
+      await handleChargeSavedMethod();
+    } else {
+      await processPayment(data.paymentMethod, data.amount, data.notes);
+    }
   };
 
   const handleCashPayment = async (data: PaymentFormData) => {
@@ -52,6 +62,21 @@ const PaymentCollectionModal = ({ isOpen, onClose, job, onPaymentCollected }: Pa
   const handleOnlinePaymentSuccess = () => {
     onPaymentCollected();
     onClose();
+  };
+
+  const handleChargeSavedMethod = async () => {
+    const amount = parseFloat(methods.watch('amount'));
+    const notes = methods.watch('notes');
+    
+    if (isNaN(amount) || amount <= 0) {
+      return;
+    }
+
+    const result = await chargeSavedMethod(job.id, amount, notes);
+    if (result.success) {
+      onPaymentCollected();
+      onClose();
+    }
   };
 
   return (
@@ -70,6 +95,19 @@ const PaymentCollectionModal = ({ isOpen, onClose, job, onPaymentCollected }: Pa
           {/* Payment Method Tabs */}
           <div className="mt-6">
             <div className="flex space-x-1 bg-slate-800 p-1 rounded-lg">
+              {hasSavedPaymentMethod && (
+                <button
+                  type="button"
+                  onClick={() => methods.setValue('paymentMethod', 'saved' as any)}
+                  className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                    methods.watch('paymentMethod') === 'saved'
+                      ? 'bg-slate-600 text-white'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Saved Card
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => methods.setValue('paymentMethod', 'cash')}
@@ -90,14 +128,61 @@ const PaymentCollectionModal = ({ isOpen, onClose, job, onPaymentCollected }: Pa
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
-                Online Payment
+                New Card
               </button>
             </div>
           </div>
 
           {/* Payment Content */}
           <div className="mt-6">
-            {methods.watch('paymentMethod') === 'cash' ? (
+            {methods.watch('paymentMethod') === 'saved' && hasSavedPaymentMethod ? (
+              <div className="space-y-4">
+                <FormProvider {...methods}>
+                  <form className="space-y-4">
+                    <FormField
+                      control={methods.control}
+                      name="amount"
+                      render={({ field }) => (
+                        <PaymentAmountInput 
+                          amount={field.value}
+                          onAmountChange={field.onChange}
+                        />
+                      )}
+                    />
+
+                    <FormField
+                      control={methods.control}
+                      name="notes"
+                      render={({ field }) => (
+                        <PaymentNotesInput 
+                          notes={field.value}
+                          onNotesChange={field.onChange}
+                        />
+                      )}
+                    />
+                  </form>
+                </FormProvider>
+
+                <SavedPaymentMethodCard
+                  last4={paymentMethod.last4}
+                  brand={paymentMethod.brand}
+                  expMonth={paymentMethod.exp_month}
+                  expYear={paymentMethod.exp_year}
+                  amount={methods.watch('amount')}
+                  onCharge={handleChargeSavedMethod}
+                  isProcessing={loadingPaymentMethod}
+                />
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onClose}
+                  className="w-full border-slate-600 text-slate-300 hover:bg-slate-700"
+                >
+                  Cancel
+                </Button>
+              </div>
+            ) : methods.watch('paymentMethod') === 'cash' ? (
               <FormProvider {...methods}>
                 <form onSubmit={methods.handleSubmit(handleCashPayment)} className="space-y-4">
                   <FormField

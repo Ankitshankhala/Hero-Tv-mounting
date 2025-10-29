@@ -12,6 +12,7 @@ import { useRealtimeBookings } from '@/hooks/useRealtimeBookings';
 import { useToast } from '@/hooks/use-toast';
 import { InvoiceModificationCard } from '@/components/customer/InvoiceModificationCard';
 import { NotificationsBell } from '@/components/customer/NotificationsBell';
+import { PaymentMethodsManager } from '@/components/customer/PaymentMethodsManager';
 import { SEO } from '@/components/SEO';
 
 const CustomerDashboard = () => {
@@ -237,12 +238,15 @@ const CustomerDashboard = () => {
         </div>
 
         <Tabs defaultValue="bookings" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 bg-slate-800">
+          <TabsList className="grid w-full grid-cols-3 bg-slate-800">
             <TabsTrigger value="bookings" className="text-white data-[state=active]:bg-slate-700">
               My Bookings
             </TabsTrigger>
             <TabsTrigger value="modifications" className="text-white data-[state=active]:bg-slate-700">
               Invoice Changes ({pendingModifications.length})
+            </TabsTrigger>
+            <TabsTrigger value="payment-methods" className="text-white data-[state=active]:bg-slate-700">
+              Payment Methods
             </TabsTrigger>
           </TabsList>
 
@@ -342,6 +346,10 @@ const CustomerDashboard = () => {
                 ))
               )}
             </div>
+          </TabsContent>
+
+          <TabsContent value="payment-methods" className="mt-6">
+            <PaymentMethodsManager />
           </TabsContent>
         </Tabs>
       </div>
