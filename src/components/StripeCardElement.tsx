@@ -34,6 +34,33 @@ export const StripeCardElement = ({ onReady, onError }: StripeCardElementProps) 
     return false;
   };
 
+  const resetCardElement = async () => {
+    console.log('Resetting card element...');
+    
+    // Unmount existing card element
+    if (cardElementRef.current) {
+      try {
+        cardElementRef.current.unmount();
+      } catch (e) {
+        console.log('Card element already unmounted');
+      }
+    }
+    
+    // Clear all state
+    setIsInitialized(false);
+    initializationRef.current = false;
+    setCardError('');
+    setError(null);
+    cardElementRef.current = null;
+    
+    // Reinitialize
+    await initializeStripe();
+  };
+
+  useImperativeHandle(ref, () => ({
+    reset: resetCardElement
+  }));
+
   const initializeStripe = async () => {
     if (isInitialized || initializationRef.current || !mountedRef.current) {
       return;

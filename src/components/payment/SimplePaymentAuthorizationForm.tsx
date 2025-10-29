@@ -309,10 +309,11 @@ export const SimplePaymentAuthorizationForm = ({
               <p className="text-xs text-gray-500 mb-2">
                 Enter your card number, expiry date (MM/YY), and security code (CVC)
               </p>
-              <StripeCardElement
-                onReady={handleStripeReady}
-                onError={handleStripeError}
-              />
+            <StripeCardElement
+              ref={cardElementRef}
+              onReady={handleStripeReady}
+              onError={handleStripeError}
+            />
               {!cardError && stripeReady && (
                 <div className="flex items-center space-x-1 text-green-600 text-xs">
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
