@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Shield, Lock, CreditCard, Info, AlertTriangle } from 'lucide-react';
+import { Shield, Lock, CreditCard, Info, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { StripeCardElement } from '@/components/StripeCardElement';
+import { StripeCardElement, StripeCardElementRef } from '@/components/StripeCardElement';
 import { supabase } from '@/integrations/supabase/client';
 
 interface SimplePaymentAuthorizationFormProps {
@@ -31,6 +31,8 @@ export const SimplePaymentAuthorizationForm = ({
   const [cardElement, setCardElement] = useState<any>(null);
   const [formError, setFormError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const cardElementRef = useRef<StripeCardElementRef>(null);
   
   const { user } = useAuth();
 
@@ -64,6 +66,64 @@ export const SimplePaymentAuthorizationForm = ({
     }
   };
 
+  const handleRetry = async () => {
+    console.log('Retrying payment...');
+    setFormError('');
+    setCardError('');
+    setRetryCount(prev => prev + 1);
+    
+    // Reset the card element for fresh input
+    if (cardElementRef.current) {
+      await cardElementRef.current.reset();
+    }
+  };
+
+  const getErrorMessage = (errorType: string, errorCode: string, errorMessage: string): string => {
+    // Map Stripe error codes to user-friendly messages
+    if (errorType === 'card_error') {
+      if (errorCode === 'card_declined') {
+        return 'Your card was declined. Please try a different card or contact your bank.';
+      }
+      if (errorCode === 'insufficient_funds') {
+        return 'This card has insufficient funds. Please use a different payment method.';
+      }
+      if (errorCode === 'expired_card') {
+        return 'This card has expired. Please check the expiration date or use a different card.';
+      }
+      if (errorCode === 'incorrect_cvc') {
+        return 'The security code is incorrect. Please check your card details.';
+      }
+      if (errorCode === 'authentication_required' || errorCode === 'payment_intent_authentication_failure') {
+        return 'Card authentication failed. Please verify your card details and try again.';
+      }
+    }
+    
+    if (errorType === 'validation_error') {
+      if (errorCode === 'invalid_expiry_year_past') {
+        return 'Your card\'s expiration year is in the past. Please check your card details.';
+      }
+      if (errorCode === 'invalid_expiry_month_past') {
+        return 'Your card\'s expiration month is in the past. Please check your card details.';
+      }
+      if (errorCode === 'incomplete_expiry') {
+        return 'Please enter a valid expiry date (MM/YY format).';
+      }
+      if (errorCode === 'incomplete_number') {
+        return 'Please enter a complete card number.';
+      }
+      if (errorCode === 'incomplete_cvc') {
+        return 'Please enter a valid security code (CVC).';
+      }
+      return 'Please check your card details and try again.';
+    }
+    
+    if (errorType === 'api_error') {
+      return 'Payment service temporarily unavailable. Please try again.';
+    }
+    
+    return errorMessage || 'Payment authorization failed. Please try again.';
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
@@ -73,7 +133,8 @@ export const SimplePaymentAuthorizationForm = ({
       hasCardElement: !!cardElement,
       amount,
       customerEmail,
-      bookingId
+      bookingId,
+      attemptNumber: retryCount + 1
     });
 
     setCardError('');
@@ -96,11 +157,12 @@ export const SimplePaymentAuthorizationForm = ({
 
     try {
       setLoading(true);
-      console.log('🎯 Creating payment intent for existing booking:', bookingId);
+      const attemptNumber = retryCount + 1;
+      console.log(`🎯 Creating payment intent for booking (attempt #${attemptNumber}):`, bookingId);
       
-      // Generate idempotency key for this payment attempt
-      const idempotencyKey = crypto.randomUUID();
-      console.log('Generated idempotency key:', idempotencyKey);
+      // Generate unique idempotency key for each attempt
+      const uniqueIdempotencyKey = `${crypto.randomUUID()}-attempt-${attemptNumber}`;
+      console.log('Generated idempotency key:', uniqueIdempotencyKey);
       
       const { data: intentData, error: intentError } = await supabase.functions.invoke(
         'create-payment-intent',
@@ -108,7 +170,7 @@ export const SimplePaymentAuthorizationForm = ({
           body: {
             amount, // Pass amount in dollars, edge function will convert to cents
             currency: 'usd',
-            idempotency_key: idempotencyKey,
+            idempotency_key: uniqueIdempotencyKey,
             user_id: user?.id || null,
             booking_id: bookingId,
             customer_email: customerEmail,
@@ -140,52 +202,20 @@ export const SimplePaymentAuthorizationForm = ({
       if (confirmResult.error) {
         console.error('Payment confirmation error:', confirmResult.error);
         
-        // Handle Stripe errors with specific 3D Secure messaging
-        let errorMessage = 'Payment authorization failed';
         const stripeError = confirmResult.error;
-        
-        switch (stripeError.type) {
-          case 'card_error':
-            if (stripeError.code === 'card_declined') {
-              errorMessage = 'Your card was declined. Please try a different payment method.';
-            } else if (stripeError.code === 'authentication_required') {
-              errorMessage = 'Authentication failed. Please try again or use a different card.';
-            } else if (stripeError.code === 'payment_intent_authentication_failure') {
-              errorMessage = 'Card authentication failed. Please verify your card details and try again.';
-            } else if (stripeError.code === 'insufficient_funds') {
-              errorMessage = 'Insufficient funds. Please try a different card.';
-            } else if (stripeError.code === 'expired_card') {
-              errorMessage = 'Your card has expired. Please use a different card.';
-            } else if (stripeError.code === 'incorrect_cvc') {
-              errorMessage = 'The security code is incorrect. Please check your card details.';
-            } else {
-              errorMessage = stripeError.message || 'There was an issue with your card. Please try again.';
-            }
-            break;
-          case 'validation_error':
-            // For validation errors, use the specific Stripe message
-            if (stripeError.code === 'invalid_expiry_year_past') {
-              errorMessage = 'Your card\'s expiration year is in the past. Please check your card details.';
-            } else if (stripeError.code === 'invalid_expiry_month_past') {
-              errorMessage = 'Your card\'s expiration month is in the past. Please check your card details.';
-            } else if (stripeError.code === 'incomplete_expiry') {
-              errorMessage = 'Please enter a valid expiry date (MM/YY format).';
-            } else if (stripeError.code === 'incomplete_number') {
-              errorMessage = 'Please enter a complete card number.';
-            } else if (stripeError.code === 'incomplete_cvc') {
-              errorMessage = 'Please enter a valid security code (CVC).';
-            } else {
-              errorMessage = stripeError.message || 'Please check your card details and try again.';
-            }
-            break;
-          case 'api_error':
-            errorMessage = 'Payment service temporarily unavailable. Please try again.';
-            break;
-          default:
-            errorMessage = stripeError.message || 'Payment authorization failed. Please try again.';
-        }
+        const errorMessage = getErrorMessage(
+          stripeError.type || 'unknown',
+          stripeError.code || '',
+          stripeError.message || 'Payment authorization failed'
+        );
         
         setFormError(errorMessage);
+        
+        // For card errors and validation errors, automatically prepare for retry
+        if (stripeError.type === 'card_error' || stripeError.type === 'validation_error') {
+          console.log('Card validation error detected, card element can be reset for retry');
+        }
+        
         onAuthorizationFailure(errorMessage);
         return;
       }
@@ -244,7 +274,7 @@ export const SimplePaymentAuthorizationForm = ({
 
   return (
     <div className="space-y-6">
-        <Alert>
+      <Alert>
         <Info className="h-4 w-4" />
         <AlertDescription>
           Your booking will be confirmed with a ${amount.toFixed(2)} payment authorization. The charge will only occur when your service is completed.
@@ -282,13 +312,32 @@ export const SimplePaymentAuthorizationForm = ({
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
-            <div className="font-medium">Payment Error</div>
-            <div className="mt-1">{formError}</div>
-            {formError.includes('expiration') && (
-              <div className="mt-2 text-sm">
-                Please enter your card's expiry date in MM/YY format (e.g., 12/25 for December 2025).
-              </div>
-            )}
+            <div className="space-y-2">
+              <div className="font-medium">Payment Error</div>
+              <div>{formError}</div>
+              {retryCount < 3 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRetry}
+                  className="mt-2"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Try Again
+                </Button>
+              )}
+              {retryCount >= 3 && (
+                <p className="text-sm mt-2">
+                  Having trouble? Please contact support or try a different payment method.
+                </p>
+              )}
+              {formError.includes('expiration') && (
+                <div className="mt-2 text-sm">
+                  Please enter your card's expiry date in MM/YY format (e.g., 12/25 for December 2025).
+                </div>
+              )}
+            </div>
           </AlertDescription>
         </Alert>
       )}
@@ -303,17 +352,17 @@ export const SimplePaymentAuthorizationForm = ({
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-sm font-medium">
                 Card Information
               </label>
-              <p className="text-xs text-gray-500 mb-2">
+              <p className="text-xs text-muted-foreground mb-2">
                 Enter your card number, expiry date (MM/YY), and security code (CVC)
               </p>
-            <StripeCardElement
-              ref={cardElementRef}
-              onReady={handleStripeReady}
-              onError={handleStripeError}
-            />
+              <StripeCardElement
+                ref={cardElementRef}
+                onReady={handleStripeReady}
+                onError={handleStripeError}
+              />
               {!cardError && stripeReady && (
                 <div className="flex items-center space-x-1 text-green-600 text-xs">
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -321,9 +370,6 @@ export const SimplePaymentAuthorizationForm = ({
                   </svg>
                   <span>Card details valid</span>
                 </div>
-              )}
-              {cardError && (
-                <div className="text-red-600 text-xs">{cardError}</div>
               )}
             </div>
 

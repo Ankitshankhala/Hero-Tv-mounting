@@ -76,3 +76,6 @@ verify_jwt = false
 
 [functions.cleanup-pending-bookings]
 verify_jwt = false
+
+[functions.setup-customer-payment]
+verify_jwt = false
