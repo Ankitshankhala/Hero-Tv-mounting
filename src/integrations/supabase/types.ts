@@ -970,6 +970,66 @@ export type Database = {
         }
         Relationships: []
       }
+      tip_sync_log: {
+        Row: {
+          booking_id: string
+          id: string
+          synced_at: string | null
+          tip_amount: number
+          transaction_id: string
+        }
+        Insert: {
+          booking_id: string
+          id?: string
+          synced_at?: string | null
+          tip_amount: number
+          transaction_id: string
+        }
+        Update: {
+          booking_id?: string
+          id?: string
+          synced_at?: string | null
+          tip_amount?: number
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tip_sync_log_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tip_sync_log_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_booking_payment_status_monitor"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tip_sync_log_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_booking_status_inconsistencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tip_sync_log_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_missing_transactions"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "tip_sync_log_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transactions: {
         Row: {
           amount: number
