@@ -26,7 +26,7 @@ export const EmailTestPanel = () => {
     try {
       console.log('Testing customer email:', { bookingId });
       
-      const { data, error } = await supabase.functions.invoke('send-customer-booking-confirmation', {
+      const { data, error } = await supabase.functions.invoke('send-customer-booking-confirmation-email', {
         body: { bookingId: bookingId.trim() }
       });
 

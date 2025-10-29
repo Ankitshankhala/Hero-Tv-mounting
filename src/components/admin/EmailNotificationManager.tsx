@@ -43,7 +43,7 @@ export const EmailNotificationManager = () => {
     setIsLoading(true);
     try {
       const functionName = emailType === 'confirmation' 
-        ? 'send-booking-confirmation-email' 
+        ? 'send-customer-booking-confirmation-email' 
         : 'send-payment-reminder-email';
 
       const { data, error } = await supabase.functions.invoke(functionName, {
