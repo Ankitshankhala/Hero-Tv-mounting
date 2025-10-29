@@ -20,7 +20,8 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { bookingId } = await req.json();
+    const body = await req.json();
+    const bookingId = body.bookingId || body.booking_id; // Support both formats
     
     console.log(`[CUSTOMER-CONFIRMATION-EMAIL] Processing confirmation for booking ${bookingId}`);
 
