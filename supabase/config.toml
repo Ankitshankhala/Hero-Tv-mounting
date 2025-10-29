@@ -80,9 +80,8 @@ verify_jwt = false
 [functions.setup-customer-payment]
 verify_jwt = false
 
-# Temporarily commented out to isolate bundling issue
-# [functions.charge-saved-payment-method]
-# verify_jwt = false
+[functions.charge-saved-payment-method]
+verify_jwt = false
 
-# [functions.get-payment-method-details]
-# verify_jwt = false
+[functions.get-payment-method-details]
+verify_jwt = false

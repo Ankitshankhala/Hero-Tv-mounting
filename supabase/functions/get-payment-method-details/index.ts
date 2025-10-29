@@ -1,10 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import Stripe from 'https://esm.sh/stripe@17.5.0';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { createStripeClient, corsHeaders } from '../_shared/stripe.ts';
 
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
@@ -13,14 +8,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
-    if (!stripeKey) {
-      throw new Error('Stripe secret key not configured');
-    }
-
-    const stripe = new Stripe(stripeKey, {
-      apiVersion: '2024-12-18.acacia',
-    });
+    const stripe = createStripeClient();
 
     const { paymentMethodId } = await req.json();
 
