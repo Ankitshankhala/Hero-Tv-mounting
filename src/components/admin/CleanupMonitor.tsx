@@ -13,7 +13,10 @@ export const CleanupMonitor = () => {
   const [isCleaningNow, setIsCleaningNow] = useState(false);
 
   // Query current pending bookings
-  const { data: pendingStats, refetch } = useQuery({
+  const { data: pendingStats, refetch } = useQuery<{
+    totalPending: number;
+    expiredCount: number;
+  }>({
     queryKey: ['pending-bookings-stats'],
     queryFn: async () => {
       const threeHoursAgo = new Date(Date.now() - 180 * 60 * 1000).toISOString();
@@ -38,13 +41,20 @@ export const CleanupMonitor = () => {
   });
 
   // Query cleanup history from sms_logs
-  const { data: cleanupHistory = [] } = useQuery({
+  const { data: cleanupHistory } = useQuery<Array<{
+    id: string;
+    sent_at: string;
+    message: string;
+    phone_number: string;
+    status: string;
+  }>>({
     queryKey: ['cleanup-history'],
     queryFn: async () => {
       const { data } = await supabase
         .from('sms_logs')
-        .select('id, sent_at, message, status')
-        .ilike('message', '%cleanup%')
+        .select('*')
+        .eq('phone_number', 'SYSTEM')
+        .like('message', '%cleanup%')
         .order('sent_at', { ascending: false })
         .limit(5);
 
@@ -147,20 +157,20 @@ export const CleanupMonitor = () => {
         <div>
           <h4 className="text-sm font-medium mb-2">Recent Cleanup History</h4>
           <div className="space-y-2">
-            {cleanupHistory.slice(0, 3).map((log) => (
+            {cleanupHistory?.slice(0, 3).map((log) => (
               <div
                 key={log.id}
                 className="text-xs p-2 bg-muted/50 rounded border"
               >
                 <div className="flex items-center justify-between mb-1">
                   <Badge variant="outline" className="text-xs">
-                    {log.sent_at ? new Date(log.sent_at).toLocaleString() : 'N/A'}
+                    {new Date(log.sent_at).toLocaleString()}
                   </Badge>
                 </div>
                 <div className="text-muted-foreground">{log.message}</div>
               </div>
             ))}
-            {cleanupHistory.length === 0 && (
+            {!cleanupHistory?.length && (
               <div className="text-sm text-muted-foreground text-center py-2">
                 No cleanup history yet
               </div>
