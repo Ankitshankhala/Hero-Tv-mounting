@@ -30,8 +30,15 @@ serve(async (req) => {
       .from('bookings')
       .select(`
         *,
+        booking_services (
+          id,
+          quantity,
+          service_name,
+          base_price
+        ),
         service:services(name),
-        customer:users!customer_id(name, email)
+        customer:users!customer_id(name, email),
+        worker:users!worker_id(name, email, phone)
       `)
       .eq('id', bookingId)
       .single();
@@ -47,6 +54,32 @@ serve(async (req) => {
     if (!customerEmail) {
       throw new Error('Customer email not found');
     }
+
+    // Extract worker information
+    const workerName = booking.worker?.name || 'TBD';
+
+    // Build service items list
+    const serviceItems = booking.booking_services && booking.booking_services.length > 0
+      ? booking.booking_services.map(bs => `${bs.service_name} (Qty: ${bs.quantity})`).join('<br>')
+      : booking.service?.name || 'Service details unavailable';
+
+    // Calculate total amount
+    const totalAmount = booking.booking_services && booking.booking_services.length > 0
+      ? booking.booking_services.reduce((sum, bs) => sum + (bs.base_price * bs.quantity), 0)
+      : booking.total_price || 0;
+
+    // Format date and time
+    const scheduledDate = booking.scheduled_date 
+      ? new Date(booking.scheduled_date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+      : 'TBD';
+    const scheduledTime = booking.scheduled_start || 'TBD';
+
+    // Location notes
+    const locationNotes = booking.location_notes || 'No special instructions';
+
+    console.log('[CUSTOMER-CONFIRMATION] Worker:', workerName);
+    console.log('[CUSTOMER-CONFIRMATION] Services:', serviceItems);
+    console.log('[CUSTOMER-CONFIRMATION] Total:', totalAmount);
 
     // Check if email already sent (idempotency)
     const { data: existingLog } = await supabase
@@ -72,17 +105,56 @@ serve(async (req) => {
       to: [customerEmail],
       subject: 'Booking Confirmation - Hero TV Mounting',
       html: `
-        <h2>Booking Confirmed</h2>
-        <p>Hi ${customerName},</p>
-        <p>Your booking has been confirmed!</p>
-        <ul>
-          <li><strong>Service:</strong> ${booking.service.name}</li>
-          <li><strong>Date:</strong> ${booking.scheduled_date}</li>
-          <li><strong>Time:</strong> ${booking.scheduled_start}</li>
-          <li><strong>Status:</strong> ${booking.status}</li>
-        </ul>
-        <p>We'll send you updates as your booking progresses.</p>
-        <p>Thank you for choosing Hero TV Mounting!</p>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Booking Confirmation - Hero TV Mounting</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; background-color: #f4f4f4;">
+    <div style="max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
+        <div style="text-align: center; background: #1a365d; color: white; padding: 20px; margin: -30px -30px 30px -30px; border-radius: 10px 10px 0 0;">
+            <h1 style="margin: 0; font-size: 24px;">Booking Confirmation - Hero TV Mounting</h1>
+        </div>
+        
+        <p>Dear <strong>${customerName}</strong>,</p>
+        
+        <p>Thank you for choosing Hero TV Mounting! Your booking has been confirmed.</p>
+        
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #1a365d;">
+            <h3 style="color: #2d3748; margin-top: 0; margin-bottom: 10px;">Booking Details:</h3>
+            <p style="margin: 5px 0;"><strong style="color: #2d3748;">Booking ID:</strong> ${booking.id}</p>
+            <p style="margin: 5px 0;"><strong style="color: #2d3748;">Scheduled Date:</strong> ${scheduledDate}</p>
+            <p style="margin: 5px 0;"><strong style="color: #2d3748;">Scheduled Time:</strong> ${scheduledTime}</p>
+            <p style="margin: 5px 0;"><strong style="color: #2d3748;">Status:</strong> ${booking.status}</p>
+        </div>
+        
+        <div style="background: #e8f4fd; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="color: #2d3748; margin-top: 0; margin-bottom: 10px;">Services:</h3>
+            <p style="margin: 10px 0;">${serviceItems}</p>
+            <p style="font-size: 18px; font-weight: bold; color: #1a365d; margin-top: 15px;"><strong>Total Amount:</strong> $${totalAmount.toFixed(2)}</p>
+        </div>
+        
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #1a365d;">
+            <p style="margin: 5px 0;"><strong style="color: #2d3748;">Assigned Worker:</strong> ${workerName}</p>
+            <p style="margin: 5px 0;"><strong style="color: #2d3748;">Location Notes:</strong> ${locationNotes}</p>
+        </div>
+        
+        <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #ffeaa7;">
+            <h3 style="color: #2d3748; margin-top: 0; margin-bottom: 10px;">Contact Information:</h3>
+            <p style="margin: 5px 0;">If you have any questions, please contact us at:</p>
+            <p style="margin: 5px 0;"><strong>Email:</strong> Captain@herotvmounting.com<br>
+            <strong>Phone:</strong> +1 737-272-9971</p>
+        </div>
+        
+        <div style="text-align: center; margin-top: 30px; color: #666;">
+            <p>Thank you for your business!</p>
+            <p><strong>Hero TV Mounting Team</strong></p>
+        </div>
+    </div>
+</body>
+</html>
       `,
     });
 
@@ -91,7 +163,7 @@ serve(async (req) => {
       booking_id: bookingId,
       recipient_email: customerEmail,
       subject: 'Booking Confirmation - Hero TV Mounting',
-      message: 'Customer booking confirmation',
+      message: 'Professional booking confirmation with worker and service details',
       email_type: 'booking_confirmation',
       status: 'sent',
       external_id: emailData.data?.id,
