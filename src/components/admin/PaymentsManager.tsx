@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import PaymentDetailsModal from './PaymentDetailsModal';
 import { PaymentRecoveryTools } from './PaymentRecoveryTools';
 import { PaymentSyncButton } from './PaymentSyncButton';
+import { StripeSyncButton } from './StripeSyncButton';
 import { PaymentHealthCheck } from './PaymentHealthCheck';
 import { PaymentCaptureHistory } from './PaymentCaptureHistory';
 
@@ -298,6 +299,7 @@ export const PaymentsManager = () => {
               <span>Payment Transactions</span>
             </CardTitle>
             <div className="flex items-center space-x-2">
+              <StripeSyncButton />
               <PaymentSyncButton />
               <Button onClick={fetchTransactions} variant="outline" size="sm">
                 <RefreshCw className="h-4 w-4 mr-2" />

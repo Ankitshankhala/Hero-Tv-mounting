@@ -107,6 +107,7 @@ serve(async (req) => {
     console.log('[CAPTURE-PAYMENT] Successfully captured:', capturedAmount);
 
     // Update existing transaction record from 'authorized' to 'completed'
+    let finalTransaction;
     const { data: transaction, error: transactionError } = await supabase
       .from('transactions')
       .update({
@@ -145,6 +146,9 @@ serve(async (req) => {
       }
       
       console.log('[CAPTURE-PAYMENT] Created new transaction record (fallback)');
+      finalTransaction = newTransaction;
+    } else {
+      finalTransaction = transaction;
     }
 
     // Update booking payment_status to 'captured' (do NOT change booking.status)
@@ -166,7 +170,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        transaction_id: transaction.id,
+        transaction_id: finalTransaction.id,
         amount_captured: capturedAmount,
         payment_intent_id: intentId,
         message: 'Payment captured successfully'
