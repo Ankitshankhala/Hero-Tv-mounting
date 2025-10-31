@@ -14,6 +14,84 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_alerts: {
+        Row: {
+          alert_type: string
+          booking_id: string | null
+          created_at: string | null
+          details: Json | null
+          id: string
+          message: string
+          resolved: boolean | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          updated_at: string | null
+        }
+        Insert: {
+          alert_type: string
+          booking_id?: string | null
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          message: string
+          resolved?: boolean | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          updated_at?: string | null
+        }
+        Update: {
+          alert_type?: string
+          booking_id?: string | null
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          message?: string
+          resolved?: boolean | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_alerts_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_alerts_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_booking_payment_status_monitor"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_alerts_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_booking_status_inconsistencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_alerts_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_missing_transactions"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "admin_alerts_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       admin_impersonation_sessions: {
         Row: {
           admin_id: string
@@ -175,6 +253,8 @@ export type Database = {
           pending_payment_amount: number | null
           preferred_worker_id: string | null
           requires_manual_payment: boolean | null
+          reservation_expires_at: string | null
+          reserved_worker_id: string | null
           scheduled_date: string
           scheduled_start: string
           service_id: string
@@ -208,6 +288,8 @@ export type Database = {
           pending_payment_amount?: number | null
           preferred_worker_id?: string | null
           requires_manual_payment?: boolean | null
+          reservation_expires_at?: string | null
+          reserved_worker_id?: string | null
           scheduled_date: string
           scheduled_start: string
           service_id: string
@@ -241,6 +323,8 @@ export type Database = {
           pending_payment_amount?: number | null
           preferred_worker_id?: string | null
           requires_manual_payment?: boolean | null
+          reservation_expires_at?: string | null
+          reserved_worker_id?: string | null
           scheduled_date?: string
           scheduled_start?: string
           service_id?: string
@@ -258,6 +342,13 @@ export type Database = {
           {
             foreignKeyName: "bookings_customer_id_fkey"
             columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_reserved_worker_id_fkey"
+            columns: ["reserved_worker_id"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -2786,6 +2877,7 @@ export type Database = {
       }
       refresh_worker_tips_summary: { Args: never; Returns: undefined }
       refresh_zip_coverage_summary: { Args: never; Returns: undefined }
+      release_expired_worker_reservations: { Args: never; Returns: number }
       repair_payment_inconsistencies: { Args: never; Returns: Json }
       resend_worker_sms: {
         Args: { booking_id_param: string }

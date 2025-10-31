@@ -129,6 +129,56 @@ export const useBookingOperations = () => {
 
       console.debug('✅ Coverage confirmed for ZIP:', formData.zipcode);
 
+      // PHASE 1: CRITICAL BLOCKING CHECK - Verify actual worker availability
+      console.debug('🔍 Checking worker availability for selected time slot (BLOCKING)...');
+      const { data: availableWorkers, error: availError } = await supabase.rpc(
+        'find_available_workers_by_zip',
+        {
+          p_zipcode: formData.zipcode,
+          p_date: format(formData.selectedDate!, 'yyyy-MM-dd'),
+          p_time: formData.selectedTime,
+          p_duration_minutes: 60
+        }
+      );
+
+      if (availError) {
+        console.error('❌ Worker availability check failed:', availError);
+        throw new Error('Unable to verify worker availability. Please try again or contact support.');
+      }
+
+      if (!availableWorkers || availableWorkers.length === 0) {
+        console.warn('⚠️ No workers available:', {
+          zipcode: formData.zipcode,
+          date: format(formData.selectedDate!, 'yyyy-MM-dd'),
+          time: formData.selectedTime
+        });
+        throw new Error(
+          `Sorry, no workers are available in ZIP ${formData.zipcode} ` +
+          `on ${format(formData.selectedDate!, 'EEEE, MMM d, yyyy')} at ${formData.selectedTime}. ` +
+          `Please select a different date or time slot.`
+        );
+      }
+
+      console.debug('✅ Workers available:', availableWorkers.length, 'workers');
+
+      // If preferred worker specified, verify they're in the available list
+      if ((formData as any).preferredWorkerId) {
+        const preferredAvailable = availableWorkers.some(
+          (w: any) => w.worker_id === (formData as any).preferredWorkerId
+        );
+        
+        if (!preferredAvailable) {
+          console.warn('⚠️ Preferred worker not available, will auto-assign');
+          toast({
+            title: "Preferred Worker Unavailable",
+            description: "Your preferred worker is not available at this time. We'll assign another qualified worker.",
+            variant: "default"
+          });
+          // Clear preferred worker ID
+          delete (formData as any).preferredWorkerId;
+        }
+      }
+
       // Derive city if missing from ZIP validation
       let effectiveCity = formData.city;
       if (!effectiveCity || effectiveCity.trim().length < 2) {
@@ -207,7 +257,12 @@ export const useBookingOperations = () => {
         return existingBooking.booking_id;
       }
 
-      // Create booking with payment_pending status to ensure proper state for payment
+      // PHASE 2: Reserve the best available worker (15-minute hold)
+      console.debug('🎯 Reserving worker for 15 minutes...');
+      const reservedWorker = availableWorkers[0]; // Best match (first in list from RPC)
+      const reservationExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes from now
+
+      // Create booking with payment_pending status + worker reservation
       const bookingData = {
         customer_id: customerId,
         service_id: primaryServiceId,
@@ -218,6 +273,8 @@ export const useBookingOperations = () => {
         payment_status: 'pending',
         requires_manual_payment: false,
         preferred_worker_id: (formData as any).preferredWorkerId || null,
+        reserved_worker_id: reservedWorker.worker_id, // NEW: Reserve worker
+        reservation_expires_at: reservationExpiry.toISOString(), // NEW: 15-min expiry
         guest_customer_info: !user ? {
           email: formData.customerEmail,
           name: formData.customerName,
@@ -294,18 +351,38 @@ export const useBookingOperations = () => {
       sessionStorage.setItem('pendingBookingId', newBooking.id);
       sessionStorage.setItem('pendingBookingTimestamp', Date.now().toString());
       
+      console.debug('✅ Worker reserved:', {
+        worker_id: reservedWorker.worker_id,
+        worker_name: reservedWorker.worker_name,
+        expires_at: reservationExpiry.toISOString()
+      });
+      
       toast({
-        title: "Your booking is created!",
-        description: "To confirm it, please complete the payment now.",
+        title: "Worker Reserved!",
+        description: `Your booking is created and a worker is reserved for 15 minutes. Please complete payment to confirm.`,
       });
 
       return newBooking.id;
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to create booking. Please try again.';
-      console.error('Booking creation failed:', error);
+      console.error('❌ Booking creation failed:', error);
+      
+      // PHASE 1: Enhanced error messages based on error type
+      let userMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+      
+      if (userMessage.includes('no workers are available')) {
+        // Already has good message, keep it
+      } else if (userMessage.includes('coverage') || userMessage.includes('don\'t currently service')) {
+        userMessage = `We don't currently service your area (ZIP: ${formData.zipcode}). ` +
+          `Please contact us at bookings@herotvmounting.com to request coverage.`;
+      } else if (userMessage.includes('authentication') || userMessage.includes('RLS') || userMessage.includes('row-level security')) {
+        userMessage = 'Authentication error. Please refresh the page and try again.';
+      } else if (!userMessage.includes('minimum') && !userMessage.includes('required')) {
+        userMessage = 'Unable to create booking. Please try again or contact support.';
+      }
+      
       toast({
-        title: 'Error creating booking',
-        description: message,
+        title: 'Booking Failed',
+        description: userMessage,
         variant: 'destructive',
       });
       throw error;
@@ -318,13 +395,42 @@ export const useBookingOperations = () => {
     try {
       console.log('Confirming booking after payment:', { bookingId, paymentIntentId });
 
-      // Step 1: Update booking to payment_authorized (NOT confirmed yet - worker assignment will set that)
+      // PHASE 2: Check if we have a reserved worker and if reservation is still valid
+      const { data: bookingDetails, error: fetchError } = await supabase
+        .from('bookings')
+        .select('reserved_worker_id, reservation_expires_at, status')
+        .eq('id', bookingId)
+        .single();
+
+      if (fetchError) {
+        console.error('Failed to fetch booking details:', fetchError);
+      }
+
+      let finalWorkerId = null;
+      let workerReservationStatus = 'none';
+
+      if (bookingDetails?.reserved_worker_id && 
+          bookingDetails.reservation_expires_at &&
+          new Date(bookingDetails.reservation_expires_at) > new Date()) {
+        // Reservation still valid, use it
+        console.log('✅ Using reserved worker:', bookingDetails.reserved_worker_id);
+        finalWorkerId = bookingDetails.reserved_worker_id;
+        workerReservationStatus = 'reserved_used';
+      } else if (bookingDetails?.reserved_worker_id) {
+        console.warn('⚠️ Reservation expired, will attempt fresh assignment');
+        workerReservationStatus = 'expired';
+      }
+
+      // Step 1: Update booking to payment_authorized + finalize worker assignment
       const { data: updatedBooking, error: updateError } = await supabase
         .from('bookings')
         .update({
           status: 'payment_authorized' as const,
           payment_status: 'authorized',
-          payment_intent_id: paymentIntentId
+          payment_intent_id: paymentIntentId,
+          worker_id: finalWorkerId, // Finalize assignment if reservation was valid
+          reserved_worker_id: null, // Clear reservation
+          reservation_expires_at: null
         })
         .eq('id', bookingId)
         .select(`
@@ -399,24 +505,40 @@ export const useBookingOperations = () => {
                 status: 'pending'
               });
           } else if (assignmentResult && assignmentResult[0]?.assignment_status === 'no_zip_coverage') {
-            // This should NEVER happen if we validated ZIP beforehand
+            // PHASE 4: CRITICAL - Payment authorized but no worker available
             console.error('❌ CRITICAL: Payment authorized but no ZIP coverage!');
+            
+            // Create admin alert in new table
+            const alertMessage = `CRITICAL: Booking ${bookingId} - Payment authorized but no worker coverage in ZIP. Customer paid but service cannot be fulfilled!`;
+            await supabase
+              .from('admin_alerts')
+              .insert({
+                alert_type: 'CRITICAL_NO_WORKER_ASSIGNED',
+                booking_id: bookingId,
+                severity: 'critical',
+                message: alertMessage,
+                details: {
+                  payment_intent_id: paymentIntentId,
+                  zipcode: hasZipcode,
+                  worker_reservation_status: workerReservationStatus
+                }
+              });
+            
+            // Also log to SMS for immediate notification
+            await supabase
+              .from('sms_logs')
+              .insert({
+                booking_id: bookingId,
+                recipient_number: 'admin',
+                message: alertMessage,
+                status: 'pending'
+              });
             
             toast({
               title: "Assignment Issue",
               description: "Your payment is secured. Our team will contact you within 1 hour to schedule your service.",
               variant: "destructive",
             });
-            
-            // Create urgent admin alert
-            await supabase
-              .from('sms_logs')
-              .insert({
-                booking_id: bookingId,
-                recipient_number: 'admin',
-                message: `URGENT: Booking ${bookingId} authorized payment but no worker coverage in ZIP`,
-                status: 'pending'
-              });
           } else {
             toast({
               title: "Booking Confirmed & Worker Assigned",

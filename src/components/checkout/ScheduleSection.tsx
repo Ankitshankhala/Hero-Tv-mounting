@@ -149,6 +149,9 @@ export const ScheduleSection = ({
                       const isBlocked = blockedSlots.includes(time);
                       const isSelected = formData.time === time;
                       
+                      // PHASE 3: Show worker count for available slots
+                      const slotWorkerCount = !isBlocked && timeSlots.includes(time) ? workerCount : 0;
+                      
                       return (
                         <Button
                           key={time}
@@ -164,12 +167,22 @@ export const ScheduleSection = ({
                             !isBlocked && !isSelected && "hover:bg-purple-50 hover:border-purple-300 bg-white border-gray-200"
                           )}
                         >
-                          <div className="flex items-center space-x-2">
-                            <div className={cn(
-                              "w-2 h-2 rounded-full",
-                              isBlocked ? "bg-red-500" : "bg-green-500"
-                            )} />
-                            <span className={isSelected ? "text-white" : 'text-black'}>{formatTimeTo12Hour(time)}</span>
+                          <div className="flex flex-col items-center space-y-0.5">
+                            <div className="flex items-center space-x-1.5">
+                              <div className={cn(
+                                "w-2 h-2 rounded-full",
+                                isBlocked ? "bg-red-500" : "bg-green-500"
+                              )} />
+                              <span className={isSelected ? "text-white" : 'text-black'}>{formatTimeTo12Hour(time)}</span>
+                            </div>
+                            {!isBlocked && slotWorkerCount > 0 && (
+                              <span className={cn(
+                                "text-[10px]",
+                                isSelected ? "text-purple-100" : "text-gray-500"
+                              )}>
+                                {slotWorkerCount} {slotWorkerCount === 1 ? 'worker' : 'workers'}
+                              </span>
+                            )}
                           </div>
                           {isBlocked && (
                             <div className="absolute inset-0 bg-red-100/50 rounded flex items-center justify-center">

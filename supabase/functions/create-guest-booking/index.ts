@@ -46,6 +46,50 @@ Deno.serve(async (req) => {
       throw new Error('guest_customer_info.email is required');
     }
 
+    // PHASE 1: CRITICAL - Verify worker availability before creating booking
+    console.log('🔍 Checking worker availability before creating booking...');
+
+    const { data: availableWorkers, error: availError } = await supabaseClient.rpc(
+      'find_available_workers_by_zip',
+      {
+        p_zipcode: bookingData.guest_customer_info.zipcode,
+        p_date: bookingData.scheduled_date,
+        p_time: bookingData.scheduled_start,
+        p_duration_minutes: 60
+      }
+    );
+
+    if (availError) {
+      console.error('Worker availability check failed:', availError);
+      throw new Error('Unable to verify worker availability. Please try again.');
+    }
+
+    if (!availableWorkers || availableWorkers.length === 0) {
+      const errorMsg = `No workers available in ZIP ${bookingData.guest_customer_info.zipcode} ` +
+        `on ${bookingData.scheduled_date} at ${bookingData.scheduled_start}. Please select a different date or time.`;
+      console.warn('⚠️ ' + errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    console.log('✅ Workers available:', availableWorkers.length);
+
+    // Verify preferred worker if specified
+    if (bookingData.preferred_worker_id) {
+      const preferredAvailable = availableWorkers.some(
+        (w: any) => w.worker_id === bookingData.preferred_worker_id
+      );
+      
+      if (!preferredAvailable) {
+        console.warn('⚠️ Preferred worker not available, clearing preference');
+        bookingData.preferred_worker_id = null;
+      }
+    }
+
+    // PHASE 2: Reserve the best available worker
+    const reservedWorker = availableWorkers[0];
+    const reservationExpiry = new Date(Date.now() + 15 * 60 * 1000);
+    console.log('🎯 Reserving worker:', reservedWorker.worker_id, 'until', reservationExpiry.toISOString());
+
     // Insert booking (using service role key to bypass RLS)
     const { data: booking, error: bookingError } = await supabaseClient
       .from('bookings')
@@ -59,6 +103,8 @@ Deno.serve(async (req) => {
         payment_status: bookingData.payment_status || 'pending',
         requires_manual_payment: bookingData.requires_manual_payment || false,
         preferred_worker_id: bookingData.preferred_worker_id || null,
+        reserved_worker_id: reservedWorker.worker_id, // NEW: Reserve worker
+        reservation_expires_at: reservationExpiry.toISOString(), // NEW: 15-min expiry
         guest_customer_info: bookingData.guest_customer_info,
         tip_amount: bookingData.guest_customer_info?.tip_amount || 0,
       })
