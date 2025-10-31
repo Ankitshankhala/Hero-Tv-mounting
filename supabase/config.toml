@@ -85,3 +85,6 @@ verify_jwt = false
 
 [functions.get-payment-method-details]
 verify_jwt = false
+
+[functions.create-guest-booking]
+verify_jwt = false
