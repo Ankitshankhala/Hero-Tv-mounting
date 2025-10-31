@@ -58,6 +58,7 @@ serve(async (req) => {
         break;
         
       case 'booking_confirmation':
+      case 'customer_booking_confirmation': // Support both naming conventions
         emailResponse = await supabase.functions.invoke('send-customer-booking-confirmation-email', {
           body: { bookingId }
         });

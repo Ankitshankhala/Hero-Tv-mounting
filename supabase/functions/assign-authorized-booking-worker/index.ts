@@ -260,7 +260,7 @@ serve(async (req) => {
   }
 });
 
-// Helper function to send notifications
+// Helper function to send notifications via unified dispatcher
 async function sendNotifications(booking: any, chosenWorker: any) {
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
@@ -268,22 +268,40 @@ async function sendNotifications(booking: any, chosenWorker: any) {
     { auth: { persistSession: false } }
   );
   try {
-    // Send worker assignment email and SMS
-    try {
-      // Send email notification
-      const { error: emailError } = await supabase.functions.invoke(
-        'send-worker-assignment-notification',
-        {
-          body: { bookingId: booking.id, workerId: chosenWorker.worker_id },
-        }
-      );
-      if (emailError) {
-        logStep('Worker assignment email failed', { error: emailError.message });
-      } else {
-        logStep('Worker assignment email sent successfully');
-      }
+    // Get worker email
+    const { data: workerData } = await supabase
+      .from('users')
+      .select('email')
+      .eq('id', chosenWorker.worker_id)
+      .single();
+    
+    const workerEmail = workerData?.email;
 
-      // Send SMS notification
+    // Send worker assignment email via unified dispatcher
+    if (workerEmail) {
+      try {
+        const { error: emailError } = await supabase.functions.invoke(
+          'unified-email-dispatcher',
+          {
+            body: { 
+              bookingId: booking.id, 
+              recipientEmail: workerEmail,
+              emailType: 'worker_assignment'
+            },
+          }
+        );
+        if (emailError) {
+          logStep('Worker assignment email failed', { error: emailError.message });
+        } else {
+          logStep('Worker assignment email dispatched successfully');
+        }
+      } catch (notificationErr) {
+        logStep('Error invoking worker email dispatcher', { error: notificationErr });
+      }
+    }
+
+    // Send SMS notification
+    try {
       const { error: smsError } = await supabase.functions.invoke(
         'send-sms-notification',
         {
@@ -295,29 +313,36 @@ async function sendNotifications(booking: any, chosenWorker: any) {
       } else {
         logStep('Worker assignment SMS sent successfully');
       }
-    } catch (notificationErr) {
-      logStep('Error invoking worker notification functions', { error: notificationErr });
+    } catch (smsErr) {
+      logStep('Error invoking SMS function', { error: smsErr });
     }
 
-    // Send customer confirmation email
+    // Send customer confirmation email via unified dispatcher
     const customerEmail = booking.customer_id
       ? booking.customer?.email
       : booking.guest_customer_info?.email;
+    
     if (customerEmail) {
       try {
         const { error: custEmailErr } = await supabase.functions.invoke(
-          'send-customer-booking-confirmation-email',
+          'unified-email-dispatcher',
           {
-            body: { booking_id: booking.id, customer_email: customerEmail },
+            body: { 
+              bookingId: booking.id, 
+              recipientEmail: customerEmail,
+              emailType: 'booking_confirmation'
+            },
           }
         );
         if (custEmailErr) {
           logStep('Customer confirmation email failed', {
             error: custEmailErr.message,
           });
+        } else {
+          logStep('Customer confirmation email dispatched successfully');
         }
       } catch (custErr) {
-        logStep('Error invoking customer email function', { error: custErr });
+        logStep('Error invoking customer email dispatcher', { error: custErr });
       }
     } else {
       logStep('Customer email missing, skipping confirmation email', {

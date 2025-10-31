@@ -90,7 +90,7 @@ export const WorkerAssignmentManager = ({
             body: {
               bookingId,
               recipientEmail: customerEmail,
-              emailType: 'customer_booking_confirmation'
+              emailType: 'booking_confirmation'
             }
           });
         }
