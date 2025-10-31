@@ -80,8 +80,8 @@ export const WorkerAssignmentManager = ({
             .eq('id', booking.customer_id)
             .single();
           customerEmail = customer?.email;
-        } else if (booking.guest_customer_info?.email) {
-          customerEmail = booking.guest_customer_info.email;
+        } else if (booking.guest_customer_info && typeof booking.guest_customer_info === 'object' && 'email' in booking.guest_customer_info) {
+          customerEmail = booking.guest_customer_info.email as string;
         }
 
         if (customerEmail) {
