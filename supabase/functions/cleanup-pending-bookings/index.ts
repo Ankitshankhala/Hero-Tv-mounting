@@ -70,7 +70,7 @@ serve(async (req) => {
 
     // Log cleanup to sms_logs for audit trail
     await supabase.from('sms_logs').insert({
-      phone_number: 'SYSTEM',
+      recipient_number: 'SYSTEM',
       message: `Automated cleanup: Removed ${deletedCount} expired payment_pending bookings (older than 3 hours). Canceled ${canceledIntents} Stripe PaymentIntents.`,
       status: 'sent',
       sent_at: new Date().toISOString(),
