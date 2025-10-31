@@ -152,13 +152,28 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Send customer notification
     try {
-      await supabase.functions.invoke('smart-email-dispatcher', {
-        body: {
-          bookingId: requestData.bookingId,
-          emailType: 'customer_reschedule_notice',
-          source: 'worker_reschedule'
-        }
-      });
+      // Fetch customer email
+      let customerEmail = null;
+      if (booking.customer_id) {
+        const { data: customer } = await supabase
+          .from('users')
+          .select('email')
+          .eq('id', booking.customer_id)
+          .single();
+        customerEmail = customer?.email;
+      } else if (booking.guest_customer_info?.email) {
+        customerEmail = booking.guest_customer_info.email;
+      }
+
+      if (customerEmail) {
+        await supabase.functions.invoke('unified-email-dispatcher', {
+          body: {
+            bookingId: requestData.bookingId,
+            recipientEmail: customerEmail,
+            emailType: 'customer_reschedule_notice'
+          }
+        });
+      }
     } catch (emailError) {
       console.error('Email notification failed:', emailError);
       // Don't fail the whole operation for email issues

@@ -114,6 +114,23 @@ export const AssignWorkerModal = ({ onClose, onAssignmentComplete, isOpen, selec
     try {
       console.log('Assigning worker:', selectedWorker, 'to booking:', selectedBooking);
       
+      // Fetch worker email
+      const worker = availableWorkers.find(w => w.id === selectedWorker);
+      if (!worker) {
+        throw new Error('Worker not found');
+      }
+
+      // Fetch booking details for customer email
+      const { data: booking, error: bookingError } = await supabase
+        .from('bookings')
+        .select('customer_id, guest_customer_info')
+        .eq('id', selectedBooking)
+        .single();
+
+      if (bookingError || !booking) {
+        throw new Error('Failed to fetch booking details');
+      }
+      
       // Update the booking with the assigned worker
       const { error: updateError } = await supabase
         .from('bookings')
@@ -139,28 +156,53 @@ export const AssignWorkerModal = ({ onClose, onAssignmentComplete, isOpen, selec
 
       if (workerBookingError) {
         console.error('Worker booking error:', workerBookingError);
-        // Don't throw here as the main assignment was successful
       }
 
-      // Send notifications via smart email dispatcher
+      // Send worker notification
       try {
-        await supabase.functions.invoke('smart-email-dispatcher', {
+        await supabase.functions.invoke('unified-email-dispatcher', {
           body: {
             bookingId: selectedBooking,
-            workerId: selectedWorker,
-            emailType: 'worker_assignment',
-            source: 'manual'
+            recipientEmail: worker.email,
+            emailType: 'worker_assignment'
           }
         });
-        console.log('Worker assignment notifications triggered');
+        console.log('Worker notification sent');
       } catch (notificationError) {
-        console.error('Failed to send notifications:', notificationError);
-        // Don't fail the assignment if notifications fail
+        console.error('Failed to send worker notification:', notificationError);
+      }
+
+      // Send customer notification
+      try {
+        let customerEmail = null;
+        if (booking.customer_id) {
+          const { data: customer } = await supabase
+            .from('users')
+            .select('email')
+            .eq('id', booking.customer_id)
+            .single();
+          customerEmail = customer?.email;
+        } else if (booking.guest_customer_info?.email) {
+          customerEmail = booking.guest_customer_info.email;
+        }
+
+        if (customerEmail) {
+          await supabase.functions.invoke('unified-email-dispatcher', {
+            body: {
+              bookingId: selectedBooking,
+              recipientEmail: customerEmail,
+              emailType: 'customer_booking_confirmation'
+            }
+          });
+          console.log('Customer notification sent');
+        }
+      } catch (notificationError) {
+        console.error('Failed to send customer notification:', notificationError);
       }
 
       toast({
         title: "Success",
-        description: "Worker assigned successfully. Notifications will be sent automatically.",
+        description: "Worker assigned successfully and notifications sent.",
       });
 
       if (onAssignmentComplete) {

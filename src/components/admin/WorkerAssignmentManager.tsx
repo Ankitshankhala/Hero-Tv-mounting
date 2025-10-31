@@ -23,6 +23,27 @@ export const WorkerAssignmentManager = ({
     setAssigning(true);
     
     try {
+      // Fetch worker and booking details for email
+      const { data: worker, error: workerError } = await supabase
+        .from('users')
+        .select('email, name')
+        .eq('id', workerId)
+        .single();
+
+      if (workerError || !worker) {
+        throw new Error('Failed to fetch worker details');
+      }
+
+      const { data: booking, error: bookingError } = await supabase
+        .from('bookings')
+        .select('customer_id, guest_customer_info')
+        .eq('id', bookingId)
+        .single();
+
+      if (bookingError || !booking) {
+        throw new Error('Failed to fetch booking details');
+      }
+
       // First assign the worker to the booking
       const { error: assignmentError } = await supabase
         .from('bookings')
@@ -36,34 +57,50 @@ export const WorkerAssignmentManager = ({
         throw new Error(`Failed to assign worker: ${assignmentError.message}`);
       }
 
-      // Use smart email dispatcher (no force option to prevent duplicates)
-      const { data: emailResult, error: emailError } = await supabase.functions.invoke('smart-email-dispatcher', {
-        body: {
-          bookingId,
-          workerId,
-          emailType: 'worker_assignment',
-          source: 'manual'
-        }
-      });
-
-      if (emailError) {
-        console.warn('Email notification failed:', emailError);
-        toast({
-          title: "Worker Assigned",
-          description: "Worker has been assigned but email notification failed. Check logs for details.",
-          variant: "destructive",
+      // Send worker notification
+      try {
+        await supabase.functions.invoke('unified-email-dispatcher', {
+          body: {
+            bookingId,
+            recipientEmail: worker.email,
+            emailType: 'worker_assignment'
+          }
         });
-      } else if (emailResult?.cached) {
-        toast({
-          title: "Worker Already Assigned",
-          description: "Worker was already assigned to this booking. No duplicate email sent.",
-        });
-      } else {
-        toast({
-          title: "Worker Assigned Successfully",
-          description: "Worker has been assigned and notification email sent.",
-        });
+      } catch (workerEmailError) {
+        console.warn('Worker email notification failed:', workerEmailError);
       }
+
+      // Send customer notification
+      try {
+        let customerEmail = null;
+        if (booking.customer_id) {
+          const { data: customer } = await supabase
+            .from('users')
+            .select('email')
+            .eq('id', booking.customer_id)
+            .single();
+          customerEmail = customer?.email;
+        } else if (booking.guest_customer_info?.email) {
+          customerEmail = booking.guest_customer_info.email;
+        }
+
+        if (customerEmail) {
+          await supabase.functions.invoke('unified-email-dispatcher', {
+            body: {
+              bookingId,
+              recipientEmail: customerEmail,
+              emailType: 'customer_booking_confirmation'
+            }
+          });
+        }
+      } catch (customerEmailError) {
+        console.warn('Customer email notification failed:', customerEmailError);
+      }
+
+      toast({
+        title: "Worker Assigned Successfully",
+        description: "Worker has been assigned and notifications sent.",
+      });
 
       onAssignmentComplete?.();
 
