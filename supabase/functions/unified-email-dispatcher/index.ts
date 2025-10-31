@@ -52,8 +52,19 @@ serve(async (req) => {
     
     switch (emailType) {
       case 'worker_assignment':
+        // For worker assignment, we need to get the workerId from the booking
+        const { data: booking } = await supabase
+          .from('bookings')
+          .select('worker_id')
+          .eq('id', bookingId)
+          .single();
+        
+        if (!booking?.worker_id) {
+          throw new Error('Booking has no assigned worker');
+        }
+        
         emailResponse = await supabase.functions.invoke('send-worker-assignment-notification', {
-          body: { bookingId, workerId: recipientEmail }
+          body: { bookingId, workerId: booking.worker_id }
         });
         break;
         
