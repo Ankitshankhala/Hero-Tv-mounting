@@ -185,6 +185,7 @@ export type Database = {
           stripe_payment_method_id: string | null
           tip_amount: number | null
           updated_at: string | null
+          worker_assignment_email_sent: boolean
           worker_id: string | null
         }
         Insert: {
@@ -217,6 +218,7 @@ export type Database = {
           stripe_payment_method_id?: string | null
           tip_amount?: number | null
           updated_at?: string | null
+          worker_assignment_email_sent?: boolean
           worker_id?: string | null
         }
         Update: {
@@ -249,6 +251,7 @@ export type Database = {
           stripe_payment_method_id?: string | null
           tip_amount?: number | null
           updated_at?: string | null
+          worker_assignment_email_sent?: boolean
           worker_id?: string | null
         }
         Relationships: [
