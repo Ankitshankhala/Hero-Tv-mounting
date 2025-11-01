@@ -88,3 +88,6 @@ verify_jwt = false
 
 [functions.create-guest-booking]
 verify_jwt = false
+
+[functions.delete-transactions]
+verify_jwt = true
