@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { DollarSign, TrendingUp, Users, Calendar, Download, RefreshCw } from "lucide-react";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { DateRange } from "react-day-picker";
+import { TipBookingDetailsRow } from "./TipBookingDetailsRow";
 interface TipAnalytics {
   worker_id: string;
   worker_name: string;
@@ -177,7 +178,7 @@ export function TipAnalyticsDashboard() {
               No tip data available for the selected period
             </div> : <div className="border rounded-lg overflow-hidden">
               <div className="bg-muted/30 p-4 border-b">
-                <div className="grid grid-cols-7 gap-4 font-medium text-sm">
+                <div className="grid grid-cols-8 gap-4 font-medium text-sm">
                   <div>Worker</div>
                   <div className="text-right">Bookings</div>
                   <div className="text-right">Tips Received</div>
@@ -185,24 +186,36 @@ export function TipAnalyticsDashboard() {
                   <div className="text-right">Total Tips</div>
                   <div className="text-right">Avg Tip</div>
                   <div className="text-right">Max Tip</div>
+                  <div></div>
                 </div>
               </div>
               <div className="divide-y">
-                {analytics.map(worker => <div key={worker.worker_id} className="p-4 hover:bg-muted/20">
-                    <div className="grid grid-cols-7 gap-4 text-sm">
-                      <div className="font-medium">{worker.worker_name}</div>
-                      <div className="text-right">{worker.total_bookings}</div>
-                      <div className="text-right">{worker.bookings_with_tips}</div>
-                      <div className="text-right">
-                        <span className={`font-medium ${worker.tip_percentage > 50 ? 'text-green-600' : ''}`}>
-                          {worker.tip_percentage.toFixed(1)}%
-                        </span>
+                {analytics.map(worker => <div key={worker.worker_id}>
+                    <div className="p-4 hover:bg-muted/20">
+                      <div className="grid grid-cols-8 gap-4 text-sm items-center">
+                        <div className="flex items-center gap-2">
+                          <TipBookingDetailsRow 
+                            workerId={worker.worker_id}
+                            workerName={worker.worker_name}
+                            startDate={dateRange?.from?.toISOString().split('T')[0]}
+                            endDate={dateRange?.to?.toISOString().split('T')[0]}
+                          />
+                          <span className="font-medium">{worker.worker_name}</span>
+                        </div>
+                        <div className="text-right">{worker.total_bookings}</div>
+                        <div className="text-right">{worker.bookings_with_tips}</div>
+                        <div className="text-right">
+                          <span className={`font-medium ${worker.tip_percentage > 50 ? 'text-green-600' : ''}`}>
+                            {worker.tip_percentage.toFixed(1)}%
+                          </span>
+                        </div>
+                        <div className="text-right font-semibold text-green-600">
+                          ${worker.total_tips.toFixed(2)}
+                        </div>
+                        <div className="text-right">${worker.avg_tip.toFixed(2)}</div>
+                        <div className="text-right">${worker.max_tip.toFixed(2)}</div>
+                        <div></div>
                       </div>
-                      <div className="text-right font-semibold text-green-600">
-                        ${worker.total_tips.toFixed(2)}
-                      </div>
-                      <div className="text-right">${worker.avg_tip.toFixed(2)}</div>
-                      <div className="text-right">${worker.max_tip.toFixed(2)}</div>
                     </div>
                   </div>)}
               </div>

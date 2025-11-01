@@ -2676,6 +2676,26 @@ export type Database = {
         Returns: string[]
       }
       get_worker_count_by_zip: { Args: { p_zipcode: string }; Returns: number }
+      get_worker_tip_booking_details: {
+        Args: {
+          p_end_date?: string
+          p_start_date?: string
+          p_worker_id: string
+        }
+        Returns: {
+          booking_id: string
+          booking_status: string
+          created_at: string
+          customer_email: string
+          customer_id: string
+          customer_name: string
+          has_duplicate_transactions: boolean
+          payment_intent_id: string
+          payment_status: string
+          service_date: string
+          tip_amount: number
+        }[]
+      }
       get_worker_tips_detail: {
         Args: {
           p_end_date?: string
