@@ -33,6 +33,7 @@ interface WorkerJobCardProps {
     location_notes?: string;
     customer_address?: string;
     pending_payment_amount?: number;
+    tip_amount?: number;
     special_instructions?: string | null;
     guest_customer_info?: {
       name: string;
@@ -142,6 +143,35 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
 
   const specialInstructions = getSpecialInstructions();
 
+  // Get tip display information
+  const getTipDisplay = (tipAmount: number | undefined, paymentStatus: string) => {
+    if (!tipAmount || tipAmount <= 0) return null;
+    
+    switch (paymentStatus?.toLowerCase()) {
+      case 'authorized':
+        return {
+          text: `Tip: $${tipAmount.toFixed(2)} (Authorized)`,
+          color: 'bg-amber-500 text-white border-amber-500'
+        };
+      case 'captured':
+      case 'completed':
+        return {
+          text: `Tip: $${tipAmount.toFixed(2)} (Received)`,
+          color: 'bg-green-500 text-white border-green-500'
+        };
+      case 'pending':
+        return {
+          text: `Tip: $${tipAmount.toFixed(2)} (Pending)`,
+          color: 'bg-blue-500 text-white border-blue-500'
+        };
+      default:
+        return {
+          text: `Tip: $${tipAmount.toFixed(2)}`,
+          color: 'bg-gray-500 text-white border-gray-500'
+        };
+    }
+  };
+
   // Group TV Mounting services with their add-ons
   const groupTvMountingServices = (services: BookingService[]) => {
     const tvMountingService = services.find(s => s.service_name === 'TV Mounting');
@@ -218,6 +248,17 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
                  `Payment ${job.payment_status}`}
               </Badge>
             )}
+            {(() => {
+              const tipDisplay = getTipDisplay(job.tip_amount, job.payment_status);
+              return tipDisplay && (
+                <Badge 
+                  variant="outline" 
+                  className={`text-xs font-medium ${tipDisplay.color}`}
+                >
+                  {tipDisplay.text}
+                </Badge>
+              );
+            })()}
           </div>
         </div>
 

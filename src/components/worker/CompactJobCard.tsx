@@ -265,6 +265,39 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
     }
   };
 
+  // Get tip display information
+  const getTipDisplay = (tipAmount: number | undefined, paymentStatus: string) => {
+    if (!tipAmount || tipAmount <= 0) return null;
+    
+    switch (paymentStatus?.toLowerCase()) {
+      case 'authorized':
+        return {
+          text: `Tip: $${tipAmount.toFixed(2)} (Authorized)`,
+          color: 'bg-amber-500 text-white border-amber-500',
+          shortText: `💵 $${tipAmount.toFixed(2)}`
+        };
+      case 'captured':
+      case 'completed':
+        return {
+          text: `Tip: $${tipAmount.toFixed(2)} (Received)`,
+          color: 'bg-green-500 text-white border-green-500',
+          shortText: `✓ $${tipAmount.toFixed(2)}`
+        };
+      case 'pending':
+        return {
+          text: `Tip: $${tipAmount.toFixed(2)} (Pending)`,
+          color: 'bg-blue-500 text-white border-blue-500',
+          shortText: `⏳ $${tipAmount.toFixed(2)}`
+        };
+      default:
+        return {
+          text: `Tip: $${tipAmount.toFixed(2)}`,
+          color: 'bg-gray-500 text-white border-gray-500',
+          shortText: `💵 $${tipAmount.toFixed(2)}`
+        };
+    }
+  };
+
   const isArchived = job.is_archived;
   const paymentStatus = getPaymentStatusDisplay(job.payment_status, isArchived);
 
@@ -317,6 +350,17 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
                 >
                   {paymentStatus.text}
                 </Badge>
+                {(() => {
+                  const tipDisplay = getTipDisplay(job.tip_amount, job.payment_status);
+                  return tipDisplay && (
+                    <Badge 
+                      variant="outline" 
+                      className={`text-xs font-medium ${tipDisplay.color}`}
+                    >
+                      {tipDisplay.text}
+                    </Badge>
+                  );
+                })()}
                 {timeToStart && isToday && !isArchived && (
                   <Badge 
                     variant="outline" 
@@ -404,8 +448,8 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
 
         {/* Mobile: Show date/address below on small screens */}
         <div className="sm:hidden mt-2 pt-2 border-border">
-          {timeToStart && isToday && !isArchived && (
-            <div className="mb-2">
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
+            {timeToStart && isToday && !isArchived && (
               <Badge 
                 variant="outline" 
                 className={`text-xs font-medium flex items-center gap-1 w-fit ${getCountdownBadgeStyle()}`}
@@ -413,8 +457,19 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
                 <Clock className="h-3 w-3" />
                 {timeToStart === 'Started' ? 'Started' : `Starts in ${timeToStart}`}
               </Badge>
-            </div>
-          )}
+            )}
+            {(() => {
+              const tipDisplay = getTipDisplay(job.tip_amount, job.payment_status);
+              return tipDisplay && (
+                <Badge 
+                  variant="outline" 
+                  className={`text-xs font-medium ${tipDisplay.color}`}
+                >
+                  {tipDisplay.shortText}
+                </Badge>
+              );
+            })()}
+          </div>
           <div className="border-t border-border pt-2">
             <div className="text-sm text-muted-foreground">
               {formatCompactDateTime(job)}

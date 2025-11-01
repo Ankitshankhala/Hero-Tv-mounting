@@ -38,6 +38,7 @@ interface ExpandedJobCardProps {
     location_notes?: string;
     customer_address?: string;
     pending_payment_amount?: number;
+    tip_amount?: number;
     special_instructions?: string | null;
     guest_customer_info?: {
       name: string;
@@ -154,6 +155,43 @@ export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onCollaps
 
   const specialInstructions = getSpecialInstructions();
 
+  // Get tip display information
+  const getTipDisplay = (tipAmount: number | undefined, paymentStatus: string) => {
+    if (!tipAmount || tipAmount <= 0) return null;
+    
+    switch (paymentStatus?.toLowerCase()) {
+      case 'authorized':
+        return {
+          text: `Tip: $${tipAmount.toFixed(2)} (Authorized)`,
+          color: 'bg-amber-500 text-white border-amber-500',
+          icon: '💳',
+          description: 'Will be charged when service is completed'
+        };
+      case 'captured':
+      case 'completed':
+        return {
+          text: `Tip: $${tipAmount.toFixed(2)} (Received)`,
+          color: 'bg-green-500 text-white border-green-500',
+          icon: '✓',
+          description: 'Tip has been processed'
+        };
+      case 'pending':
+        return {
+          text: `Tip: $${tipAmount.toFixed(2)} (Pending)`,
+          color: 'bg-blue-500 text-white border-blue-500',
+          icon: '⏳',
+          description: 'Processing tip payment'
+        };
+      default:
+        return {
+          text: `Tip: $${tipAmount.toFixed(2)}`,
+          color: 'bg-gray-500 text-white border-gray-500',
+          icon: '💵',
+          description: 'Tip amount'
+        };
+    }
+  };
+
   // Group Mount TV services with their add-ons
   const groupTvMountingServices = (services: BookingService[]) => {
     const tvMountingService = services.find(s => s.service_name === 'Mount TV');
@@ -253,7 +291,7 @@ export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onCollaps
       <CardContent className="p-6">
         {/* Header with collapse button */}
         <div className="flex items-start justify-between mb-6">
-          <div>
+          <div className="flex-1">
             <h3 className="text-xl font-bold text-primary mb-1">JOB DETAILS</h3>
             <p className="text-sm text-muted-foreground mb-3">Hero TV Mounting</p>
             <Badge 
@@ -262,6 +300,31 @@ export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onCollaps
             >
               {job.status.replace('_', ' ').toUpperCase()}
             </Badge>
+
+            {/* Tip Amount Display */}
+            {(() => {
+              const tipDisplay = getTipDisplay(job.tip_amount, job.payment_status);
+              return tipDisplay && (
+                <div className="mt-3 p-3 bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl">{tipDisplay.icon}</span>
+                      <div>
+                        <div className="text-sm font-semibold text-amber-900 dark:text-amber-100">
+                          {tipDisplay.text}
+                        </div>
+                        <div className="text-xs text-amber-700 dark:text-amber-300">
+                          {tipDisplay.description}
+                        </div>
+                      </div>
+                    </div>
+                    <Badge className={tipDisplay.color}>
+                      ${job.tip_amount.toFixed(2)}
+                    </Badge>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
           <Button
             variant="ghost"
