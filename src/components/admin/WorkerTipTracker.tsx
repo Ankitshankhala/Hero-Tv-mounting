@@ -5,13 +5,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
+import { deleteTransactions } from "@/utils/transactionCleanup";
 import { 
   DollarSign, 
   TrendingUp, 
   Users, 
   Calendar,
   RefreshCw,
-  Download
+  Download,
+  Trash2
 } from "lucide-react";
 
 interface TipSummary {
@@ -33,6 +35,7 @@ interface TipDetail {
 
 export function WorkerTipTracker() {
   const [loading, setLoading] = useState(false);
+  const [cleaningUp, setCleaningUp] = useState(false);
   const [tipSummaries, setTipSummaries] = useState<TipSummary[]>([]);
   const [selectedWorkerTips, setSelectedWorkerTips] = useState<TipDetail[]>([]);
   const [selectedWorkerId, setSelectedWorkerId] = useState<string | null>(null);
@@ -159,6 +162,40 @@ export function WorkerTipTracker() {
     }
   };
 
+  const cleanupDuplicateTransactions = async () => {
+    try {
+      setCleaningUp(true);
+      
+      // Eric Green's duplicate transaction IDs
+      const duplicateIds = [
+        '9e572205-406a-4974-ae87-752e4d394542', // duplicate $230 authorized
+        '79f6ee2f-202c-4c8f-89a4-ee09560618b8'  // invalid $4 pending
+      ];
+      
+      const result = await deleteTransactions(duplicateIds);
+      
+      if (result.success) {
+        toast({
+          title: "Cleanup Complete",
+          description: "Duplicate transactions removed successfully"
+        });
+        // Reload the tip summaries to reflect changes
+        await loadTipSummaries();
+      } else {
+        throw new Error(result.error || 'Unknown error');
+      }
+    } catch (error: any) {
+      console.error('Error cleaning up transactions:', error);
+      toast({
+        title: "Cleanup Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setCleaningUp(false);
+    }
+  };
+
   const exportTipData = async () => {
     try {
       const csvContent = [
@@ -258,6 +295,14 @@ export function WorkerTipTracker() {
               </div>
               
               <div className="flex gap-2 ml-4">
+                <Button 
+                  onClick={cleanupDuplicateTransactions} 
+                  disabled={loading || cleaningUp} 
+                  variant="outline"
+                  className="text-destructive hover:text-destructive"
+                >
+                  <Trash2 className={`h-4 w-4 ${cleaningUp ? 'animate-pulse' : ''}`} />
+                </Button>
                 <Button onClick={loadTipSummaries} disabled={loading} variant="outline">
                   <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                 </Button>
