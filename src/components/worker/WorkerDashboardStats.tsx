@@ -1,20 +1,22 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar, CheckCircle, Clock, DollarSign } from 'lucide-react';
+import { Calendar, CheckCircle, Clock, DollarSign, Trophy } from 'lucide-react';
 
 interface WorkerDashboardStatsProps {
   todaysJobs: number;
   upcomingJobs: number;
   completedJobs: number;
   todaysEarnings: number;
+  totalTips: number;
 }
 
 const WorkerDashboardStats = ({ 
   todaysJobs, 
   upcomingJobs, 
   completedJobs, 
-  todaysEarnings 
+  todaysEarnings,
+  totalTips 
 }: WorkerDashboardStatsProps) => {
   const stats = [
     {
@@ -40,11 +42,17 @@ const WorkerDashboardStats = ({
       value: `$${todaysEarnings.toFixed(2)}`,
       icon: DollarSign,
       color: "text-yellow-400"
+    },
+    {
+      title: "Total Tips Earned",
+      value: `$${totalTips.toFixed(2)}`,
+      icon: Trophy,
+      color: "text-purple-400"
     }
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
       {stats.map((stat, index) => {
         const Icon = stat.icon;
         return (

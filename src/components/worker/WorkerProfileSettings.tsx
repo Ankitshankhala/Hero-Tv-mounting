@@ -17,6 +17,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import ChangePasswordModal from './ChangePasswordModal';
+import { WorkerTipsHistory } from './WorkerTipsHistory';
 
 interface ProfileData {
   name: string;
@@ -245,6 +246,9 @@ export function WorkerProfileSettings() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Tips History Section */}
+      <WorkerTipsHistory />
 
       <ChangePasswordModal
         open={showPasswordModal}

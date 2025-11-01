@@ -27,6 +27,7 @@ const WorkerDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [showCreateBooking, setShowCreateBooking] = useState(false);
   const [activeTab, setActiveTab] = useState('jobs');
+  const [totalTips, setTotalTips] = useState(0);
   const {
     user,
     profile,
@@ -109,7 +110,29 @@ const WorkerDashboard = () => {
     }
     console.log('User and profile loaded, fetching jobs...');
     fetchWorkerJobs();
+    fetchTotalTips();
   }, [user, profile, authLoading]);
+
+  const fetchTotalTips = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase.rpc('get_tip_analytics', {
+        p_start_date: null,
+        p_end_date: null
+      });
+
+      if (error) {
+        console.error('Error fetching tips analytics:', error);
+        return;
+      }
+
+      const workerTips = data?.find((w: any) => w.worker_id === user.id);
+      setTotalTips(workerTips?.total_tips || 0);
+    } catch (error) {
+      console.error('Error in fetchTotalTips:', error);
+    }
+  };
 
   // Auto-scroll to Active Jobs section when data loads
   useEffect(() => {
@@ -315,7 +338,7 @@ const WorkerDashboard = () => {
           
 
           <div data-tour="worker-earnings" className="mb-6">
-            <WorkerDashboardStats todaysJobs={todaysJobs.length} upcomingJobs={upcomingJobs.length} completedJobs={completedJobs.length} todaysEarnings={todaysEarnings} />
+            <WorkerDashboardStats todaysJobs={todaysJobs.length} upcomingJobs={upcomingJobs.length} completedJobs={completedJobs.length} todaysEarnings={todaysEarnings} totalTips={totalTips} />
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

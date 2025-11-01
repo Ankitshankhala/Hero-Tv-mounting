@@ -33,6 +33,7 @@ export function WorkerDashboardWithSidebar() {
   const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateBooking, setShowCreateBooking] = useState(false);
+  const [totalTips, setTotalTips] = useState(0);
   const location = useLocation();
 
   // Set up real-time job updates
@@ -81,8 +82,30 @@ export function WorkerDashboardWithSidebar() {
   useEffect(() => {
     if (user && profile && profile.role === 'worker') {
       fetchWorkerJobs();
+      fetchTotalTips();
     }
   }, [user, profile]);
+
+  const fetchTotalTips = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase.rpc('get_tip_analytics', {
+        p_start_date: null,
+        p_end_date: null
+      });
+
+      if (error) {
+        console.error('Error fetching tips analytics:', error);
+        return;
+      }
+
+      const workerTips = data?.find((w: any) => w.worker_id === user.id);
+      setTotalTips(workerTips?.total_tips || 0);
+    } catch (error) {
+      console.error('Error in fetchTotalTips:', error);
+    }
+  };
 
   useEffect(() => {
     // Scroll to active jobs section after loading
