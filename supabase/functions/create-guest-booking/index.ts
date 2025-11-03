@@ -123,9 +123,10 @@ Deno.serve(async (req) => {
       const serviceInserts = services.map((service: any) => ({
         booking_id: booking.id,
         service_id: service.id,
+        service_name: service.name || 'Unknown Service',
+        base_price: service.price || 0,
         quantity: service.quantity || 1,
-        unit_price: service.price,
-        service_details: service.options || {},
+        configuration: service.options || {},
       }));
 
       const { error: servicesError } = await supabaseClient
@@ -133,12 +134,11 @@ Deno.serve(async (req) => {
         .insert(serviceInserts);
 
       if (servicesError) {
-        console.error('Booking services insert error:', servicesError);
-        // Don't fail the entire booking if services insert fails
-        // The booking is already created, just log the error
-        console.warn('⚠️ Booking created but services insert failed:', servicesError.message);
+        console.error('❌ Booking services insert error:', servicesError);
+        console.error('Failed service inserts:', JSON.stringify(serviceInserts, null, 2));
+        throw new Error(`Failed to insert booking services: ${servicesError.message}`);
       } else {
-        console.log('✅ Booking services inserted successfully');
+        console.log('✅ Booking services inserted successfully:', serviceInserts.length, 'services');
       }
     }
 
