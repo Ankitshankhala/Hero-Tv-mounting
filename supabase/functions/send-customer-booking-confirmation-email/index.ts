@@ -57,6 +57,8 @@ serve(async (req) => {
 
     // Extract worker information
     const workerName = booking.worker?.name || 'TBD';
+    const workerPhone = booking.worker?.phone || 'N/A';
+    const workerEmail = booking.worker?.email || '';
 
     // Build service items list
     const serviceItems = booking.booking_services && booking.booking_services.length > 0
@@ -78,6 +80,7 @@ serve(async (req) => {
     const locationNotes = booking.location_notes || 'No special instructions';
 
     console.log('[CUSTOMER-CONFIRMATION] Worker:', workerName);
+    console.log('[CUSTOMER-CONFIRMATION] Worker Phone:', workerPhone);
     console.log('[CUSTOMER-CONFIRMATION] Services:', serviceItems);
     console.log('[CUSTOMER-CONFIRMATION] Total:', totalAmount);
 
@@ -137,8 +140,11 @@ serve(async (req) => {
         </div>
         
         <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #1a365d;">
-            <p style="margin: 5px 0;"><strong style="color: #2d3748;">Assigned Worker:</strong> ${workerName}</p>
-            <p style="margin: 5px 0;"><strong style="color: #2d3748;">Location Notes:</strong> ${locationNotes}</p>
+            <h3 style="color: #2d3748; margin-top: 0; margin-bottom: 10px;">Your Assigned Worker:</h3>
+            <p style="margin: 5px 0;"><strong style="color: #2d3748;">Name:</strong> ${workerName}</p>
+            <p style="margin: 5px 0;"><strong style="color: #2d3748;">Phone:</strong> <a href="tel:${workerPhone}" style="color: #1a365d; text-decoration: none; font-weight: bold;">${workerPhone}</a></p>
+            ${workerEmail ? `<p style="margin: 5px 0;"><strong style="color: #2d3748;">Email:</strong> ${workerEmail}</p>` : ''}
+            <p style="margin: 15px 0 5px 0;"><strong style="color: #2d3748;">Location Notes:</strong> ${locationNotes}</p>
         </div>
         
         <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #ffeaa7;">
