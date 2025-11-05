@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { 
   DollarSign, 
   TrendingUp, 
@@ -13,6 +14,8 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { format, startOfWeek, startOfMonth, startOfYear, endOfDay } from 'date-fns';
+import { calculateWorkerEarnings } from '@/utils/workerEarningsCalculator';
+import { useNavigate } from 'react-router-dom';
 
 interface EarningsData {
   totalEarnings: number;
@@ -34,6 +37,7 @@ interface EarningsData {
 
 export function WorkerEarnings() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [earnings, setEarnings] = useState<EarningsData>({
     totalEarnings: 0,
@@ -68,11 +72,14 @@ export function WorkerEarnings() {
         .select(`
           id,
           pending_payment_amount,
+          tip_amount,
           payment_status,
           status,
           created_at,
           booking_services (
-            service_name
+            service_name,
+            base_price,
+            quantity
           ),
           users!customer_id (
             email
@@ -95,9 +102,18 @@ export function WorkerEarnings() {
 
       bookings?.forEach((booking) => {
         const bookingDate = new Date(booking.created_at || '');
-        const amount = booking.pending_payment_amount || 0;
-
+        
         if (booking.payment_status === 'captured') {
+          // Calculate actual worker earnings using the new formula
+          const services = (booking.booking_services || []).map((s: any) => ({
+            service_name: s.service_name,
+            base_price: s.base_price,
+            quantity: s.quantity,
+          }));
+          const tipAmount = booking.tip_amount || 0;
+          const earnings = calculateWorkerEarnings(services, tipAmount);
+          const amount = earnings.totalEarnings;
+
           totalEarnings += amount;
           
           if (bookingDate >= todayStart) {
@@ -205,14 +221,24 @@ export function WorkerEarnings() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <h1 className="text-2xl font-bold text-foreground">Earnings Dashboard</h1>
-        {earnings.pendingPayments > 0 && (
-          <Badge variant="destructive" className="flex items-center gap-1">
-            <Clock className="h-3 w-3" />
-            {earnings.pendingPayments} Pending Payment{earnings.pendingPayments !== 1 ? 's' : ''}
-          </Badge>
-        )}
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => navigate('/worker-dashboard/earnings/weekly')}
+            className="gap-2"
+          >
+            <Calendar className="h-4 w-4" />
+            View Weekly Earnings
+          </Button>
+          {earnings.pendingPayments > 0 && (
+            <Badge variant="destructive" className="flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              {earnings.pendingPayments} Pending Payment{earnings.pendingPayments !== 1 ? 's' : ''}
+            </Badge>
+          )}
+        </div>
       </div>
 
       {/* Earnings Cards */}

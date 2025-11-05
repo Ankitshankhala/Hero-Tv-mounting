@@ -9,6 +9,7 @@ import JobActions from './JobActions';
 import { RemoveServicesModal } from './RemoveServicesModal';
 import OnSiteChargeModal from './OnSiteChargeModal';
 import { AddServicesModal } from './AddServicesModal';
+import { JobEarningsCard } from './JobEarningsCard';
 
 interface BookingService {
   id: string;
@@ -400,6 +401,16 @@ export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onCollaps
             </div>
           </div>
         </div>
+
+        {/* Earnings Breakdown */}
+        {job.booking_services && job.booking_services.length > 0 && job.payment_status === 'captured' && (
+          <div className="mb-6">
+            <JobEarningsCard 
+              services={job.booking_services}
+              tipAmount={job.tip_amount || 0}
+            />
+          </div>
+        )}
 
         {/* Special Instructions */}
         <div className="mb-6">

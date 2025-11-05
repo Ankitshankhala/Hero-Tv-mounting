@@ -1,7 +1,7 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar, CheckCircle, Clock, DollarSign, Trophy } from 'lucide-react';
+import { formatCurrency } from '@/utils/workerEarningsCalculator';
 
 interface WorkerDashboardStatsProps {
   todaysJobs: number;
@@ -39,13 +39,13 @@ const WorkerDashboardStats = ({
     },
     {
       title: "Today's Earnings",
-      value: `$${todaysEarnings.toFixed(2)}`,
+      value: formatCurrency(todaysEarnings),
       icon: DollarSign,
       color: "text-yellow-400"
     },
     {
       title: "Total Tips Earned",
-      value: `$${totalTips.toFixed(2)}`,
+      value: formatCurrency(totalTips),
       icon: Trophy,
       color: "text-purple-400"
     }

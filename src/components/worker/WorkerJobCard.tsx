@@ -8,6 +8,7 @@ import { RemoveServicesModal } from './RemoveServicesModal';
 import OnSiteChargeModal from './OnSiteChargeModal';
 import { AddServicesModal } from './AddServicesModal';
 import PaymentCollectionModal from './payment/PaymentCollectionModal';
+import { JobEarningsCard } from './JobEarningsCard';
 
 interface BookingService {
   id: string;
@@ -323,6 +324,17 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
             </div>
           </div>
         </div>
+
+        {/* Earnings - Show for captured payments */}
+        {job.booking_services && job.booking_services.length > 0 && job.payment_status === 'captured' && (
+          <div className="mb-4">
+            <JobEarningsCard 
+              services={job.booking_services}
+              tipAmount={job.tip_amount || 0}
+              compact={true}
+            />
+          </div>
+        )}
 
         {/* Special Instructions - Always Show */}
         <div className="mb-4">

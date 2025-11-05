@@ -9,6 +9,7 @@ import { WorkerJobsTab } from '@/components/worker/WorkerJobsTab';
 // import WorkerScheduleManager from '@/components/worker/WorkerScheduleManager';
 // import ServiceAreaSettings from '@/components/settings/ServiceAreaSettings';
 import { WorkerEarnings } from '@/components/worker/WorkerEarnings';
+import { WorkerWeeklyEarnings } from '@/components/worker/WorkerWeeklyEarnings';
 import { WorkerNotificationsCenter } from '@/components/worker/WorkerNotificationsCenter';
 import { WorkerProfileSettings } from '@/components/worker/WorkerProfileSettings';
 import WorkerDashboardLoading from '@/components/worker/WorkerDashboardLoading';
@@ -287,6 +288,7 @@ export function WorkerDashboardWithSidebar() {
                   </div>
                 } />
                 <Route path="/earnings" element={<WorkerEarnings />} />
+                <Route path="/earnings/weekly" element={<WorkerWeeklyEarnings />} />
                 <Route path="/notifications" element={<WorkerNotificationsCenter />} />
                 <Route path="/schedule" element={
                   <div className="p-6">
