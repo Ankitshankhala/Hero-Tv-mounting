@@ -31,6 +31,7 @@ const LazyInvoiceMonitoringPanel = lazy(() => import('@/components/admin/Invoice
 const LazyEmailLogsManager = lazy(() => import('@/components/admin/EmailLogsManager').then(m => ({ default: m.EmailLogsManager })));
 const LazyNotificationsSettings = lazy(() => import('@/components/admin/NotificationsSettings').then(m => ({ default: m.NotificationsSettings })));
 const LazyTipAnalyticsDashboard = lazy(() => import('@/components/admin/TipAnalyticsDashboard').then(m => ({ default: m.TipAnalyticsDashboard })));
+const LazyWorkerWeeklyPayments = lazy(() => import('@/components/admin/WorkerWeeklyPayments').then(m => ({ default: m.WorkerWeeklyPayments })));
 
 
 // Loading component for lazy-loaded components
@@ -158,6 +159,8 @@ const Admin = () => {
         return wrapWithSuspense(LazyAdminServiceAreasUnified);
       case 'tips':
         return wrapWithSuspense(LazyTipAnalyticsDashboard);
+      case 'payroll':
+        return wrapWithSuspense(LazyWorkerWeeklyPayments);
       case 'settings':
         return wrapWithSuspense(LazyNotificationsSettings);
       case 'invoice-monitoring':

@@ -13,7 +13,8 @@ import {
   MapPin,
   Mail,
   Database,
-  DollarSign
+  DollarSign,
+  Wallet
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import {
@@ -64,6 +65,7 @@ export const AdminSidebar = ({ activeTab, onTabChange }: AdminSidebarProps) => {
         { id: 'payments', label: 'Payments', icon: CreditCard, tourAttr: 'admin-payments' },
         { id: 'invoices', label: 'Invoices', icon: FileText },
         { id: 'tips', label: 'Tips Analytics', icon: DollarSign },
+        { id: 'payroll', label: 'Worker Payroll', icon: Wallet },
       ]
     },
     {
