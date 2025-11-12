@@ -268,8 +268,8 @@ export function WorkerWeeklyPayments() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Worker Weekly Payments</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-2xl font-bold text-primary-foreground">Worker Weekly Payments</h1>
+          <p className="text-sm text-primary-foreground/80">
             {format(currentWeekStart, 'MMM d')} - {format(weekEnd, 'MMM d, yyyy')}
           </p>
         </div>
