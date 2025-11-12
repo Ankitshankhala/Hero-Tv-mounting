@@ -87,9 +87,9 @@ export const TvMountingModal = ({ open, onClose, onAddToCart, services }: TvMoun
               <p className="text-slate-300 text-sm mb-2">Base Mount TV: ${calculateTvMountingPrice(numberOfTvs)}</p>
               {numberOfTvs > 1 && (
                 <div className="text-xs text-slate-400 space-y-1">
-                  <div>• 1st TV: $100</div>
-                  <div>• 2nd TV: $85</div>
-                  {numberOfTvs > 2 && <div>• Additional TVs: $75 each</div>}
+                  <div>• 1st TV: $90</div>
+                  <div>• 2nd TV: $80</div>
+                  {numberOfTvs > 2 && <div>• Additional TVs: $70 each</div>}
                 </div>
               )}
             </div>
