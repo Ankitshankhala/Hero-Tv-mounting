@@ -11,6 +11,15 @@ export interface PublicService {
   duration_minutes: number;
   image_url: string | null;
   sort_order: number;
+  pricing_config?: {
+    pricing_type?: 'simple' | 'tiered';
+    tiers?: Array<{
+      quantity: number;
+      price: number;
+      is_default_for_additional?: boolean;
+    }>;
+    add_ons?: Record<string, number>;
+  } | null;
 }
 
 export const usePublicServicesData = () => {
@@ -23,14 +32,14 @@ export const usePublicServicesData = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('services')
-        .select('id, name, description, base_price, duration_minutes, image_url, sort_order')
+        .select('id, name, description, base_price, duration_minutes, image_url, sort_order, pricing_config')
         .eq('is_active', true)
         .eq('is_visible', true)
         .order('sort_order', { ascending: true });
 
       if (error) throw error;
       
-      setServices(data || []);
+      setServices((data || []) as PublicService[]);
     } catch (error) {
       console.error('Error fetching public services:', error);
       toast({

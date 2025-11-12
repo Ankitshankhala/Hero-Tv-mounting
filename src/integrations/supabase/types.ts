@@ -881,6 +881,7 @@ export type Database = {
           is_active: boolean | null
           is_visible: boolean
           name: string
+          pricing_config: Json | null
           sort_order: number
         }
         Insert: {
@@ -893,6 +894,7 @@ export type Database = {
           is_active?: boolean | null
           is_visible?: boolean
           name: string
+          pricing_config?: Json | null
           sort_order?: number
         }
         Update: {
@@ -905,6 +907,7 @@ export type Database = {
           is_active?: boolean | null
           is_visible?: boolean
           name?: string
+          pricing_config?: Json | null
           sort_order?: number
         }
         Relationships: []

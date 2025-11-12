@@ -13,6 +13,15 @@ export interface Service {
   image_url: string | null;
   sort_order: number;
   is_visible: boolean;
+  pricing_config?: {
+    pricing_type?: 'simple' | 'tiered';
+    tiers?: Array<{
+      quantity: number;
+      price: number;
+      is_default_for_additional?: boolean;
+    }>;
+    add_ons?: Record<string, number>;
+  } | null;
 }
 
 export const useServicesData = () => {
@@ -26,13 +35,13 @@ export const useServicesData = () => {
       // Fetch ALL active services, including non-visible add-ons needed for TV mounting configurations
       const { data, error } = await supabase
         .from('services')
-        .select('id, name, description, base_price, duration_minutes, is_active, created_at, image_url, sort_order, is_visible')
+        .select('id, name, description, base_price, duration_minutes, is_active, created_at, image_url, sort_order, is_visible, pricing_config')
         .eq('is_active', true)
         .order('sort_order', { ascending: true });
 
       if (error) throw error;
       
-      setServices(data || []);
+      setServices((data || []) as Service[]);
     } catch (error) {
       console.error('Error fetching services:', error);
       toast({
@@ -96,12 +105,12 @@ export const useServicesData = () => {
           duration_minutes: serviceData.duration_minutes,
           image_url: serviceData.image_url
         }])
-        .select('id, name, description, base_price, duration_minutes, is_active, created_at, image_url, sort_order')
+        .select('id, name, description, base_price, duration_minutes, is_active, created_at, image_url, sort_order, pricing_config')
         .single();
 
       if (error) throw error;
 
-      const serviceWithVisibility = { ...data, is_visible: true };
+      const serviceWithVisibility = { ...data, is_visible: true } as Service;
       setServices(prev => [...prev, serviceWithVisibility].sort((a, b) => a.sort_order - b.sort_order));
       toast({
         title: "Success",
@@ -137,13 +146,13 @@ export const useServicesData = () => {
           image_url: serviceData.image_url
         })
         .eq('id', id)
-        .select('id, name, description, base_price, duration_minutes, is_active, created_at, image_url, sort_order')
+        .select('id, name, description, base_price, duration_minutes, is_active, created_at, image_url, sort_order, pricing_config')
         .single();
 
       if (error) throw error;
 
       setServices(prev => prev.map(service => 
-        service.id === id ? { ...data, is_visible: service.is_visible } : service
+        service.id === id ? { ...data, is_visible: service.is_visible } as Service : service
       ));
       toast({
         title: "Success",
