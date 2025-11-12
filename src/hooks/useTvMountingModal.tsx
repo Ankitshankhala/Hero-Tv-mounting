@@ -29,19 +29,27 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
   const isReady = Boolean(tvMountingService?.id);
 
   const calculateTvMountingPrice = (numTvs: number) => {
-    let totalPrice = 0;
-    
-    for (let i = 1; i <= numTvs; i++) {
-      if (i === 1) {
-        totalPrice += 90; // First TV: $90
-      } else if (i === 2) {
-        totalPrice += 80; // Second TV: $80
-      } else {
-        totalPrice += 70; // Third TV and beyond: $70 each
+    // Use dynamic pricing from pricing_config if available
+    if (tvMountingService?.pricing_config?.tiers) {
+      const tiers = tvMountingService.pricing_config.tiers;
+      let totalPrice = 0;
+      
+      for (let i = 1; i <= numTvs; i++) {
+        const tier = tiers.find(t => t.quantity === i);
+        if (tier) {
+          totalPrice += tier.price;
+        } else {
+          // Use default additional TV price for TVs beyond defined tiers
+          const defaultTier = tiers.find(t => t.is_default_for_additional);
+          totalPrice += defaultTier?.price || tiers[tiers.length - 1].price;
+        }
       }
+      
+      return totalPrice;
     }
     
-    return totalPrice;
+    // Fallback to base_price * quantity if no pricing_config
+    return numTvs * (tvMountingService?.base_price || 90);
   };
 
   // Update TV configurations when number of TVs changes
@@ -92,24 +100,41 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
 
     tvConfigurations.forEach((config) => {
       if (config.over65) {
-        price += (over65Service?.base_price || 25);
+        // Use pricing_config.add_ons if available, fallback to base_price
+        const over65Price = tvMountingService?.pricing_config?.add_ons?.over65 
+          || over65Service?.base_price 
+          || 50;
+        price += over65Price;
       }
       
       if (config.frameMount) {
-        price += (frameMountService?.base_price || 25);
+        // Use pricing_config.add_ons if available, fallback to base_price
+        const frameMountPrice = tvMountingService?.pricing_config?.add_ons?.frameMount 
+          || frameMountService?.base_price 
+          || 75;
+        price += frameMountPrice;
       }
       
       if (config.wallType !== 'standard') {
-        price += (stoneWallService?.base_price || 40);
+        // Use pricing_config.add_ons if available, fallback to base_price
+        const specialWallPrice = tvMountingService?.pricing_config?.add_ons?.specialWall 
+          || stoneWallService?.base_price 
+          || 40;
+        price += specialWallPrice;
       }
 
       if (config.soundbar) {
-        price += 40; // Soundbar mounting: $40
+        // Use pricing_config.add_ons if available, fallback to soundbar service or hardcoded value
+        const soundbarService = allServices.find(s => s.name === 'Mount Soundbar');
+        const soundbarPrice = tvMountingService?.pricing_config?.add_ons?.soundbar 
+          || soundbarService?.base_price 
+          || 30;
+        price += soundbarPrice;
       }
     });
 
     return price;
-  }, [numberOfTvs, tvConfigurations, over65Service?.base_price, frameMountService?.base_price, stoneWallService?.base_price, isTestingMode]);
+  }, [numberOfTvs, tvConfigurations, tvMountingService?.pricing_config, over65Service?.base_price, frameMountService?.base_price, stoneWallService?.base_price, allServices, isTestingMode]);
 
   const buildServicesList = () => {
     const selectedServices = [];
