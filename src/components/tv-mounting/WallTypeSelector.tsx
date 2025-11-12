@@ -2,11 +2,13 @@
 import React from 'react';
 import { Check } from 'lucide-react';
 import { PublicService } from '@/hooks/usePublicServicesData';
+import { getAddOnPrice } from '@/utils/pricingDisplay';
 
 interface WallTypeSelectorProps {
   wallType: string;
   setWallType: (type: string) => void;
   numberOfTvs: number;
+  tvMountingService?: PublicService;
   stoneWallService?: PublicService;
 }
 
@@ -14,8 +16,11 @@ export const WallTypeSelector: React.FC<WallTypeSelectorProps> = ({
   wallType,
   setWallType,
   numberOfTvs,
+  tvMountingService,
   stoneWallService
 }) => {
+  const specialWallPrice = getAddOnPrice(tvMountingService, 'specialWall', stoneWallService, 40);
+  
   const wallTypeOptions = [
     { value: 'standard', label: 'Standard Drywall' },
     { value: 'steel', label: 'Steel' },
@@ -51,11 +56,11 @@ export const WallTypeSelector: React.FC<WallTypeSelectorProps> = ({
               ) : (
                 <div className="text-xs mt-1">
                   <p className="text-slate-400">
-                    +${stoneWallService?.base_price || 40} per TV
+                    +${specialWallPrice} per TV
                   </p>
                   {wallType === option.value && (
                     <p className="text-green-400 font-semibold">
-                      Total: +${(stoneWallService?.base_price || 40) * numberOfTvs}
+                      Total: +${specialWallPrice * numberOfTvs}
                     </p>
                   )}
                 </div>

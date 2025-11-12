@@ -43,6 +43,7 @@ export const TvMountingConfigModal: React.FC<TvMountingConfigModalProps> = ({
     setNumberOfTvs,
     tvConfigurations,
     updateTvConfiguration,
+    tvMountingService,
     over65Service,
     frameMountService,
     stoneWallService,
@@ -51,6 +52,9 @@ export const TvMountingConfigModal: React.FC<TvMountingConfigModalProps> = ({
     buildServicesList,
     buildCartItemName
   } = useTvMountingModal(services);
+
+  // Find soundbar service
+  const soundbarService = services.find(s => s.name === 'Mount Soundbar');
 
   // Initialize with existing config if provided
   React.useEffect(() => {

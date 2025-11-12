@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { PublicService } from '@/hooks/usePublicServicesData';
+import { getAddOnPrice } from '@/utils/pricingDisplay';
 
 interface TvAddOnsProps {
   over65: boolean;
@@ -8,6 +9,7 @@ interface TvAddOnsProps {
   frameMount: boolean;
   setFrameMount: (value: boolean) => void;
   numberOfTvs: number;
+  tvMountingService?: PublicService;
   over65Service?: PublicService;
   frameMountService?: PublicService;
 }
@@ -18,9 +20,12 @@ export const TvAddOns: React.FC<TvAddOnsProps> = ({
   frameMount,
   setFrameMount,
   numberOfTvs,
+  tvMountingService,
   over65Service,
   frameMountService
 }) => {
+  const over65Price = getAddOnPrice(tvMountingService, 'over65', over65Service, 50);
+  const frameMountPrice = getAddOnPrice(tvMountingService, 'frameMount', frameMountService, 75);
   return (
     <>
       {/* TV Size Add-on */}
@@ -37,12 +42,12 @@ export const TvAddOns: React.FC<TvAddOnsProps> = ({
               <span className="text-lg font-semibold text-white">Over 65" TV Add-on</span>
               {over65 && (
                 <span className="text-green-400 font-semibold">
-                  +${ (over65Service?.base_price || 25) * numberOfTvs}
+                  +${over65Price * numberOfTvs}
                 </span>
               )}
             </div>
             <p className="text-slate-400 text-sm">
-              Additional charge for larger TVs (+${over65Service?.base_price || 25} per TV)
+              Additional charge for larger TVs (+${over65Price} per TV)
             </p>
           </div>
         </label>
@@ -62,12 +67,12 @@ export const TvAddOns: React.FC<TvAddOnsProps> = ({
               <span className="text-lg font-semibold text-white">Frame Mount Add-on</span>
               {frameMount && (
                 <span className="text-green-400 font-semibold">
-                  +${(frameMountService?.base_price || 25) * numberOfTvs}
+                  +${frameMountPrice * numberOfTvs}
                 </span>
               )}
             </div>
             <p className="text-slate-400 text-sm">
-              Specialized frame mounting service (+${frameMountService?.base_price || 25} per TV)
+              Specialized frame mounting service (+${frameMountPrice} per TV)
             </p>
           </div>
         </label>

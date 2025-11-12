@@ -27,6 +27,7 @@ export const TvMountingConfigurationModal: React.FC<TvMountingConfigurationModal
     setNumberOfTvs,
     tvConfigurations,
     updateTvConfiguration,
+    tvMountingService,
     over65Service,
     frameMountService,
     stoneWallService,
@@ -37,6 +38,9 @@ export const TvMountingConfigurationModal: React.FC<TvMountingConfigurationModal
     isReady,
     servicesLoading
   } = useTvMountingModal(services);
+
+  // Find soundbar service for IndividualTvConfig
+  const soundbarService = services.find(s => s.name === 'Mount Soundbar');
 
   // Initialize with existing configuration
   useEffect(() => {
@@ -103,6 +107,7 @@ export const TvMountingConfigurationModal: React.FC<TvMountingConfigurationModal
             onIncrement={() => setNumberOfTvs(Math.min(5, numberOfTvs + 1))}
             onDecrement={() => setNumberOfTvs(Math.max(1, numberOfTvs - 1))}
             calculateTvMountingPrice={calculateTvMountingPrice}
+            tvMountingService={tvMountingService}
           />
 
           {/* Configure Each TV */}
@@ -114,9 +119,11 @@ export const TvMountingConfigurationModal: React.FC<TvMountingConfigurationModal
                 tvConfig={config}
                 tvNumber={index + 1}
                 onUpdateConfig={updateTvConfiguration}
+                tvMountingService={tvMountingService}
                 over65Service={over65Service}
                 frameMountService={frameMountService}
                 stoneWallService={stoneWallService}
+                soundbarService={soundbarService}
               />
             ))}
           </div>

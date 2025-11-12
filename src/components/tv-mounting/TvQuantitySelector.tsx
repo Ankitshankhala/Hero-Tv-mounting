@@ -1,20 +1,25 @@
 
 import React from 'react';
 import { Plus, Minus } from 'lucide-react';
+import { PublicService } from '@/hooks/usePublicServicesData';
+import { formatTieredPricing } from '@/utils/pricingDisplay';
 
 interface TvQuantitySelectorProps {
   numberOfTvs: number;
   onIncrement: () => void;
   onDecrement: () => void;
   calculateTvMountingPrice: (numTvs: number) => number;
+  tvMountingService?: PublicService;
 }
 
 export const TvQuantitySelector: React.FC<TvQuantitySelectorProps> = ({
   numberOfTvs,
   onIncrement,
   onDecrement,
-  calculateTvMountingPrice
+  calculateTvMountingPrice,
+  tvMountingService
 }) => {
+  const pricingBreakdown = formatTieredPricing(tvMountingService);
   return (
     <div className="bg-muted rounded-lg p-4">
       <label className="block text-lg font-semibold text-card-foreground mb-3">
@@ -49,9 +54,9 @@ export const TvQuantitySelector: React.FC<TvQuantitySelectorProps> = ({
       </div>
       <div className="mt-3 text-sm text-muted-foreground">
         <div>Base TV Mounting: ${calculateTvMountingPrice(numberOfTvs)}</div>
-        {numberOfTvs > 1 && (
+        {numberOfTvs > 1 && pricingBreakdown && (
           <div className="text-xs mt-1">
-            1st TV: $90, 2nd TV: $80{numberOfTvs > 2 && `, Additional TVs: $70 each`}
+            {pricingBreakdown}
           </div>
         )}
       </div>

@@ -258,6 +258,7 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
     setNumberOfTvs: updateNumberOfTvs,
     tvConfigurations,
     updateTvConfiguration,
+    tvMountingService,
     over65Service,
     frameMountService,
     stoneWallService,
