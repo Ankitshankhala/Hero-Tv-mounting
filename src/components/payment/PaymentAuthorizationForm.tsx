@@ -27,7 +27,8 @@ export const PaymentAuthorizationForm = ({
   onAuthorizationFailure,
 }: PaymentAuthorizationFormProps) => {
   const [cardError, setCardError] = useState('');
-  const [stripeReady, setStripeReady] = useState(false);
+  const [cardComplete, setCardComplete] = useState(false);
+  const [stripeInitialized, setStripeInitialized] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [stripe, setStripe] = useState<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -45,18 +46,24 @@ export const PaymentAuthorizationForm = ({
     setStripe(stripeInstance);
     setElements(elementsInstance);
     setCardElement(cardElementInstance);
-    setStripeReady(true);
+    setStripeInitialized(true);
     setFormError('');
     setCardError('');
   };
 
+  const handleStripeChange = ({ errorMessage, complete }: { errorMessage: string; complete: boolean }) => {
+    setCardError(errorMessage);
+    setCardComplete(complete);
+  };
+
   const handleStripeError = (error: string) => {
     if (error && error.trim()) {
-      setCardError(error);
-      setFormError(error);
-      setStripeReady(false);
+      // Only set formError for critical system errors
+      if (error.includes('Payment form container') || error.includes('Payment system') || error.includes('configuration')) {
+        setFormError(error);
+        setStripeInitialized(false);
+      }
     } else {
-      setCardError('');
       if (formError && !formError.includes('Payment form not ready') && !formError.includes('Payment system')) {
         setFormError('');
       }
@@ -76,8 +83,15 @@ export const PaymentAuthorizationForm = ({
       return;
     }
 
-    if (!stripeReady) {
+    if (!stripeInitialized) {
       const error = 'Payment system is still loading. Please wait.';
+      setFormError(error);
+      onAuthorizationFailure(error);
+      return;
+    }
+
+    if (!cardComplete) {
+      const error = 'Please complete all card details before submitting.';
       setFormError(error);
       onAuthorizationFailure(error);
       return;
@@ -242,6 +256,7 @@ export const PaymentAuthorizationForm = ({
             <StripeCardElement
               onReady={handleStripeReady}
               onError={handleStripeError}
+              onChange={handleStripeChange}
             />
           </div>
 
@@ -254,7 +269,7 @@ export const PaymentAuthorizationForm = ({
           <Button 
             type="submit" 
             className="w-full" 
-            disabled={!stripeReady || loading || !!cardError}
+            disabled={!stripeInitialized || !cardComplete || loading}
           >
             {loading ? (
               <div className="flex items-center justify-center space-x-2">

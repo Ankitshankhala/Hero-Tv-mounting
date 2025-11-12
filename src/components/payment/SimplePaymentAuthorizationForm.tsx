@@ -25,7 +25,8 @@ export const SimplePaymentAuthorizationForm = ({
   onAuthorizationFailure,
 }: SimplePaymentAuthorizationFormProps) => {
   const [cardError, setCardError] = useState('');
-  const [stripeReady, setStripeReady] = useState(false);
+  const [cardComplete, setCardComplete] = useState(false);
+  const [stripeInitialized, setStripeInitialized] = useState(false);
   const [stripe, setStripe] = useState<any>(null);
   const [elements, setElements] = useState<any>(null);
   const [cardElement, setCardElement] = useState<any>(null);
@@ -41,25 +42,31 @@ export const SimplePaymentAuthorizationForm = ({
     setStripe(stripeInstance);
     setElements(elementsInstance);
     setCardElement(cardElementInstance);
-    setStripeReady(true);
+    setStripeInitialized(true);
     setFormError('');
     setCardError('');
   };
 
+  const handleStripeChange = ({ errorMessage, complete }: { errorMessage: string; complete: boolean }) => {
+    setCardError(errorMessage);
+    setCardComplete(complete);
+    
+    if (errorMessage) {
+      console.log('Card validation error:', errorMessage);
+    } else if (complete) {
+      console.log('✅ Card details complete and valid');
+    }
+  };
+
   const handleStripeError = (error: string) => {
     if (error && error.trim()) {
-      console.error('Stripe error:', error);
-      setCardError(error);
-      // Don't set formError for card validation errors - these should only show in the card input area
-      // Only set formError for critical system errors
+      console.error('Stripe system error:', error);
+      // Only set formError for critical system errors, not card validation
       if (error.includes('Payment form container') || error.includes('Payment system') || error.includes('configuration')) {
         setFormError(error);
-        setStripeReady(false);
+        setStripeInitialized(false);
       }
     } else {
-      console.log('✅ Stripe error cleared, card validation successful');
-      setCardError('');
-      // Only clear formError if it was a card validation error, preserve system errors
       if (formError && !formError.includes('Payment form not ready') && !formError.includes('Payment system') && !formError.includes('configuration')) {
         setFormError('');
       }
@@ -148,8 +155,15 @@ export const SimplePaymentAuthorizationForm = ({
       return;
     }
 
-    if (!stripeReady) {
+    if (!stripeInitialized) {
       const error = 'Payment system is still loading. Please wait.';
+      setFormError(error);
+      onAuthorizationFailure(error);
+      return;
+    }
+
+    if (!cardComplete) {
+      const error = 'Please complete all card details before submitting.';
       setFormError(error);
       onAuthorizationFailure(error);
       return;
@@ -362,8 +376,9 @@ export const SimplePaymentAuthorizationForm = ({
                 ref={cardElementRef}
                 onReady={handleStripeReady}
                 onError={handleStripeError}
+                onChange={handleStripeChange}
               />
-              {!cardError && stripeReady && (
+              {!cardError && cardComplete && (
                 <div className="flex items-center space-x-1 text-green-600 text-xs">
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -375,7 +390,7 @@ export const SimplePaymentAuthorizationForm = ({
 
             <Button
               type="submit"
-              disabled={loading || !stripeReady || !!cardError}
+              disabled={loading || !stripeInitialized || !cardComplete}
               className="w-full"
             >
               {loading ? (

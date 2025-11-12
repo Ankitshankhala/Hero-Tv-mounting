@@ -5,6 +5,7 @@ import { STRIPE_PUBLISHABLE_KEY, validateStripeConfig } from '@/lib/stripe';
 interface StripeCardElementProps {
   onReady: (stripe: any, elements: any, cardElement: any) => void;
   onError: (error: string) => void;
+  onChange?: (data: { errorMessage: string; complete: boolean }) => void;
 }
 
 export interface StripeCardElementRef {
@@ -12,7 +13,7 @@ export interface StripeCardElementRef {
 }
 
 export const StripeCardElement = forwardRef<StripeCardElementRef, StripeCardElementProps>(
-  ({ onReady, onError }, ref) => {
+  ({ onReady, onError, onChange }, ref) => {
     const cardElementRef = useRef<HTMLDivElement>(null);
     const stripeCardRef = useRef<any>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -171,12 +172,15 @@ export const StripeCardElement = forwardRef<StripeCardElementRef, StripeCardElem
             
             setCardError(userFriendlyError);
             onError(userFriendlyError);
+            onChange?.({ errorMessage: userFriendlyError, complete: false });
           } else if (complete) {
             setCardError('');
-            onError(''); // Clear any previous errors - successful state
+            onError('');
+            onChange?.({ errorMessage: '', complete: true });
           } else {
             setCardError('');
-            onError(''); // Clear errors while user is typing
+            onError('');
+            onChange?.({ errorMessage: '', complete: false });
           }
         });
 
