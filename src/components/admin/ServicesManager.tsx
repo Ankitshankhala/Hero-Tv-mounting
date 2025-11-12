@@ -7,6 +7,7 @@ import { ServicesHeader } from './services/ServicesHeader';
 import { ServicesSearch } from './services/ServicesSearch';
 import { ServicesTable } from './services/ServicesTable';
 import { ServicesStats } from './services/ServicesStats';
+import { PricingConfig } from './pricing/PricingConfigEditor';
 
 export const ServicesManager = () => {
   const { services, loading, addService, updateService, deleteService, reorderServices, toggleServiceVisibility } = useServicesData();
@@ -37,6 +38,7 @@ export const ServicesManager = () => {
     base_price: number;
     duration_minutes: number;
     image_url?: string | null;
+    pricing_config?: PricingConfig | null;
   }) => {
     if (selectedService) {
       await updateService(selectedService.id, formData);

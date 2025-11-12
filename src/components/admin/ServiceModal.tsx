@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Service } from '@/hooks/useServicesData';
 import { ImageUpload } from './ImageUpload';
+import { PricingConfigEditor, PricingConfig } from './pricing/PricingConfigEditor';
 
 interface ServiceModalProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ interface ServiceModalProps {
     base_price: number;
     duration_minutes: number;
     image_url?: string | null;
+    pricing_config?: PricingConfig | null;
   }) => Promise<void>;
   service?: Service | null;
   title: string;
@@ -34,7 +36,8 @@ export const ServiceModal: React.FC<ServiceModalProps> = ({
     description: '',
     base_price: 0,
     duration_minutes: 60,
-    image_url: null as string | null
+    image_url: null as string | null,
+    pricing_config: null as PricingConfig | null
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -45,7 +48,8 @@ export const ServiceModal: React.FC<ServiceModalProps> = ({
         description: service.description || '',
         base_price: service.base_price,
         duration_minutes: service.duration_minutes,
-        image_url: service.image_url
+        image_url: service.image_url,
+        pricing_config: service.pricing_config || null
       });
     } else {
       setFormData({
@@ -53,7 +57,8 @@ export const ServiceModal: React.FC<ServiceModalProps> = ({
         description: '',
         base_price: 0,
         duration_minutes: 60,
-        image_url: null
+        image_url: null,
+        pricing_config: null
       });
     }
   }, [service, isOpen]);
@@ -79,6 +84,10 @@ export const ServiceModal: React.FC<ServiceModalProps> = ({
 
   const handleImageChange = (url: string | null) => {
     setFormData(prev => ({ ...prev, image_url: url }));
+  };
+
+  const handlePricingConfigChange = (config: PricingConfig | null) => {
+    setFormData(prev => ({ ...prev, pricing_config: config }));
   };
 
   return (
@@ -144,6 +153,12 @@ export const ServiceModal: React.FC<ServiceModalProps> = ({
               />
             </div>
           </div>
+
+          <PricingConfigEditor
+            config={formData.pricing_config}
+            onChange={handlePricingConfigChange}
+            serviceName={formData.name}
+          />
 
           <div className="flex justify-end space-x-2 pt-4">
             <Button type="button" variant="outline" onClick={onClose}>

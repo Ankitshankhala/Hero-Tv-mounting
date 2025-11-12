@@ -94,6 +94,7 @@ export const useServicesData = () => {
     base_price: number;
     duration_minutes: number;
     image_url?: string | null;
+    pricing_config?: any;
   }) => {
     try {
       const { data, error } = await supabase
@@ -103,7 +104,8 @@ export const useServicesData = () => {
           description: serviceData.description,
           base_price: serviceData.base_price,
           duration_minutes: serviceData.duration_minutes,
-          image_url: serviceData.image_url
+          image_url: serviceData.image_url,
+          pricing_config: serviceData.pricing_config
         }])
         .select('id, name, description, base_price, duration_minutes, is_active, created_at, image_url, sort_order, pricing_config')
         .single();
@@ -134,6 +136,7 @@ export const useServicesData = () => {
     base_price: number;
     duration_minutes: number;
     image_url?: string | null;
+    pricing_config?: any;
   }) => {
     try {
       const { data, error } = await supabase
@@ -143,7 +146,8 @@ export const useServicesData = () => {
           description: serviceData.description,
           base_price: serviceData.base_price,
           duration_minutes: serviceData.duration_minutes,
-          image_url: serviceData.image_url
+          image_url: serviceData.image_url,
+          pricing_config: serviceData.pricing_config
         })
         .eq('id', id)
         .select('id, name, description, base_price, duration_minutes, is_active, created_at, image_url, sort_order, pricing_config')
