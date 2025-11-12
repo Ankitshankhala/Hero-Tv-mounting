@@ -34,6 +34,8 @@ interface AvailableWorker {
   city?: string;
   phone?: string;
   email: string;
+  isAvailable?: boolean;
+  unavailabilityReason?: string;
 }
 
 export const AssignWorkerModal = ({ onClose, onAssignmentComplete, isOpen, selectedBookingId }: AssignWorkerModalProps) => {
@@ -94,7 +96,42 @@ export const AssignWorkerModal = ({ onClose, onAssignmentComplete, isOpen, selec
       }
 
       setUnassignedBookings(bookingsData || []);
-      setAvailableWorkers(workersData || []);
+      
+      // Check availability for each worker if a booking is selected
+      if (selectedBookingId) {
+        const booking = bookingsData?.find(b => b.id === selectedBookingId);
+        if (booking) {
+          const workersWithAvailability = await Promise.all(
+            (workersData || []).map(async (worker) => {
+              try {
+                const { data: validation } = await supabase.rpc(
+                  'validate_worker_booking_assignment',
+                  {
+                    p_worker_id: worker.id,
+                    p_booking_date: booking.scheduled_date,
+                    p_booking_time: booking.scheduled_start,
+                    p_duration_minutes: 60
+                  }
+                );
+                
+                return {
+                  ...worker,
+                  isAvailable: validation?.[0]?.is_valid ?? true,
+                  unavailabilityReason: validation?.[0]?.error_message
+                };
+              } catch (error) {
+                console.error('Error checking worker availability:', error);
+                return { ...worker, isAvailable: true };
+              }
+            })
+          );
+          setAvailableWorkers(workersWithAvailability);
+        } else {
+          setAvailableWorkers(workersData || []);
+        }
+      } else {
+        setAvailableWorkers(workersData || []);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({
@@ -120,15 +157,44 @@ export const AssignWorkerModal = ({ onClose, onAssignmentComplete, isOpen, selec
         throw new Error('Worker not found');
       }
 
-      // Fetch booking details for customer email
+      // Fetch booking details for validation and customer email
       const { data: booking, error: bookingError } = await supabase
         .from('bookings')
-        .select('customer_id, guest_customer_info')
+        .select('customer_id, guest_customer_info, scheduled_date, scheduled_start')
         .eq('id', selectedBooking)
         .single();
 
       if (bookingError || !booking) {
         throw new Error('Failed to fetch booking details');
+      }
+
+      // VALIDATE WORKER AVAILABILITY
+      const { data: validationResult, error: validationError } = await supabase.rpc(
+        'validate_worker_booking_assignment',
+        {
+          p_worker_id: selectedWorker,
+          p_booking_date: booking.scheduled_date,
+          p_booking_time: booking.scheduled_start,
+          p_duration_minutes: 60
+        }
+      );
+
+      if (validationError) {
+        throw new Error(`Validation check failed: ${validationError.message}`);
+      }
+
+      if (validationResult && validationResult.length > 0) {
+        const validation = validationResult[0];
+        
+        if (!validation.is_valid) {
+          toast({
+            title: "Worker Unavailable",
+            description: validation.error_message,
+            variant: "destructive",
+          });
+          setAssigning(false);
+          return;
+        }
       }
       
       // Update the booking with the assigned worker
@@ -329,14 +395,16 @@ export const AssignWorkerModal = ({ onClose, onAssignmentComplete, isOpen, selec
                 availableWorkers.map((worker) => (
                   <Card 
                     key={worker.id} 
-                    className={`cursor-pointer transition-colors ${
-                      selectedWorker === worker.id ? 'ring-2 ring-green-500 bg-green-50' : 'hover:bg-gray-50'
+                    className={`transition-colors ${
+                      selectedWorker === worker.id ? 'ring-2 ring-green-500 bg-green-50' : 
+                      worker.isAvailable === false ? 'opacity-60 cursor-not-allowed' :
+                      'cursor-pointer hover:bg-gray-50'
                     }`}
-                    onClick={() => setSelectedWorker(worker.id)}
+                    onClick={() => worker.isAvailable !== false && setSelectedWorker(worker.id)}
                   >
                     <CardContent className="p-4">
                       <div className="flex justify-between items-start">
-                        <div>
+                        <div className="flex-1">
                           <div className="flex items-center space-x-2">
                             <User className="h-4 w-4" />
                             <p className="font-medium">{worker.name}</p>
@@ -348,9 +416,18 @@ export const AssignWorkerModal = ({ onClose, onAssignmentComplete, isOpen, selec
                               <span className="text-sm text-gray-600">{worker.city}</span>
                             </div>
                           )}
+                          {worker.isAvailable === false && worker.unavailabilityReason && (
+                            <p className="text-xs text-red-600 mt-2">
+                              {worker.unavailabilityReason}
+                            </p>
+                          )}
                         </div>
-                        <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                          Available
+                        <span className={`text-xs px-2 py-1 rounded whitespace-nowrap ${
+                          worker.isAvailable === false
+                            ? 'bg-red-100 text-red-800' 
+                            : 'bg-green-100 text-green-800'
+                        }`}>
+                          {worker.isAvailable === false ? 'Unavailable' : 'Available'}
                         </span>
                       </div>
                     </CardContent>

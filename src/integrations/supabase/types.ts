@@ -3606,6 +3606,19 @@ export type Database = {
           zipcode_count: number
         }[]
       }
+      validate_worker_booking_assignment: {
+        Args: {
+          p_booking_date: string
+          p_booking_time: string
+          p_duration_minutes?: number
+          p_worker_id: string
+        }
+        Returns: {
+          error_code: string
+          error_message: string
+          is_valid: boolean
+        }[]
+      }
       zip_has_active_coverage: { Args: { p_zipcode: string }; Returns: boolean }
       zip_has_active_coverage_by_zip: {
         Args: { p_zipcode: string }

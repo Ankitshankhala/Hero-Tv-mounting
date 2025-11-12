@@ -23,7 +23,7 @@ export const WorkerAssignmentManager = ({
     setAssigning(true);
     
     try {
-      // Fetch worker and booking details for email
+      // Fetch worker and booking details for email and validation
       const { data: worker, error: workerError } = await supabase
         .from('users')
         .select('email, name')
@@ -36,12 +36,41 @@ export const WorkerAssignmentManager = ({
 
       const { data: booking, error: bookingError } = await supabase
         .from('bookings')
-        .select('customer_id, guest_customer_info')
+        .select('customer_id, guest_customer_info, scheduled_date, scheduled_start')
         .eq('id', bookingId)
         .single();
 
       if (bookingError || !booking) {
         throw new Error('Failed to fetch booking details');
+      }
+
+      // VALIDATE WORKER AVAILABILITY
+      const { data: validationResult, error: validationError } = await supabase.rpc(
+        'validate_worker_booking_assignment',
+        {
+          p_worker_id: workerId,
+          p_booking_date: booking.scheduled_date,
+          p_booking_time: booking.scheduled_start,
+          p_duration_minutes: 60
+        }
+      );
+
+      if (validationError) {
+        throw new Error(`Validation check failed: ${validationError.message}`);
+      }
+
+      if (validationResult && validationResult.length > 0) {
+        const validation = validationResult[0];
+        
+        if (!validation.is_valid) {
+          toast({
+            title: "Worker Unavailable",
+            description: validation.error_message,
+            variant: "destructive",
+          });
+          setAssigning(false);
+          return;
+        }
       }
 
       // First assign the worker to the booking
