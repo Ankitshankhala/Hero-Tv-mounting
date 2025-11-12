@@ -2533,6 +2533,7 @@ export type Database = {
           worker_name: string
         }[]
       }
+      get_admin_dashboard_metrics: { Args: never; Returns: Json }
       get_available_time_slots: {
         Args: {
           p_date: string
