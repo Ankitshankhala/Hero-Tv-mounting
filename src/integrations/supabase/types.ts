@@ -2608,6 +2608,24 @@ export type Database = {
         }[]
       }
       get_current_user_role: { Args: never; Returns: string }
+      get_customer_stats: {
+        Args: {
+          limit_count?: number
+          offset_count?: number
+          search_term?: string
+        }
+        Returns: {
+          city: string
+          email: string
+          last_booking: string
+          name: string
+          phone: string
+          total_bookings: number
+          total_count: number
+          total_spent: number
+          zipcode: string
+        }[]
+      }
       get_nearby_zip_boundaries: {
         Args: { center_lat: number; center_lng: number; radius_km?: number }
         Returns: {

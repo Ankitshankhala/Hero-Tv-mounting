@@ -10,7 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 interface Customer {
-  email: string; // Use email as unique identifier for guests
+  email: string;
   name: string;
   phone?: string;
   city?: string;
@@ -22,101 +22,65 @@ interface Customer {
 
 export const CustomersManager = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const [pageSize] = useState(25);
   const { toast } = useToast();
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setPage(0); // Reset to first page on search
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   useEffect(() => {
     fetchCustomers();
-  }, []);
+  }, [debouncedSearch, page]);
 
   const fetchCustomers = async () => {
     try {
       setLoading(true);
-      console.log('Fetching guest customers...');
 
-      // Fetch all guest bookings
-      const { data: bookingsData, error: bookingsError } = await supabase
-        .from('bookings')
-        .select(`
-          id,
-          created_at,
-          scheduled_date,
-          status,
-          guest_customer_info
-        `)
-        .not('guest_customer_info', 'is', null)
-        .order('created_at', { ascending: false });
+      // Use optimized database function with pagination
+      const { data, error } = await supabase.rpc('get_customer_stats', {
+        search_term: debouncedSearch || null,
+        limit_count: pageSize,
+        offset_count: page * pageSize
+      });
 
-      if (bookingsError) {
-        console.error('Error fetching guest bookings:', bookingsError);
-        throw bookingsError;
+      if (error) {
+        console.error('Error fetching customers:', error);
+        throw error;
       }
 
-      console.log('Raw guest bookings data:', bookingsData);
-
-      if (!bookingsData || bookingsData.length === 0) {
-        console.log('No guest customers found');
+      if (!data || data.length === 0) {
         setCustomers([]);
+        setTotalCount(0);
         return;
       }
 
-      // Group bookings by customer email and calculate statistics
-      const customerMap = new Map<string, any>();
-      
-      bookingsData.forEach((booking) => {
-        const guestInfo = booking.guest_customer_info as any;
-        if (!guestInfo || !guestInfo.email) return;
+      // Transform database response to component format
+      const enrichedCustomers: Customer[] = data.map((row: any) => ({
+        email: row.email,
+        name: row.name || 'Unknown',
+        phone: row.phone,
+        city: row.city,
+        zipcode: row.zipcode,
+        totalBookings: Number(row.total_bookings || 0),
+        totalSpent: `$${Number(row.total_spent || 0).toFixed(2)}`,
+        lastBooking: row.last_booking ? new Date(row.last_booking).toLocaleDateString() : 'No bookings'
+      }));
 
-        const email = guestInfo.email;
-        
-        if (!customerMap.has(email)) {
-          customerMap.set(email, {
-            email,
-            name: guestInfo.name || 'No name provided',
-            phone: guestInfo.phone,
-            city: guestInfo.city,
-            zipcode: guestInfo.zipcode,
-            bookings: [],
-            totalSpent: 0
-          });
-        }
-
-        const customer = customerMap.get(email);
-        customer.bookings.push(booking);
-
-        // Calculate total spent from completed bookings - will be handled in future implementation
-        if (booking.status === 'completed') {
-          // For now, set a default value since pricing calculation is complex
-          customer.totalSpent += 100; // Placeholder amount
-        }
-      });
-
-      // Convert map to array and create enriched customer objects
-      const enrichedCustomers: Customer[] = Array.from(customerMap.values()).map((customer) => {
-        const totalBookings = customer.bookings.length;
-        
-        // Get last booking date
-        const lastBookingDate = customer.bookings.length > 0 
-          ? new Date(Math.max(...customer.bookings.map((b: any) => new Date(b.created_at).getTime())))
-          : null;
-
-        return {
-          email: customer.email,
-          name: customer.name,
-          phone: customer.phone,
-          city: customer.city,
-          zipcode: customer.zipcode,
-          totalBookings,
-          totalSpent: `$${customer.totalSpent.toFixed(2)}`,
-          lastBooking: lastBookingDate ? lastBookingDate.toLocaleDateString() : 'No bookings'
-        };
-      });
-
-      console.log('Enriched guest customers:', enrichedCustomers);
       setCustomers(enrichedCustomers);
+      setTotalCount(data[0]?.total_count || 0);
     } catch (error) {
       console.error('Error in fetchCustomers:', error);
       toast({
@@ -129,11 +93,7 @@ export const CustomersManager = () => {
     }
   };
 
-  const filteredCustomers = customers.filter(customer => {
-    const matchesSearch = customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         customer.email.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
-  });
+  const totalPages = Math.ceil(totalCount / pageSize);
 
   const handleViewHistory = (customer: Customer) => {
     setSelectedCustomer(customer);
@@ -145,12 +105,29 @@ export const CustomersManager = () => {
     setShowHistoryModal(false);
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
+  const LoadingSkeleton = () => (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center space-x-2">
+          <Users className="h-5 w-5" />
+          <span>Customer Management</span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="mb-6">
+          <div className="h-10 bg-muted animate-pulse rounded-md max-w-md"></div>
+        </div>
+        <div className="space-y-3">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="h-16 bg-muted animate-pulse rounded-md"></div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  if (loading && customers.length === 0) {
+    return <LoadingSkeleton />;
   }
 
   return (
@@ -173,30 +150,42 @@ export const CustomersManager = () => {
               />
             </div>
 
-            {filteredCustomers.length === 0 ? (
+            {customers.length === 0 ? (
               <div className="text-center py-8">
-                <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600">
+                <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">
                   {searchTerm ? 'No customers found matching your search.' : 'No customers found.'}
                 </p>
               </div>
             ) : (
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                  <TableRow>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Contact</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead>Total Bookings</TableHead>
-                    <TableHead>Total Spent</TableHead>
-                    <TableHead>Last Booking</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredCustomers.map((customer) => (
+              <>
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Contact</TableHead>
+                        <TableHead>Location</TableHead>
+                        <TableHead>Total Bookings</TableHead>
+                        <TableHead>Total Spent</TableHead>
+                        <TableHead>Last Booking</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {loading ? (
+                        [...Array(5)].map((_, i) => (
+                          <TableRow key={i}>
+                            {[...Array(8)].map((_, j) => (
+                              <TableCell key={j}>
+                                <div className="h-4 bg-muted animate-pulse rounded"></div>
+                              </TableCell>
+                            ))}
+                          </TableRow>
+                        ))
+                      ) : (
+                        customers.map((customer) => (
                       <TableRow key={customer.email}>
                         <TableCell className="font-medium">
                           {customer.email}
@@ -244,11 +233,40 @@ export const CustomersManager = () => {
                             View History
                           </Button>
                         </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                        </TableRow>
+                      ))
+                    )}
+                    </TableBody>
+                  </Table>
+                </div>
+                
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between mt-4">
+                    <div className="text-sm text-muted-foreground">
+                      Showing {page * pageSize + 1} to {Math.min((page + 1) * pageSize, totalCount)} of {totalCount} customers
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage(p => Math.max(0, p - 1))}
+                        disabled={page === 0 || loading}
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                        disabled={page >= totalPages - 1 || loading}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>

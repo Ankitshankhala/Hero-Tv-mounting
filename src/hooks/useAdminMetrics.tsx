@@ -43,97 +43,18 @@ export const useAdminMetrics = () => {
   useEffect(() => {
     const fetchMetrics = async () => {
       try {
-        const currentDate = new Date();
-        const currentMonth = currentDate.getMonth();
-        const currentYear = currentDate.getFullYear();
-        
-        // Get previous month dates for comparison
-        const previousMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-        const previousYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+        // Use optimized database function for instant metrics
+        const { data, error } = await supabase.rpc('get_admin_dashboard_metrics');
 
-        // Get all bookings
-        const { data: bookings, error: bookingsError } = await supabase
-          .from('bookings')
-          .select('*');
+        if (error) throw error;
 
-        if (bookingsError) throw bookingsError;
+        if (!data) {
+          console.log('No metrics data returned');
+          return;
+        }
 
-        // Get transactions that represent actual revenue (captured/completed only)
-        const { data: transactions, error: transactionsError } = await supabase
-          .from('transactions')
-          .select(`
-            amount, 
-            status, 
-            created_at,
-            transaction_type
-          `)
-          .in('status', ['captured', 'completed'])
-          .in('transaction_type', ['capture', 'charge']);
-
-        if (transactionsError) throw transactionsError;
-
-        // Get users data
-        const { data: users, error: usersError } = await supabase
-          .from('users')
-          .select('*');
-
-        if (usersError) throw usersError;
-
-        // Reviews are no longer tracked in database
-        const reviews: any[] = [];
-
-        // Calculate current metrics
-        const totalBookings = bookings?.length || 0;
-        const totalRevenue = transactions?.reduce((sum, transaction) => sum + Number(transaction.amount), 0) || 0;
-        const completedBookings = bookings?.filter(booking => booking.status === 'completed').length || 0;
-        const pendingBookings = bookings?.filter(booking => booking.status === 'pending').length || 0;
-        const avgBookingValue = totalBookings > 0 ? totalRevenue / totalBookings : 0;
-
-        // Current month data
-        const bookingsThisMonth = bookings?.filter(booking => {
-          const bookingDate = new Date(booking.created_at);
-          return bookingDate.getMonth() === currentMonth && bookingDate.getFullYear() === currentYear;
-        }).length || 0;
-
-        const revenueThisMonth = transactions?.filter(transaction => {
-          const transactionDate = new Date(transaction.created_at);
-          return transactionDate.getMonth() === currentMonth && transactionDate.getFullYear() === currentYear;
-        }).reduce((sum, transaction) => sum + Number(transaction.amount), 0) || 0;
-
-        const customersThisMonth = users?.filter(user => {
-          const userDate = new Date(user.created_at);
-          return user.role === 'customer' && user.is_active && 
-                 userDate.getMonth() === currentMonth && userDate.getFullYear() === currentYear;
-        }).length || 0;
-
-        const jobsThisMonth = bookings?.filter(booking => {
-          const bookingDate = new Date(booking.created_at);
-          return booking.status === 'completed' && 
-                 bookingDate.getMonth() === currentMonth && bookingDate.getFullYear() === currentYear;
-        }).length || 0;
-
-        // Previous month data for growth calculation
-        const bookingsLastMonth = bookings?.filter(booking => {
-          const bookingDate = new Date(booking.created_at);
-          return bookingDate.getMonth() === previousMonth && bookingDate.getFullYear() === previousYear;
-        }).length || 0;
-
-        const revenueLastMonth = transactions?.filter(transaction => {
-          const transactionDate = new Date(transaction.created_at);
-          return transactionDate.getMonth() === previousMonth && transactionDate.getFullYear() === previousYear;
-        }).reduce((sum, transaction) => sum + Number(transaction.amount), 0) || 0;
-
-        const customersLastMonth = users?.filter(user => {
-          const userDate = new Date(user.created_at);
-          return user.role === 'customer' && user.is_active && 
-                 userDate.getMonth() === previousMonth && userDate.getFullYear() === previousYear;
-        }).length || 0;
-
-        const jobsLastMonth = bookings?.filter(booking => {
-          const bookingDate = new Date(booking.created_at);
-          return booking.status === 'completed' && 
-                 bookingDate.getMonth() === previousMonth && bookingDate.getFullYear() === previousYear;
-        }).length || 0;
+        // Cast to proper type
+        const metricsData = data as any;
 
         // Calculate growth percentages
         const calculateGrowth = (current: number, previous: number) => {
@@ -141,37 +62,39 @@ export const useAdminMetrics = () => {
           return ((current - previous) / previous) * 100;
         };
 
-        const revenueGrowth = calculateGrowth(revenueThisMonth, revenueLastMonth);
-        const bookingsGrowth = calculateGrowth(bookingsThisMonth, bookingsLastMonth);
-        const customersGrowth = calculateGrowth(customersThisMonth, customersLastMonth);
-        const jobsGrowth = calculateGrowth(jobsThisMonth, jobsLastMonth);
-
-        // Active users and workers
-        const activeCustomers = users?.filter(user => user.role === 'customer' && user.is_active).length || 0;
-        const activeWorkers = users?.filter(user => user.role === 'worker' && user.is_active).length || 0;
-
-        // Reviews metrics
-        const totalReviews = reviews?.length || 0;
-        const averageRating = totalReviews > 0 
-          ? reviews.reduce((sum, review) => sum + review.rating, 0) / totalReviews 
-          : 0;
+        const revenueGrowth = calculateGrowth(
+          Number(metricsData.revenueThisMonth || 0), 
+          Number(metricsData.revenueLastMonth || 0)
+        );
+        const bookingsGrowth = calculateGrowth(
+          Number(metricsData.bookingsThisMonth || 0), 
+          Number(metricsData.bookingsLastMonth || 0)
+        );
+        const customersGrowth = calculateGrowth(
+          Number(metricsData.customersThisMonth || 0), 
+          Number(metricsData.customersLastMonth || 0)
+        );
+        const jobsGrowth = calculateGrowth(
+          Number(metricsData.jobsThisMonth || 0), 
+          Number(metricsData.jobsLastMonth || 0)
+        );
 
         setMetrics({
-          totalBookings,
-          totalRevenue,
-          avgBookingValue,
-          completedBookings,
+          totalBookings: Number(metricsData.totalBookings || 0),
+          totalRevenue: Number(metricsData.totalRevenue || 0),
+          avgBookingValue: Number(metricsData.avgBookingValue || 0),
+          completedBookings: Number(metricsData.completedBookings || 0),
           revenueGrowth,
-          bookingsThisMonth,
+          bookingsThisMonth: Number(metricsData.bookingsThisMonth || 0),
           bookingsGrowth,
-          activeCustomers,
+          activeCustomers: Number(metricsData.activeCustomers || 0),
           customersGrowth,
-          completedJobs: jobsThisMonth,
+          completedJobs: Number(metricsData.jobsThisMonth || 0),
           jobsGrowth,
-          pendingBookings,
-          activeWorkers,
-          averageRating,
-          totalReviews
+          pendingBookings: Number(metricsData.pendingBookings || 0),
+          activeWorkers: Number(metricsData.activeWorkers || 0),
+          averageRating: Number(metricsData.averageRating || 0),
+          totalReviews: Number(metricsData.totalReviews || 0)
         });
       } catch (error) {
         console.error('Error fetching metrics:', error);
