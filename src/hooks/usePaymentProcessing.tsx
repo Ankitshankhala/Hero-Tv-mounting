@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { withTimeout, PAYMENT_INTENT_TIMEOUT, PaymentTimeoutError } from '@/utils/paymentTimeout';
 
 interface PaymentResult {
   success: boolean;
@@ -18,9 +19,13 @@ export const usePaymentProcessing = () => {
     setProcessing(true);
     
     try {
-      const { data, error } = await supabase.functions.invoke('verify-payment-session', {
-        body: { sessionId }
-      });
+      const { data, error } = await withTimeout(
+        supabase.functions.invoke('verify-payment-session', {
+          body: { sessionId }
+        }),
+        PAYMENT_INTENT_TIMEOUT,
+        'verify-payment-session'
+      );
 
       if (error) {
         throw new Error(error.message);
@@ -44,7 +49,9 @@ export const usePaymentProcessing = () => {
       };
 
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Payment verification failed';
+      const errorMessage = error instanceof PaymentTimeoutError 
+        ? 'Payment verification is taking longer than expected. Please try again.'
+        : error instanceof Error ? error.message : 'Payment verification failed';
       console.error('Payment verification error:', error);
       
       return {
@@ -60,12 +67,18 @@ export const usePaymentProcessing = () => {
     setProcessing(true);
     
     try {
-      const { data, error } = await supabase.functions.invoke('handle-payment-success', {
-        body: { 
-          payment_intent_id: paymentIntentId,
-          booking_id: bookingId
-        }
-      });
+      const { data, error } = await withTimeout(
+        supabase.functions.invoke('unified-payment-verification', {
+          body: { 
+            paymentIntentId: paymentIntentId,
+            bookingId: bookingId,
+            verificationType: 'intent',
+            syncStatuses: true
+          }
+        }),
+        PAYMENT_INTENT_TIMEOUT,
+        'unified-payment-verification'
+      );
 
       if (error) {
         throw new Error(error.message);
@@ -82,11 +95,13 @@ export const usePaymentProcessing = () => {
 
       return {
         success: true,
-        transactionId: data.transaction_id
+        transactionId: data.transactionId
       };
 
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Payment verification failed';
+      const errorMessage = error instanceof PaymentTimeoutError
+        ? 'Payment processing is taking longer than expected. Please try again.'
+        : error instanceof Error ? error.message : 'Payment verification failed';
       console.error('Payment success handler error:', error);
       
       return {
@@ -102,12 +117,18 @@ export const usePaymentProcessing = () => {
     setProcessing(true);
     
     try {
-      const { data, error } = await supabase.functions.invoke('verify-payment-intent', {
-        body: { 
-          payment_intent_id: paymentIntentId,
-          booking_id: bookingId
-        }
-      });
+      const { data, error } = await withTimeout(
+        supabase.functions.invoke('unified-payment-verification', {
+          body: { 
+            paymentIntentId: paymentIntentId,
+            bookingId: bookingId,
+            verificationType: 'intent',
+            syncStatuses: true
+          }
+        }),
+        PAYMENT_INTENT_TIMEOUT,
+        'unified-payment-verification'
+      );
 
       if (error) {
         throw new Error(error.message);
@@ -115,10 +136,10 @@ export const usePaymentProcessing = () => {
 
       if (!data?.success) {
         // Handle requires_capture status for authorization flows
-        if (data?.requires_capture) {
+        if (data?.requiresCapture) {
           return {
             success: true,
-            transactionId: data.transaction_id,
+            transactionId: data.transactionId,
             requiresCapture: true
           };
         }
@@ -132,11 +153,13 @@ export const usePaymentProcessing = () => {
 
       return {
         success: true,
-        transactionId: data.transaction_id
+        transactionId: data.transactionId
       };
 
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Payment verification failed';
+      const errorMessage = error instanceof PaymentTimeoutError
+        ? 'Payment verification is taking longer than expected. Please try again.'
+        : error instanceof Error ? error.message : 'Payment intent verification failed';
       console.error('Payment intent verification error:', error);
       
       return {
@@ -152,9 +175,13 @@ export const usePaymentProcessing = () => {
     setProcessing(true);
     
     try {
-      const { data, error } = await supabase.functions.invoke('process-online-payment', {
-        body: paymentData
-      });
+      const { data, error } = await withTimeout(
+        supabase.functions.invoke('process-online-payment', {
+          body: paymentData
+        }),
+        PAYMENT_INTENT_TIMEOUT,
+        'process-online-payment'
+      );
 
       if (error) {
         throw new Error(error.message);
@@ -175,7 +202,9 @@ export const usePaymentProcessing = () => {
       };
 
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Online payment failed';
+      const errorMessage = error instanceof PaymentTimeoutError
+        ? 'Payment is taking longer than expected. Please try again.'
+        : error instanceof Error ? error.message : 'Online payment failed';
       console.error('Online payment error:', error);
       
       toast({

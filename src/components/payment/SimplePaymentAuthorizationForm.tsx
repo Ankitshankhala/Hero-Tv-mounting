@@ -6,6 +6,7 @@ import { Shield, Lock, CreditCard, Info, AlertTriangle, RefreshCw } from 'lucide
 import { useAuth } from '@/hooks/useAuth';
 import { StripeCardElement, StripeCardElementRef } from '@/components/StripeCardElement';
 import { supabase } from '@/integrations/supabase/client';
+import { withTimeout, PAYMENT_INTENT_TIMEOUT, CARD_CONFIRMATION_TIMEOUT } from '@/utils/paymentTimeout';
 
 interface SimplePaymentAuthorizationFormProps {
   amount: number;
@@ -178,20 +179,24 @@ export const SimplePaymentAuthorizationForm = ({
       const uniqueIdempotencyKey = `${crypto.randomUUID()}-attempt-${attemptNumber}`;
       console.log('Generated idempotency key:', uniqueIdempotencyKey);
       
-      const { data: intentData, error: intentError } = await supabase.functions.invoke(
-        'create-payment-intent',
-        {
-          body: {
-            amount, // Pass amount in dollars, edge function will convert to cents
-            currency: 'usd',
-            idempotency_key: uniqueIdempotencyKey,
-            user_id: user?.id || null,
-            booking_id: bookingId,
-            customer_email: customerEmail,
-            customer_name: customerName,
-            testing_mode: process.env.NODE_ENV === 'development',
-          },
-        }
+      const { data: intentData, error: intentError } = await withTimeout(
+        supabase.functions.invoke(
+          'create-payment-intent',
+          {
+            body: {
+              amount, // Pass amount in dollars, edge function will convert to cents
+              currency: 'usd',
+              idempotency_key: uniqueIdempotencyKey,
+              user_id: user?.id || null,
+              booking_id: bookingId,
+              customer_email: customerEmail,
+              customer_name: customerName,
+              testing_mode: process.env.NODE_ENV === 'development',
+            },
+          }
+        ),
+        PAYMENT_INTENT_TIMEOUT,
+        'create-payment-intent'
       );
 
       if (intentError || !intentData?.client_secret) {
@@ -203,15 +208,19 @@ export const SimplePaymentAuthorizationForm = ({
       // Confirm payment intent to authorize the card with 3D Secure support
       console.log('Confirming card payment with 3D Secure support...');
       
-      const confirmResult = await stripe.confirmCardPayment(intentData.client_secret, {
-        payment_method: {
-          card: cardElement,
-          billing_details: {
-            name: customerName,
-            email: customerEmail,
+      const confirmResult: any = await withTimeout(
+        stripe.confirmCardPayment(intentData.client_secret, {
+          payment_method: {
+            card: cardElement,
+            billing_details: {
+              name: customerName,
+              email: customerEmail,
+            },
           },
-        },
-      });
+        }),
+        CARD_CONFIRMATION_TIMEOUT,
+        'confirmCardPayment'
+      );
 
       if (confirmResult.error) {
         console.error('Payment confirmation error:', confirmResult.error);
@@ -241,33 +250,39 @@ export const SimplePaymentAuthorizationForm = ({
       if (paymentIntent?.status === 'requires_capture' || paymentIntent?.status === 'succeeded') {
         console.log('✅ Payment authorized successfully!');
         
-        // Update transaction and booking status after successful authorization
+        // Verify and sync payment status using unified-payment-verification
         try {
-          console.log('Updating transaction status for payment intent:', intentData.payment_intent_id);
+          console.log('Verifying payment for intent:', intentData.payment_intent_id);
           
-          const { data: updateData, error: updateError } = await supabase.functions.invoke(
-            'update-transaction-status',
-            {
-              body: {
-                payment_intent_id: intentData.payment_intent_id,
-                status: 'requires_capture' // This will map to 'authorized' in the function
+          const { data: verifyData, error: verifyError } = await withTimeout(
+            supabase.functions.invoke(
+              'unified-payment-verification',
+              {
+                body: {
+                  paymentIntentId: intentData.payment_intent_id,
+                  bookingId: bookingId,
+                  verificationType: 'intent',
+                  syncStatuses: true,
+                }
               }
-            }
+            ),
+            PAYMENT_INTENT_TIMEOUT,
+            'unified-payment-verification'
           );
           
-          if (updateError) {
-            console.error('Transaction status update failed:', updateError);
+          if (verifyError) {
+            console.warn('Verification warning (continuing):', verifyError);
           } else {
-            console.log('Transaction and booking status updated successfully:', updateData);
+            console.log('Payment verified and synced successfully:', verifyData);
           }
           
           console.log('Payment authorization flow completed successfully');
           onAuthorizationSuccess(intentData.payment_intent_id);
         } catch (error) {
-          console.error('Error updating transaction status:', error);
+          console.error('Error verifying payment:', error);
           
           // Since payment is authorized in Stripe, we should still succeed
-          console.warn('Transaction update error, but payment authorized. Proceeding with success.');
+          console.warn('Verification error, but payment authorized. Proceeding with success.');
           onAuthorizationSuccess(intentData.payment_intent_id);
         }
       } else {
@@ -276,8 +291,10 @@ export const SimplePaymentAuthorizationForm = ({
         setFormError(error);
         onAuthorizationFailure(error);
       }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Payment authorization failed';
+    } catch (error: any) {
+      const errorMessage = error.name === 'PaymentTimeoutError'
+        ? 'Payment is taking longer than expected. Please check your connection and try again.'
+        : error instanceof Error ? error.message : 'Payment authorization failed';
       console.error('Payment authorization error:', error);
       setFormError(errorMessage);
       onAuthorizationFailure(errorMessage);
