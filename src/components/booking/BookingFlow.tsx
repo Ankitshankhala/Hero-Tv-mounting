@@ -56,7 +56,7 @@ export const BookingFlow = ({ onClose, initialServices = [] }: BookingFlowProps)
     try {
       // Create booking with payment_pending status
       console.log('Creating booking with payment_pending status...');
-      const createdBookingId = await createInitialBooking(services, updatedFormData);
+      const createdBookingId = await createInitialBooking(services, updatedFormData, null, undefined);
       setBookingId(createdBookingId);
       console.log('✅ Booking created successfully with ID:', createdBookingId);
       
@@ -78,7 +78,7 @@ export const BookingFlow = ({ onClose, initialServices = [] }: BookingFlowProps)
   const handleContinueToPayment = async () => {
     try {
       console.log('🚀 Creating booking and proceeding to payment...');
-      const createdBookingId = await createInitialBooking(services, formData);
+      const createdBookingId = await createInitialBooking(services, formData, null, undefined);
       setBookingId(createdBookingId);
       
       // Reset the trigger and move to payment step

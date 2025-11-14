@@ -202,7 +202,12 @@ export const EnhancedInlineBookingFlow = ({
         return;
       }
       
-      const createdBookingId = await createInitialBooking(services, formData);
+      const createdBookingId = await createInitialBooking(
+        services, 
+        formData,
+        appliedCoupon,
+        subtotalBeforeDiscount
+      );
       
       if (!createdBookingId) {
         throw new Error('No booking ID returned from booking creation');
@@ -307,7 +312,12 @@ export const EnhancedInlineBookingFlow = ({
       return;
     }
     try {
-      const createdId = await createInitialBooking(services, formData);
+      const createdId = await createInitialBooking(
+        services, 
+        formData,
+        appliedCoupon,
+        subtotalBeforeDiscount
+      );
       if (createdId) {
         setBookingId(createdId);
         setHasCreatedBooking(true);
@@ -484,6 +494,35 @@ export const EnhancedInlineBookingFlow = ({
               {/* Step 5: Payment Authorization */}
               {currentStep === 5 && (
                 <div className="space-y-6">
+                  {/* Price Summary */}
+                  <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-6 space-y-3">
+                    <h4 className="text-lg font-semibold text-white mb-4">Order Summary</h4>
+                    
+                    <div className="flex justify-between text-slate-300">
+                      <span>Subtotal:</span>
+                      <span>${subtotalBeforeDiscount.toFixed(2)}</span>
+                    </div>
+                    
+                    {appliedCoupon && (
+                      <div className="flex justify-between text-green-400 font-medium">
+                        <span>Coupon ({appliedCoupon.code}):</span>
+                        <span>-${appliedCoupon.discountAmount.toFixed(2)}</span>
+                      </div>
+                    )}
+                    
+                    {formData.tipAmount > 0 && (
+                      <div className="flex justify-between text-slate-300">
+                        <span>Tip:</span>
+                        <span>${formData.tipAmount.toFixed(2)}</span>
+                      </div>
+                    )}
+                    
+                    <div className="border-t border-slate-600 pt-3 flex justify-between text-xl font-bold text-white">
+                      <span>Total:</span>
+                      <span>${(getTotalPrice() + (formData.tipAmount || 0)).toFixed(2)}</span>
+                    </div>
+                  </div>
+
                   <div className="text-center">
                     <h3 className="text-2xl font-bold text-white mb-2">Payment Authorization</h3>
                     <p className="text-slate-300">Authorize payment - you'll only be charged after service completion</p>
@@ -545,7 +584,23 @@ export const EnhancedInlineBookingFlow = ({
                 </Button>
                 
                 <div className="flex space-x-3">
-                  {currentStep === 3 && (
+                {currentStep === 3 && (
+                  <>
+                    <div className="flex flex-col items-end space-y-1 mr-4">
+                      {appliedCoupon && (
+                        <>
+                          <div className="text-sm text-slate-300">
+                            Subtotal: <span className="line-through">${subtotalBeforeDiscount.toFixed(2)}</span>
+                          </div>
+                          <div className="text-sm text-green-400 font-medium">
+                            Discount ({appliedCoupon.code}): -${appliedCoupon.discountAmount.toFixed(2)}
+                          </div>
+                        </>
+                      )}
+                      <div className="text-lg font-bold text-white">
+                        Total: ${getTotalPrice().toFixed(2)}
+                      </div>
+                    </div>
                     <Button
                       type="button"
                       onClick={handleScheduleToPayment}
@@ -554,7 +609,8 @@ export const EnhancedInlineBookingFlow = ({
                     >
                       {loading ? 'Creating Booking...' : 'Continue to Tip & Payment'}
                     </Button>
-                  )}
+                  </>
+                )}
                   
                   {currentStep === 4 && (
                     <Button
