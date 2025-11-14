@@ -237,6 +237,9 @@ export type Database = {
           archived_at: string | null
           cancellation_deadline: string | null
           confirmation_email_sent: boolean | null
+          coupon_code: string | null
+          coupon_discount: number | null
+          coupon_id: string | null
           created_at: string | null
           customer_id: string | null
           guest_customer_info: Json | null
@@ -263,6 +266,7 @@ export type Database = {
           status: Database["public"]["Enums"]["booking_status"] | null
           stripe_customer_id: string | null
           stripe_payment_method_id: string | null
+          subtotal_before_discount: number | null
           tip_amount: number | null
           updated_at: string | null
           worker_assignment_email_sent: boolean
@@ -272,6 +276,9 @@ export type Database = {
           archived_at?: string | null
           cancellation_deadline?: string | null
           confirmation_email_sent?: boolean | null
+          coupon_code?: string | null
+          coupon_discount?: number | null
+          coupon_id?: string | null
           created_at?: string | null
           customer_id?: string | null
           guest_customer_info?: Json | null
@@ -298,6 +305,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["booking_status"] | null
           stripe_customer_id?: string | null
           stripe_payment_method_id?: string | null
+          subtotal_before_discount?: number | null
           tip_amount?: number | null
           updated_at?: string | null
           worker_assignment_email_sent?: boolean
@@ -307,6 +315,9 @@ export type Database = {
           archived_at?: string | null
           cancellation_deadline?: string | null
           confirmation_email_sent?: boolean | null
+          coupon_code?: string | null
+          coupon_discount?: number | null
+          coupon_id?: string | null
           created_at?: string | null
           customer_id?: string | null
           guest_customer_info?: Json | null
@@ -333,12 +344,20 @@ export type Database = {
           status?: Database["public"]["Enums"]["booking_status"] | null
           stripe_customer_id?: string | null
           stripe_payment_method_id?: string | null
+          subtotal_before_discount?: number | null
           tip_amount?: number | null
           updated_at?: string | null
           worker_assignment_email_sent?: boolean
           worker_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "bookings_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "bookings_customer_id_fkey"
             columns: ["customer_id"]
@@ -368,6 +387,209 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      coupon_audit_log: {
+        Row: {
+          action: string
+          changed_by: string | null
+          changes: Json | null
+          coupon_id: string
+          created_at: string | null
+          id: string
+        }
+        Insert: {
+          action: string
+          changed_by?: string | null
+          changes?: Json | null
+          coupon_id: string
+          created_at?: string | null
+          id?: string
+        }
+        Update: {
+          action?: string
+          changed_by?: string | null
+          changes?: Json | null
+          coupon_id?: string
+          created_at?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupon_audit_log_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coupon_services: {
+        Row: {
+          coupon_id: string
+          created_at: string | null
+          id: string
+          service_id: string
+        }
+        Insert: {
+          coupon_id: string
+          created_at?: string | null
+          id?: string
+          service_id: string
+        }
+        Update: {
+          coupon_id?: string
+          created_at?: string | null
+          id?: string
+          service_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupon_services_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupon_services_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coupon_usage: {
+        Row: {
+          booking_id: string | null
+          coupon_id: string
+          customer_email: string
+          discount_amount: number
+          id: string
+          ip_address: string | null
+          order_total: number
+          used_at: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          booking_id?: string | null
+          coupon_id: string
+          customer_email: string
+          discount_amount: number
+          id?: string
+          ip_address?: string | null
+          order_total: number
+          used_at?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          booking_id?: string | null
+          coupon_id?: string
+          customer_email?: string
+          discount_amount?: number
+          id?: string
+          ip_address?: string | null
+          order_total?: number
+          used_at?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupon_usage_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupon_usage_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_booking_payment_status_monitor"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupon_usage_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_booking_status_inconsistencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupon_usage_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_missing_transactions"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "coupon_usage_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coupons: {
+        Row: {
+          city_restrictions: string[] | null
+          code: string
+          created_at: string | null
+          created_by: string | null
+          discount_type: string
+          discount_value: number
+          id: string
+          is_active: boolean
+          max_discount_amount: number | null
+          min_order_amount: number | null
+          updated_at: string | null
+          usage_count: number
+          usage_limit_per_customer: number
+          usage_limit_total: number | null
+          valid_from: string
+          valid_until: string
+        }
+        Insert: {
+          city_restrictions?: string[] | null
+          code: string
+          created_at?: string | null
+          created_by?: string | null
+          discount_type: string
+          discount_value: number
+          id?: string
+          is_active?: boolean
+          max_discount_amount?: number | null
+          min_order_amount?: number | null
+          updated_at?: string | null
+          usage_count?: number
+          usage_limit_per_customer?: number
+          usage_limit_total?: number | null
+          valid_from?: string
+          valid_until: string
+        }
+        Update: {
+          city_restrictions?: string[] | null
+          code?: string
+          created_at?: string | null
+          created_by?: string | null
+          discount_type?: string
+          discount_value?: number
+          id?: string
+          is_active?: boolean
+          max_discount_amount?: number | null
+          min_order_amount?: number | null
+          updated_at?: string | null
+          usage_count?: number
+          usage_limit_per_customer?: number
+          usage_limit_total?: number | null
+          valid_from?: string
+          valid_until?: string
+        }
+        Relationships: []
       }
       email_logs: {
         Row: {
@@ -2843,6 +3065,22 @@ export type Database = {
         Returns: number
       }
       insert_zcta_batch: { Args: { batch_data: Json }; Returns: number }
+      is_coupon_valid: {
+        Args: {
+          p_cart_total: number
+          p_city: string
+          p_code: string
+          p_customer_email: string
+          p_service_ids: string[]
+          p_user_id: string
+        }
+        Returns: {
+          coupon_id: string
+          discount_amount: number
+          error_message: string
+          valid: boolean
+        }[]
+      }
       is_sms_enabled: { Args: never; Returns: boolean }
       load_sample_zipcode_data: { Args: never; Returns: Json }
       load_zcta_polygons_batch: { Args: { batch_data: Json }; Returns: Json }
