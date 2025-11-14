@@ -20,6 +20,7 @@ import { StepHeader } from '@/components/booking/StepHeader';
 import { StepCelebration } from '@/components/booking/StepCelebration';
 import { HeroMascot } from '@/components/booking/HeroMascot';
 import { disableBodyScroll, enableBodyScroll } from '@/utils/bodyScrollLock';
+import { CouponSection } from '@/components/checkout/CouponSection';
 
 interface ServiceItem {
   id: string;
@@ -78,13 +79,32 @@ export const EnhancedInlineBookingFlow = ({
     isStep2Valid,
     isStep3Valid,
     validateMinimumCart,
-    user
+    user,
+    appliedCoupon,
+    setAppliedCoupon,
+    subtotalBeforeDiscount
   } = useBookingFlowState(selectedServices);
 
   const { toast } = useToast();
   
   // State to track if booking has been created in this session
   const [hasCreatedBooking, setHasCreatedBooking] = useState(false);
+  
+  // Coupon handlers
+  const handleCouponApplied = (code: string, discount: number, id: string) => {
+    setAppliedCoupon({ code, discountAmount: discount, couponId: id });
+    toast({
+      title: "Coupon Applied! 🎉",
+      description: `You saved $${discount.toFixed(2)}`,
+    });
+  };
+
+  const handleCouponRemoved = () => {
+    setAppliedCoupon(null);
+    toast({
+      title: "Coupon Removed",
+    });
+  };
   
   // Check for existing booking in session storage on component mount
   useState(() => {
@@ -408,11 +428,30 @@ export const EnhancedInlineBookingFlow = ({
 
               {/* Step 2: Contact & Location */}
               {currentStep === 2 && (
-                <ContactLocationStep
-                  formData={formData}
-                  setFormData={setFormData}
-                  handleZipcodeChange={handleZipcodeChange}
-                />
+                <div className="space-y-6">
+                  <ContactLocationStep
+                    formData={formData}
+                    setFormData={setFormData}
+                    handleZipcodeChange={handleZipcodeChange}
+                  />
+                  
+                  {/* Coupon Section - Show after email and zipcode are entered */}
+                  {formData.customerEmail && formData.zipcode && (
+                    <div className="animate-fade-in">
+                      <CouponSection
+                        cartTotal={subtotalBeforeDiscount}
+                        customerEmail={formData.customerEmail}
+                        userId={user?.id}
+                        zipcode={formData.zipcode}
+                        city={formData.city || ''}
+                        serviceIds={services.map(s => s.id)}
+                        onCouponApplied={handleCouponApplied}
+                        onCouponRemoved={handleCouponRemoved}
+                        appliedCoupon={appliedCoupon || undefined}
+                      />
+                    </div>
+                  )}
+                </div>
               )}
 
               {/* Step 3: Schedule */}

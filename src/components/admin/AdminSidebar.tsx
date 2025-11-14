@@ -63,11 +63,18 @@ export const AdminSidebar = ({ activeTab, onTabChange }: AdminSidebarProps) => {
     {
       label: 'Financial',
       items: [
-        { id: 'payments', label: 'Payments', icon: CreditCard, tourAttr: 'admin-payments' },
-        { id: 'invoices', label: 'Invoices', icon: FileText },
-        { id: 'tips', label: 'Tips Analytics', icon: DollarSign },
-        { id: 'payroll', label: 'Worker Payroll', icon: Wallet },
-        { id: 'coupons', label: 'Coupons', icon: Tag },
+      {
+        id: 'payments', label: 'Payments', icon: CreditCard, tourAttr: 'admin-payments'
+      },
+      {
+        id: 'invoices', label: 'Invoices', icon: FileText
+      },
+      {
+        id: 'tips', label: 'Tips Analytics', icon: DollarSign
+      },
+      {
+        id: 'payroll', label: 'Worker Payroll', icon: Wallet
+      },
       ]
     },
     {
