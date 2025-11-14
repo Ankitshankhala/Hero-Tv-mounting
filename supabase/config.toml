@@ -91,3 +91,6 @@ verify_jwt = false
 
 [functions.delete-transactions]
 verify_jwt = true
+
+[functions.validate-coupon]
+verify_jwt = false
