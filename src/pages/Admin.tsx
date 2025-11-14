@@ -32,6 +32,7 @@ const LazyEmailLogsManager = lazy(() => import('@/components/admin/EmailLogsMana
 const LazyNotificationsSettings = lazy(() => import('@/components/admin/NotificationsSettings').then(m => ({ default: m.NotificationsSettings })));
 const LazyTipAnalyticsDashboard = lazy(() => import('@/components/admin/TipAnalyticsDashboard').then(m => ({ default: m.TipAnalyticsDashboard })));
 const LazyWorkerWeeklyPayments = lazy(() => import('@/components/admin/WorkerWeeklyPayments').then(m => ({ default: m.WorkerWeeklyPayments })));
+const LazyCouponsManager = lazy(() => import('@/components/admin/CouponsManager').then(m => ({ default: m.CouponsManager })));
 
 
 // Loading component for lazy-loaded components
@@ -148,6 +149,8 @@ const Admin = () => {
             </div>
           </Suspense>
         );
+      case 'coupons':
+        return wrapWithSuspense(LazyCouponsManager);
       case 'sms':
         return wrapWithSuspense(LazySMSLogsManager);
       case 'email':

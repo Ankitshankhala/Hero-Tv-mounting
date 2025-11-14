@@ -70,6 +70,9 @@ export const AdminSidebar = ({ activeTab, onTabChange }: AdminSidebarProps) => {
         id: 'invoices', label: 'Invoices', icon: FileText
       },
       {
+        id: 'coupons', label: 'Coupons', icon: Tag
+      },
+      {
         id: 'tips', label: 'Tips Analytics', icon: DollarSign
       },
       {
