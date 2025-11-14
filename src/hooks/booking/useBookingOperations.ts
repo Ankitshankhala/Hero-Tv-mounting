@@ -25,6 +25,10 @@ export interface UnauthenticatedBookingData {
   location_notes?: string;
   total_price: number;
   duration_minutes: number;
+  coupon_code?: string;
+  coupon_discount?: number;
+  coupon_id?: string;
+  subtotal_before_discount?: number;
 }
 
 export interface AdminBookingData {
@@ -268,13 +272,18 @@ export const useBookingOperations = () => {
         service_id: primaryServiceId,
         scheduled_date: format(formData.selectedDate!, 'yyyy-MM-dd'),
         scheduled_start: formData.selectedTime,
-        location_notes: `${formData.address}${formData.houseNumber ? `\nUnit: ${formData.houseNumber}` : ''}${formData.apartmentName ? `\nApartment: ${formData.apartmentName}` : ''}\nContact: ${formData.customerName}\nPhone: ${formData.customerPhone}\nEmail: ${formData.customerEmail}\nZIP: ${formData.zipcode}${formData.tipAmount > 0 ? `\nTip: $${formData.tipAmount.toFixed(2)}` : ''}\nSpecial Instructions: ${formData.specialInstructions}`,
+        location_notes: `${formData.address}${formData.houseNumber ? `\nUnit: ${formData.houseNumber}` : ''}${formData.apartmentName ? `\nApartment: ${formData.apartmentName}` : ''}\nContact: ${formData.customerName}\nPhone: ${formData.customerPhone}\nEmail: ${formData.customerEmail}\nZIP: ${formData.zipcode}${formData.tipAmount > 0 ? `\nTip: $${formData.tipAmount.toFixed(2)}` : ''}${(formData as any).appliedCoupon ? `\nCoupon: ${(formData as any).appliedCoupon.code} (-$${(formData as any).appliedCoupon.discountAmount})` : ''}\nSpecial Instructions: ${formData.specialInstructions}`,
         status: 'payment_pending' as const,
         payment_status: 'pending',
         requires_manual_payment: false,
         preferred_worker_id: (formData as any).preferredWorkerId || null,
         reserved_worker_id: reservedWorker.worker_id, // NEW: Reserve worker
         reservation_expires_at: reservationExpiry.toISOString(), // NEW: 15-min expiry
+        // Coupon data
+        coupon_code: (formData as any).appliedCoupon?.code || null,
+        coupon_discount: (formData as any).appliedCoupon?.discountAmount || null,
+        coupon_id: (formData as any).appliedCoupon?.couponId || null,
+        subtotal_before_discount: (formData as any).appliedCoupon ? (formData as any).subtotalBeforeDiscount : null,
         guest_customer_info: !user ? {
           email: formData.customerEmail,
           name: formData.customerName,

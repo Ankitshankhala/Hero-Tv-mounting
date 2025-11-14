@@ -23,6 +23,13 @@ export const useBookingFormState = (selectedServices: ServiceItem[] = []) => {
     specialInstructions: '',
     tipAmount: 0
   });
+  
+  // Coupon state management
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    discountAmount: number;
+    couponId: string;
+  } | null>(null);
 
   // Update services when props change
   useEffect(() => {
@@ -49,10 +56,16 @@ export const useBookingFormState = (selectedServices: ServiceItem[] = []) => {
     }, 0);
   }, [services, isTestingMode]);
 
-  const getTotalPrice = () => serviceTotal;
+  const getTotalPrice = () => {
+    // Apply discount if coupon is applied
+    const discountedTotal = appliedCoupon ? serviceTotal - appliedCoupon.discountAmount : serviceTotal;
+    return Math.max(0, discountedTotal);
+  };
 
   const getTotalWithTip = () => {
-    return serviceTotal + (formData.tipAmount || 0);
+    const discountedSubtotal = appliedCoupon ? serviceTotal - appliedCoupon.discountAmount : serviceTotal;
+    const subtotal = Math.max(0, discountedSubtotal);
+    return subtotal + (formData.tipAmount || 0);
   };
 
   // Memoized derived values
@@ -89,6 +102,9 @@ export const useBookingFormState = (selectedServices: ServiceItem[] = []) => {
     isStep1Valid,
     isStep2Valid,
     isStep3Valid,
-    MINIMUM_BOOKING_AMOUNT
+    MINIMUM_BOOKING_AMOUNT,
+    appliedCoupon,
+    setAppliedCoupon,
+    subtotalBeforeDiscount: serviceTotal
   };
 };
