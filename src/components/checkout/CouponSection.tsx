@@ -134,7 +134,7 @@ export const CouponSection = ({
             placeholder="Enter coupon code"
             value={couponCode}
             onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-            className="flex-1 font-mono uppercase"
+            className="flex-1 font-mono uppercase text-foreground placeholder:text-muted-foreground"
             disabled={validating}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
