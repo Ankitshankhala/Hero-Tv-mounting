@@ -7,6 +7,7 @@ import { ReviewsSection } from '@/components/ReviewsSection';
 import { Cart } from '@/components/Cart';
 import { EnhancedInlineBookingFlow } from '@/components/EnhancedInlineBookingFlow';
 import { TestingModeIndicator } from '@/components/TestingModeIndicator';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { SEO } from '@/components/SEO';
 import { getCityBySlug } from '@/data/cities';
 import { CartItem } from '@/types';
@@ -260,7 +261,30 @@ const CityPage = () => {
         </div>
       </section>
 
-      <ServicesSection onAddToCart={addToCart} />
+      <ErrorBoundary
+        fallback={
+          <section className="py-20 bg-gradient-to-b from-slate-900 to-slate-800 min-h-[800px]">
+            <div className="container mx-auto px-4">
+              <div className="text-center mb-16">
+                <h2 className="text-4xl font-bold text-white mb-4">Our Services</h2>
+                <div className="max-w-2xl mx-auto">
+                  <div className="bg-red-900/20 border-2 border-red-500/50 rounded-xl p-8 text-center backdrop-blur-sm">
+                    <p className="text-red-200 mb-4">Something went wrong loading our services.</p>
+                    <button 
+                      onClick={() => window.location.reload()}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg transition-all"
+                    >
+                      Reload Page
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        }
+      >
+        <ServicesSection onAddToCart={addToCart} />
+      </ErrorBoundary>
       <ReviewsSection />
 
       <Footer />
