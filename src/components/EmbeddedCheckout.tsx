@@ -13,6 +13,7 @@ import { ServiceLocationSection } from './checkout/ServiceLocationSection';
 import { ScheduleSection } from './checkout/ScheduleSection';
 import { SpecialInstructionsSection } from './checkout/SpecialInstructionsSection';
 import { CheckoutActions } from './checkout/CheckoutActions';
+import { CouponSection } from './checkout/CouponSection';
 
 interface EmbeddedCheckoutProps {
   cart: CartItem[];
@@ -44,6 +45,7 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
   const [cityState, setCityState] = useState('');
   const [hasServiceCoverage, setHasServiceCoverage] = useState(false);
   const [zipcodeWorkerCount, setZipcodeWorkerCount] = useState(0);
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discountAmount: number; couponId: string } | null>(null);
   const { toast } = useToast();
   const { createUnauthenticatedBooking } = useBookingOperations();
 
@@ -231,6 +233,8 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
     setIsProcessing(true);
 
     try {
+      const finalTotal = appliedCoupon ? total - appliedCoupon.discountAmount : total;
+      
       const bookingData = {
         customer_name: formData.name,
         customer_email: formData.email,
@@ -243,8 +247,12 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
         scheduled_date: formData.date,
         scheduled_start: formData.time,
         location_notes: `${formData.address}${formData.houseNumber ? `\nUnit: ${formData.houseNumber}` : ''}${formData.apartmentName ? `\nApartment: ${formData.apartmentName}` : ''}\n\nServices: ${cart.map(item => `${item.name} (${item.quantity}x)`).join(', ')}\n\nSpecial Instructions: ${formData.specialInstructions}`,
-        total_price: total,
-        duration_minutes: calculateTotalDuration()
+        total_price: finalTotal,
+        duration_minutes: calculateTotalDuration(),
+        coupon_code: appliedCoupon?.code,
+        coupon_discount: appliedCoupon?.discountAmount,
+        coupon_id: appliedCoupon?.couponId,
+        subtotal_before_discount: appliedCoupon ? total : null
       };
 
       const result = await createUnauthenticatedBooking(bookingData);
@@ -284,6 +292,17 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
         <div className="overflow-y-auto max-h-[calc(95vh-120px)]">
           <form onSubmit={handleSubmit} className="p-8 space-y-8">
             <ServiceSummary cart={cart} total={total} />
+
+            <CouponSection
+              cartTotal={total}
+              customerEmail={formData.email}
+              zipcode={formData.zipcode}
+              city={cityState}
+              serviceIds={cart.map(item => item.id)}
+              onCouponApplied={(code, discount, id) => setAppliedCoupon({ code, discountAmount: discount, couponId: id })}
+              onCouponRemoved={() => setAppliedCoupon(null)}
+              appliedCoupon={appliedCoupon}
+            />
 
             <ContactInfoSection
               formData={formData}
@@ -329,6 +348,7 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
               selectedDate={selectedDate}
               formData={formData}
               total={total}
+              appliedCoupon={appliedCoupon}
               onSubmit={handleSubmit}
               onClose={onClose}
             />

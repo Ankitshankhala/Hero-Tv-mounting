@@ -14,7 +14,8 @@ import {
   Mail,
   Database,
   DollarSign,
-  Wallet
+  Wallet,
+  Tag
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import {
@@ -66,6 +67,7 @@ export const AdminSidebar = ({ activeTab, onTabChange }: AdminSidebarProps) => {
         { id: 'invoices', label: 'Invoices', icon: FileText },
         { id: 'tips', label: 'Tips Analytics', icon: DollarSign },
         { id: 'payroll', label: 'Worker Payroll', icon: Wallet },
+        { id: 'coupons', label: 'Coupons', icon: Tag },
       ]
     },
     {
