@@ -162,11 +162,26 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
 
       if (error) {
         console.error('Error adding services:', error);
-        throw new Error('Failed to add services and update payment authorization');
+        toast({
+          title: "Failed to Add Services",
+          description: error.message || 'An unexpected error occurred while adding services. Please try again.',
+          variant: "destructive",
+        });
+        setProcessing(false);
+        return;
       }
 
       if (!data?.success) {
-        throw new Error(data?.error || 'Failed to add services and update payment authorization');
+        const errorMessage = data?.error || 'Failed to add services and update payment authorization';
+        const errorCode = data?.error_code || 'UNKNOWN';
+        
+        toast({
+          title: "Service Addition Failed",
+          description: `${errorMessage} (Code: ${errorCode})`,
+          variant: "destructive",
+        });
+        setProcessing(false);
+        return;
       }
 
       // Check if card doesn't support increment and requires new payment
@@ -198,12 +213,14 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
         });
 
         if (captureError || !captureData?.success) {
+          const errorMsg = captureData?.error || captureError?.message || 'Payment capture failed';
           toast({
-            title: "Services Added",
-            description: "Services added but payment capture failed. Job not completed. Use the Charge button to retry.",
+            title: "Services Added, Payment Capture Failed",
+            description: `${errorMsg}. Services were added successfully, but payment was not captured. Use the "Charge" button on the job card to complete payment.`,
             variant: "destructive",
           });
           setCart([]);
+          setProcessing(false);
           onClose();
           onServicesAdded?.();
           return;
@@ -218,11 +235,12 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
         if (updateError) {
           console.error('Error marking job complete:', updateError);
           toast({
-            title: "Payment Captured",
-            description: "Payment captured but failed to mark job complete. Please use 'Mark Complete' button.",
+            title: "Payment Captured Successfully",
+            description: `Payment of $${captureData.amount_captured.toFixed(2)} was captured, but couldn't mark job as complete. Please manually update the job status in the dashboard.`,
             variant: "destructive",
           });
           setCart([]);
+          setProcessing(false);
           onClose();
           onServicesAdded?.();
           return;
@@ -246,13 +264,13 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
 
         // Complete success!
         toast({
-          title: "Job Completed & Payment Captured",
-          description: `Added ${cart.length} service(s) and charged full amount of $${data.new_amount.toFixed(2)}`,
+          title: "✓ Job Completed Successfully",
+          description: `Added ${cart.length} service(s), captured payment of $${data.new_amount.toFixed(2)}, and marked job complete.`,
         });
       } else {
         toast({
-          title: "Job Completed",
-          description: `Added ${cart.length} service(s) and marked job complete`,
+          title: "✓ Services Added",
+          description: `Successfully added ${cart.length} service(s) to the booking.`,
         });
       }
 
@@ -264,11 +282,30 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
         onServicesAdded();
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding services and charging:', error);
+      
+      let errorTitle = "Service Addition Failed";
+      let errorDescription = "An unexpected error occurred while adding services. Please try again.";
+      
+      // Parse structured errors
+      if (error.error_code) {
+        errorTitle = `Error: ${error.error_code}`;
+        errorDescription = error.error || error.details || errorDescription;
+      } else if (error instanceof Error) {
+        errorDescription = error.message;
+      }
+      
+      // Provide actionable guidance based on error
+      if (error.message?.includes('payment')) {
+        errorDescription += " Please verify the payment method is valid.";
+      } else if (error.message?.includes('booking')) {
+        errorDescription += " Please refresh the page and try again.";
+      }
+      
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to add services",
+        title: errorTitle,
+        description: errorDescription,
         variant: "destructive",
       });
     } finally {
@@ -278,14 +315,15 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
 
   const handlePaymentSuccess = () => {
     toast({
-      title: "Payment Successful",
-      description: `Successfully charged $${paymentData?.amount.toFixed(2)} for additional services`,
+      title: "✓ Payment Authorized Successfully",
+      description: `Successfully authorized $${paymentData?.amount.toFixed(2)} for additional services. Payment will be captured when the job is completed.`,
     });
 
     // Reset everything and close modal
     setCart([]);
     setShowPaymentForm(false);
     setPaymentData(null);
+    setProcessing(false);
     onClose();
     
     if (onServicesAdded) {
