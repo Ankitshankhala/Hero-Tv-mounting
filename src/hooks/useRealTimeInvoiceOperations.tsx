@@ -203,7 +203,7 @@ export const useRealTimeInvoiceOperations = (bookingId: string | null) => {
             bookingId,
             { id: serviceData.id, name: serviceData.name, quantity: newQuantity },
             duration,
-            user?.id
+            workerId
           );
 
           toast({
@@ -256,7 +256,7 @@ export const useRealTimeInvoiceOperations = (bookingId: string | null) => {
           bookingId,
           { id: serviceData.id, name: serviceData.name, quantity: serviceData.quantity || 1 },
           duration,
-          user?.id
+          workerId
         );
 
         toast({
@@ -276,7 +276,7 @@ export const useRealTimeInvoiceOperations = (bookingId: string | null) => {
           { id: serviceData.id, name: serviceData.name, quantity: serviceData.quantity || 1 },
           { code: error.code, message: error.message, details: error },
           duration,
-          user?.id
+          workerId
         );
         
         // Remove optimistic service
@@ -330,7 +330,7 @@ export const useRealTimeInvoiceOperations = (bookingId: string | null) => {
             serviceToUpdate.service_name,
             true,
             duration,
-            user?.id
+            workerId
           );
         }
 
@@ -353,7 +353,7 @@ export const useRealTimeInvoiceOperations = (bookingId: string | null) => {
             serviceToUpdate.service_name,
             false,
             duration,
-            user?.id,
+            workerId,
             { code: error.code, message: error.message }
           );
         }
@@ -414,7 +414,7 @@ export const useRealTimeInvoiceOperations = (bookingId: string | null) => {
           serviceToRemove.service_name,
           true,
           duration,
-          user?.id
+          workerId
         );
 
         toast({
@@ -435,7 +435,7 @@ export const useRealTimeInvoiceOperations = (bookingId: string | null) => {
           serviceToRemove.service_name,
           false,
           duration,
-          user?.id,
+          workerId,
           { code: error.code, message: error.message }
         );
         
