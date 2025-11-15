@@ -21,7 +21,7 @@ import type { Database } from '@/integrations/supabase/types';
 import { SEO } from '@/components/SEO';
 import { TourProvider } from '@/contexts/TourContext';
 import { TourManager } from '@/components/tour/TourManager';
-import { VALID_WORKER_BOOKING_STATUSES } from '@/constants/bookingStatuses';
+import { VALID_WORKER_BOOKING_STATUSES, EXCLUDED_PAYMENT_STATUSES } from '@/constants/bookingStatuses';
 
 type BookingStatus = Database['public']['Enums']['booking_status'];
 const WorkerDashboard = () => {
@@ -64,9 +64,10 @@ const WorkerDashboard = () => {
         }
         if (existingJobIndex >= 0) {
           // Check if updated booking still has valid status for workers
-          if (!VALID_WORKER_BOOKING_STATUSES.includes(updatedBooking.status)) {
+          if (!VALID_WORKER_BOOKING_STATUSES.includes(updatedBooking.status) ||
+              EXCLUDED_PAYMENT_STATUSES.includes(updatedBooking.payment_status)) {
             // Status changed to invalid state - remove from worker's view
-            console.log('Job status changed to invalid state, removing from list:', updatedBooking.status);
+            console.log('Job status/payment invalid, removing from list:', updatedBooking.status, updatedBooking.payment_status);
             return currentJobs.filter(job => job.id !== updatedBooking.id);
           }
           
@@ -125,10 +126,13 @@ const WorkerDashboard = () => {
   // Clean up any invalid job statuses that might be in state
   useEffect(() => {
     if (!loading && jobs.length > 0) {
-      const filteredJobs = jobs.filter(job => VALID_WORKER_BOOKING_STATUSES.includes(job.status));
+      const filteredJobs = jobs.filter(job => 
+        VALID_WORKER_BOOKING_STATUSES.includes(job.status) &&
+        !EXCLUDED_PAYMENT_STATUSES.includes(job.payment_status)
+      );
       
       if (filteredJobs.length !== jobs.length) {
-        console.log('Cleaning up invalid job statuses from state');
+        console.log('Cleaning up invalid job statuses/payments from state');
         setJobs(filteredJobs);
       }
     }
@@ -203,7 +207,7 @@ const WorkerDashboard = () => {
           *,
           customer:users!customer_id(name, phone),
           service:services!service_id(name, description, base_price, duration_minutes)
-        `).eq('worker_id', user.id).in('status', ['confirmed', 'completed', 'payment_authorized']).order('updated_at', {
+        `).eq('worker_id', user.id).in('status', ['confirmed', 'completed', 'payment_authorized']).not('payment_status', 'in', '(pending,payment_pending)').order('updated_at', {
         ascending: false
       }).order('scheduled_date', {
         ascending: true

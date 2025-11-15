@@ -25,7 +25,7 @@ import { useRealtimeBookings } from '@/hooks/useRealtimeBookings';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
-import { VALID_WORKER_BOOKING_STATUSES } from '@/constants/bookingStatuses';
+import { VALID_WORKER_BOOKING_STATUSES, EXCLUDED_PAYMENT_STATUSES } from '@/constants/bookingStatuses';
 
 type BookingStatus = Database['public']['Enums']['booking_status'];
 
@@ -63,9 +63,10 @@ export function WorkerDashboardWithSidebar() {
         
         if (existingJobIndex >= 0) {
           // Check if updated booking still has valid status for workers
-          if (!VALID_WORKER_BOOKING_STATUSES.includes(updatedBooking.status)) {
+          if (!VALID_WORKER_BOOKING_STATUSES.includes(updatedBooking.status) ||
+              EXCLUDED_PAYMENT_STATUSES.includes(updatedBooking.payment_status)) {
             // Status changed to invalid state - remove from worker's view
-            console.log('Job status changed to invalid state, removing from list:', updatedBooking.status);
+            console.log('Job status/payment invalid, removing from list:', updatedBooking.status, updatedBooking.payment_status);
             return currentJobs.filter(job => job.id !== updatedBooking.id);
           }
           
@@ -98,10 +99,13 @@ export function WorkerDashboardWithSidebar() {
   // Clean up any invalid job statuses that might be in state
   useEffect(() => {
     if (!loading && jobs.length > 0) {
-      const filteredJobs = jobs.filter(job => VALID_WORKER_BOOKING_STATUSES.includes(job.status));
+      const filteredJobs = jobs.filter(job => 
+        VALID_WORKER_BOOKING_STATUSES.includes(job.status) &&
+        !EXCLUDED_PAYMENT_STATUSES.includes(job.payment_status)
+      );
       
       if (filteredJobs.length !== jobs.length) {
-        console.log('Cleaning up invalid job statuses from state');
+        console.log('Cleaning up invalid job statuses/payments from state');
         setJobs(filteredJobs);
       }
     }
@@ -162,6 +166,8 @@ export function WorkerDashboardWithSidebar() {
           )
         `)
         .eq('worker_id', user.id)
+        .in('status', ['confirmed', 'completed', 'payment_authorized'])
+        .not('payment_status', 'in', '(pending,payment_pending)')
         .order('scheduled_date', { ascending: true });
 
       if (error) {
