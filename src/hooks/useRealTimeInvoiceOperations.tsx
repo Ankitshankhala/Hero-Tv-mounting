@@ -3,6 +3,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { calculateServiceLinePrice, calculateBookingTotal } from '@/utils/pricing';
 import { useOperationQueue } from './useOperationQueue';
+import { ServiceValidator } from '@/utils/serviceValidation';
 
 interface BookingService {
   id: string;
@@ -111,6 +112,23 @@ export const useRealTimeInvoiceOperations = (bookingId: string | null) => {
       toast({
         title: "Error",
         description: "No booking ID provided. Cannot add service.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // PHASE 3: Comprehensive pre-insertion validation
+    const validationResult = await ServiceValidator.validateServiceAddition(
+      bookingId,
+      serviceData,
+      false // Don't skip duplicate check
+    );
+
+    if (!validationResult.valid) {
+      const errorMessage = ServiceValidator.formatErrors(validationResult.errors || []);
+      toast({
+        title: "Validation Failed",
+        description: errorMessage,
         variant: "destructive",
       });
       return;
