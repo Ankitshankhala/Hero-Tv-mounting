@@ -216,10 +216,36 @@ serve(async (req) => {
 
   } catch (error: any) {
     console.error('[ADD-BOOKING-SERVICES] Error:', error);
+    
+    // Provide specific error messages
+    let errorMessage = 'Failed to add services';
+    let errorCode = 'UNKNOWN_ERROR';
+    
+    if (error.message?.includes('Booking not found')) {
+      errorMessage = 'Booking not found. Please refresh the page and try again.';
+      errorCode = 'BOOKING_NOT_FOUND';
+    } else if (error.message?.includes('no payment intent')) {
+      errorMessage = 'No payment method on file. Please contact support.';
+      errorCode = 'NO_PAYMENT_INTENT';
+    } else if (error.message?.includes('Payment authorization failed')) {
+      errorMessage = 'Payment authorization failed. Please check your payment method and try again.';
+      errorCode = 'PAYMENT_AUTH_FAILED';
+    } else if (error.message?.includes('Stripe')) {
+      errorMessage = 'Payment processing error. Please try again or contact support.';
+      errorCode = 'STRIPE_ERROR';
+    } else if (error.message?.includes('duplicate')) {
+      errorMessage = 'One or more services have already been added to this booking.';
+      errorCode = 'DUPLICATE_SERVICE';
+    } else {
+      errorMessage = error.message || errorMessage;
+    }
+    
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message || 'Failed to add services'
+        error: errorMessage,
+        error_code: errorCode,
+        details: error.message
       }),
       { 
         status: 400,

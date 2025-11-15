@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { calculateServiceLinePrice, calculateBookingTotal } from '@/utils/pricing';
+import { useOperationQueue } from './useOperationQueue';
 
 interface BookingService {
   id: string;
@@ -10,13 +11,21 @@ interface BookingService {
   base_price: number;
   quantity: number;
   configuration: any;
+  booking_id?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+interface OptimisticService extends BookingService {
+  isOptimistic?: boolean;
 }
 
 export const useRealTimeInvoiceOperations = (bookingId: string | null) => {
-  const [services, setServices] = useState<BookingService[]>([]);
+  const [services, setServices] = useState<OptimisticService[]>([]);
   const [loading, setLoading] = useState(false);
   const [totalPrice, setTotalPrice] = useState(0);
   const { toast } = useToast();
+  const { enqueue, isProcessing: queueProcessing } = useOperationQueue();
 
   // Fetch services
   const fetchServices = async () => {
@@ -98,119 +107,227 @@ export const useRealTimeInvoiceOperations = (bookingId: string | null) => {
   };
 
   const addService = async (serviceData: any) => {
-    if (!bookingId) return;
+    if (!bookingId) {
+      toast({
+        title: "Error",
+        description: "No booking ID provided. Cannot add service.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    try {
-      // Check if service already exists with same configuration (idempotency)
-      const configString = JSON.stringify(serviceData.configuration || {});
-      const { data: existingService } = await supabase
-        .from('booking_services')
-        .select('*')
-        .eq('booking_id', bookingId)
-        .eq('service_id', serviceData.id)
-        .eq('configuration', configString)
-        .maybeSingle();
+    // Generate optimistic ID
+    const optimisticId = `optimistic-${Date.now()}-${Math.random()}`;
+    
+    // Add service optimistically to UI
+    const optimisticService: OptimisticService = {
+      id: optimisticId,
+      booking_id: bookingId,
+      service_id: serviceData.id,
+      service_name: serviceData.name,
+      base_price: serviceData.base_price,
+      quantity: serviceData.quantity || 1,
+      configuration: serviceData.configuration || {},
+      isOptimistic: true,
+    };
 
-      if (existingService) {
-        // Service already exists - update quantity instead
-        const newQuantity = existingService.quantity + (serviceData.quantity || 1);
+    setServices(prev => [...prev, optimisticService]);
+
+    // Queue the actual database operation
+    return enqueue(async () => {
+      try {
+        // Check if service already exists with same configuration (idempotency)
+        const configString = JSON.stringify(serviceData.configuration || {});
+        const { data: existingService } = await supabase
+          .from('booking_services')
+          .select('*')
+          .eq('booking_id', bookingId)
+          .eq('service_id', serviceData.id)
+          .eq('configuration', configString)
+          .maybeSingle();
+
+        if (existingService) {
+          // Service already exists - update quantity instead
+          const newQuantity = existingService.quantity + (serviceData.quantity || 1);
+          const { data, error } = await supabase
+            .from('booking_services')
+            .update({ quantity: newQuantity })
+            .eq('id', existingService.id)
+            .select()
+            .single();
+
+          if (error) {
+            // Remove optimistic service on error
+            setServices(prev => prev.filter(s => s.id !== optimisticId));
+            throw new Error(`Failed to update service quantity: ${error.message}`);
+          }
+
+          // Replace optimistic with real service
+          setServices(prev => 
+            prev.map(s => s.id === optimisticId ? { ...data, isOptimistic: false } : s)
+          );
+
+          toast({
+            title: "Service Updated",
+            description: `${serviceData.name} quantity increased to ${newQuantity}`,
+          });
+
+          return data;
+        }
+
+        // Insert new service
+        const bookingService = {
+          booking_id: bookingId,
+          service_id: serviceData.id,
+          service_name: serviceData.name,
+          base_price: serviceData.base_price,
+          quantity: serviceData.quantity || 1,
+          configuration: serviceData.configuration || {}
+        };
+
         const { data, error } = await supabase
           .from('booking_services')
-          .update({ quantity: newQuantity })
-          .eq('id', existingService.id)
+          .insert(bookingService)
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {
+          // Remove optimistic service on error
+          setServices(prev => prev.filter(s => s.id !== optimisticId));
+          
+          // Provide specific error message
+          if (error.code === '23505') { // Unique violation
+            throw new Error('This service has already been added to the booking.');
+          } else if (error.code === '23503') { // Foreign key violation
+            throw new Error('Invalid service or booking ID. Please refresh and try again.');
+          } else {
+            throw new Error(`Database error: ${error.message}`);
+          }
+        }
+
+        // Replace optimistic with real service
+        setServices(prev => 
+          prev.map(s => s.id === optimisticId ? { ...data, isOptimistic: false } : s)
+        );
 
         toast({
-          title: "Service Updated",
-          description: `${serviceData.name} quantity updated to ${newQuantity}`,
+          title: "Service Added Successfully",
+          description: `${serviceData.name} has been added to the booking`,
         });
 
         return data;
+      } catch (error: any) {
+        console.error('Error adding service:', error);
+        
+        // Remove optimistic service
+        setServices(prev => prev.filter(s => s.id !== optimisticId));
+        
+        toast({
+          title: "Failed to Add Service",
+          description: error.message || "An unexpected error occurred. Please try again.",
+          variant: "destructive",
+        });
+        throw error;
       }
-
-      // Insert new service
-      const bookingService = {
-        booking_id: bookingId,
-        service_id: serviceData.id,
-        service_name: serviceData.name,
-        base_price: serviceData.base_price,
-        quantity: serviceData.quantity || 1,
-        configuration: serviceData.configuration || {}
-      };
-
-      const { data, error } = await supabase
-        .from('booking_services')
-        .insert(bookingService)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      toast({
-        title: "Service Added",
-        description: `${serviceData.name} added to booking`,
-      });
-
-      return data;
-    } catch (error) {
-      console.error('Error adding service:', error);
-      toast({
-        title: "Error",
-        description: "Failed to add service",
-        variant: "destructive",
-      });
-      throw error;
-    }
+    }, `Add ${serviceData.name}`);
   };
 
   const updateService = async (serviceId: string, updates: Partial<BookingService>) => {
-    try {
-      const { error } = await supabase
-        .from('booking_services')
-        .update(updates)
-        .eq('id', serviceId);
+    // Update optimistically
+    setServices(prev => 
+      prev.map(s => s.id === serviceId ? { ...s, ...updates } : s)
+    );
 
-      if (error) throw error;
+    return enqueue(async () => {
+      try {
+        const { error } = await supabase
+          .from('booking_services')
+          .update(updates)
+          .eq('id', serviceId);
 
-      return true;
-    } catch (error) {
-      console.error('Error updating service:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update service",
-        variant: "destructive",
-      });
-      throw error;
-    }
+        if (error) {
+          // Revert optimistic update
+          await fetchServices();
+          
+          if (error.code === '23505') {
+            throw new Error('This update would create a duplicate service.');
+          } else if (error.code === '42501') {
+            throw new Error('You do not have permission to update this service.');
+          } else {
+            throw new Error(`Update failed: ${error.message}`);
+          }
+        }
+
+        toast({
+          title: "Service Updated",
+          description: "Service details have been updated successfully",
+        });
+
+        return true;
+      } catch (error: any) {
+        console.error('Error updating service:', error);
+        toast({
+          title: "Update Failed",
+          description: error.message || "Failed to update service. Please try again.",
+          variant: "destructive",
+        });
+        throw error;
+      }
+    }, 'Update service');
   };
 
   const removeService = async (serviceId: string) => {
-    try {
-      const { error } = await supabase
-        .from('booking_services')
-        .delete()
-        .eq('id', serviceId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Service Removed",
-        description: "Service removed from booking",
-      });
-
-      return true;
-    } catch (error) {
-      console.error('Error removing service:', error);
+    // Store service for potential rollback
+    const serviceToRemove = services.find(s => s.id === serviceId);
+    
+    if (!serviceToRemove) {
       toast({
         title: "Error",
-        description: "Failed to remove service",
+        description: "Service not found",
         variant: "destructive",
       });
-      throw error;
+      return false;
     }
+
+    // Remove optimistically
+    setServices(prev => prev.filter(s => s.id !== serviceId));
+
+    return enqueue(async () => {
+      try {
+        const { error } = await supabase
+          .from('booking_services')
+          .delete()
+          .eq('id', serviceId);
+
+        if (error) {
+          // Rollback optimistic removal
+          setServices(prev => [...prev, serviceToRemove]);
+          
+          if (error.code === '42501') {
+            throw new Error('You do not have permission to remove this service.');
+          } else if (error.code === '23503') {
+            throw new Error('This service cannot be removed because it is referenced by other records.');
+          } else {
+            throw new Error(`Removal failed: ${error.message}`);
+          }
+        }
+
+        toast({
+          title: "Service Removed",
+          description: `${serviceToRemove.service_name} has been removed from the booking`,
+        });
+
+        return true;
+      } catch (error: any) {
+        console.error('Error removing service:', error);
+        toast({
+          title: "Removal Failed",
+          description: error.message || "Failed to remove service. Please try again.",
+          variant: "destructive",
+        });
+        throw error;
+      }
+    }, `Remove ${serviceToRemove.service_name}`);
   };
 
   const processModificationPayment = async (paymentMethodId?: string) => {
@@ -252,13 +369,14 @@ export const useRealTimeInvoiceOperations = (bookingId: string | null) => {
 
   return {
     services,
-    loading,
+    loading: loading || queueProcessing,
     totalPrice,
     calculateServicePrice,
     addService,
     updateService,
     removeService,
     processModificationPayment,
-    refetch: fetchServices
+    refetch: fetchServices,
+    isQueueProcessing: queueProcessing,
   };
 };
