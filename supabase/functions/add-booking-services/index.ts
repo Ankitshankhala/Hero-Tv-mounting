@@ -72,14 +72,18 @@ serve(async (req) => {
       configuration: s.configuration || {}
     }));
 
-    const { error: insertError } = await supabase
+    const { data: insertedServices, error: insertError } = await supabase
       .from('booking_services')
-      .insert(servicesData);
+      .insert(servicesData)
+      .select('id');
 
     if (insertError) {
       console.error('[ADD-BOOKING-SERVICES] Insert error:', insertError);
       throw new Error('Failed to add services to booking');
     }
+
+    // Store inserted IDs for potential rollback
+    const insertedServiceIds = insertedServices?.map(s => s.id) || [];
 
     // Try incremental authorization
     let incremented = false;
@@ -143,6 +147,20 @@ serve(async (req) => {
     } catch (error: any) {
       console.error('[ADD-BOOKING-SERVICES] Increment failed:', error.message);
       incrementError = error.message;
+      
+      // CRITICAL: Payment authorization failed - rollback inserted services
+      if (!error.message?.includes('increment') && error.code !== 'payment_intent_increment_authorization_not_allowed') {
+        console.log('[ADD-BOOKING-SERVICES] Rolling back inserted services due to payment failure');
+        
+        if (insertedServiceIds.length > 0) {
+          await supabase
+            .from('booking_services')
+            .delete()
+            .in('id', insertedServiceIds);
+        }
+        
+        throw new Error(`Payment authorization failed: ${error.message}`);
+      }
       
       // Check if card doesn't support increment
       if (error.message?.includes('increment') || error.code === 'payment_intent_increment_authorization_not_allowed') {
