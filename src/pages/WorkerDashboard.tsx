@@ -21,6 +21,8 @@ import type { Database } from '@/integrations/supabase/types';
 import { SEO } from '@/components/SEO';
 import { TourProvider } from '@/contexts/TourContext';
 import { TourManager } from '@/components/tour/TourManager';
+import { VALID_WORKER_BOOKING_STATUSES } from '@/constants/bookingStatuses';
+
 type BookingStatus = Database['public']['Enums']['booking_status'];
 const WorkerDashboard = () => {
   const [jobs, setJobs] = useState([]);
@@ -61,6 +63,13 @@ const WorkerDashboard = () => {
           return currentJobs;
         }
         if (existingJobIndex >= 0) {
+          // Check if updated booking still has valid status for workers
+          if (!VALID_WORKER_BOOKING_STATUSES.includes(updatedBooking.status)) {
+            // Status changed to invalid state - remove from worker's view
+            console.log('Job status changed to invalid state, removing from list:', updatedBooking.status);
+            return currentJobs.filter(job => job.id !== updatedBooking.id);
+          }
+          
           // Update existing job
           const updatedJobs = [...currentJobs];
           const updatedJob = {
@@ -112,6 +121,18 @@ const WorkerDashboard = () => {
     fetchWorkerJobs();
     fetchTotalTips();
   }, [user, profile, authLoading]);
+
+  // Clean up any invalid job statuses that might be in state
+  useEffect(() => {
+    if (!loading && jobs.length > 0) {
+      const filteredJobs = jobs.filter(job => VALID_WORKER_BOOKING_STATUSES.includes(job.status));
+      
+      if (filteredJobs.length !== jobs.length) {
+        console.log('Cleaning up invalid job statuses from state');
+        setJobs(filteredJobs);
+      }
+    }
+  }, [jobs, loading]);
 
   const fetchTotalTips = async () => {
     if (!user) return;
