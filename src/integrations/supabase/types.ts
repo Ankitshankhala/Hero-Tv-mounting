@@ -1092,6 +1092,96 @@ export type Database = {
         }
         Relationships: []
       }
+      service_operation_logs: {
+        Row: {
+          booking_id: string | null
+          client_info: Json | null
+          created_at: string | null
+          duration_ms: number | null
+          error_code: string | null
+          error_details: Json | null
+          error_message: string | null
+          id: string
+          operation_type: string
+          quantity: number | null
+          retry_count: number | null
+          service_id: string | null
+          service_name: string | null
+          status: string
+          worker_id: string | null
+        }
+        Insert: {
+          booking_id?: string | null
+          client_info?: Json | null
+          created_at?: string | null
+          duration_ms?: number | null
+          error_code?: string | null
+          error_details?: Json | null
+          error_message?: string | null
+          id?: string
+          operation_type: string
+          quantity?: number | null
+          retry_count?: number | null
+          service_id?: string | null
+          service_name?: string | null
+          status: string
+          worker_id?: string | null
+        }
+        Update: {
+          booking_id?: string | null
+          client_info?: Json | null
+          created_at?: string | null
+          duration_ms?: number | null
+          error_code?: string | null
+          error_details?: Json | null
+          error_message?: string | null
+          id?: string
+          operation_type?: string
+          quantity?: number | null
+          retry_count?: number | null
+          service_id?: string | null
+          service_name?: string | null
+          status?: string
+          worker_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_operation_logs_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_operation_logs_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_booking_payment_status_monitor"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_operation_logs_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_booking_status_inconsistencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_operation_logs_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_missing_transactions"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "service_operation_logs_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       services: {
         Row: {
           base_price: number | null
@@ -2192,6 +2282,19 @@ export type Database = {
           issue?: never
           payment_intent_id?: string | null
           payment_status?: string | null
+        }
+        Relationships: []
+      }
+      v_service_operation_analytics: {
+        Row: {
+          avg_duration_ms: number | null
+          operation_count: number | null
+          operation_type: string | null
+          operations_with_retries: number | null
+          status: string | null
+          time_bucket: string | null
+          unique_bookings: number | null
+          unique_workers: number | null
         }
         Relationships: []
       }

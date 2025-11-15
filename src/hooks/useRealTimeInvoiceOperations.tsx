@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { calculateServiceLinePrice, calculateBookingTotal } from '@/utils/pricing';
 import { useOperationQueue } from './useOperationQueue';
 import { ServiceValidator } from '@/utils/serviceValidation';
+import { useServiceOperationTracking } from './useServiceOperationTracking';
 
 interface BookingService {
   id: string;
@@ -25,8 +26,17 @@ export const useRealTimeInvoiceOperations = (bookingId: string | null) => {
   const [services, setServices] = useState<OptimisticService[]>([]);
   const [loading, setLoading] = useState(false);
   const [totalPrice, setTotalPrice] = useState(0);
+  const [workerId, setWorkerId] = useState<string | undefined>();
   const { toast } = useToast();
   const { enqueue, isProcessing: queueProcessing } = useOperationQueue();
+  const { trackAddSuccess, trackAddFailure, trackUpdateOperation, trackRemoveOperation } = useServiceOperationTracking();
+
+  // Get current user ID
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setWorkerId(data.user?.id);
+    });
+  }, []);
 
   // Fetch services
   const fetchServices = async () => {
@@ -153,6 +163,7 @@ export const useRealTimeInvoiceOperations = (bookingId: string | null) => {
 
     // Queue the actual database operation
     return enqueue(async () => {
+      const startTime = performance.now();
       try {
         // Check if service already exists with same configuration (idempotency)
         const configString = JSON.stringify(serviceData.configuration || {});
@@ -183,6 +194,16 @@ export const useRealTimeInvoiceOperations = (bookingId: string | null) => {
           // Replace optimistic with real service
           setServices(prev => 
             prev.map(s => s.id === optimisticId ? { ...data, isOptimistic: false } : s)
+          );
+
+          const duration = performance.now() - startTime;
+          
+          // Track successful operation
+          await trackAddSuccess(
+            bookingId,
+            { id: serviceData.id, name: serviceData.name, quantity: newQuantity },
+            duration,
+            user?.id
           );
 
           toast({
@@ -228,6 +249,16 @@ export const useRealTimeInvoiceOperations = (bookingId: string | null) => {
           prev.map(s => s.id === optimisticId ? { ...data, isOptimistic: false } : s)
         );
 
+        const duration = performance.now() - startTime;
+        
+        // Track successful operation
+        await trackAddSuccess(
+          bookingId,
+          { id: serviceData.id, name: serviceData.name, quantity: serviceData.quantity || 1 },
+          duration,
+          user?.id
+        );
+
         toast({
           title: "Service Added Successfully",
           description: `${serviceData.name} has been added to the booking`,
@@ -236,6 +267,17 @@ export const useRealTimeInvoiceOperations = (bookingId: string | null) => {
         return data;
       } catch (error: any) {
         console.error('Error adding service:', error);
+        
+        const duration = performance.now() - startTime;
+        
+        // Track failed operation
+        await trackAddFailure(
+          bookingId,
+          { id: serviceData.id, name: serviceData.name, quantity: serviceData.quantity || 1 },
+          { code: error.code, message: error.message, details: error },
+          duration,
+          user?.id
+        );
         
         // Remove optimistic service
         setServices(prev => prev.filter(s => s.id !== optimisticId));
@@ -252,11 +294,13 @@ export const useRealTimeInvoiceOperations = (bookingId: string | null) => {
 
   const updateService = async (serviceId: string, updates: Partial<BookingService>) => {
     // Update optimistically
+    const serviceToUpdate = services.find(s => s.id === serviceId);
     setServices(prev => 
       prev.map(s => s.id === serviceId ? { ...s, ...updates } : s)
     );
 
     return enqueue(async () => {
+      const startTime = performance.now();
       try {
         const { error } = await supabase
           .from('booking_services')
@@ -276,6 +320,20 @@ export const useRealTimeInvoiceOperations = (bookingId: string | null) => {
           }
         }
 
+        const duration = performance.now() - startTime;
+        
+        // Track successful update
+        if (serviceToUpdate) {
+          await trackUpdateOperation(
+            bookingId!,
+            serviceId,
+            serviceToUpdate.service_name,
+            true,
+            duration,
+            user?.id
+          );
+        }
+
         toast({
           title: "Service Updated",
           description: "Service details have been updated successfully",
@@ -284,6 +342,22 @@ export const useRealTimeInvoiceOperations = (bookingId: string | null) => {
         return true;
       } catch (error: any) {
         console.error('Error updating service:', error);
+        
+        const duration = performance.now() - startTime;
+        
+        // Track failed update
+        if (serviceToUpdate) {
+          await trackUpdateOperation(
+            bookingId!,
+            serviceId,
+            serviceToUpdate.service_name,
+            false,
+            duration,
+            user?.id,
+            { code: error.code, message: error.message }
+          );
+        }
+        
         toast({
           title: "Update Failed",
           description: error.message || "Failed to update service. Please try again.",
@@ -311,6 +385,7 @@ export const useRealTimeInvoiceOperations = (bookingId: string | null) => {
     setServices(prev => prev.filter(s => s.id !== serviceId));
 
     return enqueue(async () => {
+      const startTime = performance.now();
       try {
         const { error } = await supabase
           .from('booking_services')
@@ -330,6 +405,18 @@ export const useRealTimeInvoiceOperations = (bookingId: string | null) => {
           }
         }
 
+        const duration = performance.now() - startTime;
+        
+        // Track successful removal
+        await trackRemoveOperation(
+          bookingId!,
+          serviceId,
+          serviceToRemove.service_name,
+          true,
+          duration,
+          user?.id
+        );
+
         toast({
           title: "Service Removed",
           description: `${serviceToRemove.service_name} has been removed from the booking`,
@@ -338,6 +425,20 @@ export const useRealTimeInvoiceOperations = (bookingId: string | null) => {
         return true;
       } catch (error: any) {
         console.error('Error removing service:', error);
+        
+        const duration = performance.now() - startTime;
+        
+        // Track failed removal
+        await trackRemoveOperation(
+          bookingId!,
+          serviceId,
+          serviceToRemove.service_name,
+          false,
+          duration,
+          user?.id,
+          { code: error.code, message: error.message }
+        );
+        
         toast({
           title: "Removal Failed",
           description: error.message || "Failed to remove service. Please try again.",
