@@ -65,7 +65,7 @@ export const useRealTimeInvoiceOperations = (bookingId: string | null) => {
     }
   };
 
-  // Real-time subscription
+  // Real-time subscription with minimal debounce for faster updates
   useEffect(() => {
     if (!bookingId) return;
 
@@ -76,7 +76,7 @@ export const useRealTimeInvoiceOperations = (bookingId: string | null) => {
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
         fetchServices();
-      }, 300); // Wait 300ms after last update before fetching
+      }, 50); // Reduced to 50ms for faster UI updates
     };
 
     const channel = supabase
@@ -381,29 +381,27 @@ export const useRealTimeInvoiceOperations = (bookingId: string | null) => {
       return false;
     }
 
+    // Store original services for rollback
+    const originalServices = [...services];
+
     // Remove optimistically
     setServices(prev => prev.filter(s => s.id !== serviceId));
 
     return enqueue(async () => {
       const startTime = performance.now();
       try {
-        const { error } = await supabase
-          .from('booking_services')
-          .delete()
-          .eq('id', serviceId);
+        console.log('Removing service via edge function', { serviceId, serviceName: serviceToRemove.service_name });
 
-        if (error) {
-          // Rollback optimistic removal
-          setServices(prev => [...prev, serviceToRemove]);
-          
-          if (error.code === '42501') {
-            throw new Error('You do not have permission to remove this service.');
-          } else if (error.code === '23503') {
-            throw new Error('This service cannot be removed because it is referenced by other records.');
-          } else {
-            throw new Error(`Removal failed: ${error.message}`);
+        // Use edge function for consistent removal logic with refund handling
+        const { data, error } = await supabase.functions.invoke('worker-remove-services', {
+          body: {
+            booking_id: bookingId,
+            service_ids: [serviceId]
           }
-        }
+        });
+
+        if (error) throw error;
+        if (!data?.success) throw new Error(data?.error || 'Failed to remove service');
 
         const duration = performance.now() - startTime;
         
@@ -417,10 +415,15 @@ export const useRealTimeInvoiceOperations = (bookingId: string | null) => {
           workerId
         );
 
+        // Immediate refresh to bypass debounce and get updated state
+        await fetchServices();
+
         toast({
           title: "Service Removed",
-          description: `${serviceToRemove.service_name} has been removed from the booking`,
+          description: `${serviceToRemove.service_name} removed successfully${data.refund_amount > 0 ? `. Refund of $${data.refund_amount.toFixed(2)} processed.` : ''}`,
         });
+
+        console.log('Service removed successfully', { serviceId, refundAmount: data.refund_amount });
 
         return true;
       } catch (error: any) {
@@ -438,6 +441,9 @@ export const useRealTimeInvoiceOperations = (bookingId: string | null) => {
           workerId,
           { code: error.code, message: error.message }
         );
+
+        // Rollback optimistic removal
+        setServices(originalServices);
         
         toast({
           title: "Removal Failed",

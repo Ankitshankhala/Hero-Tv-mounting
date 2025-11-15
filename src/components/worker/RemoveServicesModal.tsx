@@ -137,7 +137,18 @@ export const RemoveServicesModal = ({
   }, [isOpen, job?.id, fetchBookingServices]);
 
   const removeService = async (serviceId: string) => {
+    const serviceToRemove = services.find(s => s.id === serviceId);
+    if (!serviceToRemove) return;
+
     setRemoving(true);
+    
+    // Store original state for rollback
+    const originalServices = [...services];
+    
+    // Optimistic update
+    const remainingServices = services.filter(service => service.id !== serviceId);
+    setServices(remainingServices);
+
     try {
       const { data, error } = await supabase.functions.invoke('worker-remove-services', {
         body: {
@@ -155,21 +166,22 @@ export const RemoveServicesModal = ({
         throw new Error(data.error || 'Failed to remove service');
       }
 
-      // Update local state
-      setServices(prev => prev.filter(service => service.id !== serviceId));
-
       toast({
         title: "Service Removed",
-        description: `Service removed successfully. ${data.refund_amount > 0 ? `Refund of $${data.refund_amount.toFixed(2)} processed.` : ''}`,
+        description: `${serviceToRemove.service_name} removed successfully. ${data.refund_amount > 0 ? `Refund of $${data.refund_amount.toFixed(2)} processed.` : ''}`,
       });
 
-      // If this was the last service, close modal and refresh
-      if (services.length === 1) {
+      // Check if this was the last service using the filtered array
+      if (remainingServices.length === 0) {
         onModificationCreated();
         onClose();
       }
     } catch (error) {
       console.error('Error removing service:', error);
+      
+      // Rollback optimistic update on error
+      setServices(originalServices);
+      
       toast({
         title: "Error",
         description: error.message || "Failed to remove service",

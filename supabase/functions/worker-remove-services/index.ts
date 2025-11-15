@@ -42,6 +42,37 @@ serve(async (req) => {
 
     console.log(`[WORKER-REMOVE] Processing removal request for booking ${booking_id}, services: ${service_ids.join(', ')}`);
 
+    // Idempotency check: verify services still exist
+    const { data: existingServices, error: checkError } = await supabaseService
+      .from('booking_services')
+      .select('id')
+      .eq('booking_id', booking_id)
+      .in('id', service_ids);
+
+    if (checkError) {
+      console.error("[WORKER-REMOVE] Error checking existing services:", checkError);
+      throw new Error("Failed to verify services");
+    }
+
+    // If no services found, they were already deleted - return success (idempotent)
+    if (!existingServices || existingServices.length === 0) {
+      console.log("[WORKER-REMOVE] Services already removed, returning success (idempotent)");
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: "Services already removed",
+          data: {
+            removed_services: 0,
+            service_names: [],
+            refund_amount: 0,
+            refund_id: null,
+            invoice_updated: false
+          }
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Verify worker has access to this booking using service role
     const { data: booking, error: bookingError } = await supabaseService
       .from('bookings')
@@ -93,9 +124,27 @@ serve(async (req) => {
       throw new Error("Cannot remove all services. At least one service must remain.");
     }
 
-    // Calculate total amount to refund
+    // Calculate total amount to refund including add-ons (TV mounting configuration)
+    const calculateServicePrice = (service: any) => {
+      let price = Number(service.base_price) || 0;
+      const config = service.configuration || {};
+
+      // Mount TV specific pricing with add-ons
+      if (service.service_name === 'Mount TV') {
+        if (config.over65) price += 50;
+        if (config.frameMount) price += 75;
+        if (config.wallType === 'steel' || config.wallType === 'brick' || config.wallType === 'concrete') {
+          price += 40;
+        }
+        if (config.soundbar) price += 30;
+      }
+
+      return price;
+    };
+
     const refundAmount = servicesToRemove.reduce((total, service) => {
-      return total + (service.base_price * service.quantity);
+      const servicePrice = calculateServicePrice(service);
+      return total + (servicePrice * service.quantity);
     }, 0);
 
     console.log(`[WORKER-REMOVE] Removing services worth $${refundAmount} from booking ${booking_id}`);
@@ -118,12 +167,20 @@ serve(async (req) => {
       .maybeSingle();
 
     if (invoice) {
-      // Remove invoice items for deleted services
-      await supabaseService
-        .from('invoice_items')
-        .delete()
-        .eq('invoice_id', invoice.id)
-        .in('service_name', servicesToRemove.map(s => s.service_name));
+      // Remove invoice items for deleted services - delete by exact match
+      for (const service of servicesToRemove) {
+        const servicePrice = calculateServicePrice(service);
+        const totalPrice = servicePrice * service.quantity;
+        
+        await supabaseService
+          .from('invoice_items')
+          .delete()
+          .eq('invoice_id', invoice.id)
+          .eq('service_name', service.service_name)
+          .eq('unit_price', servicePrice)
+          .eq('quantity', service.quantity)
+          .eq('total_price', totalPrice);
+      }
 
       // Recalculate invoice totals
       const { data: remainingItems } = await supabaseService
@@ -208,18 +265,23 @@ serve(async (req) => {
         const paymentIntent = await stripe.paymentIntents.retrieve(booking.payment_intent_id);
         
         if (paymentIntent.status === 'succeeded') {
-          // Phase 4: Check if already refunded
-          const { data: existingRefund } = await supabaseService
+          // Check total refunded amount to allow multiple partial refunds
+          const { data: existingRefunds } = await supabaseService
             .from('transactions')
-            .select('*')
+            .select('amount')
             .eq('booking_id', booking_id)
-            .eq('payment_intent_id', booking.payment_intent_id)
-            .eq('transaction_type', 'refund')
-            .maybeSingle();
+            .eq('transaction_type', 'refund');
 
-          if (existingRefund) {
-            console.error("[WORKER-REMOVE] Payment already refunded");
-            throw new Error("This booking has already been refunded");
+          const totalRefunded = existingRefunds?.reduce((sum, r) => sum + Math.abs(r.amount), 0) || 0;
+          const originalAmount = paymentIntent.amount / 100; // Convert from cents
+
+          if (totalRefunded + refundAmount > originalAmount) {
+            console.error("[WORKER-REMOVE] Refund would exceed original payment", {
+              totalRefunded,
+              requestedRefund: refundAmount,
+              originalAmount
+            });
+            throw new Error(`Cannot refund $${refundAmount.toFixed(2)}. Total refunds would exceed original payment of $${originalAmount.toFixed(2)}`);
           }
 
           // Payment already captured - create partial refund

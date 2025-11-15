@@ -281,20 +281,42 @@ export const EnhancedInvoiceModificationModal = ({
   };
 
   const removeService = async (serviceId: string) => {
+    const serviceToRemove = services.find(s => s.id === serviceId);
+    if (!serviceToRemove) return;
+
+    const originalServices = [...services];
+    
+    // Optimistic update
+    setServices(prev => prev.filter(service => service.id !== serviceId));
+
     try {
-      const { error } = await supabase
-        .from('booking_services')
-        .delete()
-        .eq('id', serviceId);
+      // Use edge function for consistent removal logic
+      const { data, error } = await supabase.functions.invoke('worker-remove-services', {
+        body: {
+          booking_id: job.id,
+          service_ids: [serviceId]
+        }
+      });
 
       if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Failed to remove service');
 
-      setServices(prev => prev.filter(service => service.id !== serviceId));
+      // Immediate refresh to get updated state
+      await fetchBookingServices();
+
+      toast({
+        title: "Service Removed",
+        description: `${serviceToRemove.service_name} removed successfully${data.refund_amount > 0 ? `. Refund of $${data.refund_amount.toFixed(2)} processed.` : ''}`,
+      });
     } catch (error) {
       console.error('Error removing service:', error);
+      
+      // Rollback optimistic update
+      setServices(originalServices);
+      
       toast({
         title: "Error",
-        description: "Failed to remove service",
+        description: error.message || "Failed to remove service",
         variant: "destructive",
       });
     }
