@@ -49,6 +49,16 @@ export const useRealTimeInvoiceOperations = (bookingId: string | null) => {
   useEffect(() => {
     if (!bookingId) return;
 
+    // Debounce mechanism to prevent rapid updates
+    let debounceTimer: NodeJS.Timeout;
+    
+    const debouncedFetch = () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        fetchServices();
+      }, 300); // Wait 300ms after last update before fetching
+    };
+
     const channel = supabase
       .channel('booking-services-realtime')
       .on(
@@ -61,12 +71,13 @@ export const useRealTimeInvoiceOperations = (bookingId: string | null) => {
         },
         (payload) => {
           console.log('Realtime update:', payload);
-          fetchServices();
+          debouncedFetch();
         }
       )
       .subscribe();
 
     return () => {
+      clearTimeout(debounceTimer);
       supabase.removeChannel(channel);
     };
   }, [bookingId]);
@@ -90,6 +101,37 @@ export const useRealTimeInvoiceOperations = (bookingId: string | null) => {
     if (!bookingId) return;
 
     try {
+      // Check if service already exists with same configuration (idempotency)
+      const configString = JSON.stringify(serviceData.configuration || {});
+      const { data: existingService } = await supabase
+        .from('booking_services')
+        .select('*')
+        .eq('booking_id', bookingId)
+        .eq('service_id', serviceData.id)
+        .eq('configuration', configString)
+        .maybeSingle();
+
+      if (existingService) {
+        // Service already exists - update quantity instead
+        const newQuantity = existingService.quantity + (serviceData.quantity || 1);
+        const { data, error } = await supabase
+          .from('booking_services')
+          .update({ quantity: newQuantity })
+          .eq('id', existingService.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        toast({
+          title: "Service Updated",
+          description: `${serviceData.name} quantity updated to ${newQuantity}`,
+        });
+
+        return data;
+      }
+
+      // Insert new service
       const bookingService = {
         booking_id: bookingId,
         service_id: serviceData.id,
