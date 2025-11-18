@@ -9,6 +9,27 @@ const corsHeaders = {
 
 const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
 
+// Format phone number to US format: +1 (XXX) XXX-XXXX
+const formatPhoneNumber = (phone: string | null | undefined): string => {
+  if (!phone) return 'N/A';
+  
+  // Remove all non-digit characters
+  const digitsOnly = phone.replace(/\D/g, '');
+  
+  // Handle 10-digit US numbers
+  if (digitsOnly.length === 10) {
+    return `+1 (${digitsOnly.slice(0, 3)}) ${digitsOnly.slice(3, 6)}-${digitsOnly.slice(6)}`;
+  }
+  
+  // Handle 11-digit numbers starting with 1
+  if (digitsOnly.length === 11 && digitsOnly.startsWith('1')) {
+    return `+1 (${digitsOnly.slice(1, 4)}) ${digitsOnly.slice(4, 7)}-${digitsOnly.slice(7)}`;
+  }
+  
+  // Return original if format doesn't match
+  return phone;
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -58,6 +79,7 @@ serve(async (req) => {
     // Extract worker information
     const workerName = booking.worker?.name || 'TBD';
     const workerPhone = booking.worker?.phone || 'N/A';
+    const formattedWorkerPhone = formatPhoneNumber(booking.worker?.phone);
     const workerEmail = booking.worker?.email || '';
 
     // Build service items list
@@ -125,6 +147,22 @@ serve(async (req) => {
         
         <p>Thank you for choosing Hero TV Mounting! Your booking has been confirmed.</p>
         
+        <div style="background: linear-gradient(135deg, #1a365d 0%, #2d5a8f 100%); padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center; color: white;">
+            <h3 style="margin: 0 0 10px 0; color: white;">📱 Contact Your Worker Directly</h3>
+            <p style="margin: 5px 0; font-size: 18px; font-weight: bold; color: white;">
+              ${workerName}
+            </p>
+            <a href="tel:${workerPhone}" 
+               style="display: inline-block; background: #48bb78; color: white; 
+                      padding: 12px 30px; margin: 10px 0; border-radius: 6px; 
+                      text-decoration: none; font-weight: bold; font-size: 16px;">
+              📞 Call ${formattedWorkerPhone}
+            </a>
+            <p style="margin: 10px 0 0 0; font-size: 14px; opacity: 0.9; color: white;">
+              Feel free to call or text with any questions
+            </p>
+        </div>
+        
         <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #1a365d;">
             <h3 style="color: #2d3748; margin-top: 0; margin-bottom: 10px;">Booking Details:</h3>
             <p style="margin: 5px 0;"><strong style="color: #2d3748;">Booking ID:</strong> ${booking.id}</p>
@@ -142,7 +180,7 @@ serve(async (req) => {
         <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #1a365d;">
             <h3 style="color: #2d3748; margin-top: 0; margin-bottom: 10px;">Your Assigned Worker:</h3>
             <p style="margin: 5px 0;"><strong style="color: #2d3748;">Name:</strong> ${workerName}</p>
-            <p style="margin: 5px 0;"><strong style="color: #2d3748;">Phone:</strong> <a href="tel:${workerPhone}" style="color: #1a365d; text-decoration: none; font-weight: bold;">${workerPhone}</a></p>
+            <p style="margin: 5px 0;"><strong style="color: #2d3748;">Mobile Number:</strong> <a href="tel:${workerPhone}" style="color: #1a365d; text-decoration: none; font-weight: bold;">${formattedWorkerPhone}</a></p>
             ${workerEmail ? `<p style="margin: 5px 0;"><strong style="color: #2d3748;">Email:</strong> ${workerEmail}</p>` : ''}
             <p style="margin: 15px 0 5px 0;"><strong style="color: #2d3748;">Location Notes:</strong> ${locationNotes}</p>
         </div>
