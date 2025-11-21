@@ -49,26 +49,70 @@ serve(async (req) => {
       throw new Error('Booking not found');
     }
 
-    // Get booking services total
+    // PHASE 3 SAFETY RAIL: Comprehensive booking integrity validation
+    console.log('[SAFETY-RAIL] Validating booking integrity before payment processing...');
     const { data: bookingServices, error: servicesError } = await supabase
       .from('booking_services')
       .select('base_price, quantity')
       .eq('booking_id', booking_id);
 
     if (servicesError) {
+      console.error('[SAFETY-RAIL] Error fetching booking services:', servicesError);
+      
+      // Log critical error to admin alerts
+      await supabase.from('admin_alerts').insert({
+        alert_type: 'payment_blocked_db_error',
+        severity: 'critical',
+        booking_id: booking_id,
+        message: 'Payment blocked: Database error fetching booking services',
+        details: { error: servicesError.message, timestamp: new Date().toISOString() }
+      });
+      
       throw new Error('Failed to fetch booking services');
     }
 
-    // PHASE 1 FIX: Prevent payment intent creation for corrupted bookings
+    // CRITICAL SAFETY RAIL: Block payment if no services exist
     if (!bookingServices || bookingServices.length === 0) {
-      console.error('❌ CRITICAL: Payment intent creation attempted for booking without services');
-      console.error('Booking ID:', booking_id);
+      console.error('❌ [SAFETY-RAIL] PAYMENT BLOCKED: No services found for booking:', booking_id);
+      
+      // Create multiple audit trails for this critical issue
+      await Promise.all([
+        // Admin alert for immediate attention
+        supabase.from('admin_alerts').insert({
+          alert_type: 'payment_blocked_no_services',
+          severity: 'critical',
+          booking_id: booking_id,
+          message: 'CRITICAL: Payment blocked - booking has no services',
+          details: {
+            bookingId: booking_id,
+            attemptedAmount: amount,
+            customerEmail: customer_email,
+            timestamp: new Date().toISOString(),
+            action: 'payment_intent_blocked'
+          }
+        }),
+        // Booking audit log for data integrity tracking
+        supabase.from('booking_audit_log').insert({
+          booking_id: booking_id,
+          operation: 'payment_blocked',
+          status: 'failed',
+          error_message: 'Payment intent creation blocked: No booking_services found',
+          details: {
+            attemptedAmount: amount,
+            customerEmail: customer_email,
+            reason: 'data_integrity_violation'
+          }
+        })
+      ]);
+      
       throw new Error(
-        'Cannot create payment intent: No services found for this booking. ' +
-        'This booking is corrupted and must be recreated with proper service data.'
+        'Cannot create payment intent: This booking has no associated services. ' +
+        'The booking appears to be corrupted and requires admin attention. ' +
+        'Please contact support for assistance.'
       );
     }
-    console.log('✅ Services validation passed:', bookingServices.length, 'services found');
+    
+    console.log('✅ [SAFETY-RAIL] Validation passed:', bookingServices.length, 'services found');
 
     // Calculate expected total (NO TAX, NO MARKUPS)
     const servicesTotal = (bookingServices || []).reduce((sum, service) => {
