@@ -32,6 +32,13 @@ Deno.serve(async (req) => {
     const services = bookingData.services || [];
     delete bookingData.services; // Remove from booking data before insert
 
+    // PHASE 1 FIX: Validate services array is not empty
+    if (!services || services.length === 0) {
+      console.error('❌ CRITICAL: Booking creation attempted without services array');
+      throw new Error('Services array is required and cannot be empty. This prevents tip calculation corruption.');
+    }
+    console.log('✅ Services validation passed:', services.length, 'services provided');
+
     // Validate required fields
     if (!bookingData.service_id) {
       throw new Error('service_id is required');
