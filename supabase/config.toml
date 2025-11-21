@@ -97,3 +97,6 @@ verify_jwt = false
 
 [functions.repair-tip-calculations]
 verify_jwt = true
+
+[functions.validate-booking-integrity]
+verify_jwt = true
