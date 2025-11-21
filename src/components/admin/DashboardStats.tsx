@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { StripeConfigStatus } from './StripeConfigStatus';
 import { BookingSmokeTest } from './BookingSmokeTest';
 import { StorageCacheOptimizer } from './StorageCacheOptimizer';
+import { DataRepairButton } from './DataRepairButton';
 export const DashboardStats = () => {
   const {
     metrics,
@@ -129,6 +130,17 @@ export const DashboardStats = () => {
       </div>
 
       {/* System Configuration and Testing */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
+          <CardHeader>
+            <CardTitle className="text-white">System Tools</CardTitle>
+            <CardDescription className="text-slate-400">Data repair and testing utilities</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <DataRepairButton />
+          </CardContent>
+        </Card>
+      </div>
       
       
       <BookingSmokeTest />

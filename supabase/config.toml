@@ -94,3 +94,6 @@ verify_jwt = true
 
 [functions.validate-coupon]
 verify_jwt = false
+
+[functions.repair-tip-calculations]
+verify_jwt = true
