@@ -59,6 +59,17 @@ serve(async (req) => {
       throw new Error('Failed to fetch booking services');
     }
 
+    // PHASE 1 FIX: Prevent payment intent creation for corrupted bookings
+    if (!bookingServices || bookingServices.length === 0) {
+      console.error('❌ CRITICAL: Payment intent creation attempted for booking without services');
+      console.error('Booking ID:', booking_id);
+      throw new Error(
+        'Cannot create payment intent: No services found for this booking. ' +
+        'This booking is corrupted and must be recreated with proper service data.'
+      );
+    }
+    console.log('✅ Services validation passed:', bookingServices.length, 'services found');
+
     // Calculate expected total (NO TAX, NO MARKUPS)
     const servicesTotal = (bookingServices || []).reduce((sum, service) => {
       return sum + (Number(service.base_price) * service.quantity);

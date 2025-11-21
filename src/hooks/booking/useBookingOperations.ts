@@ -29,6 +29,7 @@ export interface UnauthenticatedBookingData {
   coupon_discount?: number;
   coupon_id?: string;
   subtotal_before_discount?: number;
+  services: ServiceItem[]; // CRITICAL: Services array required for proper tip calculation
 }
 
 export interface AdminBookingData {
@@ -620,6 +621,17 @@ export const useBookingOperations = () => {
         city: zipcodeValidation.city
       };
 
+      // CRITICAL: Validate services array before creating booking
+      if (!bookingData.services || bookingData.services.length === 0) {
+        optimizedError('CRITICAL: Attempting to create booking without services array');
+        return {
+          booking_id: '',
+          assigned_workers: [],
+          status: 'error',
+          message: 'Invalid booking data: services are required'
+        };
+      }
+
       // Call create-guest-booking edge function
       const { data: result, error } = await supabase.functions.invoke('create-guest-booking', {
         body: {
@@ -632,7 +644,8 @@ export const useBookingOperations = () => {
             location_notes: bookingData.location_notes || '',
             status: 'payment_pending',
             payment_status: 'pending',
-            requires_manual_payment: true
+            requires_manual_payment: true,
+            services: bookingData.services // CRITICAL FIX: Pass services array
           }
         }
       });

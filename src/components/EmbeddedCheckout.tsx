@@ -252,7 +252,8 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
         coupon_code: appliedCoupon?.code,
         coupon_discount: appliedCoupon?.discountAmount,
         coupon_id: appliedCoupon?.couponId,
-        subtotal_before_discount: appliedCoupon ? total : null
+        subtotal_before_discount: appliedCoupon ? total : null,
+        services: cart // CRITICAL FIX: Pass services array to prevent tip calculation corruption
       };
 
       const result = await createUnauthenticatedBooking(bookingData);
