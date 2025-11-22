@@ -56,7 +56,7 @@ serve(async (req) => {
       supabase
         .from('booking_services')
         .select('base_price, quantity')
-        .eq('id', bookingId)
+        .eq('booking_id', bookingId)
     ]);
 
     const dbTime = performance.now() - dbStartTime;
