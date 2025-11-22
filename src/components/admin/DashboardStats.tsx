@@ -9,6 +9,7 @@ import { StorageCacheOptimizer } from './StorageCacheOptimizer';
 import { DataRepairButton } from './DataRepairButton';
 import { BookingIntegrityMonitor } from './BookingIntegrityMonitor';
 import { PricingIntegrityMonitor } from './PricingIntegrityMonitor';
+import { PaymentPerformanceMonitor } from './PaymentPerformanceMonitor';
 export const DashboardStats = () => {
   const {
     metrics,
@@ -143,6 +144,8 @@ export const DashboardStats = () => {
           </CardContent>
         </Card>
       </div>
+      
+      <PaymentPerformanceMonitor />
       
       <PricingIntegrityMonitor />
       

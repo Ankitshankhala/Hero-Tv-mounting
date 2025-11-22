@@ -250,41 +250,18 @@ export const SimplePaymentAuthorizationForm = ({
       if (paymentIntent?.status === 'requires_capture' || paymentIntent?.status === 'succeeded') {
         console.log('✅ Payment authorized successfully!');
         
-        // Verify and sync payment status using unified-payment-verification
-        try {
-          console.log('Verifying payment for intent:', intentData.payment_intent_id);
-          
-          const { data: verifyData, error: verifyError } = await withTimeout(
-            supabase.functions.invoke(
-              'unified-payment-verification',
-              {
-                body: {
-                  paymentIntentId: intentData.payment_intent_id,
-                  bookingId: bookingId,
-                  verificationType: 'intent',
-                  syncStatuses: true,
-                }
-              }
-            ),
-            PAYMENT_INTENT_TIMEOUT,
-            'unified-payment-verification'
-          );
-          
-          if (verifyError) {
-            console.warn('Verification warning (continuing):', verifyError);
-          } else {
-            console.log('Payment verified and synced successfully:', verifyData);
+        // OPTIMIZATION: Trigger background sync (non-blocking)
+        supabase.functions.invoke('async-payment-sync', {
+          body: {
+            paymentIntentId: intentData.payment_intent_id,
+            bookingId: bookingId,
           }
-          
-          console.log('Payment authorization flow completed successfully');
-          onAuthorizationSuccess(intentData.payment_intent_id);
-        } catch (error) {
-          console.error('Error verifying payment:', error);
-          
-          // Since payment is authorized in Stripe, we should still succeed
-          console.warn('Verification error, but payment authorized. Proceeding with success.');
-          onAuthorizationSuccess(intentData.payment_intent_id);
-        }
+        }).catch(error => {
+          console.warn('Background sync warning (non-critical):', error);
+        });
+        
+        console.log('Payment authorization flow completed successfully');
+        onAuthorizationSuccess(intentData.payment_intent_id);
       } else {
         const error = `Payment authorization incomplete. Status: ${paymentIntent?.status || 'unknown'}`;
         console.error('Payment not authorized:', paymentIntent?.status);
