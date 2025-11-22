@@ -8,6 +8,7 @@ import { BookingSmokeTest } from './BookingSmokeTest';
 import { StorageCacheOptimizer } from './StorageCacheOptimizer';
 import { DataRepairButton } from './DataRepairButton';
 import { BookingIntegrityMonitor } from './BookingIntegrityMonitor';
+import { PricingIntegrityMonitor } from './PricingIntegrityMonitor';
 export const DashboardStats = () => {
   const {
     metrics,
@@ -142,6 +143,8 @@ export const DashboardStats = () => {
           </CardContent>
         </Card>
       </div>
+      
+      <PricingIntegrityMonitor />
       
       <BookingIntegrityMonitor />
       
