@@ -173,101 +173,70 @@ export const SimplePaymentAuthorizationForm = ({
     try {
       setLoading(true);
       const attemptNumber = retryCount + 1;
-      console.log(`🎯 Creating payment intent for booking (attempt #${attemptNumber}):`, bookingId);
+      console.log(`🎯 Authorizing payment for booking (attempt #${attemptNumber}):`, bookingId);
       
-      // Generate unique idempotency key for each attempt
-      const uniqueIdempotencyKey = `${crypto.randomUUID()}-attempt-${attemptNumber}`;
-      console.log('Generated idempotency key:', uniqueIdempotencyKey);
-      
-      const { data: intentData, error: intentError } = await withTimeout(
-        supabase.functions.invoke(
-          'create-payment-intent',
-          {
-            body: {
-              amount, // Pass amount in dollars, edge function will convert to cents
-              currency: 'usd',
-              idempotency_key: uniqueIdempotencyKey,
-              user_id: user?.id || null,
-              booking_id: bookingId,
-              customer_email: customerEmail,
-              customer_name: customerName,
-              testing_mode: process.env.NODE_ENV === 'development',
-            },
-          }
-        ),
-        PAYMENT_INTENT_TIMEOUT,
-        'create-payment-intent'
-      );
+      // Create payment method from card element
+      const { error: pmError, paymentMethod } = await stripe.createPaymentMethod({
+        type: 'card',
+        card: cardElement,
+        billing_details: {
+          name: customerName,
+          email: customerEmail,
+        },
+      });
 
-      if (intentError || !intentData?.client_secret) {
-        throw new Error(intentError?.message || 'Failed to create payment intent');
-      }
-
-      console.log('Payment intent created, confirming with card...');
-
-      // Confirm payment intent to authorize the card with 3D Secure support
-      console.log('Confirming card payment with 3D Secure support...');
-      
-      const confirmResult: any = await withTimeout(
-        stripe.confirmCardPayment(intentData.client_secret, {
-          payment_method: {
-            card: cardElement,
-            billing_details: {
-              name: customerName,
-              email: customerEmail,
-            },
-          },
-        }),
-        CARD_CONFIRMATION_TIMEOUT,
-        'confirmCardPayment'
-      );
-
-      if (confirmResult.error) {
-        console.error('Payment confirmation error:', confirmResult.error);
-        
-        const stripeError = confirmResult.error;
+      if (pmError || !paymentMethod) {
         const errorMessage = getErrorMessage(
-          stripeError.type || 'unknown',
-          stripeError.code || '',
-          stripeError.message || 'Payment authorization failed'
+          pmError?.type || 'unknown',
+          pmError?.code || '',
+          pmError?.message || 'Failed to create payment method'
         );
-        
         setFormError(errorMessage);
-        
-        // For card errors and validation errors, automatically prepare for retry
-        if (stripeError.type === 'card_error' || stripeError.type === 'validation_error') {
-          console.log('Card validation error detected, card element can be reset for retry');
-        }
-        
         onAuthorizationFailure(errorMessage);
         return;
       }
 
-      // Check payment intent status - handle all valid authorization states
-      const paymentIntent = confirmResult.paymentIntent;
-      console.log('Payment intent status after confirmation:', paymentIntent?.status);
-
-      if (paymentIntent?.status === 'requires_capture' || paymentIntent?.status === 'succeeded') {
-        console.log('✅ Payment authorized successfully!');
-        
-        // OPTIMIZATION: Trigger background sync (non-blocking)
-        supabase.functions.invoke('async-payment-sync', {
-          body: {
-            paymentIntentId: intentData.payment_intent_id,
-            bookingId: bookingId,
+      console.log(`⚡ Using unified payment authorization endpoint`);
+      
+      // Use unified payment authorization endpoint (single API call)
+      const { data: authData, error: authError } = await withTimeout(
+        supabase.functions.invoke(
+          'unified-payment-authorization',
+          {
+            body: {
+              amount,
+              bookingId,
+              customerEmail,
+              customerName,
+              paymentMethodId: paymentMethod.id,
+            },
           }
-        }).catch(error => {
-          console.warn('Background sync warning (non-critical):', error);
-        });
+        ),
+        PAYMENT_INTENT_TIMEOUT * 2, // Give more time for unified endpoint
+        'unified-payment-authorization'
+      );
+
+      if (authError || !authData?.success) {
+        const errorDetails = authData?.error || authError?.message || 'Failed to authorize payment';
+        console.error('Payment authorization error:', errorDetails);
         
-        console.log('Payment authorization flow completed successfully');
-        onAuthorizationSuccess(intentData.payment_intent_id);
-      } else {
-        const error = `Payment authorization incomplete. Status: ${paymentIntent?.status || 'unknown'}`;
-        console.error('Payment not authorized:', paymentIntent?.status);
-        setFormError(error);
-        onAuthorizationFailure(error);
+        // Try to extract Stripe error information if available
+        const errorMessage = getErrorMessage(
+          'api_error',
+          '',
+          errorDetails
+        );
+        
+        setFormError(errorMessage);
+        onAuthorizationFailure(errorMessage);
+        return;
       }
+
+      console.log('✅ Payment authorized successfully!', authData.payment_intent_id);
+      console.log(`⚡ Performance: ${authData.performance?.total_ms}ms total (target: <1500ms)`);
+      
+      console.log('Payment authorization flow completed successfully');
+      onAuthorizationSuccess(authData.payment_intent_id);
     } catch (error: any) {
       const errorMessage = error.name === 'PaymentTimeoutError'
         ? 'Payment is taking longer than expected. Please check your connection and try again.'

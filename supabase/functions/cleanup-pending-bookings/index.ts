@@ -26,7 +26,7 @@ serve(async (req) => {
     const threeHoursAgo = new Date(Date.now() - 180 * 60 * 1000).toISOString();
     const { data: expiredBookings, error: fetchError } = await supabase
       .from('bookings')
-      .select('id, stripe_payment_intent_id, created_at')
+      .select('id, payment_intent_id, created_at')
       .eq('status', 'payment_pending')
       .lt('created_at', threeHoursAgo);
 
@@ -40,17 +40,17 @@ serve(async (req) => {
     let canceledIntents = 0;
     if (stripe && expiredBookings && expiredBookings.length > 0) {
       for (const booking of expiredBookings) {
-        if (booking.stripe_payment_intent_id) {
+        if (booking.payment_intent_id) {
           try {
-            await stripe.paymentIntents.cancel(booking.stripe_payment_intent_id, {
+            await stripe.paymentIntents.cancel(booking.payment_intent_id, {
               cancellation_reason: 'abandoned',
             });
             canceledIntents++;
-            console.log(`[CLEANUP-PENDING-BOOKINGS] Canceled PaymentIntent: ${booking.stripe_payment_intent_id}`);
+            console.log(`[CLEANUP-PENDING-BOOKINGS] Canceled PaymentIntent: ${booking.payment_intent_id}`);
           } catch (stripeError: any) {
             // If already canceled or doesn't exist, that's fine
             if (stripeError.code !== 'payment_intent_unexpected_state') {
-              console.error(`[CLEANUP-PENDING-BOOKINGS] Error canceling PaymentIntent ${booking.stripe_payment_intent_id}:`, stripeError.message);
+              console.error(`[CLEANUP-PENDING-BOOKINGS] Error canceling PaymentIntent ${booking.payment_intent_id}:`, stripeError.message);
             }
           }
         }

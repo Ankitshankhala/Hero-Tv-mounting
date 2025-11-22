@@ -115,109 +115,53 @@ export const PaymentAuthorizationForm = ({
     try {
       setLoading(true);
       
-      // Create payment intent for existing booking (with timeout)
-      console.log(`🔧 PaymentAuthorizationForm: Sending amount in dollars: $${amount}`);
-      const { data: intentData, error: intentError } = await withTimeout(
+      // Create payment method from card element
+      const { error: pmError, paymentMethod } = await stripe.createPaymentMethod({
+        type: 'card',
+        card: cardElement,
+        billing_details: {
+          name: customerName,
+          email: customerEmail,
+        },
+      });
+
+      if (pmError || !paymentMethod) {
+        throw new Error(pmError?.message || 'Failed to create payment method');
+      }
+
+      console.log(`🔧 PaymentAuthorizationForm: Using unified endpoint with amount: $${amount}`);
+      
+      // Use unified payment authorization endpoint (single API call)
+      const { data: authData, error: authError } = await withTimeout(
         supabase.functions.invoke(
-          'create-payment-intent',
+          'unified-payment-authorization',
           {
             body: {
-              amount: amount, // Send in dollars, edge function will convert to cents
-              currency: 'usd',
-              booking_id: bookingId,
-              customer_email: customerEmail,
-              customer_name: customerName,
-              idempotency_key: crypto.randomUUID(),
-              user_id: user?.id || null,
-              testing_mode: isTestingMode, // Pass testing mode flag
+              amount: amount,
+              bookingId: bookingId,
+              customerEmail: customerEmail,
+              customerName: customerName,
+              paymentMethodId: paymentMethod.id,
             },
           }
         ),
-        PAYMENT_INTENT_TIMEOUT,
-        'create-payment-intent'
+        PAYMENT_INTENT_TIMEOUT * 2, // Give more time for unified endpoint
+        'unified-payment-authorization'
       );
 
-      if (intentError || !intentData?.client_secret) {
-        throw new Error(intentError?.message || 'Failed to create payment intent');
+      if (authError || !authData?.success) {
+        throw new Error(authError?.message || authData?.error || 'Failed to authorize payment');
       }
 
-      console.log('Payment intent created for existing booking, confirming with card...');
+      console.log('✅ Payment authorized successfully:', authData.payment_intent_id);
+      console.log(`⚡ Performance: ${authData.performance?.total_ms}ms total (target: <1500ms)`);
       
-      const confirmResult: any = await withTimeout(
-        stripe.confirmCardPayment(intentData.client_secret, {
-          payment_method: {
-            card: cardElement,
-            billing_details: {
-              name: customerName,
-              email: customerEmail,
-            },
-          },
-        }),
-        CARD_CONFIRMATION_TIMEOUT,
-        'confirmCardPayment'
-      );
+      toast({
+        title: "Payment Authorized",
+        description: `Successfully authorized $${amount.toFixed(2)}`,
+      });
 
-      if (confirmResult.error) {
-        console.error('Payment confirmation error:', confirmResult.error);
-        let errorMessage = 'Payment authorization failed';
-        const stripeError = confirmResult.error;
-        
-        switch (stripeError.type) {
-          case 'card_error':
-            if (stripeError.code === 'card_declined') {
-              errorMessage = 'Your card was declined. Please try a different payment method.';
-            } else if (stripeError.code === 'authentication_required') {
-              errorMessage = 'Authentication failed. Please try again or use a different card.';
-            } else {
-              errorMessage = stripeError.message || 'There was an issue with your card. Please try again.';
-            }
-            break;
-          default:
-            errorMessage = stripeError.message || 'Payment authorization failed. Please try again.';
-        }
-        
-        throw new Error(errorMessage);
-      }
-
-      const paymentIntent = confirmResult.paymentIntent;
-      console.log('Payment intent status after confirmation:', paymentIntent?.status);
-
-      if (paymentIntent?.status === 'requires_capture' || paymentIntent?.status === 'succeeded') {
-        console.log('✅ Payment authorized successfully for existing booking!');
-        
-        // Verify and sync payment status using unified-payment-verification
-        try {
-          const { data: verifyData, error: verifyError } = await withTimeout(
-            supabase.functions.invoke(
-              'unified-payment-verification',
-              {
-                body: {
-                  paymentIntentId: intentData.payment_intent_id,
-                  bookingId: bookingId,
-                  verificationType: 'intent',
-                  syncStatuses: true,
-                },
-              }
-            ),
-            PAYMENT_INTENT_TIMEOUT,
-            'unified-payment-verification'
-          );
-
-          if (verifyError || !verifyData?.success) {
-            console.warn('Payment verification warning (continuing):', verifyError);
-          }
-
-          console.log('Payment flow completed successfully');
-          onAuthorizationSuccess(intentData.payment_intent_id);
-        } catch (error) {
-          console.error('Error verifying payment:', error);
-          // Payment was authorized in Stripe, proceed with success
-          console.warn('Verification error, but payment authorized. Proceeding with success.');
-          onAuthorizationSuccess(intentData.payment_intent_id);
-        }
-      } else {
-        throw new Error(`Payment authorization incomplete. Status: ${paymentIntent?.status || 'unknown'}`);
-      }
+      onAuthorizationSuccess(authData.payment_intent_id);
 
     } catch (error: any) {
       const errorMessage = error.name === 'PaymentTimeoutError'
