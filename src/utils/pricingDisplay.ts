@@ -1,4 +1,5 @@
 import { PublicService } from '@/hooks/usePublicServicesData';
+import { PricingEngine } from './pricingEngine';
 
 /**
  * Formats tiered pricing display for TV mounting service
@@ -26,7 +27,8 @@ export const formatTieredPricing = (service: PublicService | undefined): string 
 };
 
 /**
- * Gets the price for a specific add-on from pricing_config
+ * Gets the price for a specific add-on using centralized PricingEngine
+ * @deprecated Use PricingEngine.getAddOnPrice() directly for full validation
  */
 export const getAddOnPrice = (
   tvMountingService: PublicService | undefined,
@@ -34,11 +36,8 @@ export const getAddOnPrice = (
   fallbackService?: PublicService,
   defaultPrice: number = 0
 ): number => {
-  return (
-    tvMountingService?.pricing_config?.add_ons?.[addOnKey] ||
-    fallbackService?.base_price ||
-    defaultPrice
-  );
+  const result = PricingEngine.getAddOnPrice(tvMountingService, addOnKey, fallbackService);
+  return result.price || defaultPrice;
 };
 
 /**

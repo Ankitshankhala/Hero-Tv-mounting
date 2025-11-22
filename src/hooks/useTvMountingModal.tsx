@@ -3,6 +3,7 @@ import { useState, useMemo } from 'react';
 import { PublicService } from '@/hooks/usePublicServicesData';
 import { useServicesData } from '@/hooks/useServicesData';
 import { useTestingMode, getEffectiveServicePrice } from '@/contexts/TestingModeContext';
+import { PricingEngine } from '@/utils/pricingEngine';
 
 interface TvConfiguration {
   id: string;
@@ -96,45 +97,22 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
       return totalItems;
     }
 
-    let price = calculateTvMountingPrice(numberOfTvs);
+    // Use centralized PricingEngine for accurate calculations
+    const soundbarService = allServices.find(s => s.name === 'Mount Soundbar');
+    const breakdown = PricingEngine.calculateTvMountingTotal(
+      numberOfTvs,
+      tvConfigurations,
+      tvMountingService,
+      {
+        over65: over65Service,
+        frameMount: frameMountService,
+        soundbar: soundbarService,
+        specialWall: stoneWallService
+      }
+    );
 
-    tvConfigurations.forEach((config) => {
-      if (config.over65) {
-        // Use pricing_config.add_ons if available, fallback to base_price
-        const over65Price = tvMountingService?.pricing_config?.add_ons?.over65 
-          || over65Service?.base_price 
-          || 50;
-        price += over65Price;
-      }
-      
-      if (config.frameMount) {
-        // Use pricing_config.add_ons if available, fallback to base_price
-        const frameMountPrice = tvMountingService?.pricing_config?.add_ons?.frameMount 
-          || frameMountService?.base_price 
-          || 75;
-        price += frameMountPrice;
-      }
-      
-      if (config.wallType !== 'standard') {
-        // Use pricing_config.add_ons if available, fallback to base_price
-        const specialWallPrice = tvMountingService?.pricing_config?.add_ons?.specialWall 
-          || stoneWallService?.base_price 
-          || 40;
-        price += specialWallPrice;
-      }
-
-      if (config.soundbar) {
-        // Use pricing_config.add_ons if available, fallback to soundbar service or hardcoded value
-        const soundbarService = allServices.find(s => s.name === 'Mount Soundbar');
-        const soundbarPrice = tvMountingService?.pricing_config?.add_ons?.soundbar 
-          || soundbarService?.base_price 
-          || 30;
-        price += soundbarPrice;
-      }
-    });
-
-    return price;
-  }, [numberOfTvs, tvConfigurations, tvMountingService?.pricing_config, over65Service?.base_price, frameMountService?.base_price, stoneWallService?.base_price, allServices, isTestingMode]);
+    return breakdown.total;
+  }, [numberOfTvs, tvConfigurations, tvMountingService, over65Service, frameMountService, stoneWallService, allServices, isTestingMode]);
 
   const buildServicesList = () => {
     const selectedServices = [];

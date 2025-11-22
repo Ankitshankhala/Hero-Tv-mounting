@@ -24,8 +24,9 @@ export const TvAddOns: React.FC<TvAddOnsProps> = ({
   over65Service,
   frameMountService
 }) => {
-  const over65Price = getAddOnPrice(tvMountingService, 'over65', over65Service, 50);
-  const frameMountPrice = getAddOnPrice(tvMountingService, 'frameMount', frameMountService, 75);
+  // Use getAddOnPrice without default fallbacks - prices now come from database
+  const over65Price = getAddOnPrice(tvMountingService, 'over65', over65Service);
+  const frameMountPrice = getAddOnPrice(tvMountingService, 'frameMount', frameMountService);
   return (
     <>
       {/* TV Size Add-on */}

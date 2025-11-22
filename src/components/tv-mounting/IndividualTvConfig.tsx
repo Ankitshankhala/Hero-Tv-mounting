@@ -33,10 +33,11 @@ export const IndividualTvConfig: React.FC<IndividualTvConfigProps> = ({
   stoneWallService,
   soundbarService
 }) => {
-  const over65Price = getAddOnPrice(tvMountingService, 'over65', over65Service, 50);
-  const frameMountPrice = getAddOnPrice(tvMountingService, 'frameMount', frameMountService, 75);
-  const specialWallPrice = getAddOnPrice(tvMountingService, 'specialWall', stoneWallService, 40);
-  const soundbarPrice = getAddOnPrice(tvMountingService, 'soundbar', soundbarService, 30);
+  // Use getAddOnPrice without default fallbacks - prices now come from database
+  const over65Price = getAddOnPrice(tvMountingService, 'over65', over65Service);
+  const frameMountPrice = getAddOnPrice(tvMountingService, 'frameMount', frameMountService);
+  const specialWallPrice = getAddOnPrice(tvMountingService, 'specialWall', stoneWallService);
+  const soundbarPrice = getAddOnPrice(tvMountingService, 'soundbar', soundbarService);
   return (
     <div className="bg-slate-700 rounded-lg p-4 border border-slate-600">
       <h4 className="text-lg font-semibold text-white mb-4">

@@ -19,7 +19,8 @@ export const WallTypeSelector: React.FC<WallTypeSelectorProps> = ({
   tvMountingService,
   stoneWallService
 }) => {
-  const specialWallPrice = getAddOnPrice(tvMountingService, 'specialWall', stoneWallService, 40);
+  // Use getAddOnPrice without default fallback - prices now come from database
+  const specialWallPrice = getAddOnPrice(tvMountingService, 'specialWall', stoneWallService);
   
   const wallTypeOptions = [
     { value: 'standard', label: 'Standard Drywall' },
