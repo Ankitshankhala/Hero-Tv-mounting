@@ -88,8 +88,7 @@ serve(async (req) => {
       amount: amountInCents,
       currency: 'usd',
       capture_method: 'manual',
-      payment_method: paymentMethodId,
-      payment_method_types: ['card'], // Restrict to card-only (no redirects)
+      payment_method: paymentMethodId, // Stripe infers type from payment method
       off_session: true, // Backend authorization without user present
       confirm: true, // Auto-confirm in single API call
       metadata: {
