@@ -89,7 +89,6 @@ serve(async (req) => {
       currency: 'usd',
       capture_method: 'manual',
       payment_method: paymentMethodId,
-      off_session: true, // Backend authorization without user present
       confirm: true, // Auto-confirm in single API call
       return_url: `${Deno.env.get('FRONTEND_URL') || 'https://46f26668-c441-4bdc-97f1-d65e49c18661.lovableproject.com'}/booking/payment-complete`,
       metadata: {
