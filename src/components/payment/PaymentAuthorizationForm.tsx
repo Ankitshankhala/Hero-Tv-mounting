@@ -74,11 +74,24 @@ export const PaymentAuthorizationForm = ({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
+    console.log('[PAYMENT-AUTH] 🚀 Starting payment authorization flow', {
+      bookingId,
+      amount,
+      customerEmail,
+      customerName,
+      hasStripe: !!stripe,
+      hasElements: !!elements,
+      hasCardElement: !!cardElement,
+      isInitialized: stripeInitialized,
+      isCardComplete: cardComplete
+    });
+
     setCardError('');
     setFormError('');
 
     if (!stripe || !elements || !cardElement) {
       const error = 'Payment form not ready. Please wait or refresh the page.';
+      console.error('[PAYMENT-AUTH] ❌ Stripe not initialized:', { hasStripe: !!stripe, hasElements: !!elements, hasCardElement: !!cardElement });
       setFormError(error);
       onAuthorizationFailure(error);
       return;
@@ -86,6 +99,7 @@ export const PaymentAuthorizationForm = ({
 
     if (!stripeInitialized) {
       const error = 'Payment system is still loading. Please wait.';
+      console.warn('[PAYMENT-AUTH] ⚠️ Stripe not ready');
       setFormError(error);
       onAuthorizationFailure(error);
       return;
@@ -93,6 +107,7 @@ export const PaymentAuthorizationForm = ({
 
     if (!cardComplete) {
       const error = 'Please complete all card details before submitting.';
+      console.warn('[PAYMENT-AUTH] ⚠️ Card details incomplete');
       setFormError(error);
       onAuthorizationFailure(error);
       return;
@@ -100,6 +115,7 @@ export const PaymentAuthorizationForm = ({
 
     if (!customerEmail || !customerName) {
       const error = 'Customer information is required for payment.';
+      console.warn('[PAYMENT-AUTH] ⚠️ Customer info missing');
       setFormError(error);
       onAuthorizationFailure(error);
       return;
@@ -107,6 +123,7 @@ export const PaymentAuthorizationForm = ({
 
     if (!bookingId) {
       const error = 'Booking ID is required for payment authorization.';
+      console.error('[PAYMENT-AUTH] ❌ No booking ID provided');
       setFormError(error);
       onAuthorizationFailure(error);
       return;
@@ -115,6 +132,7 @@ export const PaymentAuthorizationForm = ({
     try {
       setLoading(true);
       
+      console.log('[PAYMENT-AUTH] 📝 Creating Stripe PaymentMethod...');
       // Create payment method from card element
       const { error: pmError, paymentMethod } = await stripe.createPaymentMethod({
         type: 'card',
@@ -126,10 +144,14 @@ export const PaymentAuthorizationForm = ({
       });
 
       if (pmError || !paymentMethod) {
+        console.error('[PAYMENT-AUTH] ❌ Failed to create PaymentMethod:', pmError);
         throw new Error(pmError?.message || 'Failed to create payment method');
       }
 
-      console.log(`🔧 PaymentAuthorizationForm: Using unified endpoint with amount: $${amount}`);
+      console.log('[PAYMENT-AUTH] ✅ PaymentMethod created:', paymentMethod.id);
+      console.log(`[PAYMENT-AUTH] 📞 Calling unified-payment-authorization with amount: $${amount}`);
+      
+      const startTime = performance.now();
       
       // Use unified payment authorization endpoint (single API call)
       const { data: authData, error: authError } = await withTimeout(
@@ -149,29 +171,52 @@ export const PaymentAuthorizationForm = ({
         'unified-payment-authorization'
       );
 
+      const duration = performance.now() - startTime;
+      
+      console.log(`[PAYMENT-AUTH] 📥 Edge function response (${duration.toFixed(0)}ms):`, {
+        success: authData?.success,
+        paymentIntentId: authData?.payment_intent_id,
+        status: authData?.status,
+        performance: authData?.performance,
+        error: authError || authData?.error
+      });
+
       if (authError || !authData?.success) {
+        console.error('[PAYMENT-AUTH] ❌ Authorization failed:', authError?.message || authData?.error);
         throw new Error(authError?.message || authData?.error || 'Failed to authorize payment');
       }
 
-      console.log('✅ Payment authorized successfully:', authData.payment_intent_id);
-      console.log(`⚡ Performance: ${authData.performance?.total_ms}ms total (target: <1500ms)`);
+      console.log('[PAYMENT-AUTH] ✅ Payment authorized successfully:', {
+        paymentIntentId: authData.payment_intent_id,
+        status: authData.status,
+        amount: authData.amount,
+        totalTime: `${authData.performance?.total_ms || duration.toFixed(0)}ms`
+      });
       
       toast({
-        title: "Payment Authorized",
+        title: "Payment Authorized ✓",
         description: `Successfully authorized $${amount.toFixed(2)}`,
       });
 
       onAuthorizationSuccess(authData.payment_intent_id);
 
     } catch (error: any) {
+      console.error('[PAYMENT-AUTH] ❌ Authorization process failed:', error);
       const errorMessage = error.name === 'PaymentTimeoutError'
         ? 'Payment is taking longer than expected. Please check your connection and try again.'
         : error instanceof Error ? error.message : 'Payment authorization failed';
-      console.error('Payment authorization error:', error);
       setFormError(errorMessage);
+      
+      toast({
+        title: "Payment Authorization Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      
       onAuthorizationFailure(errorMessage);
     } finally {
       setLoading(false);
+      console.log('[PAYMENT-AUTH] 🏁 Payment authorization flow completed');
     }
   };
 
