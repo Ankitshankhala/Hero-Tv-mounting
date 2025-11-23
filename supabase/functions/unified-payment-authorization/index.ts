@@ -89,7 +89,7 @@ serve(async (req) => {
       currency: 'usd',
       capture_method: 'manual',
       payment_method: paymentMethodId,
-      payment_method_types: ['card'], // Explicitly limit to card payments only (no redirects)
+      off_session: true, // Backend authorization without user present
       confirm: true, // Auto-confirm in single API call
       metadata: {
         booking_id: bookingId,
