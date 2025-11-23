@@ -360,6 +360,29 @@ export const useBookingOperations = () => {
         }
 
         newBooking = authBooking;
+        
+        // Insert booking services for authenticated users
+        if (services && services.length > 0) {
+          const bookingServices = services.map(service => ({
+            booking_id: newBooking.id,
+            service_id: service.id,
+            service_name: service.name,
+            base_price: service.price,
+            quantity: service.quantity,
+            configuration: service.options || null
+          }));
+
+          const { error: servicesError } = await supabase
+            .from('booking_services')
+            .insert(bookingServices);
+
+          if (servicesError) {
+            console.error('Failed to insert booking services:', servicesError);
+            throw new Error(`Failed to create booking services: ${servicesError.message}`);
+          }
+
+          console.log('✅ Inserted booking services for authenticated user:', bookingServices.length);
+        }
       }
 
       if (!newBooking) {
