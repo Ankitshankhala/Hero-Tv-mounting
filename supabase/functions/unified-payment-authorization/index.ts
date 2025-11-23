@@ -90,6 +90,10 @@ serve(async (req) => {
       capture_method: 'manual',
       payment_method: paymentMethodId,
       confirm: true, // Auto-confirm in single API call
+      automatic_payment_methods: {
+        enabled: true,
+        allow_redirects: 'never', // Disable redirect-based payment methods for direct authorization
+      },
       metadata: {
         booking_id: bookingId,
         customer_email: customerEmail,
