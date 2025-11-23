@@ -91,10 +91,7 @@ serve(async (req) => {
       payment_method: paymentMethodId,
       off_session: true, // Backend authorization without user present
       confirm: true, // Auto-confirm in single API call
-      automatic_payment_methods: {
-        enabled: true,
-        allow_redirects: 'never', // Disable redirect-based payment methods
-      },
+      return_url: `${Deno.env.get('FRONTEND_URL') || 'https://46f26668-c441-4bdc-97f1-d65e49c18661.lovableproject.com'}/booking/payment-complete`,
       metadata: {
         booking_id: bookingId,
         customer_email: customerEmail,
