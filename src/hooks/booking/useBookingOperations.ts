@@ -10,6 +10,51 @@ import { useTestingMode, getEffectiveMinimumAmount, getEffectiveServicePrice } f
 import { validateUSZipcode } from '@/utils/zipcodeValidation';
 import { optimizedLog, optimizedError, measurePerformance } from '@/utils/performanceOptimizer';
 
+// Service normalization function to ensure valid service data
+export const normalizeServices = (services: ServiceItem[]): ServiceItem[] => {
+  if (!services || !Array.isArray(services)) {
+    console.error('[SERVICE-NORMALIZE] ❌ Invalid services input:', services);
+    return [];
+  }
+
+  const normalized = services
+    .filter(service => {
+      // Filter out invalid services
+      if (!service || typeof service !== 'object') {
+        console.warn('[SERVICE-NORMALIZE] ⚠️ Skipping invalid service object:', service);
+        return false;
+      }
+      if (!service.id || !service.name) {
+        console.warn('[SERVICE-NORMALIZE] ⚠️ Skipping service missing id/name:', service);
+        return false;
+      }
+      if (typeof service.price !== 'number' || service.price <= 0) {
+        console.warn('[SERVICE-NORMALIZE] ⚠️ Skipping service with invalid price:', service);
+        return false;
+      }
+      if (typeof service.quantity !== 'number' || service.quantity <= 0) {
+        console.warn('[SERVICE-NORMALIZE] ⚠️ Skipping service with invalid quantity:', service);
+        return false;
+      }
+      return true;
+    })
+    .map(service => ({
+      id: service.id,
+      name: service.name,
+      price: service.price,
+      quantity: service.quantity,
+      options: service.options || null
+    }));
+
+  console.log('[SERVICE-NORMALIZE] ✅ Normalized services:', {
+    input_count: services.length,
+    output_count: normalized.length,
+    normalized
+  });
+
+  return normalized;
+};
+
 // Enhanced interfaces for unified booking system
 export interface UnauthenticatedBookingData {
   customer_name: string;
@@ -79,7 +124,18 @@ export const useBookingOperations = () => {
   const { toast } = useToast();
 
   const validateMinimumCart = (services: ServiceItem[]): boolean => {
-    const total = services.reduce((sum, service) => sum + (service.price * service.quantity), 0);
+    const normalizedServices = normalizeServices(services);
+    
+    if (normalizedServices.length === 0) {
+      toast({
+        title: "No Valid Services",
+        description: "Please add at least one valid service to your booking.",
+        variant: "destructive",
+      });
+      return false;
+    }
+    
+    const total = normalizedServices.reduce((sum, service) => sum + (service.price * service.quantity), 0);
     
     if (total < MINIMUM_BOOKING_AMOUNT) {
       const amountNeeded = MINIMUM_BOOKING_AMOUNT - total;
@@ -103,9 +159,19 @@ export const useBookingOperations = () => {
     try {
       setLoading(true);
 
+      console.log('[BOOKING-CREATE] 📦 Raw services input:', services);
+
+      // Normalize services first
+      const normalizedServices = normalizeServices(services);
+
+      console.log('[BOOKING-CREATE] ✅ Normalized services:', {
+        count: normalizedServices.length,
+        services: normalizedServices
+      });
+
       // Enhanced validation with detailed error messages
-      if (!services || services.length === 0) {
-        throw new Error('At least one service must be selected for booking');
+      if (normalizedServices.length === 0) {
+        throw new Error('At least one valid service must be selected for booking');
       }
 
       if (!formData) {
@@ -223,12 +289,12 @@ export const useBookingOperations = () => {
         throw new Error('Service time must be selected');
       }
 
-      // Validate minimum cart amount first
-      if (!validateMinimumCart(services)) {
+      // Validate minimum cart amount first using normalized services
+      if (!validateMinimumCart(normalizedServices)) {
         throw new Error(`Minimum booking amount of $${MINIMUM_BOOKING_AMOUNT} not met`);
       }
 
-      const primaryServiceId = services.length > 0 ? services[0].id : null;
+      const primaryServiceId = normalizedServices.length > 0 ? normalizedServices[0].id : null;
       
       if (!primaryServiceId) {
         throw new Error('Primary service ID not found');
@@ -316,13 +382,17 @@ export const useBookingOperations = () => {
       
       if (!user) {
         // For guest users, use the edge function to bypass RLS issues
-        console.log('📞 Calling create-guest-booking edge function with data:', { bookingData });
+        console.log('📞 Calling create-guest-booking edge function with normalized services:', {
+          bookingData,
+          services: normalizedServices,
+          service_count: normalizedServices.length
+        });
         
         const { data: edgeResult, error: edgeError } = await supabase.functions.invoke('create-guest-booking', {
           body: { 
             bookingData: {
               ...bookingData,
-              services // Include services for booking_services table
+              services: normalizedServices // Include normalized services for booking_services table
             }
           }
         });
@@ -361,9 +431,9 @@ export const useBookingOperations = () => {
 
         newBooking = authBooking;
         
-        // Insert booking services for authenticated users
-        if (services && services.length > 0) {
-          const bookingServices = services.map(service => ({
+        // Insert booking services for authenticated users using normalized services
+        if (normalizedServices && normalizedServices.length > 0) {
+          const bookingServices = normalizedServices.map(service => ({
             booking_id: newBooking.id,
             service_id: service.id,
             service_name: service.name,
@@ -372,16 +442,25 @@ export const useBookingOperations = () => {
             configuration: service.options || null
           }));
 
+          console.log('[BOOKING-CREATE] 💾 Inserting booking services:', {
+            booking_id: newBooking.id,
+            service_count: bookingServices.length,
+            services: bookingServices
+          });
+
           const { error: servicesError } = await supabase
             .from('booking_services')
             .insert(bookingServices);
 
           if (servicesError) {
-            console.error('Failed to insert booking services:', servicesError);
+            console.error('[BOOKING-CREATE] ❌ Failed to insert booking services:', servicesError);
             throw new Error(`Failed to create booking services: ${servicesError.message}`);
           }
 
-          console.log('✅ Inserted booking services for authenticated user:', bookingServices.length);
+          console.log('[BOOKING-CREATE] ✅ Inserted booking services for authenticated user:', bookingServices.length);
+        } else {
+          console.error('[BOOKING-CREATE] ❌ No normalized services to insert!');
+          throw new Error('Failed to create booking: no valid services provided');
         }
       }
 

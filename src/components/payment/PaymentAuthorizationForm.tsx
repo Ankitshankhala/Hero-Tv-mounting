@@ -89,6 +89,54 @@ export const PaymentAuthorizationForm = ({
     setCardError('');
     setFormError('');
 
+    // CRITICAL: Verify booking_services exist before proceeding
+    console.log('[PAYMENT-AUTH] 🔍 Verifying booking_services...');
+    try {
+      const { data: bookingServices, error: servicesError } = await supabase
+        .from('booking_services')
+        .select('id, service_name, base_price, quantity')
+        .eq('booking_id', bookingId);
+
+      console.log('[PAYMENT-AUTH] 📦 Booking services query result:', {
+        bookingId,
+        services: bookingServices,
+        count: bookingServices?.length || 0,
+        error: servicesError
+      });
+
+      if (servicesError) {
+        console.error('[PAYMENT-AUTH] ❌ Failed to fetch booking_services:', servicesError);
+        const error = 'Unable to verify booking services. Please try again.';
+        setFormError(error);
+        onAuthorizationFailure(error);
+        return;
+      }
+
+      if (!bookingServices || bookingServices.length === 0) {
+        console.error('[PAYMENT-AUTH] ❌ No services found for booking:', bookingId);
+        const error = 'This booking has no services attached. Please create a new booking.';
+        setFormError(error);
+        toast({
+          title: "Booking Error",
+          description: error,
+          variant: "destructive",
+        });
+        onAuthorizationFailure(error);
+        return;
+      }
+
+      console.log('[PAYMENT-AUTH] ✅ Booking has valid services:', {
+        count: bookingServices.length,
+        services: bookingServices.map(s => ({ name: s.service_name, price: s.base_price, qty: s.quantity }))
+      });
+    } catch (verifyError) {
+      console.error('[PAYMENT-AUTH] ❌ Service verification error:', verifyError);
+      const error = 'Unable to verify booking. Please try again.';
+      setFormError(error);
+      onAuthorizationFailure(error);
+      return;
+    }
+
     if (!stripe || !elements || !cardElement) {
       const error = 'Payment form not ready. Please wait or refresh the page.';
       console.error('[PAYMENT-AUTH] ❌ Stripe not initialized:', { hasStripe: !!stripe, hasElements: !!elements, hasCardElement: !!cardElement });
@@ -149,7 +197,12 @@ export const PaymentAuthorizationForm = ({
       }
 
       console.log('[PAYMENT-AUTH] ✅ PaymentMethod created:', paymentMethod.id);
-      console.log(`[PAYMENT-AUTH] 📞 Calling unified-payment-authorization with amount: $${amount}`);
+      console.log('[PAYMENT-AUTH] 📞 Calling unified-payment-authorization edge function', {
+        amount,
+        bookingId,
+        customerEmail,
+        paymentMethodId: paymentMethod.id
+      });
       
       const startTime = performance.now();
       

@@ -54,6 +54,13 @@ export const BookingFlow = ({ onClose, initialServices = [] }: BookingFlowProps)
     setFormData(updatedFormData);
     
     try {
+      // Log services state before creating booking
+      console.log('[BOOKING-FLOW] 🛒 Services state before booking creation:', {
+        services,
+        count: services.length,
+        total: services.reduce((sum, s) => sum + (s.price * s.quantity), 0)
+      });
+      
       // Create booking with payment_pending status
       console.log('Creating booking with payment_pending status...');
       const createdBookingId = await createInitialBooking(services, updatedFormData, null, undefined);
@@ -77,6 +84,11 @@ export const BookingFlow = ({ onClose, initialServices = [] }: BookingFlowProps)
 
   const handleContinueToPayment = async () => {
     try {
+      console.log('[BOOKING-FLOW] 🛒 Services state before payment:', {
+        services,
+        count: services.length,
+        total: services.reduce((sum, s) => sum + (s.price * s.quantity), 0)
+      });
       console.log('🚀 Creating booking and proceeding to payment...');
       const createdBookingId = await createInitialBooking(services, formData, null, undefined);
       setBookingId(createdBookingId);
