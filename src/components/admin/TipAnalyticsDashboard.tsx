@@ -6,7 +6,8 @@ import { useToast } from "@/hooks/use-toast";
 import { DollarSign, TrendingUp, Users, Calendar, Download, RefreshCw } from "lucide-react";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { DateRange } from "react-day-picker";
-import { TipBookingDetailsRow } from "./TipBookingDetailsRow";
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
+import { TipBookingDetailsTrigger, TipBookingDetailsContent } from "./TipBookingDetailsRow";
 import { ManualTipCorrection } from "./ManualTipCorrection";
 
 interface TipAnalytics {
@@ -195,16 +196,12 @@ export function TipAnalyticsDashboard() {
                 </div>
               </div>
               <div className="divide-y">
-                {analytics.map(worker => <div key={worker.worker_id}>
+                {analytics.map(worker => (
+                  <Collapsible key={worker.worker_id}>
                     <div className="p-4 hover:bg-muted/20">
                       <div className="grid grid-cols-8 gap-4 text-sm items-center">
                         <div className="flex items-center gap-2">
-                          <TipBookingDetailsRow 
-                            workerId={worker.worker_id}
-                            workerName={worker.worker_name}
-                            startDate={dateRange?.from?.toISOString().split('T')[0]}
-                            endDate={dateRange?.to?.toISOString().split('T')[0]}
-                          />
+                          <TipBookingDetailsTrigger isOpen={false} />
                           <span className="font-medium">{worker.worker_name}</span>
                         </div>
                         <div className="text-right">{worker.total_bookings}</div>
@@ -222,7 +219,17 @@ export function TipAnalyticsDashboard() {
                         <div></div>
                       </div>
                     </div>
-                  </div>)}
+                    <CollapsibleContent>
+                      <TipBookingDetailsContent
+                        workerId={worker.worker_id}
+                        workerName={worker.worker_name}
+                        startDate={dateRange?.from?.toISOString().split('T')[0]}
+                        endDate={dateRange?.to?.toISOString().split('T')[0]}
+                        isOpen={true}
+                      />
+                    </CollapsibleContent>
+                  </Collapsible>
+                ))}
               </div>
             </div>}
         </CardContent>
