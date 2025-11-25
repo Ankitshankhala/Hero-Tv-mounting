@@ -7,6 +7,8 @@ import { DollarSign, TrendingUp, Users, Calendar, Download, RefreshCw } from "lu
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { DateRange } from "react-day-picker";
 import { TipBookingDetailsRow } from "./TipBookingDetailsRow";
+import { ManualTipCorrection } from "./ManualTipCorrection";
+
 interface TipAnalytics {
   worker_id: string;
   worker_name: string;
@@ -84,6 +86,9 @@ export function TipAnalyticsDashboard() {
   const totalBookingsWithTips = analytics.reduce((sum, a) => sum + a.bookings_with_tips, 0);
   const avgTipPercentage = totalBookings > 0 ? (totalBookingsWithTips / totalBookings * 100).toFixed(1) : '0';
   return <div className="space-y-6">
+      {/* Manual Tip Correction Tool */}
+      <ManualTipCorrection />
+      
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-slate-50">Tip Analytics Dashboard</h2>
