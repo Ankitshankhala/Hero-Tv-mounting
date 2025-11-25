@@ -40,6 +40,11 @@ export function ManualTipCorrection() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const { toast } = useToast();
 
+  const isValidUUID = (str: string) => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(str);
+  };
+
   const searchBooking = async () => {
     if (!searchQuery.trim()) {
       toast({
@@ -56,7 +61,7 @@ export function ManualTipCorrection() {
       setCorrectedBase("");
 
       // Search bookings with transactions
-      const { data: bookings, error: bookingError } = await supabase
+      let query = supabase
         .from('bookings')
         .select(`
           id,
@@ -77,8 +82,17 @@ export function ManualTipCorrection() {
             tip_amount
           )
         `)
-        .or(`id.eq.${searchQuery},guest_customer_info->>email.ilike.%${searchQuery}%`)
-        .not('transactions', 'is', null)
+        .not('transactions', 'is', null);
+
+      // Only use ID filter if the search query is a valid UUID
+      if (isValidUUID(searchQuery.trim())) {
+        query = query.eq('id', searchQuery.trim());
+      } else {
+        // Search by guest email for non-UUID queries
+        query = query.ilike('guest_customer_info->>email', `%${searchQuery}%`);
+      }
+
+      const { data: bookings, error: bookingError } = await query
         .order('created_at', { ascending: false })
         .limit(1);
 
