@@ -61,9 +61,9 @@ export function PayrollWeekNavigation({
   };
 
   return (
-    <div className={cn("space-y-4", className)}>
-      {/* Quick Filter Chips */}
-      <div className="flex items-center justify-center gap-2 flex-wrap">
+    <div className={cn("flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-6 flex-wrap", className)}>
+      {/* Left Group: Quick Filter Chips */}
+      <div className="flex items-center gap-2 flex-shrink-0">
         <Button
           variant={activeFilter === 'this-week' ? 'default' : 'outline'}
           size="sm"
@@ -91,8 +91,8 @@ export function PayrollWeekNavigation({
         </Button>
       </div>
 
-      {/* Stepper with Calendar Picker */}
-      <div className="flex items-center justify-center gap-2">
+      {/* Right Group: Date Stepper Navigation */}
+      <div className="flex items-center gap-2 flex-shrink-0">
         <Button
           variant="outline"
           size="icon"
@@ -108,7 +108,6 @@ export function PayrollWeekNavigation({
             to: weekEnd,
           }}
           setDate={handleDateRangeSelect}
-          className="flex-shrink-0"
         />
 
         <Button
@@ -120,13 +119,6 @@ export function PayrollWeekNavigation({
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
-      </div>
-
-      {/* Current Week Label */}
-      <div className="text-center">
-        <p className="text-sm text-muted-foreground">
-          {format(currentWeekStart, 'MMM d')} - {format(weekEnd, 'MMM d, yyyy')}
-        </p>
       </div>
     </div>
   );
