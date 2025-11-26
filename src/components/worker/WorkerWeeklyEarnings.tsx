@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, Calendar, DollarSign } from 'lucide-react';
+import { Calendar, DollarSign } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { format, startOfWeek, endOfWeek, addWeeks, subWeeks } from 'date-fns';
+import { format, startOfWeek, endOfWeek } from 'date-fns';
 import { calculateWorkerEarnings, formatCurrency } from '@/utils/workerEarningsCalculator';
 import { useToast } from '@/hooks/use-toast';
+import { PayrollWeekNavigation } from '@/components/payroll/PayrollWeekNavigation';
 
 interface WeeklyJob {
   booking_id: string;
@@ -112,66 +112,19 @@ export function WorkerWeeklyEarnings() {
     }
   };
 
-  const handlePreviousWeek = () => {
-    setCurrentWeekStart(subWeeks(currentWeekStart, 1));
-  };
-
-  const handleNextWeek = () => {
-    setCurrentWeekStart(addWeeks(currentWeekStart, 1));
-  };
-
-  const handleCurrentWeek = () => {
-    setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
-  };
-
   const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
-  const isCurrentWeek = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd') === format(currentWeekStart, 'yyyy-MM-dd');
 
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Weekly Earnings</h1>
-          <p className="text-sm text-muted-foreground">
-            {format(currentWeekStart, 'MMM d')} - {format(weekEnd, 'MMM d, yyyy')}
-          </p>
-        </div>
+      <div className="flex flex-col gap-6">
+        <h1 className="text-2xl font-bold text-foreground">Weekly Earnings</h1>
         
         {/* Week Navigation */}
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handlePreviousWeek}
-            className="gap-1"
-          >
-            <ChevronLeft className="h-4 w-4" />
-            Previous
-          </Button>
-          
-          {!isCurrentWeek && (
-            <Button
-              variant="default"
-              size="sm"
-              onClick={handleCurrentWeek}
-              className="gap-1"
-            >
-              <Calendar className="h-4 w-4" />
-              Current Week
-            </Button>
-          )}
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleNextWeek}
-            className="gap-1"
-          >
-            Next
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
+        <PayrollWeekNavigation
+          currentWeekStart={currentWeekStart}
+          onWeekChange={setCurrentWeekStart}
+        />
       </div>
 
       {/* Weekly Total Card */}

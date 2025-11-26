@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, Calendar, Download, DollarSign, ChevronDown, ChevronUp, Clock, User } from 'lucide-react';
+import { Calendar, Download, DollarSign, ChevronDown, ChevronUp, Clock, User } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, parseISO } from 'date-fns';
+import { format, startOfWeek, endOfWeek, addDays, parseISO } from 'date-fns';
 import { calculateWorkerEarnings, formatCurrency, type WorkerEarningsBreakdown } from '@/utils/workerEarningsCalculator';
 import { useToast } from '@/hooks/use-toast';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
+import { PayrollWeekNavigation } from '@/components/payroll/PayrollWeekNavigation';
 
 interface ServiceLineItem {
   service_name: string;
@@ -248,80 +249,31 @@ export function WorkerWeeklyPayments() {
     });
   };
 
-  const handlePreviousWeek = () => {
-    setCurrentWeekStart(subWeeks(currentWeekStart, 1));
-  };
-
-  const handleNextWeek = () => {
-    setCurrentWeekStart(addWeeks(currentWeekStart, 1));
-  };
-
-  const handleCurrentWeek = () => {
-    setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
-  };
-
   const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
-  const isCurrentWeek = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd') === format(currentWeekStart, 'yyyy-MM-dd');
 
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-primary-foreground">Worker Weekly Payments</h1>
-          <p className="text-sm text-primary-foreground/80">
-            {format(currentWeekStart, 'MMM d')} - {format(weekEnd, 'MMM d, yyyy')}
-          </p>
-        </div>
+        <h1 className="text-2xl font-bold text-primary-foreground">Worker Weekly Payments</h1>
         
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExportCSV}
-            disabled={workerPayments.length === 0}
-            className="gap-2"
-          >
-            <Download className="h-4 w-4" />
-            Export CSV
-          </Button>
-        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExportCSV}
+          disabled={workerPayments.length === 0}
+          className="gap-2"
+        >
+          <Download className="h-4 w-4" />
+          Export CSV
+        </Button>
       </div>
 
       {/* Week Navigation */}
-      <div className="flex items-center justify-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handlePreviousWeek}
-          className="gap-1"
-        >
-          <ChevronLeft className="h-4 w-4" />
-          Previous Week
-        </Button>
-        
-        {!isCurrentWeek && (
-          <Button
-            variant="default"
-            size="sm"
-            onClick={handleCurrentWeek}
-            className="gap-1"
-          >
-            <Calendar className="h-4 w-4" />
-            Current Week
-          </Button>
-        )}
-        
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleNextWeek}
-          className="gap-1"
-        >
-          Next Week
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-      </div>
+      <PayrollWeekNavigation
+        currentWeekStart={currentWeekStart}
+        onWeekChange={setCurrentWeekStart}
+      />
 
       {/* Total Payroll Card */}
       <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-800">
