@@ -169,6 +169,8 @@ serve(async (req) => {
             <p style="margin: 5px 0;"><strong style="color: #2d3748;">Scheduled Date:</strong> ${scheduledDate}</p>
             <p style="margin: 5px 0;"><strong style="color: #2d3748;">Scheduled Time:</strong> ${scheduledTime}</p>
             <p style="margin: 5px 0;"><strong style="color: #2d3748;">Status:</strong> ${booking.status}</p>
+            <p style="margin: 5px 0;"><strong style="color: #2d3748;">Worker:</strong> ${workerName}</p>
+            <p style="margin: 5px 0;"><strong style="color: #2d3748;">Worker Mobile:</strong> <a href="tel:${workerPhone}" style="color: #1a365d; text-decoration: none; font-weight: bold;">${formattedWorkerPhone}</a></p>
         </div>
         
         <div style="background: #e8f4fd; padding: 20px; border-radius: 8px; margin: 20px 0;">
