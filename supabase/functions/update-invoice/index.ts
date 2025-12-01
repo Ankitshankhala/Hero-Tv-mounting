@@ -12,6 +12,8 @@ interface UpdateInvoiceRequest {
   force_regenerate?: boolean;
 }
 
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -25,7 +27,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { booking_id, send_email = true, force_regenerate = false }: UpdateInvoiceRequest = await req.json();
 
-    console.log('Updating invoice for booking:', booking_id);
+    console.log('[UPDATE-INVOICE] Request:', { booking_id, send_email, force_regenerate });
 
     // Fetch current booking with all service details
     const { data: booking, error: bookingError } = await supabase
@@ -47,18 +49,31 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Calculate updated amounts from all booking services
     let serviceAmount = 0;
-    const serviceDetails = [];
+    const serviceDetails: any[] = [];
     
     if (booking.booking_services && booking.booking_services.length > 0) {
       for (const service of booking.booking_services) {
-        const serviceTotal = service.base_price * service.quantity;
+        let servicePrice = Number(service.base_price) || 0;
+        const config = service.configuration || {};
+
+        // Calculate add-ons for Mount TV service
+        if (service.service_name === 'Mount TV') {
+          if (config.over65) servicePrice += 50;
+          if (config.frameMount) servicePrice += 75;
+          if (config.wallType === 'steel' || config.wallType === 'brick' || config.wallType === 'concrete') {
+            servicePrice += 40;
+          }
+          if (config.soundbar) servicePrice += 30;
+        }
+
+        const serviceTotal = servicePrice * service.quantity;
         serviceAmount += serviceTotal;
         serviceDetails.push({
           name: service.service_name,
-          base_price: service.base_price,
+          base_price: servicePrice,
           quantity: service.quantity,
           total: serviceTotal,
-          configuration: service.configuration
+          configuration: config
         });
       }
     } else {
@@ -72,34 +87,60 @@ const handler = async (req: Request): Promise<Response> => {
         configuration: {}
       });
     }
-    
-    // No tax calculation - total equals service amount
-    const taxRate = 0;
-    const taxAmount = 0;
-    const totalAmount = serviceAmount;
 
-    console.log('Calculated amounts:', { serviceAmount, taxAmount, totalAmount });
+    // Get customer location for tax calculation
+    const customerCity = booking.customer?.city || booking.guest_customer_info?.city || '';
+    const stateCode = getStateFromCity(customerCity);
+    
+    // Fetch tax rate from state_tax_rates table
+    let taxRate = 0;
+    let taxAmount = 0;
+    
+    const { data: taxData } = await supabase
+      .from('state_tax_rates')
+      .select('tax_rate')
+      .eq('state_code', stateCode)
+      .eq('is_active', true)
+      .single();
+
+    if (taxData) {
+      taxRate = taxData.tax_rate;
+      taxAmount = serviceAmount * taxRate;
+    }
+    
+    const totalAmount = serviceAmount + taxAmount;
+
+    console.log('[UPDATE-INVOICE] Calculated amounts:', { 
+      serviceAmount, 
+      taxRate, 
+      taxAmount, 
+      totalAmount,
+      stateCode 
+    });
 
     // Check if invoice exists
-    const { data: existingInvoice, error: existingInvoiceError } = await supabase
+    const { data: existingInvoice } = await supabase
       .from('invoices')
       .select('*')
       .eq('booking_id', booking_id)
       .single();
 
     let invoice;
+    let isUpdate = false;
+
     if (existingInvoice && !force_regenerate) {
-      console.log('Updating existing invoice:', existingInvoice.id);
+      console.log('[UPDATE-INVOICE] Updating existing invoice:', existingInvoice.id);
+      isUpdate = true;
       
       // Update existing invoice with new amounts
       const { data: updatedInvoice, error: updateError } = await supabase
         .from('invoices')
         .update({
           amount: serviceAmount,
-          tax_amount: 0,
-          total_amount: serviceAmount,
-          state_code: null,
-          tax_rate: 0,
+          tax_amount: taxAmount,
+          tax_rate: taxRate,
+          total_amount: totalAmount,
+          state_code: stateCode,
           status: 'updated',
           updated_at: new Date().toISOString()
         })
@@ -119,7 +160,7 @@ const handler = async (req: Request): Promise<Response> => {
 
       invoice = updatedInvoice;
     } else {
-      console.log('Creating new invoice or force regenerating');
+      console.log('[UPDATE-INVOICE] Creating new invoice');
       
       // Generate new invoice number
       const { data: invoiceNumber, error: invoiceNumberError } = await supabase
@@ -137,11 +178,11 @@ const handler = async (req: Request): Promise<Response> => {
           invoice_number: invoiceNumber,
           customer_id: booking.customer_id,
           amount: serviceAmount,
-          tax_amount: 0,
-          total_amount: serviceAmount,
-          state_code: null,
-          tax_rate: 0,
-          status: 'updated'
+          tax_amount: taxAmount,
+          tax_rate: taxRate,
+          total_amount: totalAmount,
+          state_code: stateCode,
+          status: 'draft'
         })
         .select()
         .single();
@@ -168,50 +209,115 @@ const handler = async (req: Request): Promise<Response> => {
       .insert(invoiceItems);
 
     if (itemsError) {
-      console.error('Failed to create invoice items:', itemsError);
+      console.error('[UPDATE-INVOICE] Failed to create invoice items:', itemsError);
       throw new Error(`Failed to create invoice items: ${itemsError.message}`);
     }
 
-    console.log('Invoice items created successfully');
+    console.log('[UPDATE-INVOICE] Invoice items created successfully');
 
-    // Send updated invoice email
+    // Log to invoice audit
+    await supabase.from('invoice_audit_log').insert({
+      invoice_id: invoice.id,
+      operation: isUpdate ? 'update' : 'create',
+      old_data: existingInvoice ? { amount: existingInvoice.amount, total_amount: existingInvoice.total_amount } : null,
+      new_data: { amount: serviceAmount, tax_amount: taxAmount, total_amount: totalAmount },
+      change_reason: isUpdate ? 'Services modified' : 'Invoice created'
+    });
+
+    // Send invoice email if requested
+    let emailSent = false;
     if (send_email) {
-      console.log('Invoice email requested - logging for now');
-      
       const customerEmail = booking.customer?.email || booking.guest_customer_info?.email;
+      const customerName = booking.customer?.name || booking.guest_customer_info?.name || 'Valued Customer';
       
-      // Log email details for now instead of sending
-      console.log('Would send invoice email:', {
-        to: customerEmail,
-        subject: `${existingInvoice ? 'Updated' : ''} Invoice ${invoice.invoice_number} - Hero TV Mounting Service`,
-        invoiceId: invoice.id,
-        invoiceNumber: invoice.invoice_number,
-        amount: invoice.total_amount
-      });
+      if (customerEmail && RESEND_API_KEY) {
+        try {
+          console.log('[UPDATE-INVOICE] Sending invoice email to:', customerEmail);
+          
+          const emailHtml = generateUpdatedInvoiceEmail({
+            customer: { 
+              name: customerName, 
+              email: customerEmail, 
+              phone: booking.customer?.phone || booking.guest_customer_info?.phone,
+              city: customerCity,
+              zip_code: booking.customer?.zip_code || booking.guest_customer_info?.zip_code
+            },
+            booking,
+            service: booking.service,
+            worker: booking.worker,
+            invoice,
+            transaction: booking.transactions?.[0],
+            serviceDetails,
+            isUpdate,
+            taxAmount,
+            taxRate,
+            stateCode
+          });
 
-      // Update invoice as email sent (for now)
-      await supabase
-        .from('invoices')
-        .update({ 
-          email_sent: true, 
-          email_sent_at: new Date().toISOString() 
-        })
-        .eq('id', invoice.id);
+          const emailResponse = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${RESEND_API_KEY}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              from: 'Hero TV Mounting <invoices@herotvmounting.com>',
+              to: [customerEmail],
+              subject: `${isUpdate ? 'Updated ' : ''}Invoice ${invoice.invoice_number} - Hero TV Mounting Service`,
+              html: emailHtml
+            })
+          });
+
+          if (emailResponse.ok) {
+            emailSent = true;
+            console.log('[UPDATE-INVOICE] Email sent successfully');
+            
+            // Update invoice email status
+            await supabase
+              .from('invoices')
+              .update({ 
+                email_sent: true, 
+                email_sent_at: new Date().toISOString(),
+                email_attempts: (invoice.email_attempts || 0) + 1
+              })
+              .eq('id', invoice.id);
+
+            // Log email
+            await supabase.from('email_logs').insert({
+              booking_id,
+              recipient_email: customerEmail,
+              subject: `${isUpdate ? 'Updated ' : ''}Invoice ${invoice.invoice_number}`,
+              message: emailHtml,
+              status: 'sent',
+              email_type: isUpdate ? 'invoice_updated' : 'invoice_created',
+              sent_at: new Date().toISOString()
+            });
+          } else {
+            const errorText = await emailResponse.text();
+            console.error('[UPDATE-INVOICE] Email send failed:', errorText);
+          }
+        } catch (emailError) {
+          console.error('[UPDATE-INVOICE] Email error:', emailError);
+        }
+      } else {
+        console.log('[UPDATE-INVOICE] Email skipped - no email address or API key');
+      }
     }
 
     return new Response(JSON.stringify({ 
       success: true, 
       invoice: invoice,
-      email_sent: send_email,
-      was_updated: !!existingInvoice,
-      service_count: serviceDetails.length
+      email_sent: emailSent,
+      was_updated: isUpdate,
+      service_count: serviceDetails.length,
+      tax_calculated: taxAmount > 0
     }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
 
   } catch (error: any) {
-    console.error("Error in update-invoice function:", error);
+    console.error("[UPDATE-INVOICE] Error:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
       {
@@ -251,7 +357,22 @@ function getStateFromCity(city: string): string {
 }
 
 function generateUpdatedInvoiceEmail(data: any): string {
-  const { customer, booking, service, worker, invoice, transaction, serviceDetails, isUpdate } = data;
+  const { customer, booking, service, worker, invoice, transaction, serviceDetails, isUpdate, taxAmount, taxRate, stateCode } = data;
+  
+  const formatDate = (dateStr: string) => {
+    try {
+      return new Date(dateStr).toLocaleDateString('en-US', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const taxPercentage = (taxRate * 100).toFixed(2);
   
   return `
     <!DOCTYPE html>
@@ -261,100 +382,117 @@ function generateUpdatedInvoiceEmail(data: any): string {
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>${isUpdate ? 'Updated ' : ''}Invoice ${invoice.invoice_number}</title>
       <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: #1f2937; color: white; padding: 20px; text-align: center; margin-bottom: 30px; }
-        .update-notice { background: #fef3c7; border: 1px solid #f59e0b; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
-        .invoice-details { background: #f8f9fa; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
-        .service-details { border: 1px solid #dee2e6; border-radius: 5px; margin-bottom: 20px; }
-        .service-header { background: #e9ecef; padding: 10px; font-weight: bold; }
-        .service-content { padding: 15px; }
-        .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6; font-size: 14px; color: #666; }
-        .amount { font-size: 18px; font-weight: bold; color: #28a745; }
-        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-        th, td { padding: 8px; text-align: left; border-bottom: 1px solid #dee2e6; }
-        th { background: #f8f9fa; font-weight: bold; }
-        .highlight { background: #d1ecf1; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 650px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+        .container { background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header { background: linear-gradient(135deg, #1f2937 0%, #374151 100%); color: white; padding: 30px; text-align: center; }
+        .header h1 { margin: 0 0 10px 0; font-size: 28px; }
+        .header p { margin: 0; opacity: 0.9; }
+        .content { padding: 30px; }
+        .update-notice { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px 20px; margin-bottom: 25px; border-radius: 0 5px 5px 0; }
+        .update-notice h3 { margin: 0 0 5px 0; color: #92400e; }
+        .invoice-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 25px; }
+        .invoice-box h3 { margin: 0 0 15px 0; color: #1f2937; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
+        .invoice-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        .invoice-row strong { color: #64748b; }
+        .services-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        .services-table th { background: #1f2937; color: white; padding: 12px; text-align: left; }
+        .services-table td { padding: 12px; border-bottom: 1px solid #e2e8f0; }
+        .services-table tr:nth-child(even) { background: #f8fafc; }
+        .services-table .highlight { background: #fef3c7 !important; }
+        .totals { background: #f8fafc; border-radius: 8px; padding: 20px; margin-top: 20px; }
+        .totals .row { display: flex; justify-content: space-between; margin-bottom: 10px; }
+        .totals .total-row { border-top: 2px solid #1f2937; padding-top: 10px; margin-top: 10px; font-size: 18px; font-weight: bold; color: #1f2937; }
+        .footer { text-align: center; padding: 25px; background: #f8fafc; border-top: 1px solid #e2e8f0; }
+        .footer p { margin: 5px 0; color: #64748b; }
+        .badge { display: inline-block; background: #10b981; color: white; padding: 4px 10px; border-radius: 20px; font-size: 12px; margin-left: 8px; }
+        .badge.pending { background: #f59e0b; }
       </style>
     </head>
     <body>
-      <div class="header">
-        <h1>Hero TV Mounting</h1>
-        <p>Professional TV Mounting & Installation Services</p>
-      </div>
-      
-      ${isUpdate ? `
-        <div class="update-notice">
-          <h3>🔄 Invoice Updated</h3>
-          <p>This invoice has been updated with additional services that were added during your appointment.</p>
+      <div class="container">
+        <div class="header">
+          <h1>🦸 Hero TV Mounting</h1>
+          <p>Professional TV Mounting & Installation Services</p>
         </div>
-      ` : ''}
-      
-      <h2>Thank you for choosing Hero TV Mounting!</h2>
-      <p>Dear ${customer.name},</p>
-      <p>${isUpdate ? 'Your invoice has been updated with additional services.' : 'Thank you for using our professional TV mounting services.'} Please find your ${isUpdate ? 'updated ' : ''}invoice details below:</p>
-      
-      <div class="invoice-details">
-        <h3>Invoice Details</h3>
-        <p><strong>Invoice Number:</strong> ${invoice.invoice_number}</p>
-        <p><strong>Invoice Date:</strong> ${new Date(invoice.invoice_date).toLocaleDateString()}</p>
-        <p><strong>Service Date:</strong> ${new Date(booking.scheduled_date).toLocaleDateString()} at ${booking.scheduled_start}</p>
-        <p><strong>Customer:</strong> ${customer.name}</p>
-        <p><strong>Email:</strong> ${customer.email}</p>
-        <p><strong>Phone:</strong> ${customer.phone || 'N/A'}</p>
-        <p><strong>Service Location:</strong> ${customer.city}, ${customer.zip_code}</p>
-      </div>
-      
-      <div class="service-details">
-        <div class="service-header">Service Details ${isUpdate ? '(Updated)' : ''}</div>
-        <div class="service-content">
-          <table>
+        
+        <div class="content">
+          ${isUpdate ? `
+            <div class="update-notice">
+              <h3>🔄 Invoice Updated</h3>
+              <p>This invoice has been updated to reflect changes to your service.</p>
+            </div>
+          ` : ''}
+          
+          <p>Dear ${customer.name},</p>
+          <p>Thank you for choosing Hero TV Mounting! ${isUpdate ? 'Your invoice has been updated with the latest service details.' : 'Please find your invoice details below.'}</p>
+          
+          <div class="invoice-box">
+            <h3>Invoice Details</h3>
+            <div class="invoice-row"><strong>Invoice Number:</strong> <span>${invoice.invoice_number}</span></div>
+            <div class="invoice-row"><strong>Invoice Date:</strong> <span>${formatDate(invoice.invoice_date || invoice.created_at)}</span></div>
+            <div class="invoice-row"><strong>Service Date:</strong> <span>${formatDate(booking.scheduled_date)} at ${booking.local_service_time || booking.scheduled_start}</span></div>
+            <div class="invoice-row"><strong>Customer:</strong> <span>${customer.name}</span></div>
+            <div class="invoice-row"><strong>Email:</strong> <span>${customer.email}</span></div>
+            ${customer.phone ? `<div class="invoice-row"><strong>Phone:</strong> <span>${customer.phone}</span></div>` : ''}
+            ${customer.city ? `<div class="invoice-row"><strong>Location:</strong> <span>${customer.city}${customer.zip_code ? ', ' + customer.zip_code : ''}</span></div>` : ''}
+            ${worker ? `<div class="invoice-row"><strong>Technician:</strong> <span>${worker.name}</span></div>` : ''}
+          </div>
+          
+          <h3>Services ${isUpdate ? '(Updated)' : ''}</h3>
+          <table class="services-table">
             <thead>
               <tr>
                 <th>Service</th>
-                <th>Description</th>
-                <th>Quantity</th>
-                <th>Price</th>
+                <th>Qty</th>
+                <th style="text-align: right;">Price</th>
               </tr>
             </thead>
             <tbody>
               ${serviceDetails.map((item: any, index: number) => `
                 <tr ${index > 0 && isUpdate ? 'class="highlight"' : ''}>
-                  <td>${item.name} ${index > 0 && isUpdate ? '(Added)' : ''}</td>
-                  <td>${item.configuration?.description || `Professional ${item.name.toLowerCase()}`}</td>
+                  <td>
+                    ${item.name}
+                    ${index > 0 && isUpdate ? '<span class="badge">Added</span>' : ''}
+                    ${item.configuration?.description ? `<br><small style="color:#64748b">${item.configuration.description}</small>` : ''}
+                  </td>
                   <td>${item.quantity}</td>
-                  <td>$${item.total.toFixed(2)}</td>
+                  <td style="text-align: right;">$${item.total.toFixed(2)}</td>
                 </tr>
               `).join('')}
             </tbody>
           </table>
           
-          <div style="text-align: right; margin-top: 15px;">
-            <p class="amount"><strong>Total Amount:</strong> $${invoice.amount.toFixed(2)}</p>
+          <div class="totals">
+            <div class="row"><span>Subtotal:</span> <span>$${invoice.amount.toFixed(2)}</span></div>
+            ${taxAmount > 0 ? `<div class="row"><span>Tax (${stateCode} ${taxPercentage}%):</span> <span>$${taxAmount.toFixed(2)}</span></div>` : ''}
+            <div class="row total-row"><span>Total:</span> <span>$${invoice.total_amount.toFixed(2)}</span></div>
+            ${transaction ? `
+              <div class="row" style="margin-top: 15px;">
+                <span>Payment Status:</span> 
+                <span class="badge ${transaction.status === 'completed' ? '' : 'pending'}">${transaction.status === 'completed' ? 'Paid' : 'Pending'}</span>
+              </div>
+            ` : ''}
           </div>
           
-          ${worker ? `<p><strong>Technician:</strong> ${worker.name}</p>` : ''}
-          ${transaction ? `<p><strong>Payment Method:</strong> ${transaction.payment_method || 'Online Payment'}</p>` : ''}
-          ${transaction ? `<p><strong>Payment Status:</strong> ${transaction.status === 'completed' ? 'Paid' : 'Pending'}</p>` : ''}
+          ${isUpdate ? `
+            <p style="margin-top: 20px; padding: 15px; background: #f0fdf4; border-radius: 5px; border-left: 4px solid #10b981;">
+              <strong>Note:</strong> Any payment adjustments for additional services will be processed using your saved payment method.
+            </p>
+          ` : ''}
+          
+          <p style="margin-top: 25px;">Questions about your invoice? Contact us:</p>
+          <ul style="color: #64748b;">
+            <li>Email: Captain@herotvmounting.com</li>
+            <li>Phone: +1 575-208-8997</li>
+            <li>Website: www.herotvmounting.com</li>
+          </ul>
         </div>
-      </div>
-      
-      ${isUpdate ? `
-        <p><strong>Note:</strong> Additional services were added during your appointment to ensure the best possible installation. Payment for these additional services has been processed using your existing payment method.</p>
-      ` : ''}
-      
-      <p>If you have any questions about this invoice or our services, please don't hesitate to contact us:</p>
-      <ul>
-        <li>Email: Captain@herotvmounting.com</li>
-        <li>Phone: +1 575-208-8997</li>
-        <li>Website: www.herotvmounting.com</li>
-      </ul>
-      
-      <p>We appreciate your business and look forward to serving you again!</p>
-      
-      <div class="footer">
-        <p><strong>Hero TV Mounting</strong><br>
-        Professional TV Mounting & Installation Services<br>
-        Making your entertainment setup perfect!</p>
+        
+        <div class="footer">
+          <p><strong>Hero TV Mounting</strong></p>
+          <p>Professional TV Mounting & Installation Services</p>
+          <p style="font-size: 12px; margin-top: 15px;">Making your entertainment setup perfect!</p>
+        </div>
       </div>
     </body>
     </html>
