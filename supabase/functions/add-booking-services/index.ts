@@ -129,14 +129,13 @@ serve(async (req) => {
 
         console.log('[ADD-BOOKING-SERVICES] Increment successful');
 
-        // CRITICAL FIX: Update invoice after adding services
+        // CRITICAL FIX: Update invoice after adding services (use update-invoice to preserve invoice number)
         try {
           console.log('[ADD-BOOKING-SERVICES] Updating invoice...');
-          await supabase.functions.invoke('generate-invoice', {
+          await supabase.functions.invoke('update-invoice', {
             body: {
               booking_id,
-              send_email: false,  // Don't spam customer with every change
-              force_regenerate: true  // Force update to reflect new services
+              send_email: false  // Don't spam customer with every change
             }
           });
           console.log('[ADD-BOOKING-SERVICES] Invoice updated successfully');

@@ -204,14 +204,13 @@ serve(async (req) => {
 
       console.log(`[WORKER-REMOVE] Updated invoice ${invoice.id}: $${invoice.amount} -> $${newAmount}`);
 
-      // CRITICAL FIX: Also call generate-invoice to ensure full sync
+      // CRITICAL FIX: Also call update-invoice to ensure full sync (preserves invoice number)
       try {
-        console.log('[WORKER-REMOVE] Syncing invoice via generate-invoice...');
-        await supabaseService.functions.invoke('generate-invoice', {
+        console.log('[WORKER-REMOVE] Syncing invoice via update-invoice...');
+        await supabaseService.functions.invoke('update-invoice', {
           body: {
             booking_id,
-            send_email: false,
-            force_regenerate: true
+            send_email: false
           }
         });
         console.log('[WORKER-REMOVE] Invoice synced successfully');
@@ -220,10 +219,10 @@ serve(async (req) => {
         // Don't fail - manual update already done
       }
     } else {
-      // No invoice exists yet - create one
+      // No invoice exists yet - create one via update-invoice (will create if not exists)
       console.log('[WORKER-REMOVE] No invoice found, creating one...');
       try {
-        await supabaseService.functions.invoke('generate-invoice', {
+        await supabaseService.functions.invoke('update-invoice', {
           body: {
             booking_id,
             send_email: false
