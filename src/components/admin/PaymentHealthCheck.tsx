@@ -20,7 +20,6 @@ interface HealthCheckResult {
 export const PaymentHealthCheck = () => {
   const [healthData, setHealthData] = useState<HealthCheckResult | null>(null);
   const [loading, setLoading] = useState(false);
-  const [fixing, setFixing] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -129,42 +128,6 @@ export const PaymentHealthCheck = () => {
     }
   };
 
-  const fixIssues = async () => {
-    setFixing(true);
-    try {
-      // Call the sync function to fix missing transactions
-      const { data, error } = await supabase.functions.invoke('sync-payment-transactions', {
-        body: {
-          action: 'create_missing_transactions'
-        }
-      });
-
-      if (error) throw error;
-
-      if (data.success) {
-        toast({
-          title: "Issues Fixed",
-          description: `Created ${data.count || 0} missing transaction records`,
-        });
-        
-        // Re-run health check
-        await runHealthCheck();
-      } else {
-        throw new Error(data.error || 'Fix operation failed');
-      }
-
-    } catch (error: any) {
-      console.error('Fix failed:', error);
-      toast({
-        title: "Fix Failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setFixing(false);
-    }
-  };
-
   const getHealthStatus = () => {
     if (!healthData) return 'unknown';
     if (healthData.issues.length === 0) return 'healthy';
@@ -209,28 +172,15 @@ export const PaymentHealthCheck = () => {
             <span>Payment System Health</span>
             {getStatusBadge(healthStatus)}
           </CardTitle>
-          <div className="flex items-center space-x-2">
-            <Button
-              onClick={runHealthCheck}
-              disabled={loading}
-              variant="outline"
-              size="sm"
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Check
-            </Button>
-            {healthData && healthData.issues.length > 0 && (
-              <Button
-                onClick={fixIssues}
-                disabled={fixing}
-                variant="default"
-                size="sm"
-              >
-                <RefreshCw className={`h-4 w-4 mr-2 ${fixing ? 'animate-spin' : ''}`} />
-                {fixing ? 'Fixing...' : 'Fix Issues'}
-              </Button>
-            )}
-          </div>
+          <Button
+            onClick={runHealthCheck}
+            disabled={loading}
+            variant="outline"
+            size="sm"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Check
+          </Button>
         </div>
       </CardHeader>
       <CardContent>
