@@ -315,8 +315,36 @@ serve(async (req) => {
             console.error("[WORKER-REMOVE] Failed to create transaction record:", txError);
           }
         } else if (paymentIntent.status === 'requires_capture') {
-          // Payment not captured yet - let capture function handle reduced amount
-          console.log(`[WORKER-REMOVE] Payment pending capture, reduced amount will be captured later`);
+          // CRITICAL FIX: Payment not captured yet - update pending_payment_amount
+          console.log(`[WORKER-REMOVE] Payment pending capture, updating pending_payment_amount`);
+          
+          // Recalculate new total from remaining services
+          const { data: remainingServicesForCapture } = await supabaseService
+            .from('booking_services')
+            .select('base_price, quantity, configuration, service_name')
+            .eq('booking_id', booking_id);
+
+          const newServicesTotal = remainingServicesForCapture?.reduce((sum, s) => {
+            return sum + calculateServicePrice(s) * s.quantity;
+          }, 0) || 0;
+          
+          const tipAmount = booking.tip_amount || 0;
+          const newPendingAmount = newServicesTotal + tipAmount;
+
+          // Update booking with new pending amount
+          const { error: updateError } = await supabaseService
+            .from('bookings')
+            .update({ 
+              pending_payment_amount: newPendingAmount,
+              has_modifications: true
+            })
+            .eq('id', booking_id);
+
+          if (updateError) {
+            console.error("[WORKER-REMOVE] Failed to update pending_payment_amount:", updateError);
+          } else {
+            console.log(`[WORKER-REMOVE] Updated pending_payment_amount: $${newPendingAmount} (services: $${newServicesTotal}, tip: $${tipAmount})`);
+          }
         } else {
           console.log(`[WORKER-REMOVE] Payment status: ${paymentIntent.status}, no refund needed`);
         }
