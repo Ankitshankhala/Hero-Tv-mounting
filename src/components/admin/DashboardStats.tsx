@@ -45,7 +45,7 @@ export const DashboardStats = () => {
     color: 'text-green-600',
     growth: metrics.revenueGrowth
   }, {
-    title: 'Bookings This Month',
+    title: 'Authorized Bookings',
     value: metrics.bookingsThisMonth.toString(),
     description: `${formatGrowth(metrics.bookingsGrowth)} from last month`,
     icon: Calendar,
