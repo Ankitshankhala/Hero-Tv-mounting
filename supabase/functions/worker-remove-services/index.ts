@@ -203,25 +203,35 @@ serve(async (req) => {
         .eq('id', invoice.id);
 
       console.log(`[WORKER-REMOVE] Updated invoice ${invoice.id}: $${invoice.amount} -> $${newAmount}`);
+
+      // CRITICAL FIX: Also call generate-invoice to ensure full sync
+      try {
+        console.log('[WORKER-REMOVE] Syncing invoice via generate-invoice...');
+        await supabaseService.functions.invoke('generate-invoice', {
+          body: {
+            booking_id,
+            send_email: false,
+            force_regenerate: true
+          }
+        });
+        console.log('[WORKER-REMOVE] Invoice synced successfully');
+      } catch (syncError) {
+        console.error('[WORKER-REMOVE] Invoice sync failed:', syncError);
+        // Don't fail - manual update already done
+      }
     } else {
-      // No invoice exists yet, calculate totals from remaining services
-      const { data: remainingServices } = await supabaseService
-        .from('booking_services')
-        .select('base_price, quantity')
-        .eq('booking_id', booking_id);
-
-      if (remainingServices && remainingServices.length > 0) {
-        const subtotal = remainingServices.reduce((sum, service) => 
-          sum + (service.base_price * service.quantity), 0);
-        
-        // Get tax rate (assuming 4.875% for now, should be from booking location)
-        const taxRate = 0.04875;
-        const taxAmount = subtotal * taxRate;
-        const total = subtotal + taxAmount;
-
-        console.log(`[WORKER-REMOVE] No invoice found, calculated remaining total: $${total}`);
-      } else {
-        console.log(`[WORKER-REMOVE] No services remaining after removal`);
+      // No invoice exists yet - create one
+      console.log('[WORKER-REMOVE] No invoice found, creating one...');
+      try {
+        await supabaseService.functions.invoke('generate-invoice', {
+          body: {
+            booking_id,
+            send_email: false
+          }
+        });
+        console.log('[WORKER-REMOVE] Invoice created successfully');
+      } catch (createError) {
+        console.error('[WORKER-REMOVE] Invoice creation failed:', createError);
       }
     }
 

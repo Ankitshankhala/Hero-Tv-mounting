@@ -178,8 +178,8 @@ serve(async (req) => {
     const { error: updateError } = await supabase
       .from('bookings')
       .update({ 
-        payment_status: 'captured'
-        // Explicitly NOT updating booking.status - it should already be 'completed'
+        payment_status: 'captured',
+        pending_payment_amount: null  // Clear pending amount after capture
       })
       .eq('id', booking.id);
 
@@ -189,6 +189,27 @@ serve(async (req) => {
     }
 
     console.log('[CAPTURE-PAYMENT] Payment captured successfully');
+
+    // CRITICAL FIX: Generate/update invoice after successful capture
+    try {
+      console.log('[CAPTURE-PAYMENT] Generating invoice after capture...');
+      const { data: invoiceData, error: invoiceError } = await supabase.functions.invoke('generate-invoice', {
+        body: {
+          booking_id: booking.id,
+          send_email: true,  // Send invoice email after capture
+          force_regenerate: true  // Update with final captured amounts
+        }
+      });
+
+      if (invoiceError) {
+        console.error('[CAPTURE-PAYMENT] Invoice generation failed:', invoiceError);
+      } else {
+        console.log('[CAPTURE-PAYMENT] Invoice generated:', invoiceData?.invoice?.invoice_number);
+      }
+    } catch (invoiceErr) {
+      console.error('[CAPTURE-PAYMENT] Invoice generation error:', invoiceErr);
+      // Don't fail the capture if invoice generation fails
+    }
 
     return new Response(
       JSON.stringify({

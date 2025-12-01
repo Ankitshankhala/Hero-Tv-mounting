@@ -132,6 +132,7 @@ serve(async (req) => {
         supabase.from('bookings').update({
           payment_intent_id: paymentIntent.id,
           payment_status: 'authorized',
+          status: 'confirmed',  // Also confirm booking
         }).eq('id', bookingId),
         supabase.from('booking_audit_log').insert({
           booking_id: bookingId,
@@ -142,6 +143,17 @@ serve(async (req) => {
             amount: amount,
             stripe_status: paymentIntent.status,
           }
+        }),
+        // CRITICAL FIX: Generate draft invoice after authorization
+        supabase.functions.invoke('generate-invoice', {
+          body: {
+            booking_id: bookingId,
+            send_email: false  // Don't email draft invoices
+          }
+        }).then(result => {
+          console.log('[BACKGROUND] Draft invoice generated:', result.data?.invoice?.invoice_number || 'unknown');
+        }).catch(err => {
+          console.error('[BACKGROUND] Invoice generation failed:', err);
         })
       ]).catch(error => {
         console.error('[BACKGROUND] Database update error:', error);

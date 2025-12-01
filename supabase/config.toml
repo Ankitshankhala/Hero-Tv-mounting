@@ -106,3 +106,6 @@ verify_jwt = false
 
 [functions.unified-payment-authorization]
 verify_jwt = false
+
+[functions.confirm-payment]
+verify_jwt = false
