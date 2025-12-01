@@ -243,7 +243,7 @@ export const BookingTable = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {bookings.map((booking) => {
+              {bookings.filter((booking) => booking && booking.id).map((booking) => {
                 const services = formatServices(booking);
                 const formattedDateTime = formatBookingTimeForContext(
                   booking, 
