@@ -94,16 +94,39 @@ serve(async (req) => {
       }
     }
 
-    // Capture the payment through Stripe
+    // CRITICAL FIX: Recalculate expected amount from booking_services to ensure we capture the correct total
+    const { data: currentServices, error: servicesError } = await supabase
+      .from('booking_services')
+      .select('base_price, quantity')
+      .eq('booking_id', booking.id);
+
+    if (servicesError) {
+      console.error('[CAPTURE-PAYMENT] Error fetching services:', servicesError);
+      throw new Error('Failed to calculate total amount from services');
+    }
+
+    const servicesTotal = currentServices?.reduce((sum, s) => sum + (s.base_price * s.quantity), 0) || 0;
+    const tipAmount = booking.tip_amount || 0;
+    const expectedAmountCents = Math.round((servicesTotal + tipAmount) * 100);
+
+    console.log('[CAPTURE-PAYMENT] Amount calculation:', {
+      services_total: servicesTotal,
+      tip_amount: tipAmount,
+      expected_amount_cents: expectedAmountCents
+    });
+
+    // Capture the payment through Stripe with the calculated amount
     console.log('[CAPTURE-PAYMENT] Capturing Stripe PaymentIntent:', intentId);
-    const paymentIntent = await stripe.paymentIntents.capture(intentId);
+    const paymentIntent = await stripe.paymentIntents.capture(intentId, {
+      amount_to_capture: expectedAmountCents
+    });
 
     if (paymentIntent.status !== 'succeeded') {
       console.error('[CAPTURE-PAYMENT] Capture failed:', paymentIntent.status);
       throw new Error(`Payment capture failed with status: ${paymentIntent.status}`);
     }
 
-    const capturedAmount = paymentIntent.amount / 100; // Convert from cents
+    const capturedAmount = paymentIntent.amount_received / 100; // Use amount_received for actual captured amount
     console.log('[CAPTURE-PAYMENT] Successfully captured:', capturedAmount);
 
     // Update existing transaction record from 'authorized' to 'completed'

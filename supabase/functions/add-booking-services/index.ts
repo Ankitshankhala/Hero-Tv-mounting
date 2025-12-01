@@ -39,6 +39,11 @@ serve(async (req) => {
       throw new Error('Booking not found');
     }
 
+    // CRITICAL FIX: Block adding services to already captured bookings
+    if (booking.payment_status === 'captured') {
+      throw new Error('Cannot add services to a booking that has already been charged. Please create a new booking for additional services.');
+    }
+
     if (!booking.payment_intent_id) {
       throw new Error('Booking has no payment intent');
     }
@@ -106,8 +111,7 @@ serve(async (req) => {
         await supabase
           .from('bookings')
           .update({ 
-            pending_payment_amount: newTotal,
-            increment_attempted_at: new Date().toISOString()
+            pending_payment_amount: newTotal
           })
           .eq('id', booking_id);
 
@@ -182,8 +186,7 @@ serve(async (req) => {
         await supabase
           .from('bookings')
           .update({ 
-            pending_payment_amount: newTotal,
-            increment_attempted_at: new Date().toISOString()
+            pending_payment_amount: newTotal
           })
           .eq('id', booking_id);
 

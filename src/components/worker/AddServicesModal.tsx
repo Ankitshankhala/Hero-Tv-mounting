@@ -126,6 +126,16 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
   };
 
   const handleAddServicesAndCharge = async () => {
+    // CRITICAL FIX: Block adding services to already captured/completed bookings
+    if (job.payment_status === 'captured' || job.status === 'completed') {
+      toast({
+        title: "Cannot Add Services",
+        description: "This booking has already been charged. Please create a new booking for additional services.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (cart.length === 0) {
       toast({
         title: "No Services Selected",
