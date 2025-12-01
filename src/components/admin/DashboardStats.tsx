@@ -1,11 +1,13 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, Calendar, DollarSign, Users, Star, Clock, UserCheck } from 'lucide-react';
+import { TrendingUp, Calendar, DollarSign, Users, Star, Clock, UserCheck, Wallet } from 'lucide-react';
 import { useAdminMetrics } from '@/hooks/useAdminMetrics';
 import { Badge } from '@/components/ui/badge';
 import { StripeConfigStatus } from './StripeConfigStatus';
 import { BookingSmokeTest } from './BookingSmokeTest';
 import { StorageCacheOptimizer } from './StorageCacheOptimizer';
+import { FlipCard } from '@/components/ui/flip-card';
+
 export const DashboardStats = () => {
   const {
     metrics,
@@ -88,7 +90,44 @@ export const DashboardStats = () => {
   return <div className="space-y-6">
       {/* Main Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => {
+        {/* Revenue Flip Card */}
+        <FlipCard
+          frontContent={
+            <Card className="h-full bg-slate-800/50 border-slate-700 backdrop-blur-sm hover:shadow-xl hover:shadow-blue-500/10">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-slate-300">
+                  Revenue This Month
+                </CardTitle>
+                <DollarSign className="h-4 w-4 text-green-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-white">{formatCurrency(metrics.revenueThisMonth)}</div>
+                <p className={`text-xs mt-1 ${getGrowthColor(metrics.revenueGrowth)}`}>
+                  {formatGrowth(metrics.revenueGrowth)} from last month
+                </p>
+              </CardContent>
+            </Card>
+          }
+          backContent={
+            <Card className="h-full bg-slate-800/70 border-emerald-700/50 backdrop-blur-sm shadow-xl shadow-emerald-500/10">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-emerald-300">
+                  Total Revenue
+                </CardTitle>
+                <Wallet className="h-4 w-4 text-emerald-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-white">{formatCurrency(metrics.totalRevenue)}</div>
+                <p className="text-xs mt-1 text-slate-400">
+                  From all completed transactions
+                </p>
+              </CardContent>
+            </Card>
+          }
+        />
+        
+        {/* Other Stats Cards */}
+        {stats.slice(1).map((stat, index) => {
         const Icon = stat.icon;
         return <Card key={index} className="bg-slate-800/50 border-slate-700 backdrop-blur-sm hover:bg-slate-800/70 transition-all duration-200 hover:shadow-xl hover:shadow-blue-500/10">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
