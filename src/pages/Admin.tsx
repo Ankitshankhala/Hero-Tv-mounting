@@ -27,7 +27,6 @@ const LazyAdminCalendarView = lazy(() => import('@/components/admin/AdminCalenda
 const LazyCoverageRequestsManager = lazy(() => import('@/components/admin/CoverageRequestsManager').then(m => ({ default: m.CoverageRequestsManager })));
 const LazyAdminServiceAreasUnified = lazy(() => import('@/components/admin/AdminServiceAreasUnified').then(m => ({ default: m.AdminServiceAreasUnified })));
 const LazyInvoicesManager = lazy(() => import('@/components/admin/InvoicesManager').then(m => ({ default: m.InvoicesManager })));
-const LazyInvoiceMonitoringPanel = lazy(() => import('@/components/admin/InvoiceMonitoringPanel').then(m => ({ default: m.InvoiceMonitoringPanel })));
 const LazyEmailLogsManager = lazy(() => import('@/components/admin/EmailLogsManager').then(m => ({ default: m.EmailLogsManager })));
 const LazyNotificationsSettings = lazy(() => import('@/components/admin/NotificationsSettings').then(m => ({ default: m.NotificationsSettings })));
 const LazyTipAnalyticsDashboard = lazy(() => import('@/components/admin/TipAnalyticsDashboard').then(m => ({ default: m.TipAnalyticsDashboard })));
@@ -141,14 +140,7 @@ const Admin = () => {
       case 'payments':
         return wrapWithSuspense(LazyPaymentsManager);
       case 'invoices':
-        return (
-          <Suspense fallback={<ComponentLoader />}>
-            <div className="space-y-6">
-              <LazyInvoiceMonitoringPanel />
-              <LazyInvoicesManager />
-            </div>
-          </Suspense>
-        );
+        return wrapWithSuspense(LazyInvoicesManager);
       case 'coupons':
         return wrapWithSuspense(LazyCouponsManager);
       case 'sms':
