@@ -229,16 +229,7 @@ export const PaymentsManager = () => {
 
   return (
     <div className="space-y-6">
-      {/* Payment Recovery Tools */}
-      <PaymentRecoveryTools />
-
-      {/* Payment Health Check */}
-      <PaymentHealthCheck />
-
-      {/* Payment Capture History */}
-      <PaymentCaptureHistory />
-
-      {/* Payment Stats Cards */}
+      {/* 1. Payment Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-6">
@@ -290,7 +281,7 @@ export const PaymentsManager = () => {
         </Card>
       </div>
 
-      {/* Payment Transactions Table */}
+      {/* 2. Payment Transactions Table */}
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
@@ -409,6 +400,15 @@ export const PaymentsManager = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* 3. Recent Payment Captures */}
+      <PaymentCaptureHistory />
+
+      {/* 4. Payment Recovery Tools */}
+      <PaymentRecoveryTools />
+
+      {/* 5. Payment System Health */}
+      <PaymentHealthCheck />
 
       <PaymentDetailsModal
         isOpen={isDetailsModalOpen}
