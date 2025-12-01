@@ -12,10 +12,21 @@ import { EditBookingModal } from './EditBookingModal';
 import { BookingDetailsModal } from './BookingDetailsModal';
 import { DeleteBookingModal } from './DeleteBookingModal';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Calendar, Archive } from 'lucide-react';
+import { RefreshCw, Calendar, Archive, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-
+import { supabase } from '@/integrations/supabase/client';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 export const BookingsManager = () => {
   const [filteredBookings, setFilteredBookings] = useState([]);
@@ -31,6 +42,7 @@ export const BookingsManager = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [selectedBookingIds, setSelectedBookingIds] = useState<string[]>([]);
+  const [deletingPending, setDeletingPending] = useState(false);
   const { user } = useAuth();
 
   // Use our enhanced booking manager hook
@@ -226,6 +238,35 @@ export const BookingsManager = () => {
     );
   };
 
+  const handleBulkDeletePaymentPending = async () => {
+    setDeletingPending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('bulk-delete-payment-pending');
+
+      if (error) throw error;
+
+      if (data.success) {
+        toast.success(`Deleted ${data.deleted_count} payment_pending bookings`);
+        if (data.failed_count > 0) {
+          toast.warning(`${data.failed_count} bookings failed to delete`);
+        }
+        fetchBookings(true);
+      } else {
+        throw new Error(data.error || 'Unknown error');
+      }
+    } catch (error: any) {
+      console.error('Bulk delete failed:', error);
+      toast.error(`Failed to delete bookings: ${error.message}`);
+    } finally {
+      setDeletingPending(false);
+    }
+  };
+
+  // Count payment_pending bookings for the button
+  const paymentPendingCount = bookings.filter(
+    (b: any) => b.status === 'payment_pending'
+  ).length;
+
   return (
     <AuthGuard allowedRoles={['admin']}>
       <div className="space-y-6">
@@ -247,6 +288,39 @@ export const BookingsManager = () => {
                     <Archive className="h-4 w-4" />
                     <span>Archive Selected ({selectedBookingIds.length})</span>
                   </Button>
+                )}
+                {archiveFilter === 'pending_payments' && paymentPendingCount > 0 && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        disabled={deletingPending}
+                        className="flex items-center space-x-2"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span>Delete All ({paymentPendingCount})</span>
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete All Payment Pending Bookings?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will permanently delete <strong>{paymentPendingCount}</strong> bookings with payment_pending status. 
+                          Associated Stripe PaymentIntents will be canceled. This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={handleBulkDeletePaymentPending}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Delete All
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 )}
                 <Button
                   variant="outline"
