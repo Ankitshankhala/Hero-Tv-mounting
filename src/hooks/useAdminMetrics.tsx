@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 interface MetricsData {
   totalBookings: number;
   totalRevenue: number;
+  revenueThisMonth: number;
   avgBookingValue: number;
   completedBookings: number;
   revenueGrowth: number;
@@ -24,6 +25,7 @@ export const useAdminMetrics = () => {
   const [metrics, setMetrics] = useState<MetricsData>({
     totalBookings: 0,
     totalRevenue: 0,
+    revenueThisMonth: 0,
     avgBookingValue: 0,
     completedBookings: 0,
     revenueGrowth: 0,
@@ -82,6 +84,7 @@ export const useAdminMetrics = () => {
         setMetrics({
           totalBookings: Number(metricsData.totalBookings || 0),
           totalRevenue: Number(metricsData.totalRevenue || 0),
+          revenueThisMonth: Number(metricsData.revenueThisMonth || 0),
           avgBookingValue: Number(metricsData.avgBookingValue || 0),
           completedBookings: Number(metricsData.completedBookings || 0),
           revenueGrowth,

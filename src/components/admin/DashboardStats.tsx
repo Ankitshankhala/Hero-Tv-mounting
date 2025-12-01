@@ -38,8 +38,8 @@ export const DashboardStats = () => {
       </div>;
   }
   const stats = [{
-    title: 'Total Revenue',
-    value: formatCurrency(metrics.totalRevenue),
+    title: 'Revenue This Month',
+    value: formatCurrency(metrics.revenueThisMonth),
     description: `${formatGrowth(metrics.revenueGrowth)} from last month`,
     icon: DollarSign,
     color: 'text-green-600',
