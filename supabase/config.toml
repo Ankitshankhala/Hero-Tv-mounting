@@ -109,3 +109,6 @@ verify_jwt = false
 
 [functions.confirm-payment]
 verify_jwt = false
+
+[functions.bulk-delete-payment-pending]
+verify_jwt = true
