@@ -324,8 +324,8 @@ serve(async (req) => {
             console.error("[WORKER-REMOVE] Failed to create transaction record:", txError);
           }
         } else if (paymentIntent.status === 'requires_capture') {
-          // CRITICAL FIX: Payment not captured yet - update pending_payment_amount
-          console.log(`[WORKER-REMOVE] Payment pending capture, updating pending_payment_amount`);
+          // CRITICAL FIX: Payment not captured yet - create new authorization with reduced amount
+          console.log(`[WORKER-REMOVE] Payment pending capture, creating new authorization with reduced amount`);
           
           // Recalculate new total from remaining services
           const { data: remainingServicesForCapture } = await supabaseService
@@ -339,20 +339,215 @@ serve(async (req) => {
           
           const tipAmount = booking.tip_amount || 0;
           const newPendingAmount = newServicesTotal + tipAmount;
+          const newTotalCents = Math.round(newPendingAmount * 100);
+          
+          // Check if booking has saved payment method for seamless reauthorization
+          const hasPaymentMethod = booking.stripe_customer_id && booking.stripe_payment_method_id;
+          
+          if (hasPaymentMethod && newTotalCents > 0) {
+            try {
+              console.log(`[WORKER-REMOVE] Creating new PaymentIntent for $${newPendingAmount} with saved payment method`);
+              
+              // Create NEW PaymentIntent with reduced amount using saved payment method
+              const newPaymentIntent = await stripe.paymentIntents.create({
+                amount: newTotalCents,
+                currency: 'usd',
+                customer: booking.stripe_customer_id,
+                payment_method: booking.stripe_payment_method_id,
+                capture_method: 'manual',
+                confirm: true,
+                off_session: true,
+                metadata: {
+                  booking_id,
+                  original_payment_intent: booking.payment_intent_id,
+                  reason: 'service_removal'
+                }
+              });
 
-          // Update booking with new pending amount
-          const { error: updateError } = await supabaseService
-            .from('bookings')
-            .update({ 
-              pending_payment_amount: newPendingAmount,
-              has_modifications: true
-            })
-            .eq('id', booking_id);
+              if (newPaymentIntent.status === 'requires_capture') {
+                // SUCCESS: Cancel old PaymentIntent and update records
+                console.log(`[WORKER-REMOVE] New authorization successful: ${newPaymentIntent.id}`);
+                
+                try {
+                  await stripe.paymentIntents.cancel(booking.payment_intent_id);
+                  console.log(`[WORKER-REMOVE] Cancelled old PaymentIntent: ${booking.payment_intent_id}`);
+                } catch (cancelError) {
+                  console.warn('[WORKER-REMOVE] Could not cancel old PI:', cancelError.message);
+                }
 
-          if (updateError) {
-            console.error("[WORKER-REMOVE] Failed to update pending_payment_amount:", updateError);
+                // Update booking with new payment_intent_id
+                await supabaseService.from('bookings').update({
+                  payment_intent_id: newPaymentIntent.id,
+                  pending_payment_amount: newPendingAmount,
+                  payment_status: 'authorized',
+                  has_modifications: true
+                }).eq('id', booking_id);
+
+                // Update transactions table
+                const { error: txUpdateError } = await supabaseService
+                  .from('transactions')
+                  .update({
+                    payment_intent_id: newPaymentIntent.id,
+                    amount: newPendingAmount,
+                    base_amount: newServicesTotal
+                  })
+                  .eq('booking_id', booking_id)
+                  .eq('status', 'authorized');
+
+                if (txUpdateError) {
+                  console.log('[WORKER-REMOVE] Creating new transaction record');
+                  await supabaseService.from('transactions').insert({
+                    booking_id,
+                    amount: newPendingAmount,
+                    base_amount: newServicesTotal,
+                    status: 'authorized',
+                    payment_intent_id: newPaymentIntent.id,
+                    transaction_type: 'authorization',
+                    payment_method: 'card'
+                  });
+                }
+
+                // Log audit entry
+                await supabaseService.from('booking_audit_log').insert({
+                  booking_id,
+                  operation: 'authorization_reduced',
+                  status: 'success',
+                  payment_intent_id: newPaymentIntent.id,
+                  details: {
+                    old_amount: paymentIntent.amount / 100,
+                    new_amount: newPendingAmount,
+                    old_payment_intent: booking.payment_intent_id,
+                    new_payment_intent: newPaymentIntent.id,
+                    services_removed: servicesToRemove.length
+                  }
+                });
+
+                console.log(`[WORKER-REMOVE] Authorization updated: $${paymentIntent.amount / 100} -> $${newPendingAmount}`);
+                
+                // Return success with authorization updated flag
+                return new Response(
+                  JSON.stringify({
+                    success: true,
+                    message: "Services removed and authorization updated",
+                    data: {
+                      removed_services: servicesToRemove.length,
+                      service_names: servicesToRemove.map(s => s.service_name),
+                      refund_amount: 0,
+                      refund_id: null,
+                      invoice_updated: !!invoice,
+                      authorization_updated: true,
+                      new_payment_intent_id: newPaymentIntent.id,
+                      old_authorization: paymentIntent.amount / 100,
+                      new_authorization: newPendingAmount
+                    }
+                  }),
+                  { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+                );
+                
+              } else if (newPaymentIntent.status === 'requires_action') {
+                // 3DS required - return client_secret for frontend handling
+                console.log(`[WORKER-REMOVE] 3DS required for new authorization`);
+                
+                return new Response(
+                  JSON.stringify({
+                    success: true,
+                    message: "Services removed, payment requires authentication",
+                    data: {
+                      removed_services: servicesToRemove.length,
+                      service_names: servicesToRemove.map(s => s.service_name),
+                      refund_amount: 0,
+                      refund_id: null,
+                      invoice_updated: !!invoice,
+                      requires_new_payment: true,
+                      client_secret: newPaymentIntent.client_secret,
+                      new_payment_intent: newPaymentIntent.id,
+                      old_payment_intent: booking.payment_intent_id,
+                      new_amount: newPendingAmount,
+                      old_amount: paymentIntent.amount / 100
+                    }
+                  }),
+                  { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+                );
+              }
+            } catch (paymentError) {
+              // Card declined or requires authentication - create unconfirmed PI
+              console.error('[WORKER-REMOVE] Seamless reauthorization failed:', paymentError.message);
+              
+              const manualPI = await stripe.paymentIntents.create({
+                amount: newTotalCents,
+                currency: 'usd',
+                customer: booking.stripe_customer_id,
+                capture_method: 'manual',
+                metadata: { 
+                  booking_id, 
+                  reason: 'reauthorization_required_removal',
+                  original_payment_intent: booking.payment_intent_id
+                }
+              });
+              
+              return new Response(
+                JSON.stringify({
+                  success: true,
+                  message: "Services removed, new payment authorization required",
+                  data: {
+                    removed_services: servicesToRemove.length,
+                    service_names: servicesToRemove.map(s => s.service_name),
+                    refund_amount: 0,
+                    refund_id: null,
+                    invoice_updated: !!invoice,
+                    requires_new_payment: true,
+                    client_secret: manualPI.client_secret,
+                    new_payment_intent: manualPI.id,
+                    old_payment_intent: booking.payment_intent_id,
+                    new_amount: newPendingAmount,
+                    old_amount: paymentIntent.amount / 100
+                  }
+                }),
+                { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+              );
+            }
+          } else if (newTotalCents > 0) {
+            // No saved payment method - create PI for manual payment
+            console.log(`[WORKER-REMOVE] No saved payment method, creating manual authorization PI`);
+            
+            const newPI = await stripe.paymentIntents.create({
+              amount: newTotalCents,
+              currency: 'usd',
+              capture_method: 'manual',
+              metadata: { 
+                booking_id, 
+                reason: 'no_saved_payment_method_removal',
+                original_payment_intent: booking.payment_intent_id
+              }
+            });
+            
+            return new Response(
+              JSON.stringify({
+                success: true,
+                message: "Services removed, new payment authorization required",
+                data: {
+                  removed_services: servicesToRemove.length,
+                  service_names: servicesToRemove.map(s => s.service_name),
+                  refund_amount: 0,
+                  refund_id: null,
+                  invoice_updated: !!invoice,
+                  requires_new_payment: true,
+                  client_secret: newPI.client_secret,
+                  new_payment_intent: newPI.id,
+                  old_payment_intent: booking.payment_intent_id,
+                  new_amount: newPendingAmount,
+                  old_amount: paymentIntent.amount / 100
+                }
+              }),
+              { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
           } else {
-            console.log(`[WORKER-REMOVE] Updated pending_payment_amount: $${newPendingAmount} (services: $${newServicesTotal}, tip: $${tipAmount})`);
+            // New total is zero - just update booking
+            console.log(`[WORKER-REMOVE] New total is $0, updating booking only`);
+            await supabaseService.from('bookings').update({ 
+              pending_payment_amount: 0,
+              has_modifications: true
+            }).eq('id', booking_id);
           }
         } else {
           console.log(`[WORKER-REMOVE] Payment status: ${paymentIntent.status}, no refund needed`);
