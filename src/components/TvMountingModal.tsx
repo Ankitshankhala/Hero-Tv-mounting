@@ -28,11 +28,22 @@ export const TvMountingModal = ({ open, onClose, onAddToCart, services }: TvMoun
     buildServicesList,
     over65Service,
     frameMountService,
-    calculateTvMountingPrice
+    calculateTvMountingPrice,
+    isReady,
+    servicesLoading
   } = useTvMountingModal(services);
 
   const handleAddToCart = () => {
+    // Defensive check: prevent submission if services not ready
+    if (!isReady || servicesLoading) {
+      console.warn('[TvMountingModal] Services not ready, preventing add to cart');
+      return;
+    }
     const servicesList = buildServicesList();
+    if (servicesList.length === 0) {
+      console.error('[TvMountingModal] No services built - this should not happen');
+      return;
+    }
     onAddToCart(servicesList);
     onClose();
   };
@@ -188,9 +199,10 @@ export const TvMountingModal = ({ open, onClose, onAddToCart, services }: TvMoun
               </Button>
               <Button 
                 onClick={handleAddToCart}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+                disabled={!isReady || servicesLoading}
+                className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Add to Cart
+                {servicesLoading ? 'Loading...' : 'Add to Cart'}
               </Button>
             </div>
           </div>

@@ -73,11 +73,21 @@ export const TvMountingConfigurationModal: React.FC<TvMountingConfigurationModal
   }, [existingConfiguration, setNumberOfTvs, updateTvConfiguration]);
 
   const handleComplete = () => {
+    // Defensive check: prevent submission if services not ready
+    if (!isReady || servicesLoading) {
+      console.warn('[TvMountingConfigurationModal] Services not ready, preventing submit');
+      return;
+    }
+    const servicesList = buildServicesList();
+    if (servicesList.length === 0) {
+      console.error('[TvMountingConfigurationModal] No services built - this should not happen');
+      return;
+    }
     const configuration = {
       numberOfTvs,
       tvConfigurations,
       totalPrice,
-      services: buildServicesList(),
+      services: servicesList,
       cartItemName: buildCartItemName()
     };
     onConfigurationComplete(configuration);
@@ -158,11 +168,11 @@ export const TvMountingConfigurationModal: React.FC<TvMountingConfigurationModal
             Cancel
           </Button>
           <Button
-             onClick={handleComplete}
-             variant="default"
-             disabled={!isReady}
-           >
-            Apply Configuration
+            onClick={handleComplete}
+            variant="default"
+            disabled={!isReady || servicesLoading}
+          >
+            {servicesLoading ? 'Loading...' : 'Apply Configuration'}
           </Button>
         </div>
       </DialogContent>
