@@ -31,6 +31,7 @@ interface ServicesCacheContextValue {
   isFromCache: boolean;
   lastUpdated: Date | null;
   refetch: () => Promise<void>;
+  invalidateCache: () => void;
 }
 
 const ServicesCacheContext = createContext<ServicesCacheContextValue | null>(null);
@@ -59,6 +60,15 @@ const writeCache = (services: CachedService[]) => {
       timestamp: Date.now()
     };
     localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+  } catch {
+    // Ignore localStorage errors
+  }
+};
+
+// Clear cache from localStorage
+const clearCache = () => {
+  try {
+    localStorage.removeItem(CACHE_KEY);
   } catch {
     // Ignore localStorage errors
   }
@@ -98,6 +108,13 @@ export const ServicesCacheProvider = ({ children }: { children: ReactNode }) => 
     }
   }, []);
 
+  // Explicitly invalidate cache and refetch
+  const invalidateCache = useCallback(() => {
+    console.log('[ServicesCacheContext] Cache invalidated, refetching...');
+    clearCache();
+    fetchServices();
+  }, [fetchServices]);
+
   // Fetch on mount with background refresh
   useEffect(() => {
     // If we have cached data, mark as not loading immediately
@@ -110,6 +127,30 @@ export const ServicesCacheProvider = ({ children }: { children: ReactNode }) => 
     fetchServices();
   }, [fetchServices]);
 
+  // Real-time subscription for services table changes
+  useEffect(() => {
+    const channel = supabase
+      .channel('services-realtime-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'services'
+        },
+        (payload) => {
+          console.log('[ServicesCacheContext] Services table changed:', payload.eventType);
+          clearCache();
+          fetchServices();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchServices]);
+
   const publicServices = useMemo(() => {
     return allServices.filter(s => s.is_visible);
   }, [allServices]);
@@ -120,8 +161,9 @@ export const ServicesCacheProvider = ({ children }: { children: ReactNode }) => 
     isLoading,
     isFromCache,
     lastUpdated,
-    refetch: fetchServices
-  }), [allServices, publicServices, isLoading, isFromCache, lastUpdated, fetchServices]);
+    refetch: fetchServices,
+    invalidateCache
+  }), [allServices, publicServices, isLoading, isFromCache, lastUpdated, fetchServices, invalidateCache]);
 
   return (
     <ServicesCacheContext.Provider value={value}>

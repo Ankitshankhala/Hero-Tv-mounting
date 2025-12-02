@@ -24,6 +24,18 @@ export interface Service {
   } | null;
 }
 
+const CACHE_KEY = 'services_cache_v1';
+
+// Helper to clear global service cache
+const clearGlobalServiceCache = () => {
+  try {
+    localStorage.removeItem(CACHE_KEY);
+    console.log('[useServicesData] Global service cache cleared');
+  } catch {
+    // Ignore localStorage errors
+  }
+};
+
 export const useServicesData = () => {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,6 +86,9 @@ export const useServicesData = () => {
           : service
       ));
 
+      // Invalidate global cache so other components see the change
+      clearGlobalServiceCache();
+
       toast({
         title: "Success",
         description: `Service ${newVisibility ? 'shown' : 'hidden'} successfully`,
@@ -114,6 +129,10 @@ export const useServicesData = () => {
 
       const serviceWithVisibility = { ...data, is_visible: true } as Service;
       setServices(prev => [...prev, serviceWithVisibility].sort((a, b) => a.sort_order - b.sort_order));
+      
+      // Invalidate global cache so all components see new service
+      clearGlobalServiceCache();
+      
       toast({
         title: "Success",
         description: "Service added successfully",
@@ -158,6 +177,10 @@ export const useServicesData = () => {
       setServices(prev => prev.map(service => 
         service.id === id ? { ...data, is_visible: service.is_visible } as Service : service
       ));
+      
+      // Invalidate global cache so all components see updated service
+      clearGlobalServiceCache();
+      
       toast({
         title: "Success",
         description: "Service updated successfully",
@@ -182,6 +205,9 @@ export const useServicesData = () => {
         .eq('id', serviceId);
 
       if (error) throw error;
+      
+      // Invalidate global cache for order changes
+      clearGlobalServiceCache();
     } catch (error) {
       console.error('Error updating service order:', error);
       throw error;
@@ -202,6 +228,9 @@ export const useServicesData = () => {
       
       // Update local state
       setServices(reorderedServices);
+      
+      // Invalidate global cache for order changes
+      clearGlobalServiceCache();
       
       toast({
         title: "Success",
@@ -227,6 +256,10 @@ export const useServicesData = () => {
       if (error) throw error;
 
       setServices(prev => prev.filter(service => service.id !== id));
+      
+      // Invalidate global cache so deleted service disappears everywhere
+      clearGlobalServiceCache();
+      
       toast({
         title: "Success",
         description: "Service deleted successfully",
