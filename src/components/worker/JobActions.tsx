@@ -33,65 +33,58 @@ const JobActions = ({
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [captureFailedAfterComplete, setCaptureFailedAfterComplete] = useState(false);
-  const { toast } = useToast();
+  const {
+    toast
+  } = useToast();
   const callCustomer = (phone: string) => {
     initiatePhoneCall(phone);
   };
   const getCustomerAddress = () => {
     return job.guest_customer_info?.address || job.customer?.address || '';
   };
-
   const getCustomerPhone = () => {
     return job.guest_customer_info?.phone || job.customer?.phone || '';
   };
+  const canAddCharges = (job.status === 'in_progress' || job.status === 'confirmed') && job.payment_status !== 'captured' && job.payment_status !== 'completed';
 
-  const canAddCharges = (job.status === 'in_progress' || job.status === 'confirmed') && 
-    job.payment_status !== 'captured' && 
-    job.payment_status !== 'completed';
-  
   // Show "Charge" button only when job is completed AND payment is authorized, or when capture just failed
-  const canCapturePayment = (job.status === 'completed' && (
-    job.payment_status === 'authorized' || 
-    job.status === 'payment_authorized' ||
-    job.payment_status === 'capture_failed'
-  )) || captureFailedAfterComplete;
-  
+  const canCapturePayment = job.status === 'completed' && (job.payment_status === 'authorized' || job.status === 'payment_authorized' || job.payment_status === 'capture_failed') || captureFailedAfterComplete;
+
   // Show "Mark Complete" button when job is in progress/confirmed AND payment is authorized
-  const canMarkComplete = (job.status === 'in_progress' || job.status === 'confirmed' || job.status === 'payment_authorized') && 
-    job.payment_status === 'authorized';
-  
+  const canMarkComplete = (job.status === 'in_progress' || job.status === 'confirmed' || job.status === 'payment_authorized') && job.payment_status === 'authorized';
   const canCollectPayment = job.payment_status === 'failed' || job.payment_status === 'cancelled';
   const canAddServices = job.status === 'confirmed' || job.status === 'in_progress' || job.status === 'payment_authorized';
   const canModifyServices = job.status === 'confirmed' || job.status === 'in_progress' || job.status === 'payment_authorized';
   const isPaymentPaid = job.payment_status === 'captured' || job.payment_status === 'completed';
   const canReassignOrReschedule = job.status !== 'completed' && job.status !== 'cancelled';
   const canArchive = job.status === 'completed' && (job.payment_status === 'captured' || job.payment_status === 'completed');
-
   const handleMarkComplete = async () => {
     try {
       // Step 1: Mark job as completed
-      const { error: updateError } = await supabase
-        .from('bookings')
-        .update({ status: 'completed' })
-        .eq('id', job.id);
-
+      const {
+        error: updateError
+      } = await supabase.from('bookings').update({
+        status: 'completed'
+      }).eq('id', job.id);
       if (updateError) throw updateError;
 
       // Step 2: Automatically capture the authorized payment
       if (job.payment_intent_id) {
-        const { data: captureData, error: captureError } = await supabase.functions.invoke('capture-payment-intent', {
-          body: { 
-            booking_id: job.id  // Only send booking_id, let edge function look up payment_intent_id
+        const {
+          data: captureData,
+          error: captureError
+        } = await supabase.functions.invoke('capture-payment-intent', {
+          body: {
+            booking_id: job.id // Only send booking_id, let edge function look up payment_intent_id
           }
         });
-
         if (captureError || !captureData?.success) {
           // Job is completed but payment capture failed - immediately show Charge button
           setCaptureFailedAfterComplete(true);
           toast({
             title: "Job Completed",
             description: "Job marked complete but payment capture failed. Use the Charge button to retry.",
-            variant: "destructive",
+            variant: "destructive"
           });
           onJobUpdated?.();
           return;
@@ -101,33 +94,31 @@ const JobActions = ({
         setCaptureFailedAfterComplete(false);
         toast({
           title: "Job Completed & Payment Captured",
-          description: `Successfully charged $${(job.booking_services?.reduce((sum: number, s: any) => sum + (s.base_price * s.quantity), 0) || 0).toFixed(2)}`,
+          description: `Successfully charged $${(job.booking_services?.reduce((sum: number, s: any) => sum + s.base_price * s.quantity, 0) || 0).toFixed(2)}`
         });
       } else {
         // No payment intent, just mark complete
         toast({
           title: "Job Marked Complete",
-          description: "The job has been marked as completed.",
+          description: "The job has been marked as completed."
         });
       }
-
       onJobUpdated?.();
     } catch (error) {
       console.error('Error completing job:', error);
       toast({
         title: "Error",
         description: "Failed to complete the job. Please try again.",
-        variant: "destructive",
+        variant: "destructive"
       });
     }
   };
-
   const handleArchiveJob = async () => {
     try {
       await archiveBooking(job.id);
       toast({
         title: "Job Archived",
-        description: "The completed job has been archived successfully.",
+        description: "The completed job has been archived successfully."
       });
       onJobUpdated?.();
     } catch (error) {
@@ -135,7 +126,7 @@ const JobActions = ({
       toast({
         title: "Error",
         description: "Failed to archive the job. Please try again.",
-        variant: "destructive",
+        variant: "destructive"
       });
     }
   };
@@ -185,41 +176,25 @@ const JobActions = ({
         <MapAppSelector address={getCustomerAddress()} />
         
         {/* Mark Complete button - shows before payment can be captured */}
-        {canMarkComplete && (
-          <Button 
-            size="sm" 
-            variant="default"
-            onClick={handleMarkComplete}
-            className="job-button bg-green-600 hover:bg-green-700 text-white transition-all duration-200"
-          >
+        {canMarkComplete && <Button size="sm" variant="default" onClick={handleMarkComplete} className="job-button bg-green-600 hover:bg-green-700 text-white transition-all duration-200">
             <CheckCircle className="h-4 w-4 mr-2" />
-            Mark Complete
-          </Button>
-        )}
+            Charge
+          </Button>}
         
         {/* Charge button - only shows after job is completed */}
         {canCapturePayment && <PaymentCaptureButton bookingId={job.id} paymentStatus={job.payment_status} bookingStatus={job.status} onCaptureSuccess={onCaptureSuccess} />}
         
-        {canCollectPayment && (
-          <Button 
-            size="sm" 
-            variant="default"
-            onClick={onChargeClick}
-            className="job-button bg-primary hover:bg-primary/90 text-primary-foreground transition-all duration-200"
-          >
+        {canCollectPayment && <Button size="sm" variant="default" onClick={onChargeClick} className="job-button bg-primary hover:bg-primary/90 text-primary-foreground transition-all duration-200">
             <CreditCard className="h-4 w-4 mr-2" />
             Collect Payment
-          </Button>
-        )}
+          </Button>}
         
         {/* Prevent completion for jobs with payment issues */}
-        {(job.payment_status === 'failed' || job.payment_status === 'cancelled') && (
-          <div className="w-full mt-2 p-2 bg-destructive/10 border border-destructive/20 rounded-md">
+        {(job.payment_status === 'failed' || job.payment_status === 'cancelled') && <div className="w-full mt-2 p-2 bg-destructive/10 border border-destructive/20 rounded-md">
             <p className="text-sm text-destructive font-medium">
               ⚠️ Payment required before job completion
             </p>
-          </div>
-        )}
+          </div>}
         
         {canAddServices && <Button size="sm" variant="outline" onClick={onAddServicesClick} className="job-button border-action-warning text-action-warning hover:bg-action-warning hover:text-white transition-all duration-200">
             <Plus className="h-4 w-4 mr-2" />
@@ -232,77 +207,44 @@ const JobActions = ({
           </Button>}
 
         {/* Worker Management Actions */}
-        {canReassignOrReschedule && (
-          <>
-            <Button 
-              size="sm" 
-              variant="outline" 
-              onClick={() => setShowReassignModal(true)}
-              className="job-button border-action-warning text-action-warning hover:bg-action-warning hover:text-white transition-all duration-200"
-            >
+        {canReassignOrReschedule && <>
+            <Button size="sm" variant="outline" onClick={() => setShowReassignModal(true)} className="job-button border-action-warning text-action-warning hover:bg-action-warning hover:text-white transition-all duration-200">
               <Users className="h-4 w-4 mr-2" />
               Reassign Job
             </Button>
             
-            <Button 
-              size="sm" 
-              variant="outline" 
-              onClick={() => setShowRescheduleModal(true)}
-              className="job-button border-action-info text-action-info hover:bg-action-info hover:text-white transition-all duration-200"
-            >
+            <Button size="sm" variant="outline" onClick={() => setShowRescheduleModal(true)} className="job-button border-action-info text-action-info hover:bg-action-info hover:text-white transition-all duration-200">
               <Clock className="h-4 w-4 mr-2" />
               Change Time
             </Button>
-          </>
-        )}
+          </>}
 
         {/* Archive Action for Completed Jobs */}
-        {canArchive && (
-          <Button 
-            size="sm" 
-            variant="outline" 
-            onClick={handleArchiveJob}
-            className="job-button border-green-500 text-green-600 hover:bg-green-500 hover:text-white transition-all duration-200"
-          >
+        {canArchive && <Button size="sm" variant="outline" onClick={handleArchiveJob} className="job-button border-green-500 text-green-600 hover:bg-green-500 hover:text-white transition-all duration-200">
             <Archive className="h-4 w-4 mr-2" />
             Archive Job
-          </Button>
-        )}
+          </Button>}
       </div>
       
       {/* Status Update Section */}
       <div className="mt-4 pt-4 border-t border-worker-border/50">
-        {canReassignOrReschedule && (
-          <div className="bg-muted/50 p-3 rounded-md">
+        {canReassignOrReschedule && <div className="bg-muted/50 p-3 rounded-md">
             <p className="text-sm text-muted-foreground">
               💡 <strong>Tip:</strong> If you're not able to complete this job at the scheduled time, you can change the time or reassign it to another technician using the buttons above.
             </p>
-          </div>
-        )}
+          </div>}
       </div>
 
       {/* Modals */}
-      <ReassignJobModal
-        isOpen={showReassignModal}
-        onClose={() => setShowReassignModal(false)}
-        bookingId={job.id}
-        onSuccess={() => {
-          onJobUpdated?.();
-          setShowReassignModal(false);
-        }}
-      />
+      <ReassignJobModal isOpen={showReassignModal} onClose={() => setShowReassignModal(false)} bookingId={job.id} onSuccess={() => {
+      onJobUpdated?.();
+      setShowReassignModal(false);
+    }} />
       
-      <RescheduleJobModal
-        isOpen={showRescheduleModal}
-        onClose={() => setShowRescheduleModal(false)}
-        bookingId={job.id}
-        currentDate={job.scheduled_date}
-        currentTime={job.scheduled_start}
-        onSuccess={() => {
-          onJobUpdated?.();
-          setShowRescheduleModal(false);
-        }}
-      />
+      <RescheduleJobModal isOpen={showRescheduleModal} onClose={() => setShowRescheduleModal(false)} bookingId={job.id} currentDate={job.scheduled_date} currentTime={job.scheduled_start} onSuccess={() => {
+      onJobUpdated?.();
+      setShowRescheduleModal(false);
+    }} />
     </div>;
 };
 export default JobActions;
