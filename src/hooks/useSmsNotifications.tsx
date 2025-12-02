@@ -63,6 +63,62 @@ export const useSmsNotifications = () => {
     }
   };
 
+  const sendCustomerSms = async (bookingId: string) => {
+    try {
+      console.log('Sending customer SMS notification for booking:', bookingId);
+      
+      const { data, error } = await supabase.functions.invoke('send-customer-sms-notification', {
+        body: { bookingId }
+      });
+
+      if (error) {
+        console.error('Error sending customer SMS:', error);
+        return false;
+      }
+
+      console.log('Customer SMS sent successfully:', data);
+      return true;
+    } catch (error) {
+      console.error('Failed to send customer SMS notification:', error);
+      return false;
+    }
+  };
+
+  const resendCustomerSms = async (bookingId: string) => {
+    try {
+      console.log('Resending customer SMS notification for booking:', bookingId);
+      
+      const { data, error } = await supabase.functions.invoke('send-customer-sms-notification', {
+        body: { bookingId, force: true }
+      });
+
+      if (error) {
+        console.error('Error resending customer SMS:', error);
+        toast({
+          title: "SMS Error",
+          description: "Failed to resend customer SMS notification",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      console.log('Customer SMS resend triggered:', data);
+      toast({
+        title: "SMS Sent",
+        description: "Customer SMS notification resent successfully",
+      });
+      return true;
+    } catch (error) {
+      console.error('Failed to resend customer SMS notification:', error);
+      toast({
+        title: "SMS Error", 
+        description: "Failed to resend customer SMS notification",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   const resendWorkerEmail = async (bookingId: string, options?: { force?: boolean }) => {
     try {
       console.log('Resending email notification for booking:', bookingId);
@@ -212,7 +268,9 @@ export const useSmsNotifications = () => {
 
   return {
     sendWorkerAssignmentSms,
+    sendCustomerSms,
     resendWorkerSms,
+    resendCustomerSms,
     resendWorkerEmail,
     resendCustomerEmail,
     getSmsLogs,
