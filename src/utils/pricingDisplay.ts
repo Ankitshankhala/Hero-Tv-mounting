@@ -1,11 +1,10 @@
-import { PublicService } from '@/hooks/usePublicServicesData';
-import { PricingEngine } from './pricingEngine';
+import { PricingEngine, ServiceLike } from './pricingEngine';
 
 /**
  * Formats tiered pricing display for TV mounting service
  * e.g., "1st TV: $90, 2nd TV: $80, Additional TVs: $70 each"
  */
-export const formatTieredPricing = (service: PublicService | undefined): string => {
+export const formatTieredPricing = (service: ServiceLike | undefined): string => {
   if (!service?.pricing_config?.tiers) {
     return '';
   }
@@ -31,9 +30,9 @@ export const formatTieredPricing = (service: PublicService | undefined): string 
  * @deprecated Use PricingEngine.getAddOnPrice() directly for full validation
  */
 export const getAddOnPrice = (
-  tvMountingService: PublicService | undefined,
+  tvMountingService: ServiceLike | undefined,
   addOnKey: string,
-  fallbackService?: PublicService,
+  fallbackService?: ServiceLike,
   defaultPrice: number = 0
 ): number => {
   const result = PricingEngine.getAddOnPrice(tvMountingService, addOnKey, fallbackService);
@@ -44,7 +43,7 @@ export const getAddOnPrice = (
  * Gets the price for a specific quantity from tiered pricing
  */
 export const getTierPrice = (
-  service: PublicService | undefined,
+  service: ServiceLike | undefined,
   quantity: number
 ): number => {
   if (!service?.pricing_config?.tiers) {

@@ -1,15 +1,15 @@
 
 import React from 'react';
 import { Plus, Minus } from 'lucide-react';
-import { PublicService } from '@/hooks/usePublicServicesData';
 import { formatTieredPricing } from '@/utils/pricingDisplay';
+import { ServiceLike } from '@/utils/pricingEngine';
 
 interface TvQuantitySelectorProps {
   numberOfTvs: number;
   onIncrement: () => void;
   onDecrement: () => void;
   calculateTvMountingPrice: (numTvs: number) => number;
-  tvMountingService?: PublicService;
+  tvMountingService?: ServiceLike;
 }
 
 export const TvQuantitySelector: React.FC<TvQuantitySelectorProps> = ({

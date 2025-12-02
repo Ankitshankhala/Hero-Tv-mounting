@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/hooks/useAuth';
 import { TestingModeProvider } from '@/contexts/TestingModeContext';
+import { ServicesCacheProvider } from '@/contexts/ServicesCacheContext';
 import { Toaster } from '@/components/ui/toaster';
 import { useSecurityHeaders } from '@/hooks/useSecurityHeaders';
 import { preloadZipIndex } from '@/utils/localZipIndex';
@@ -73,10 +74,12 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <HelmetProvider>
-          <TestingModeProvider>
-            <Toaster />
-            <AppWithSecurity />
-          </TestingModeProvider>
+          <ServicesCacheProvider>
+            <TestingModeProvider>
+              <Toaster />
+              <AppWithSecurity />
+            </TestingModeProvider>
+          </ServicesCacheProvider>
         </HelmetProvider>
       </AuthProvider>
     </QueryClientProvider>

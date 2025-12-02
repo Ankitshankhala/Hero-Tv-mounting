@@ -3,7 +3,18 @@
  * Single source of truth for all TV mounting pricing calculations
  */
 
-import { PublicService } from '@/hooks/usePublicServicesData';
+// Flexible service type that works with PublicService, CachedService, and FallbackService
+export interface ServiceLike {
+  id: string;
+  name: string;
+  base_price: number | null;
+  pricing_config?: {
+    pricing_type?: string;
+    tiers?: Array<{ quantity: number; price: number; is_default_for_additional?: boolean }>;
+    add_ons?: Record<string, number>;
+  } | null;
+  [key: string]: any;
+}
 
 export interface PriceResult {
   price: number;
@@ -37,9 +48,9 @@ export class PricingEngine {
    * Logs mismatches for monitoring
    */
   static getAddOnPrice(
-    tvMountingService: PublicService | undefined,
+    tvMountingService: ServiceLike | undefined,
     addOnKey: string,
-    fallbackService?: PublicService
+    fallbackService?: ServiceLike
   ): PriceResult {
     const configPrice = tvMountingService?.pricing_config?.add_ons?.[addOnKey];
     const basePrice = fallbackService?.base_price;
@@ -86,7 +97,7 @@ export class PricingEngine {
   /**
    * Get tiered price for TV mounting based on quantity
    */
-  static getTierPrice(service: PublicService | undefined, quantity: number): number {
+  static getTierPrice(service: ServiceLike | undefined, quantity: number): number {
     if (!service?.pricing_config?.tiers) {
       return service?.base_price || 0;
     }
@@ -109,12 +120,12 @@ export class PricingEngine {
   static calculateTvMountingTotal(
     numTvs: number,
     tvConfigurations: TvConfiguration[],
-    tvMountingService: PublicService | undefined,
+    tvMountingService: ServiceLike | undefined,
     addOnServices: {
-      over65?: PublicService;
-      frameMount?: PublicService;
-      soundbar?: PublicService;
-      specialWall?: PublicService;
+      over65?: ServiceLike;
+      frameMount?: ServiceLike;
+      soundbar?: ServiceLike;
+      specialWall?: ServiceLike;
     }
   ): PriceBreakdown {
     const addOns: Array<{ name: string; price: number; quantity: number }> = [];
@@ -225,7 +236,7 @@ export class PricingEngine {
    * Validate pricing consistency across all services
    * Used by admin dashboard
    */
-  static async validateAllPricing(services: PublicService[]): Promise<{
+  static async validateAllPricing(services: ServiceLike[]): Promise<{
     isConsistent: boolean;
     mismatches: Array<{
       addOnKey: string;
