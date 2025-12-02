@@ -20,9 +20,12 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { bookingId, workerId } = await req.json();
+    const body = await req.json();
+    const bookingId = body.bookingId || body.booking_id;
+    const workerId = body.workerId || body.worker_id;
+    const forceResend = body.force === true; // Allow admin force resend
     
-    console.log(`[WORKER-ASSIGNMENT-EMAIL] Processing notification for booking ${bookingId}, worker ${workerId}`);
+    console.log(`[WORKER-ASSIGNMENT-EMAIL] Processing notification for booking ${bookingId}, worker ${workerId}${forceResend ? ' (FORCE)' : ''}`);
 
     // Fetch booking with complete details
     const { data: booking, error: bookingError } = await supabase
@@ -42,6 +45,15 @@ serve(async (req) => {
 
     if (bookingError || !booking) {
       throw new Error(`Failed to fetch booking: ${bookingError?.message}`);
+    }
+
+    // CHECK 1: Booking flag (fast check) - only for same worker
+    if (!forceResend && booking.worker_assignment_email_sent === true && booking.worker_id === workerId) {
+      console.log('[WORKER-ASSIGNMENT-EMAIL] Booking flag already set for this worker, skipping (idempotent)');
+      return new Response(
+        JSON.stringify({ success: true, message: 'Email already sent (booking flag)', cached: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const { data: worker, error: workerError } = await supabase
@@ -85,22 +97,26 @@ serve(async (req) => {
     console.log('[WORKER-EMAIL] Customer info:', customerInfo);
     console.log('[WORKER-EMAIL] Special instructions:', specialInstructions);
 
-    // Check if email already sent (idempotency)
-    const { data: existingLog } = await supabase
-      .from('email_logs')
-      .select('id')
-      .eq('booking_id', bookingId)
-      .eq('recipient_email', worker.email)
-      .eq('email_type', 'worker_assignment')
-      .eq('status', 'sent')
-      .maybeSingle();
+    // CHECK 2: email_logs table (secondary idempotency check)
+    if (!forceResend) {
+      const { data: existingLog } = await supabase
+        .from('email_logs')
+        .select('id')
+        .eq('booking_id', bookingId)
+        .eq('recipient_email', worker.email)
+        .eq('email_type', 'worker_assignment')
+        .eq('status', 'sent')
+        .maybeSingle();
 
-    if (existingLog) {
-      console.log('[WORKER-ASSIGNMENT-EMAIL] Email already sent, skipping');
-      return new Response(
-        JSON.stringify({ success: true, message: 'Email already sent', cached: true }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      if (existingLog) {
+        console.log('[WORKER-ASSIGNMENT-EMAIL] Email already in logs, skipping and fixing flag');
+        // Fix the booking flag if it wasn't set
+        await supabase.from('bookings').update({ worker_assignment_email_sent: true }).eq('id', bookingId);
+        return new Response(
+          JSON.stringify({ success: true, message: 'Email already sent (email_logs)', cached: true }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Send email via Resend
@@ -189,6 +205,18 @@ Special Instructions: ${specialInstructions}</p>
       external_id: emailData.data?.id,
       sent_at: new Date().toISOString(),
     });
+
+    // UPDATE BOOKING FLAG to prevent future duplicate sends
+    const { error: updateError } = await supabase
+      .from('bookings')
+      .update({ worker_assignment_email_sent: true })
+      .eq('id', bookingId);
+
+    if (updateError) {
+      console.warn('[WORKER-ASSIGNMENT-EMAIL] Failed to update booking flag:', updateError.message);
+    } else {
+      console.log('[WORKER-ASSIGNMENT-EMAIL] Booking flag updated: worker_assignment_email_sent = true');
+    }
 
     console.log('[WORKER-ASSIGNMENT-EMAIL] Email sent successfully');
 
