@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { ServiceConfigurationTab } from './invoice/ServiceConfigurationTab';
 import { ModificationSummary } from './invoice/ModificationSummary';
+import { ReauthorizePaymentDialog } from './payment/ReauthorizePaymentDialog';
 import { calculateServiceLinePrice, calculateBookingTotal } from '@/utils/pricing';
 import { Loader2 } from 'lucide-react';
 
@@ -34,6 +35,14 @@ export const RemoveServicesModal = ({
   const [originalServices, setOriginalServices] = useState<BookingService[]>([]);
   const [loading, setLoading] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const [showReauthorizeDialog, setShowReauthorizeDialog] = useState(false);
+  const [reauthorizeData, setReauthorizeData] = useState<{
+    original_amount: number;
+    new_amount: number;
+    client_secret: string;
+    old_payment_intent: string;
+    new_payment_intent: string;
+  } | null>(null);
   const { toast } = useToast();
 
   // Calculate totals using the pricing utility
@@ -49,17 +58,10 @@ export const RemoveServicesModal = ({
   const calculateServicePrice = useCallback((service: BookingService) => {
     const price = calculateServiceLinePrice({
       service_name: service.service_name,
-      base_price: Number(service.base_price) || 0, // Ensure number
+      base_price: Number(service.base_price) || 0,
       quantity: Number(service.quantity) || 1,
       configuration: service.configuration
     });
-    
-    console.log(`Price for ${service.service_name}:`, {
-      base_price: service.base_price,
-      calculated_price: price,
-      quantity: service.quantity
-    }); // Debug logging
-    
     return price;
   }, []);
 
@@ -113,10 +115,8 @@ export const RemoveServicesModal = ({
         } as BookingService;
       });
 
-      console.log('Normalized booking services (with fallbacks):', normalizedData);
-
       setServices(normalizedData);
-      setOriginalServices(normalizedData); // Store original services for price comparison
+      setOriginalServices(normalizedData);
     } catch (error) {
       console.error('Error fetching booking services:', error);
       toast({
@@ -143,7 +143,7 @@ export const RemoveServicesModal = ({
     setRemoving(true);
     
     // Store original state for rollback
-    const originalServices = [...services];
+    const prevServices = [...services];
     
     // Optimistic update
     const remainingServices = services.filter(service => service.id !== serviceId);
@@ -166,21 +166,43 @@ export const RemoveServicesModal = ({
         throw new Error(data.error || 'Failed to remove service');
       }
 
+      // Check if reauthorization is required (3DS or no saved payment method)
+      if (data.data?.requires_new_payment && data.data?.client_secret) {
+        setReauthorizeData({
+          original_amount: data.data.old_amount || originalTotal,
+          new_amount: data.data.new_amount || newTotal,
+          client_secret: data.data.client_secret,
+          old_payment_intent: data.data.old_payment_intent,
+          new_payment_intent: data.data.new_payment_intent
+        });
+        setShowReauthorizeDialog(true);
+        setRemoving(false);
+        return; // Don't show success toast yet - wait for reauth
+      }
+
+      // Build success message
+      const authMsg = data.data?.authorization_updated 
+        ? ` Authorization updated to $${data.data.new_authorization?.toFixed(2)}.` 
+        : '';
+      const refundMsg = data.data?.refund_amount > 0 
+        ? ` Refund of $${data.data.refund_amount.toFixed(2)} processed.` 
+        : '';
+      
       toast({
         title: "Service Removed",
-        description: `${serviceToRemove.service_name} removed successfully. ${data.refund_amount > 0 ? `Refund of $${data.refund_amount.toFixed(2)} processed.` : ''}`,
+        description: `${serviceToRemove.service_name} removed.${authMsg}${refundMsg}`,
       });
 
-      // Check if this was the last service using the filtered array
+      // Check if this was the last service
       if (remainingServices.length === 0) {
         onModificationCreated();
         onClose();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error removing service:', error);
       
       // Rollback optimistic update on error
-      setServices(originalServices);
+      setServices(prevServices);
       
       toast({
         title: "Error",
@@ -190,6 +212,23 @@ export const RemoveServicesModal = ({
     } finally {
       setRemoving(false);
     }
+  };
+
+  const handleReauthorizeSuccess = () => {
+    setShowReauthorizeDialog(false);
+    setReauthorizeData(null);
+    onModificationCreated();
+    toast({
+      title: "Service Removed",
+      description: "Service removed and payment re-authorized successfully.",
+    });
+  };
+
+  const handleReauthorizeClose = () => {
+    setShowReauthorizeDialog(false);
+    setReauthorizeData(null);
+    // Still refresh data even if reauth was cancelled
+    fetchBookingServices();
   };
 
   if (loading) {
@@ -229,44 +268,60 @@ export const RemoveServicesModal = ({
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl bg-slate-800 border-slate-700 max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-white">
-            Remove Services - Job #{job?.id?.slice(0, 8)}
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-4xl bg-slate-800 border-slate-700 max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-white">
+              Remove Services - Job #{job?.id?.slice(0, 8)}
+            </DialogTitle>
+          </DialogHeader>
 
-        <div className="space-y-6">
-          {originalServices.length > 0 && (
-            <ModificationSummary
-              originalTotal={originalTotal}
-              newTotal={newTotal}
+          <div className="space-y-6">
+            {originalServices.length > 0 && (
+              <ModificationSummary
+                originalTotal={originalTotal}
+                newTotal={newTotal}
+              />
+            )}
+            
+            <ServiceConfigurationTab
+              services={services}
+              onUpdateQuantity={() => {}}
+              onUpdateConfiguration={() => {}}
+              onRemoveService={removeService}
+              onTvMountingConfiguration={() => {}}
+              calculateServicePrice={calculateServicePrice}
+              removeOnly={true}
             />
-          )}
-          
-          <ServiceConfigurationTab
-            services={services}
-            onUpdateQuantity={() => {}} // Not used in remove-only mode
-            onUpdateConfiguration={() => {}} // Not used in remove-only mode
-            onRemoveService={removeService}
-            onTvMountingConfiguration={() => {}} // Not used in remove-only mode
-            calculateServicePrice={calculateServicePrice}
-            removeOnly={true}
-          />
-        </div>
+          </div>
 
-        <div className="flex justify-end space-x-4 pt-4 border-t border-slate-700">
-          <Button
-            variant="outline"
-            onClick={onClose}
-            disabled={removing}
-            className="border-border text-foreground hover:bg-accent hover:text-accent-foreground"
-          >
-            Close
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+          <div className="flex justify-end space-x-4 pt-4 border-t border-slate-700">
+            <Button
+              variant="outline"
+              onClick={onClose}
+              disabled={removing}
+              className="border-border text-foreground hover:bg-accent hover:text-accent-foreground"
+            >
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {showReauthorizeDialog && reauthorizeData && (
+        <ReauthorizePaymentDialog
+          isOpen={showReauthorizeDialog}
+          onClose={handleReauthorizeClose}
+          booking_id={job.id}
+          original_amount={reauthorizeData.original_amount}
+          new_amount={reauthorizeData.new_amount}
+          client_secret={reauthorizeData.client_secret}
+          old_payment_intent={reauthorizeData.old_payment_intent}
+          new_payment_intent={reauthorizeData.new_payment_intent}
+          onSuccess={handleReauthorizeSuccess}
+        />
+      )}
+    </>
   );
 };
