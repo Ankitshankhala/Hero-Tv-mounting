@@ -3384,7 +3384,7 @@ export type Database = {
         Returns: boolean
       }
       retry_unsent_notifications: {
-        Args: { p_grace_minutes?: number; p_lookback_minutes?: number }
+        Args: { p_lookback_minutes?: number; p_max_retries?: number }
         Returns: Json
       }
       retry_unsent_notifications_for_booking: {
