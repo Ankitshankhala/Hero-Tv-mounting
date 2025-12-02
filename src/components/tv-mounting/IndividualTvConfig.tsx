@@ -1,8 +1,8 @@
 
 import React from 'react';
 import { Check } from 'lucide-react';
-import { PublicService } from '@/hooks/usePublicServicesData';
 import { getAddOnPrice } from '@/utils/pricingDisplay';
+import { ServiceLike } from '@/utils/pricingEngine';
 
 interface TvConfiguration {
   id: string;
@@ -16,11 +16,11 @@ interface IndividualTvConfigProps {
   tvConfig: TvConfiguration;
   tvNumber: number;
   onUpdateConfig: (tvId: string, updates: Partial<Omit<TvConfiguration, 'id'>>) => void;
-  tvMountingService?: PublicService;
-  over65Service?: PublicService;
-  frameMountService?: PublicService;
-  stoneWallService?: PublicService;
-  soundbarService?: PublicService;
+  tvMountingService?: ServiceLike;
+  over65Service?: ServiceLike;
+  frameMountService?: ServiceLike;
+  stoneWallService?: ServiceLike;
+  soundbarService?: ServiceLike;
 }
 
 export const IndividualTvConfig: React.FC<IndividualTvConfigProps> = ({
