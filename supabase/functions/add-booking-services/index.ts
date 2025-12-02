@@ -28,7 +28,7 @@ serve(async (req) => {
 
     console.log('[ADD-BOOKING-SERVICES] Request:', { booking_id, services: services.length });
 
-    // Get booking details
+    // Get booking details including saved payment method
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
       .select('*, booking_services(*)')
@@ -64,7 +64,8 @@ serve(async (req) => {
     console.log('[ADD-BOOKING-SERVICES] Totals:', {
       current: currentTotal,
       new_services: newServicesTotal,
-      new_total: newTotal
+      new_total: newTotal,
+      has_saved_payment: !!(booking.stripe_customer_id && booking.stripe_payment_method_id)
     });
 
     // Insert services into booking_services table
@@ -90,87 +91,206 @@ serve(async (req) => {
     // Store inserted IDs for potential rollback
     const insertedServiceIds = insertedServices?.map(s => s.id) || [];
 
-    // Try incremental authorization
-    let incremented = false;
-    let incrementError = null;
+    // Check if booking has saved payment method for seamless reauthorization
+    const hasPaymentMethod = booking.stripe_customer_id && booking.stripe_payment_method_id;
 
-    try {
-      console.log('[ADD-BOOKING-SERVICES] Attempting increment authorization to:', newTotalCents);
-      
-      const updatedIntent = await stripe.paymentIntents.incrementAuthorization(
-        booking.payment_intent_id,
-        {
+    if (hasPaymentMethod) {
+      // SEAMLESS REAUTHORIZATION: Use saved payment method to create new PaymentIntent
+      try {
+        console.log('[ADD-BOOKING-SERVICES] Creating new PaymentIntent with saved payment method');
+        
+        // Create new PaymentIntent with saved payment method (auto-confirm)
+        const newPaymentIntent = await stripe.paymentIntents.create({
           amount: newTotalCents,
-        }
-      );
-
-      if (updatedIntent.status === 'requires_capture') {
-        incremented = true;
-        
-        // Update booking pending amount
-        await supabase
-          .from('bookings')
-          .update({ 
-            pending_payment_amount: newTotal
-          })
-          .eq('id', booking_id);
-
-        // Create increment transaction record
-        await supabase
-          .from('transactions')
-          .insert({
+          currency: 'usd',
+          customer: booking.stripe_customer_id,
+          payment_method: booking.stripe_payment_method_id,
+          capture_method: 'manual',
+          confirm: true,
+          off_session: true,
+          metadata: {
             booking_id,
-            amount: newTotal,
-            status: 'authorized',
-            payment_intent_id: booking.payment_intent_id,
-            transaction_type: 'increment',
-            payment_method: 'card'
-          });
+            original_payment_intent: booking.payment_intent_id,
+            reason: 'service_addition'
+          }
+        });
 
-        console.log('[ADD-BOOKING-SERVICES] Increment successful');
+        console.log('[ADD-BOOKING-SERVICES] New PaymentIntent created:', {
+          id: newPaymentIntent.id,
+          status: newPaymentIntent.status,
+          amount: newPaymentIntent.amount
+        });
 
-        // CRITICAL FIX: Update invoice after adding services (use update-invoice to preserve invoice number)
-        try {
-          console.log('[ADD-BOOKING-SERVICES] Updating invoice...');
-          await supabase.functions.invoke('update-invoice', {
-            body: {
+        if (newPaymentIntent.status === 'requires_capture') {
+          // Cancel old PaymentIntent to release the hold
+          try {
+            console.log('[ADD-BOOKING-SERVICES] Canceling old PaymentIntent:', booking.payment_intent_id);
+            await stripe.paymentIntents.cancel(booking.payment_intent_id);
+          } catch (cancelError: any) {
+            // Log but don't fail - old PI might already be canceled or in wrong state
+            console.warn('[ADD-BOOKING-SERVICES] Could not cancel old PaymentIntent:', cancelError.message);
+          }
+
+          // Update booking with new payment_intent_id
+          await supabase
+            .from('bookings')
+            .update({ 
+              payment_intent_id: newPaymentIntent.id,
+              pending_payment_amount: newTotal,
+              payment_status: 'authorized'
+            })
+            .eq('id', booking_id);
+
+          // Update existing authorization transaction with new PaymentIntent
+          const { error: txUpdateError } = await supabase
+            .from('transactions')
+            .update({
+              payment_intent_id: newPaymentIntent.id,
+              amount: newTotal,
+              base_amount: newTotal
+            })
+            .eq('booking_id', booking_id)
+            .eq('status', 'authorized');
+
+          if (txUpdateError) {
+            console.warn('[ADD-BOOKING-SERVICES] Transaction update warning:', txUpdateError);
+            // Create new transaction if update failed
+            await supabase
+              .from('transactions')
+              .insert({
+                booking_id,
+                amount: newTotal,
+                base_amount: newTotal,
+                status: 'authorized',
+                payment_intent_id: newPaymentIntent.id,
+                transaction_type: 'authorization',
+                payment_method: 'card'
+              });
+          }
+
+          // Log audit entry
+          await supabase
+            .from('booking_audit_log')
+            .insert({
               booking_id,
-              send_email: false  // Don't spam customer with every change
-            }
-          });
-          console.log('[ADD-BOOKING-SERVICES] Invoice updated successfully');
-        } catch (invoiceError) {
-          console.error('[ADD-BOOKING-SERVICES] Invoice update failed:', invoiceError);
-          // Don't fail the operation if invoice update fails
+              operation: 'authorization_updated',
+              status: 'success',
+              payment_intent_id: newPaymentIntent.id,
+              details: {
+                old_amount: currentTotal,
+                new_amount: newTotal,
+                old_payment_intent: booking.payment_intent_id,
+                new_payment_intent: newPaymentIntent.id,
+                services_added: services.length
+              }
+            });
+
+          console.log('[ADD-BOOKING-SERVICES] Authorization updated successfully');
+
+          // Update invoice
+          try {
+            console.log('[ADD-BOOKING-SERVICES] Updating invoice...');
+            await supabase.functions.invoke('update-invoice', {
+              body: {
+                booking_id,
+                send_email: false
+              }
+            });
+            console.log('[ADD-BOOKING-SERVICES] Invoice updated successfully');
+          } catch (invoiceError) {
+            console.error('[ADD-BOOKING-SERVICES] Invoice update failed:', invoiceError);
+          }
+
+          // Send notification email
+          try {
+            await supabase.functions.invoke('send-increment-notification', {
+              body: { 
+                booking_id,
+                original_amount: currentTotal,
+                added_amount: newServicesTotal,
+                new_total: newTotal
+              }
+            });
+          } catch (emailError) {
+            console.error('[ADD-BOOKING-SERVICES] Email notification failed:', emailError);
+          }
+
+          return new Response(
+            JSON.stringify({
+              success: true,
+              incremented: true,
+              new_amount: newTotal,
+              services_added: services.length,
+              payment_intent_id: newPaymentIntent.id
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+
+        } else if (newPaymentIntent.status === 'requires_action' || newPaymentIntent.status === 'requires_confirmation') {
+          // Card requires 3DS authentication - return client_secret for frontend
+          console.log('[ADD-BOOKING-SERVICES] Payment requires customer authentication');
+          
+          return new Response(
+            JSON.stringify({
+              success: true,
+              incremented: false,
+              requires_action: true,
+              client_secret: newPaymentIntent.client_secret,
+              new_amount: newTotal,
+              new_payment_intent: newPaymentIntent.id,
+              old_payment_intent: booking.payment_intent_id
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        } else {
+          throw new Error(`Unexpected PaymentIntent status: ${newPaymentIntent.status}`);
         }
 
-        // Send notification email
-        try {
-          await supabase.functions.invoke('send-increment-notification', {
-            body: { 
-              booking_id,
-              original_amount: currentTotal,
-              added_amount: newServicesTotal,
-              new_total: newTotal
-            }
-          });
-        } catch (emailError) {
-          console.error('[ADD-BOOKING-SERVICES] Email notification failed:', emailError);
-          // Don't fail the whole operation if email fails
-        }
-
-      } else {
-        throw new Error(`Unexpected payment intent status: ${updatedIntent.status}`);
-      }
-
-    } catch (error: any) {
-      console.error('[ADD-BOOKING-SERVICES] Increment failed:', error.message);
-      incrementError = error.message;
-      
-      // CRITICAL: Payment authorization failed - rollback inserted services
-      if (!error.message?.includes('increment') && error.code !== 'payment_intent_increment_authorization_not_allowed') {
-        console.log('[ADD-BOOKING-SERVICES] Rolling back inserted services due to payment failure');
+      } catch (paymentError: any) {
+        console.error('[ADD-BOOKING-SERVICES] Payment reauthorization failed:', paymentError.message);
         
+        // Check if it's a card decline or authentication required
+        if (paymentError.code === 'authentication_required' || 
+            paymentError.code === 'card_declined' ||
+            paymentError.type === 'StripeCardError') {
+          
+          // Rollback services since payment failed
+          if (insertedServiceIds.length > 0) {
+            await supabase
+              .from('booking_services')
+              .delete()
+              .in('id', insertedServiceIds);
+          }
+          
+          // Create new PaymentIntent without auto-confirm for manual payment
+          const manualPaymentIntent = await stripe.paymentIntents.create({
+            amount: newTotalCents,
+            currency: 'usd',
+            customer: booking.stripe_customer_id,
+            capture_method: 'manual',
+            metadata: {
+              booking_id,
+              original_payment_intent: booking.payment_intent_id,
+              reason: 'reauthorization_required'
+            }
+          });
+
+          return new Response(
+            JSON.stringify({
+              success: true,
+              incremented: false,
+              requires_new_payment: true,
+              client_secret: manualPaymentIntent.client_secret,
+              new_amount: newTotal,
+              old_payment_intent: booking.payment_intent_id,
+              new_payment_intent: manualPaymentIntent.id,
+              message: 'Card requires re-authentication. Please complete payment.'
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // For other errors, rollback and throw
         if (insertedServiceIds.length > 0) {
           await supabase
             .from('booking_services')
@@ -178,59 +298,45 @@ serve(async (req) => {
             .in('id', insertedServiceIds);
         }
         
-        throw new Error(`Payment authorization failed: ${error.message}`);
+        throw new Error(`Payment authorization failed: ${paymentError.message}`);
       }
+
+    } else {
+      // NO SAVED PAYMENT METHOD: Create new PaymentIntent for manual payment
+      console.log('[ADD-BOOKING-SERVICES] No saved payment method - creating new PaymentIntent for manual payment');
       
-      // Check if card doesn't support increment
-      if (error.message?.includes('increment') || error.code === 'payment_intent_increment_authorization_not_allowed') {
-        console.log('[ADD-BOOKING-SERVICES] Card does not support increment - creating new payment intent');
-        
-        // Create new payment intent for full amount
-        const newPaymentIntent = await stripe.paymentIntents.create({
-          amount: newTotalCents,
-          currency: 'usd',
-          capture_method: 'manual',
-          metadata: {
-            booking_id,
-            original_payment_intent: booking.payment_intent_id,
-            reason: 'increment_not_supported'
-          }
-        });
+      const newPaymentIntent = await stripe.paymentIntents.create({
+        amount: newTotalCents,
+        currency: 'usd',
+        capture_method: 'manual',
+        metadata: {
+          booking_id,
+          original_payment_intent: booking.payment_intent_id,
+          reason: 'no_saved_payment_method'
+        }
+      });
 
-        // Update booking with new payment intent (pending_payment_amount)
-        await supabase
-          .from('bookings')
-          .update({ 
-            pending_payment_amount: newTotal
-          })
-          .eq('id', booking_id);
+      // Update booking pending amount (keep old payment_intent_id until new one is confirmed)
+      await supabase
+        .from('bookings')
+        .update({ 
+          pending_payment_amount: newTotal
+        })
+        .eq('id', booking_id);
 
-        return new Response(
-          JSON.stringify({
-            success: true,
-            incremented: false,
-            requires_new_payment: true,
-            client_secret: newPaymentIntent.client_secret,
-            new_amount: newTotal,
-            old_payment_intent: booking.payment_intent_id,
-            new_payment_intent: newPaymentIntent.id
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      throw error;
+      return new Response(
+        JSON.stringify({
+          success: true,
+          incremented: false,
+          requires_new_payment: true,
+          client_secret: newPaymentIntent.client_secret,
+          new_amount: newTotal,
+          old_payment_intent: booking.payment_intent_id,
+          new_payment_intent: newPaymentIntent.id
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        incremented,
-        new_amount: newTotal,
-        services_added: services.length
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
 
   } catch (error: any) {
     console.error('[ADD-BOOKING-SERVICES] Error:', error);
@@ -248,6 +354,9 @@ serve(async (req) => {
     } else if (error.message?.includes('Payment authorization failed')) {
       errorMessage = 'Payment authorization failed. Please check your payment method and try again.';
       errorCode = 'PAYMENT_AUTH_FAILED';
+    } else if (error.message?.includes('already been charged')) {
+      errorMessage = error.message;
+      errorCode = 'ALREADY_CAPTURED';
     } else if (error.message?.includes('Stripe')) {
       errorMessage = 'Payment processing error. Please try again or contact support.';
       errorCode = 'STRIPE_ERROR';

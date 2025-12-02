@@ -48,7 +48,7 @@ serve(async (req) => {
       pending_payment_amount: booking.pending_payment_amount
     });
 
-    // Validate payment is ready for capture (removed strict booking.status check to avoid race conditions)
+    // Validate payment is ready for capture
     if (booking.payment_status !== 'authorized') {
       throw new Error(`Cannot capture payment with status: ${booking.payment_status}. Payment must be authorized first.`);
     }
@@ -59,39 +59,6 @@ serve(async (req) => {
     const intentId = payment_intent_id || booking.payment_intent_id;
     if (!intentId) {
       throw new Error('No payment intent ID found');
-    }
-
-    // PRE-CAPTURE CHECK: If pending_payment_amount exists and is greater than original, try increment
-    if (booking.pending_payment_amount) {
-      const pendingAmountCents = Math.round(booking.pending_payment_amount * 100);
-      
-      try {
-        console.log('[CAPTURE-PAYMENT] Pre-capture increment check:', { pending_amount: booking.pending_payment_amount });
-        
-        const updatedIntent = await stripe.paymentIntents.incrementAuthorization(
-          intentId,
-          { amount: pendingAmountCents }
-        );
-
-        if (updatedIntent.status === 'requires_capture') {
-          console.log('[CAPTURE-PAYMENT] Pre-capture increment successful');
-          
-          // Create increment transaction record
-          await supabase
-            .from('transactions')
-            .insert({
-              booking_id: booking.id,
-              amount: booking.pending_payment_amount,
-              status: 'authorized',
-              payment_intent_id: intentId,
-              transaction_type: 'increment',
-              payment_method: 'card'
-            });
-        }
-      } catch (incrementError: any) {
-        console.error('[CAPTURE-PAYMENT] Pre-capture increment failed:', incrementError.message);
-        // Continue with capture anyway - worker may have created new payment intent
-      }
     }
 
     // CRITICAL FIX: Recalculate expected amount from booking_services to ensure we capture the correct total
@@ -115,10 +82,30 @@ serve(async (req) => {
       expected_amount_cents: expectedAmountCents
     });
 
-    // Capture the payment through Stripe with the calculated amount
-    console.log('[CAPTURE-PAYMENT] Capturing Stripe PaymentIntent:', intentId);
+    // First, retrieve the PaymentIntent to check its current amount
+    const currentIntent = await stripe.paymentIntents.retrieve(intentId);
+    console.log('[CAPTURE-PAYMENT] Current PaymentIntent:', {
+      id: currentIntent.id,
+      status: currentIntent.status,
+      amount: currentIntent.amount,
+      amount_capturable: currentIntent.amount_capturable
+    });
+
+    // Determine capture amount - use the lesser of expected and authorized
+    const captureAmountCents = Math.min(expectedAmountCents, currentIntent.amount);
+    
+    if (captureAmountCents !== expectedAmountCents) {
+      console.warn('[CAPTURE-PAYMENT] Amount mismatch - capturing available amount:', {
+        expected: expectedAmountCents,
+        authorized: currentIntent.amount,
+        capturing: captureAmountCents
+      });
+    }
+
+    // Capture the payment through Stripe
+    console.log('[CAPTURE-PAYMENT] Capturing Stripe PaymentIntent:', intentId, 'amount:', captureAmountCents);
     const paymentIntent = await stripe.paymentIntents.capture(intentId, {
-      amount_to_capture: expectedAmountCents
+      amount_to_capture: captureAmountCents
     });
 
     if (paymentIntent.status !== 'succeeded') {
@@ -126,7 +113,7 @@ serve(async (req) => {
       throw new Error(`Payment capture failed with status: ${paymentIntent.status}`);
     }
 
-    const capturedAmount = paymentIntent.amount_received / 100; // Use amount_received for actual captured amount
+    const capturedAmount = paymentIntent.amount_received / 100;
     console.log('[CAPTURE-PAYMENT] Successfully captured:', capturedAmount);
 
     // Update existing transaction record from 'authorized' to 'completed'
@@ -137,7 +124,7 @@ serve(async (req) => {
         status: 'completed',
         transaction_type: 'capture',
         captured_at: new Date().toISOString(),
-        amount: capturedAmount // Update amount in case of incremental auth
+        amount: capturedAmount
       })
       .eq('booking_id', booking.id)
       .eq('payment_intent_id', intentId)
@@ -174,12 +161,12 @@ serve(async (req) => {
       finalTransaction = transaction;
     }
 
-    // Update booking payment_status to 'captured' (do NOT change booking.status)
+    // Update booking payment_status to 'captured'
     const { error: updateError } = await supabase
       .from('bookings')
       .update({ 
         payment_status: 'captured',
-        pending_payment_amount: null  // Clear pending amount after capture
+        pending_payment_amount: null
       })
       .eq('id', booking.id);
 
@@ -190,14 +177,14 @@ serve(async (req) => {
 
     console.log('[CAPTURE-PAYMENT] Payment captured successfully');
 
-    // CRITICAL FIX: Generate/update invoice after successful capture
+    // Generate/update invoice after successful capture
     try {
       console.log('[CAPTURE-PAYMENT] Generating invoice after capture...');
       const { data: invoiceData, error: invoiceError } = await supabase.functions.invoke('generate-invoice', {
         body: {
           booking_id: booking.id,
-          send_email: true,  // Send invoice email after capture
-          force_regenerate: true  // Update with final captured amounts
+          send_email: true,
+          force_regenerate: true
         }
       });
 
@@ -208,7 +195,6 @@ serve(async (req) => {
       }
     } catch (invoiceErr) {
       console.error('[CAPTURE-PAYMENT] Invoice generation error:', invoiceErr);
-      // Don't fail the capture if invoice generation fails
     }
 
     return new Response(
