@@ -50,7 +50,9 @@ export const TvMountingConfigModal: React.FC<TvMountingConfigModalProps> = ({
     totalPrice,
     calculateTvMountingPrice,
     buildServicesList,
-    buildCartItemName
+    buildCartItemName,
+    isReady,
+    servicesLoading
   } = useTvMountingModal(services);
 
   // Find soundbar service
@@ -80,11 +82,21 @@ export const TvMountingConfigModal: React.FC<TvMountingConfigModalProps> = ({
   };
 
   const handleComplete = () => {
+    // Defensive check: prevent submission if services not ready
+    if (!isReady || servicesLoading) {
+      console.warn('[TvMountingConfigModal] Services not ready, preventing submit');
+      return;
+    }
+    const servicesList = buildServicesList();
+    if (servicesList.length === 0) {
+      console.error('[TvMountingConfigModal] No services built - this should not happen');
+      return;
+    }
     const config: TvMountingConfig = {
       numberOfTvs,
       tvConfigurations,
       totalPrice,
-      services: buildServicesList()
+      services: servicesList
     };
     onConfigComplete(config);
   };
@@ -300,10 +312,11 @@ export const TvMountingConfigModal: React.FC<TvMountingConfigModalProps> = ({
             </Button>
             <Button
               onClick={handleComplete}
-              className="flex-1 bg-blue-600 hover:bg-blue-700"
+              disabled={!isReady || servicesLoading}
+              className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Check className="h-4 w-4 mr-2" />
-              Apply Configuration
+              {servicesLoading ? 'Loading...' : 'Apply Configuration'}
             </Button>
           </div>
         </div>
