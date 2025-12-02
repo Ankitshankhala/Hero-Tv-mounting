@@ -13,6 +13,7 @@ interface SmsLogData {
   error_message: string | null;
   twilio_sid: string | null;
   booking_id: string | null;
+  sms_type: string | null;
   message_type: string;
 }
 
@@ -51,12 +52,23 @@ export const useSmsLogs = () => {
         throw logsError;
       }
 
-      // Helper function to determine message type
-      const getMessageType = (message: string, recipientNumber: string) => {
+      // Helper function to determine message type from sms_type or content
+      const getMessageType = (smsType: string | null, message: string, recipientNumber: string) => {
+        // Use sms_type if available
+        if (smsType) {
+          switch (smsType) {
+            case 'worker_assignment': return 'Worker Assignment';
+            case 'customer_notification': return 'Customer Notification';
+            case 'system_audit': return 'System';
+            case 'manual_resend': return 'Manual Resend';
+            default: return smsType;
+          }
+        }
+        // Fallback to content-based detection
         if (recipientNumber === 'system' || recipientNumber === 'manual' || recipientNumber === 'trigger') {
           return 'System';
         }
-        if (message.includes('New job assigned') || message.includes('Worker assignment')) {
+        if (message.includes('New job assigned') || message.includes('Worker assignment') || message.includes('been assigned')) {
           return 'Worker Assignment';
         }
         if (message.includes('booking confirmed') || message.includes('confirmation')) {
@@ -77,7 +89,8 @@ export const useSmsLogs = () => {
         error_message: log.error_message,
         twilio_sid: log.twilio_sid,
         booking_id: log.booking_id,
-        message_type: getMessageType(log.message, log.recipient_number)
+        sms_type: (log as any).sms_type || null,
+        message_type: getMessageType((log as any).sms_type, log.message, log.recipient_number)
       }));
 
       setSmsLogs(transformedLogs);
