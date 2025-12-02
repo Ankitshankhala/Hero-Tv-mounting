@@ -285,6 +285,7 @@ export type Database = {
           updated_at: string | null
           worker_assignment_email_sent: boolean
           worker_id: string | null
+          worker_sms_sent: boolean
         }
         Insert: {
           archived_at?: string | null
@@ -324,6 +325,7 @@ export type Database = {
           updated_at?: string | null
           worker_assignment_email_sent?: boolean
           worker_id?: string | null
+          worker_sms_sent?: boolean
         }
         Update: {
           archived_at?: string | null
@@ -363,6 +365,7 @@ export type Database = {
           updated_at?: string | null
           worker_assignment_email_sent?: boolean
           worker_id?: string | null
+          worker_sms_sent?: boolean
         }
         Relationships: [
           {
@@ -1276,6 +1279,7 @@ export type Database = {
           recipient_name: string | null
           recipient_number: string
           sent_at: string | null
+          sms_type: string | null
           status: Database["public"]["Enums"]["sms_status"]
           twilio_sid: string | null
         }
@@ -1288,6 +1292,7 @@ export type Database = {
           recipient_name?: string | null
           recipient_number: string
           sent_at?: string | null
+          sms_type?: string | null
           status: Database["public"]["Enums"]["sms_status"]
           twilio_sid?: string | null
         }
@@ -1300,6 +1305,7 @@ export type Database = {
           recipient_name?: string | null
           recipient_number?: string
           sent_at?: string | null
+          sms_type?: string | null
           status?: Database["public"]["Enums"]["sms_status"]
           twilio_sid?: string | null
         }

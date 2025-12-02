@@ -50,13 +50,13 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { bookingId } = await req.json();
+    const { bookingId, force = false, smsType = 'worker_assignment' } = await req.json();
     
     if (!bookingId) {
       throw new Error('bookingId is required');
     }
 
-    console.log(`[SMS-NOTIFICATION] Processing SMS for booking ${bookingId}`);
+    console.log(`[SMS-NOTIFICATION] Processing SMS for booking ${bookingId}, force=${force}, type=${smsType}`);
 
     // Fetch booking details with worker and customer info
     const { data: booking, error: bookingError } = await supabase
@@ -67,6 +67,7 @@ serve(async (req) => {
         scheduled_start,
         worker_id,
         customer_id,
+        worker_sms_sent,
         worker:worker_id (
           id,
           name,
@@ -86,10 +87,65 @@ serve(async (req) => {
       throw new Error(`Booking not found: ${bookingError?.message}`);
     }
 
+    // IDEMPOTENCY CHECK: Skip if SMS already sent (unless force=true)
+    if (smsType === 'worker_assignment' && booking.worker_sms_sent && !force) {
+      console.log(`[SMS-NOTIFICATION] Worker SMS already sent for booking ${bookingId}, skipping (idempotent)`);
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          skipped: true,
+          reason: 'worker_sms_already_sent',
+          message: 'SMS already sent for this booking'
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200 
+        }
+      );
+    }
+
+    // Check for existing successful SMS log entry as secondary idempotency check
+    if (!force) {
+      const { data: existingSms } = await supabase
+        .from('sms_logs')
+        .select('id, twilio_sid')
+        .eq('booking_id', bookingId)
+        .eq('status', 'sent')
+        .eq('sms_type', smsType)
+        .not('twilio_sid', 'is', null)
+        .limit(1);
+
+      if (existingSms && existingSms.length > 0) {
+        console.log(`[SMS-NOTIFICATION] Found existing SMS log for booking ${bookingId}, updating flag and skipping`);
+        
+        // Update the booking flag if it wasn't set
+        if (!booking.worker_sms_sent && smsType === 'worker_assignment') {
+          await supabase
+            .from('bookings')
+            .update({ worker_sms_sent: true })
+            .eq('id', bookingId);
+        }
+        
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            skipped: true,
+            reason: 'sms_log_exists',
+            message: 'SMS log already exists for this booking'
+          }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200 
+          }
+        );
+      }
+    }
+
     console.log(`[SMS-NOTIFICATION] Booking data loaded:`, {
       hasWorker: !!booking.worker,
       hasCustomer: !!booking.customer,
-      hasGuest: !!booking.guest_customer_info
+      hasGuest: !!booking.guest_customer_info,
+      workerSmsSent: booking.worker_sms_sent
     });
 
     // Determine recipient and message
@@ -152,7 +208,7 @@ serve(async (req) => {
 
     console.log(`[SMS-NOTIFICATION] SMS sent successfully - SID: ${twilioResult.sid}`);
 
-    // Log to sms_logs table
+    // Log to sms_logs table with sms_type
     await supabase.from('sms_logs').insert({
       booking_id: bookingId,
       recipient_number: recipientPhone,
@@ -160,15 +216,31 @@ serve(async (req) => {
       message: message,
       status: 'sent',
       twilio_sid: twilioResult.sid,
-      sent_at: new Date().toISOString()
+      sent_at: new Date().toISOString(),
+      sms_type: smsType
     });
+
+    // Update booking flag to prevent duplicate sends
+    if (smsType === 'worker_assignment') {
+      const { error: updateError } = await supabase
+        .from('bookings')
+        .update({ worker_sms_sent: true })
+        .eq('id', bookingId);
+      
+      if (updateError) {
+        console.warn(`[SMS-NOTIFICATION] Failed to update worker_sms_sent flag: ${updateError.message}`);
+      } else {
+        console.log(`[SMS-NOTIFICATION] Updated worker_sms_sent=true for booking ${bookingId}`);
+      }
+    }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         sid: twilioResult.sid,
         message: 'SMS sent successfully',
-        recipient: recipientPhone
+        recipient: recipientPhone,
+        smsType: smsType
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -182,7 +254,10 @@ serve(async (req) => {
     
     // Try to log error to database
     try {
-      const { bookingId } = await req.json();
+      const body = await req.clone().json().catch(() => ({}));
+      const bookingId = body.bookingId;
+      const smsType = body.smsType || 'worker_assignment';
+      
       if (bookingId) {
         const supabase = createClient(
           Deno.env.get('SUPABASE_URL') ?? '',
@@ -194,7 +269,8 @@ serve(async (req) => {
           recipient_number: 'error',
           message: 'SMS send failed',
           status: 'failed',
-          error_message: errorMessage
+          error_message: errorMessage,
+          sms_type: smsType
         });
       }
     } catch (logError) {
