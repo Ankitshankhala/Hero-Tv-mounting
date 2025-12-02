@@ -256,6 +256,7 @@ export type Database = {
           coupon_id: string | null
           created_at: string | null
           customer_id: string | null
+          customer_sms_sent: boolean | null
           guest_customer_info: Json | null
           has_modifications: boolean | null
           id: string
@@ -296,6 +297,7 @@ export type Database = {
           coupon_id?: string | null
           created_at?: string | null
           customer_id?: string | null
+          customer_sms_sent?: boolean | null
           guest_customer_info?: Json | null
           has_modifications?: boolean | null
           id?: string
@@ -336,6 +338,7 @@ export type Database = {
           coupon_id?: string | null
           created_at?: string | null
           customer_id?: string | null
+          customer_sms_sent?: boolean | null
           guest_customer_info?: Json | null
           has_modifications?: boolean | null
           id?: string
@@ -3381,6 +3384,7 @@ export type Database = {
       refresh_zip_coverage_summary: { Args: never; Returns: undefined }
       release_expired_worker_reservations: { Args: never; Returns: number }
       repair_payment_inconsistencies: { Args: never; Returns: Json }
+      resend_customer_sms: { Args: { booking_id_param: string }; Returns: Json }
       resend_worker_sms: {
         Args: { booking_id_param: string }
         Returns: boolean

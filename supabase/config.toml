@@ -44,6 +44,9 @@ verify_jwt = false
 [functions.send-sms-notification]
 verify_jwt = false
 
+[functions.send-customer-sms-notification]
+verify_jwt = false
+
 [functions.create-checkout]
 verify_jwt = false
 

@@ -300,7 +300,7 @@ async function sendNotifications(booking: any, chosenWorker: any) {
       }
     }
 
-    // Send SMS notification
+    // Send Worker SMS notification
     try {
       const { error: smsError } = await supabase.functions.invoke(
         'send-sms-notification',
@@ -314,7 +314,24 @@ async function sendNotifications(booking: any, chosenWorker: any) {
         logStep('Worker assignment SMS sent successfully');
       }
     } catch (smsErr) {
-      logStep('Error invoking SMS function', { error: smsErr });
+      logStep('Error invoking worker SMS function', { error: smsErr });
+    }
+
+    // Send Customer SMS notification
+    try {
+      const { error: customerSmsError } = await supabase.functions.invoke(
+        'send-customer-sms-notification',
+        {
+          body: { bookingId: booking.id },
+        }
+      );
+      if (customerSmsError) {
+        logStep('Customer confirmation SMS failed', { error: customerSmsError.message });
+      } else {
+        logStep('Customer confirmation SMS sent successfully');
+      }
+    } catch (customerSmsErr) {
+      logStep('Error invoking customer SMS function', { error: customerSmsErr });
     }
 
     // Send customer confirmation email via unified dispatcher
