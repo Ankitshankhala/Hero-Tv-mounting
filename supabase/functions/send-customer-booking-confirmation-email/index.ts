@@ -58,8 +58,9 @@ serve(async (req) => {
 
     const body = await req.json();
     const bookingId = body.bookingId || body.booking_id; // Support both formats
+    const forceResend = body.force === true; // Allow admin force resend
     
-    console.log(`[CUSTOMER-CONFIRMATION-EMAIL] Processing confirmation for booking ${bookingId}`);
+    console.log(`[CUSTOMER-CONFIRMATION-EMAIL] Processing confirmation for booking ${bookingId}${forceResend ? ' (FORCE)' : ''}`);
 
     // Fetch booking details (handle both registered and guest customers)
     const { data: booking, error: bookingError } = await supabase
@@ -81,6 +82,15 @@ serve(async (req) => {
 
     if (bookingError || !booking) {
       throw new Error(`Failed to fetch booking: ${bookingError?.message}`);
+    }
+
+    // CHECK 1: Booking flag (fast check)
+    if (!forceResend && booking.confirmation_email_sent === true) {
+      console.log('[CUSTOMER-CONFIRMATION-EMAIL] Booking flag already set, skipping (idempotent)');
+      return new Response(
+        JSON.stringify({ success: true, message: 'Email already sent (booking flag)', cached: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Get customer email from either registered user or guest info
@@ -123,22 +133,26 @@ serve(async (req) => {
     console.log('[CUSTOMER-CONFIRMATION] Services:', serviceItems);
     console.log('[CUSTOMER-CONFIRMATION] Total:', totalAmount);
 
-    // Check if email already sent (idempotency)
-    const { data: existingLog } = await supabase
-      .from('email_logs')
-      .select('id')
-      .eq('booking_id', bookingId)
-      .eq('recipient_email', customerEmail)
-      .eq('email_type', 'booking_confirmation')
-      .eq('status', 'sent')
-      .maybeSingle();
+    // CHECK 2: email_logs table (secondary idempotency check)
+    if (!forceResend) {
+      const { data: existingLog } = await supabase
+        .from('email_logs')
+        .select('id')
+        .eq('booking_id', bookingId)
+        .eq('recipient_email', customerEmail)
+        .eq('email_type', 'booking_confirmation')
+        .eq('status', 'sent')
+        .maybeSingle();
 
-    if (existingLog) {
-      console.log('[CUSTOMER-CONFIRMATION-EMAIL] Email already sent, skipping');
-      return new Response(
-        JSON.stringify({ success: true, message: 'Email already sent', cached: true }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      if (existingLog) {
+        console.log('[CUSTOMER-CONFIRMATION-EMAIL] Email already in logs, skipping and fixing flag');
+        // Fix the booking flag if it wasn't set
+        await supabase.from('bookings').update({ confirmation_email_sent: true }).eq('id', bookingId);
+        return new Response(
+          JSON.stringify({ success: true, message: 'Email already sent (email_logs)', cached: true }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Send email via Resend
@@ -230,6 +244,18 @@ serve(async (req) => {
       external_id: emailData.data?.id,
       sent_at: new Date().toISOString(),
     });
+
+    // UPDATE BOOKING FLAG to prevent future duplicate sends
+    const { error: updateError } = await supabase
+      .from('bookings')
+      .update({ confirmation_email_sent: true })
+      .eq('id', bookingId);
+
+    if (updateError) {
+      console.warn('[CUSTOMER-CONFIRMATION-EMAIL] Failed to update booking flag:', updateError.message);
+    } else {
+      console.log('[CUSTOMER-CONFIRMATION-EMAIL] Booking flag updated: confirmation_email_sent = true');
+    }
 
     console.log('[CUSTOMER-CONFIRMATION-EMAIL] Email sent successfully');
 
