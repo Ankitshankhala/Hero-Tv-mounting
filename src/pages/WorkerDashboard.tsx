@@ -375,7 +375,7 @@ const WorkerDashboard = () => {
             </TabsList>
             
             <TabsContent value="jobs" className="mt-6">
-              <WorkerJobsTab jobs={jobs} onStatusUpdate={updateJobStatus} onJobCancelled={handleJobCancelled} />
+              <WorkerJobsTab jobs={jobs} onStatusUpdate={updateJobStatus} onJobCancelled={handleJobCancelled} onJobsCleared={fetchWorkerJobs} />
             </TabsContent>
             
             <TabsContent value="calendar" className="mt-6">
