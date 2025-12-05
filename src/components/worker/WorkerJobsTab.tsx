@@ -1,10 +1,12 @@
 import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import { ExpandableJobCardContainer } from './ExpandableJobCardContainer';
 import { JobFiltersBar } from './JobFiltersBar';
 import { useJobFilters } from '@/hooks/useJobFilters';
-import { Calendar, Briefcase, Archive } from 'lucide-react';
+import { useClearCompletedJobs } from '@/hooks/useClearCompletedJobs';
+import { Calendar, Briefcase, Archive, Trash2, Loader2 } from 'lucide-react';
 import type { Database } from '@/integrations/supabase/types';
 import { convertUTCToLocal } from '@/utils/timeUtils';
 
@@ -14,10 +16,12 @@ interface WorkerJobsTabProps {
   jobs: any[];
   onStatusUpdate: (jobId: string, newStatus: BookingStatus) => void;
   onJobCancelled: () => void;
+  onJobsCleared?: () => void;
   initialTab?: string;
 }
 
-export const WorkerJobsTab = ({ jobs, onStatusUpdate, onJobCancelled, initialTab = "active" }: WorkerJobsTabProps) => {
+export const WorkerJobsTab = ({ jobs, onStatusUpdate, onJobCancelled, onJobsCleared, initialTab = "active" }: WorkerJobsTabProps) => {
+  const { clearCompletedJobs, isClearing } = useClearCompletedJobs(onJobsCleared);
   // Active jobs: exclude archived, completed/canceled statuses and completed payments
   const activeJobs = useMemo(() => {
     const filtered = jobs.filter(job => 
@@ -116,17 +120,37 @@ export const WorkerJobsTab = ({ jobs, onStatusUpdate, onJobCancelled, initialTab
           id={!isArchived ? "active-jobs-section" : undefined}
           className="bg-gradient-to-r from-worker-card to-worker-card-hover border-b border-worker-border scroll-mt-24"
         >
-          <CardTitle className="text-worker-card-foreground text-xl font-semibold">
-            {isArchived ? 'Archived Jobs' : 'Active Jobs'}
-            {filterSummary.filtered !== filterSummary.total && (
-              <span className="text-worker-muted text-base font-normal ml-2">
-                ({filterSummary.filtered} of {filterSummary.total})
-              </span>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-worker-card-foreground text-xl font-semibold">
+                {isArchived ? 'Archived Jobs' : 'Active Jobs'}
+                {filterSummary.filtered !== filterSummary.total && (
+                  <span className="text-worker-muted text-base font-normal ml-2">
+                    ({filterSummary.filtered} of {filterSummary.total})
+                  </span>
+                )}
+              </CardTitle>
+              <p className="text-worker-muted text-sm">
+                {isArchived ? 'View completed and archived jobs' : 'Manage your active job assignments'}
+              </p>
+            </div>
+            {!isArchived && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={clearCompletedJobs}
+                disabled={isClearing}
+                className="bg-worker-card-hover border-worker-border text-worker-card-foreground hover:bg-worker-border"
+              >
+                {isClearing ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4 mr-2" />
+                )}
+                Clear Jobs
+              </Button>
             )}
-          </CardTitle>
-          <p className="text-worker-muted text-sm">
-            {isArchived ? 'View completed and archived jobs' : 'Manage your active job assignments'}
-          </p>
+          </div>
         </CardHeader>
         <CardContent className="p-6">
           {filteredJobs.length === 0 ? (
