@@ -116,5 +116,5 @@ verify_jwt = false
 [functions.bulk-delete-payment-pending]
 verify_jwt = true
 
-[functions.cleanup-worker-bookings]
+[functions.cleanup-unpaid-bookings]
 verify_jwt = true

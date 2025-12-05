@@ -16,7 +16,7 @@ export const useClearCompletedJobs = (onJobsCleared?: () => void) => {
     setIsClearing(true);
     
     try {
-      const { data, error } = await supabase.functions.invoke('cleanup-worker-bookings', {
+      const { data, error } = await supabase.functions.invoke('cleanup-unpaid-bookings', {
         method: 'POST',
       });
 
