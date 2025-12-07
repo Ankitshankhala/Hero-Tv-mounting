@@ -259,3 +259,5 @@ export const AuthModal = ({ open, onOpenChange, defaultTab = 'login' }: AuthModa
     </Dialog>
   );
 };
+
+export default AuthModal;

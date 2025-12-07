@@ -1,21 +1,28 @@
 
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
+import React, { useState, lazy, Suspense } from 'react';
 import { Header } from '@/components/Header';
 import { useTestingMode, getEffectiveMinimumAmount } from '@/contexts/TestingModeContext';
-import { AuthModal } from '@/components/auth/AuthModal';
 import { Footer } from '@/components/Footer';
 import { ServicesSection } from '@/components/ServicesSection';
 import { ReviewsSection } from '@/components/ReviewsSection';
 import { BlogSection } from '@/components/BlogSection';
 import { Cart } from '@/components/Cart';
-import { EnhancedInlineBookingFlow } from '@/components/EnhancedInlineBookingFlow';
 import { TestingModeIndicator } from '@/components/TestingModeIndicator';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { CartItem } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { SEO } from '@/components/SEO';
+
+// Lazy load heavy components that are not needed for initial render
+const EnhancedInlineBookingFlow = lazy(() => import('@/components/EnhancedInlineBookingFlow'));
+const AuthModal = lazy(() => import('@/components/auth/AuthModal'));
+
+// Minimal loading spinner for lazy components
+const LazyLoader = () => (
+  <div className="flex items-center justify-center p-8">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+  </div>
+);
 
 const Index = () => {
   const { isTestingMode } = useTestingMode();
@@ -246,17 +253,22 @@ const Index = () => {
         />
       )}
 
-      {/* Booking Flow */}
+      {/* Booking Flow - Lazy loaded */}
       {showBookingFlow && (
-        <EnhancedInlineBookingFlow
-          isOpen={showBookingFlow}
-          onClose={() => setShowBookingFlow(false)}
-          onSubmit={handleBookingComplete}
-          selectedServices={selectedServices}
-        />
+        <Suspense fallback={<LazyLoader />}>
+          <EnhancedInlineBookingFlow
+            isOpen={showBookingFlow}
+            onClose={() => setShowBookingFlow(false)}
+            onSubmit={handleBookingComplete}
+            selectedServices={selectedServices}
+          />
+        </Suspense>
       )}
 
-      <AuthModal open={showAuthModal} onOpenChange={setShowAuthModal} />
+      {/* Auth Modal - Lazy loaded */}
+      <Suspense fallback={null}>
+        <AuthModal open={showAuthModal} onOpenChange={setShowAuthModal} />
+      </Suspense>
     </div>
   );
 };
