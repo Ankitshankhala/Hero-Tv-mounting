@@ -654,3 +654,5 @@ export const EnhancedInlineBookingFlow = ({
     </>
   );
 };
+
+export default EnhancedInlineBookingFlow;
