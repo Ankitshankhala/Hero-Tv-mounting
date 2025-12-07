@@ -118,3 +118,33 @@ verify_jwt = true
 
 [functions.cleanup-unpaid-bookings]
 verify_jwt = true
+
+[functions.import-zcta-data]
+verify_jwt = false
+
+[functions.enhanced-invoice-generator]
+verify_jwt = false
+
+[functions.sync-stripe-captures]
+verify_jwt = false
+
+[functions.unified-spatial-operations]
+verify_jwt = false
+
+[functions.update-invoice]
+verify_jwt = false
+
+[functions.update-transaction-status]
+verify_jwt = false
+
+[functions.unified-payment-verification]
+verify_jwt = false
+
+[functions.worker-cancel-booking]
+verify_jwt = false
+
+[functions.worker-operations]
+verify_jwt = false
+
+[functions.sync-authorized-bookings]
+verify_jwt = false
