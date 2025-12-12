@@ -30,6 +30,7 @@ const WorkerSignup = lazy(() => import('@/pages/WorkerSignup'));
 const WorkerLogin = lazy(() => import('@/pages/WorkerLogin'));
 const CityPage = lazy(() => import('@/pages/cities/CityPage'));
 const PrivacyPolicy = lazy(() => import('@/pages/PrivacyPolicy'));
+const TermsOfService = lazy(() => import('@/pages/TermsOfService'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -77,6 +78,7 @@ function AppWithSecurity() {
           <Route path="/worker-login" element={<WorkerLogin />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/terms-of-service" element={<TermsOfService />} />
           
           {/* City landing pages */}
           <Route path="/locations/:slug" element={<CityPage />} />
