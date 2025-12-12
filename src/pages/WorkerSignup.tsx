@@ -10,6 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { DayAvailabilityCard } from '@/components/worker/DayAvailabilityCard';
+import { SmsConsentText } from '@/components/common/SmsConsentText';
 import { SEO } from '@/components/SEO';
 
 const WorkerSignup = () => {
@@ -209,6 +210,7 @@ const WorkerSignup = () => {
                       className="bg-slate-700 border-slate-600 text-white"
                       placeholder="(555) 123-4567"
                     />
+                    <SmsConsentText variant="dark" className="mt-1" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="zipCode" className="text-slate-300">Zip Code</Label>

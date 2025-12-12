@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ValidatedInput } from '@/components/ui/ValidatedInput';
+import { SmsConsentText } from '@/components/common/SmsConsentText';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -225,6 +226,8 @@ export const CheckoutModal = ({ cart, total, onClose }: CheckoutModalProps) => {
               autoFormat="phone"
               placeholder="(555) 123-4567"
             />
+            
+            <SmsConsentText variant="light" className="md:col-span-2 -mt-2" />
             
             <ValidatedInput
               id="zipcode"

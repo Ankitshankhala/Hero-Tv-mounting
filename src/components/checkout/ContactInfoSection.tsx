@@ -4,6 +4,7 @@ import { User, Mail, Phone, MapPin, CheckCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ZipcodeInput } from '@/components/ui/ZipcodeInput';
+import { SmsConsentText } from '@/components/common/SmsConsentText';
 
 interface ContactInfoSectionProps {
   formData: {
@@ -100,6 +101,7 @@ export const ContactInfoSection = ({
           {errors.phone && touched.phone && (
             <p className="text-sm text-red-600">{errors.phone}</p>
           )}
+          <SmsConsentText variant="light" />
         </div>
         
         <div className="space-y-2">

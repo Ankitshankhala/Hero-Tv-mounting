@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Facebook, Instagram, Linkedin } from 'lucide-react';
 
 export const Footer = () => {
@@ -42,6 +43,22 @@ export const Footer = () => {
               >
                 Contact Us
               </a>
+            </div>
+            
+            <div className="flex flex-col space-y-2 text-center md:text-left">
+              <div className="text-slate-300 font-semibold mb-1">Legal</div>
+              <Link 
+                to="/privacy-policy" 
+                className="text-slate-400 hover:text-slate-300 transition-colors duration-200"
+              >
+                Privacy Policy
+              </Link>
+              <Link 
+                to="/terms-of-service" 
+                className="text-slate-400 hover:text-slate-300 transition-colors duration-200"
+              >
+                Terms of Service
+              </Link>
             </div>
             
             <div className="flex flex-col space-y-3 text-center md:text-left">
