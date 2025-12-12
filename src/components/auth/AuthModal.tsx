@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { SmsConsentText } from '@/components/common/SmsConsentText';
 import { User, Mail, Lock, Phone, MapPin } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -215,6 +216,7 @@ export const AuthModal = ({ open, onOpenChange, defaultTab = 'login' }: AuthModa
                     disabled={loading}
                   />
                 </div>
+                <SmsConsentText variant="light" className="mt-1" />
               </div>
               
               <div className="grid grid-cols-2 gap-4">

@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ZipcodeInput } from '@/components/ui/ZipcodeInput';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { SmsConsentText } from '@/components/common/SmsConsentText';
 import { X, User, Mail, Phone, MapPin, Calendar as CalendarIcon, Clock, ArrowRight, Shield, Star, Sparkles, CheckCircle, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -281,6 +282,7 @@ export const InlineBookingFlow = ({ isOpen, onClose, onSubmit, selectedServices 
                     placeholder="(555) 123-4567"
                     className="h-12 border-2 border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 rounded-lg bg-gray-50/50 transition-all duration-200"
                   />
+                  <SmsConsentText variant="light" />
                 </div>
 
                 <div className="space-y-3">

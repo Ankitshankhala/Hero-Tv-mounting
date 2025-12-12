@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ZctaLocationInput } from '@/components/booking/ZctaLocationInput';
+import { SmsConsentText } from '@/components/common/SmsConsentText';
 import { User, Mail, Phone, MapPin } from 'lucide-react';
 import { FormData as BookingFormData } from '@/hooks/booking/types';
 
@@ -69,6 +70,7 @@ export const ContactLocationStep = ({
             placeholder="(555) 123-4567"
             className="h-12 bg-slate-700/50 border-slate-600 text-white placeholder-slate-400 focus:border-blue-400"
           />
+          <SmsConsentText variant="dark" />
         </div>
 
         {/* ZIP Code Input */}
