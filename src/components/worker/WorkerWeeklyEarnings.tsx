@@ -63,8 +63,7 @@ export function WorkerWeeklyEarnings() {
           )
         `)
         .eq('worker_id', user.id)
-        .or('status.eq.completed,payment_status.eq.captured')
-        .not('status', 'in', '("cancelled","refunded")')
+        .eq('payment_status', 'captured')
         .gte('scheduled_date', format(currentWeekStart, 'yyyy-MM-dd'))
         .lte('scheduled_date', format(weekEnd, 'yyyy-MM-dd'))
         .order('scheduled_date', { ascending: true });
