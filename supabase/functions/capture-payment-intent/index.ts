@@ -61,7 +61,7 @@ serve(async (req) => {
       throw new Error('No payment intent ID found');
     }
 
-    // CRITICAL FIX: Recalculate expected amount from booking_services to ensure we capture the correct total
+    // Get services total for record keeping (NOT for determining capture amount)
     const { data: currentServices, error: servicesError } = await supabase
       .from('booking_services')
       .select('base_price, quantity')
@@ -74,15 +74,14 @@ serve(async (req) => {
 
     const servicesTotal = currentServices?.reduce((sum, s) => sum + (s.base_price * s.quantity), 0) || 0;
     const tipAmount = booking.tip_amount || 0;
-    const expectedAmountCents = Math.round((servicesTotal + tipAmount) * 100);
 
-    console.log('[CAPTURE-PAYMENT] Amount calculation:', {
+    console.log('[CAPTURE-PAYMENT] Amount breakdown:', {
       services_total: servicesTotal,
       tip_amount: tipAmount,
-      expected_amount_cents: expectedAmountCents
+      booking_tip: booking.tip_amount
     });
 
-    // First, retrieve the PaymentIntent to check its current amount
+    // First, retrieve the PaymentIntent to check its current state
     const currentIntent = await stripe.paymentIntents.retrieve(intentId);
     console.log('[CAPTURE-PAYMENT] Current PaymentIntent:', {
       id: currentIntent.id,
@@ -91,18 +90,32 @@ serve(async (req) => {
       amount_capturable: currentIntent.amount_capturable
     });
 
-    // Determine capture amount - use the lesser of expected and authorized
-    const captureAmountCents = Math.min(expectedAmountCents, currentIntent.amount);
+    // CRITICAL FIX: Use the FULL authorized amount from Stripe, NOT recalculated amount
+    // This prevents tip reversal - we capture exactly what was authorized
+    const captureAmountCents = currentIntent.amount_capturable || currentIntent.amount;
     
+    // Get the original authorized transaction to verify tip preservation
+    const { data: authorizedTx } = await supabase
+      .from('transactions')
+      .select('amount, base_amount, tip_amount')
+      .eq('booking_id', booking.id)
+      .eq('payment_intent_id', intentId)
+      .eq('status', 'authorized')
+      .single();
+
+    // Log any discrepancy for audit purposes (but still capture full amount)
+    const expectedAmountCents = Math.round((servicesTotal + tipAmount) * 100);
     if (captureAmountCents !== expectedAmountCents) {
-      console.warn('[CAPTURE-PAYMENT] Amount mismatch - capturing available amount:', {
-        expected: expectedAmountCents,
-        authorized: currentIntent.amount,
-        capturing: captureAmountCents
+      console.warn('[CAPTURE-PAYMENT] ⚠️ Amount discrepancy detected (capturing full authorized amount):', {
+        stripe_authorized: captureAmountCents,
+        calculated_from_services: expectedAmountCents,
+        difference_cents: captureAmountCents - expectedAmountCents,
+        tip_amount: tipAmount,
+        note: 'Capturing full authorized amount to preserve tip'
       });
     }
 
-    // Capture the payment through Stripe
+    // Capture the payment through Stripe - use FULL authorized amount
     console.log('[CAPTURE-PAYMENT] Capturing Stripe PaymentIntent:', intentId, 'amount:', captureAmountCents);
     const paymentIntent = await stripe.paymentIntents.capture(intentId, {
       amount_to_capture: captureAmountCents
@@ -116,6 +129,17 @@ serve(async (req) => {
     const capturedAmount = paymentIntent.amount_received / 100;
     console.log('[CAPTURE-PAYMENT] Successfully captured:', capturedAmount);
 
+    // CRITICAL FIX: Preserve base_amount and tip_amount in transaction update
+    // Use values from authorized transaction if available, otherwise from booking
+    const finalBaseAmount = authorizedTx?.base_amount || servicesTotal;
+    const finalTipAmount = authorizedTx?.tip_amount || tipAmount;
+
+    console.log('[CAPTURE-PAYMENT] Preserving tip breakdown:', {
+      base_amount: finalBaseAmount,
+      tip_amount: finalTipAmount,
+      total: capturedAmount
+    });
+
     // Update existing transaction record from 'authorized' to 'completed'
     let finalTransaction;
     const { data: transaction, error: transactionError } = await supabase
@@ -124,7 +148,9 @@ serve(async (req) => {
         status: 'completed',
         transaction_type: 'capture',
         captured_at: new Date().toISOString(),
-        amount: capturedAmount
+        amount: capturedAmount,
+        base_amount: finalBaseAmount,
+        tip_amount: finalTipAmount
       })
       .eq('booking_id', booking.id)
       .eq('payment_intent_id', intentId)
@@ -135,12 +161,14 @@ serve(async (req) => {
     if (transactionError) {
       console.error('[CAPTURE-PAYMENT] Transaction update error:', transactionError);
       
-      // Fallback: If no authorized transaction exists, create a new one
+      // Fallback: If no authorized transaction exists, create a new one with full tip breakdown
       const { data: newTransaction, error: insertError } = await supabase
         .from('transactions')
         .insert({
           booking_id: booking.id,
           amount: capturedAmount,
+          base_amount: servicesTotal,
+          tip_amount: tipAmount,
           status: 'completed',
           payment_intent_id: intentId,
           transaction_type: 'capture',
@@ -155,9 +183,16 @@ serve(async (req) => {
         throw new Error('Failed to update or create transaction record');
       }
       
-      console.log('[CAPTURE-PAYMENT] Created new transaction record (fallback)');
+      console.log('[CAPTURE-PAYMENT] Created new transaction record (fallback) with tip preserved:', {
+        base_amount: servicesTotal,
+        tip_amount: tipAmount
+      });
       finalTransaction = newTransaction;
     } else {
+      console.log('[CAPTURE-PAYMENT] Updated transaction with tip preserved:', {
+        base_amount: finalBaseAmount,
+        tip_amount: finalTipAmount
+      });
       finalTransaction = transaction;
     }
 
