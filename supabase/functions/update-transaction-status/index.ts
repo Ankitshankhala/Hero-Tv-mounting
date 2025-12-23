@@ -68,13 +68,33 @@ serve(async (req) => {
     } else {
       // No existing transaction, create one if booking_id provided
       if (booking_id) {
+        // Fetch proper amount breakdown to preserve tip
+        const { data: bookingData } = await supabase
+          .from('bookings')
+          .select('tip_amount')
+          .eq('id', booking_id)
+          .single();
+
+        const { data: services } = await supabase
+          .from('booking_services')
+          .select('base_price, quantity')
+          .eq('booking_id', booking_id);
+
+        const baseAmount = services?.reduce((sum, s) => sum + (s.base_price * s.quantity), 0) || 0;
+        const tipAmount = bookingData?.tip_amount || 0;
+        const totalAmount = baseAmount + tipAmount;
+
+        console.log(`[UPDATE-TRANSACTION-STATUS] Amount breakdown - base: ${baseAmount}, tip: ${tipAmount}, total: ${totalAmount}`);
+
         const { error: insertError } = await supabase
           .from('transactions')
           .insert({
             booking_id,
             payment_intent_id,
             status,
-            amount: 0, // Will be updated when capture happens
+            amount: totalAmount,
+            base_amount: baseAmount,
+            tip_amount: tipAmount,
             transaction_type: status === 'authorized' ? 'authorization' : 'unknown'
           });
 
@@ -90,9 +110,9 @@ serve(async (req) => {
             payment_intent_id 
           })
           .eq('id', booking_id);
-      }
 
-      console.log(`[UPDATE-TRANSACTION-STATUS] Created new transaction record`);
+        console.log(`[UPDATE-TRANSACTION-STATUS] Created new transaction with proper amount breakdown`);
+      }
     }
 
     return new Response(JSON.stringify({
