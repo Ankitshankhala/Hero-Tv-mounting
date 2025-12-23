@@ -58,7 +58,7 @@ serve(async (req) => {
           continue;
         }
 
-        // Ensure transaction exists
+        // Ensure transaction exists with proper amount breakdown
         const { data: existingTx } = await supabase
           .from('transactions')
           .select('id')
@@ -66,6 +66,24 @@ serve(async (req) => {
           .maybeSingle();
 
         if (!existingTx) {
+          // Fetch proper amount breakdown to preserve tip
+          const { data: bookingData } = await supabase
+            .from('bookings')
+            .select('tip_amount')
+            .eq('id', booking.id)
+            .single();
+
+          const { data: services } = await supabase
+            .from('booking_services')
+            .select('base_price, quantity')
+            .eq('booking_id', booking.id);
+
+          const baseAmount = services?.reduce((sum, s) => sum + (s.base_price * s.quantity), 0) || 0;
+          const tipAmount = bookingData?.tip_amount || 0;
+          const totalAmount = baseAmount + tipAmount;
+
+          console.log(`[SYNC-AUTHORIZED] Booking ${booking.id} - base: ${baseAmount}, tip: ${tipAmount}, total: ${totalAmount}`);
+
           await supabase
             .from('transactions')
             .insert({
@@ -73,7 +91,9 @@ serve(async (req) => {
               payment_intent_id: booking.payment_intent_id,
               status: 'authorized',
               transaction_type: 'authorization',
-              amount: 0 // Will be updated when captured
+              amount: totalAmount,
+              base_amount: baseAmount,
+              tip_amount: tipAmount
             });
         }
 
