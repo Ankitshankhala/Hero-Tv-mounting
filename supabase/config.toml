@@ -148,3 +148,6 @@ verify_jwt = false
 
 [functions.sync-authorized-bookings]
 verify_jwt = false
+
+[functions.sync-stripe-payment-status]
+verify_jwt = false

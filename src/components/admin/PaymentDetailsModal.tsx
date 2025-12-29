@@ -4,13 +4,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { CreditCard, Calendar, DollarSign, User, MapPin, Phone, Mail } from 'lucide-react';
+import { CreditCard, Calendar, DollarSign, User, MapPin, Phone, Mail, RefreshCw } from 'lucide-react';
 import { RefundBookingModal } from './RefundBookingModal';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface PaymentDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
   payment: any;
+  onSyncComplete?: () => void;
 }
 
 const formatCurrency = (amount: number, currency: string = 'USD') => {
@@ -28,10 +31,54 @@ const formatDate = (dateString: string) => {
   });
 };
 
-const PaymentDetailsModal = ({ isOpen, onClose, payment }: PaymentDetailsModalProps) => {
+const PaymentDetailsModal = ({ isOpen, onClose, payment, onSyncComplete }: PaymentDetailsModalProps) => {
   const [showRefundModal, setShowRefundModal] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const { toast } = useToast();
   
   if (!payment) return null;
+
+  const handleSyncFromStripe = async () => {
+    if (!payment.payment_intent_id && !payment.booking_id) {
+      toast({
+        title: "Cannot Sync",
+        description: "No payment intent ID or booking ID available",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-stripe-payment-status', {
+        body: {
+          payment_intent_id: payment.payment_intent_id,
+          booking_id: payment.booking_id,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        toast({
+          title: "Sync Complete",
+          description: `Status updated to ${data.db_payment_status}`,
+        });
+        onSyncComplete?.();
+      } else {
+        throw new Error(data.error || 'Sync failed');
+      }
+    } catch (error: any) {
+      console.error('[SYNC] Error:', error);
+      toast({
+        title: "Sync Failed",
+        description: error.message || 'Failed to sync with Stripe',
+        variant: "destructive",
+      });
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
@@ -196,6 +243,17 @@ const PaymentDetailsModal = ({ isOpen, onClose, payment }: PaymentDetailsModalPr
           {/* Actions */}
           <div className="flex justify-between items-center">
             <div className="flex space-x-2">
+              {payment.payment_intent_id && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleSyncFromStripe}
+                  disabled={syncing}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
+                  {syncing ? 'Syncing...' : 'Sync from Stripe'}
+                </Button>
+              )}
               {payment.status === 'completed' && payment.booking && (
                 <Button 
                   variant="outline" 
