@@ -50,7 +50,7 @@ const PaymentDetailsModal = ({ isOpen, onClose, payment, onSyncComplete }: Payme
 
     setSyncing(true);
     try {
-      const { data, error } = await supabase.functions.invoke('sync-stripe-payment-status', {
+      const { data, error } = await supabase.functions.invoke('sync-stripe-captures', {
         body: {
           payment_intent_id: payment.payment_intent_id,
           booking_id: payment.booking_id,
@@ -62,7 +62,7 @@ const PaymentDetailsModal = ({ isOpen, onClose, payment, onSyncComplete }: Payme
       if (data.success) {
         toast({
           title: "Sync Complete",
-          description: `Status updated to ${data.db_payment_status}`,
+          description: `Status updated to ${data.db_status}`,
         });
         onSyncComplete?.();
       } else {
