@@ -65,21 +65,43 @@ serve(async (req) => {
     }
 
     // Find bookings to archive:
-    // - payment_status IN ('captured', 'failed', 'pending') OR payment_status IS NULL
-    // - NOT 'authorized' (those stay visible)
-    const { data: bookingsToArchive, error: fetchError } = await supabaseAdmin
+    // 1. Non-authorized jobs: payment_status IN ('captured', 'failed', 'pending', 'refunded', 'cancelled') OR NULL
+    // 2. Old authorized jobs: scheduled_date is 7+ days ago
+    
+    // Step 1: Get non-authorized jobs (existing behavior)
+    const { data: nonAuthorizedJobs, error: fetchError1 } = await supabaseAdmin
       .from('bookings')
-      .select('id, payment_status, status')
+      .select('id, payment_status, status, scheduled_date')
       .eq('worker_id', workerId)
       .eq('is_archived', false)
       .or('payment_status.in.(captured,failed,pending,refunded,cancelled),payment_status.is.null');
 
-    if (fetchError) {
-      console.error('Error fetching bookings:', fetchError);
-      throw fetchError;
+    if (fetchError1) {
+      console.error('Error fetching non-authorized bookings:', fetchError1);
+      throw fetchError1;
     }
 
-    const jobsToArchive = bookingsToArchive || [];
+    // Step 2: Get OLD authorized jobs (scheduled 7+ days ago)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const cutoffDate = sevenDaysAgo.toISOString().split('T')[0]; // YYYY-MM-DD format
+
+    const { data: oldAuthorizedJobs, error: fetchError2 } = await supabaseAdmin
+      .from('bookings')
+      .select('id, payment_status, status, scheduled_date')
+      .eq('worker_id', workerId)
+      .eq('is_archived', false)
+      .eq('payment_status', 'authorized')
+      .lt('scheduled_date', cutoffDate);
+
+    if (fetchError2) {
+      console.error('Error fetching old authorized bookings:', fetchError2);
+      throw fetchError2;
+    }
+
+    // Combine both sets for archival
+    const jobsToArchive = [...(nonAuthorizedJobs || []), ...(oldAuthorizedJobs || [])];
+    console.log(`Found ${nonAuthorizedJobs?.length || 0} non-authorized + ${oldAuthorizedJobs?.length || 0} old authorized jobs to archive`);
     console.log(`Found ${jobsToArchive.length} jobs to archive for worker ${workerId}`);
 
     if (jobsToArchive.length === 0) {
