@@ -406,6 +406,13 @@ export type Database = {
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_bookings_worker_id"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
         ]
       }
       coupon_audit_log: {
@@ -2444,6 +2451,13 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "bookings_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_bookings_worker_id"
             columns: ["worker_id"]
             isOneToOne: false
             referencedRelation: "users"
