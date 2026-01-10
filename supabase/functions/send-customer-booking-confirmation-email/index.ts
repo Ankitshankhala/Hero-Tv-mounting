@@ -101,12 +101,31 @@ serve(async (req) => {
       throw new Error('Customer email not found');
     }
 
+    // FALLBACK: If worker relation didn't resolve, fetch worker directly
+    let workerData = booking.worker;
+    
+    if (!workerData && booking.worker_id) {
+      console.log('[CUSTOMER-CONFIRMATION] Worker relation failed, fetching directly for worker_id:', booking.worker_id);
+      const { data: directWorker, error: workerError } = await supabase
+        .from('users')
+        .select('name, email, phone')
+        .eq('id', booking.worker_id)
+        .single();
+      
+      if (directWorker) {
+        workerData = directWorker;
+        console.log('[CUSTOMER-CONFIRMATION] Worker fetched directly:', directWorker.name, directWorker.phone);
+      } else {
+        console.warn('[CUSTOMER-CONFIRMATION] Failed to fetch worker directly:', workerError?.message);
+      }
+    }
+
     // Extract worker information with fallback to support number
-    const workerName = booking.worker?.name || 'TBD';
-    const hasWorkerPhone = !!booking.worker?.phone;
-    const workerPhoneRaw = getRawPhone(booking.worker?.phone);
-    const formattedWorkerPhone = formatPhoneNumber(booking.worker?.phone, true); // Use fallback
-    const workerEmail = booking.worker?.email || '';
+    const workerName = workerData?.name || 'TBD';
+    const hasWorkerPhone = !!workerData?.phone;
+    const workerPhoneRaw = getRawPhone(workerData?.phone);
+    const formattedWorkerPhone = formatPhoneNumber(workerData?.phone, true); // Use fallback
+    const workerEmail = workerData?.email || '';
     const phoneLabel = hasWorkerPhone ? 'Worker Mobile' : 'Support Line';
 
     // Build service items list
