@@ -213,9 +213,9 @@ serve(async (req) => {
     // Get Twilio credentials
     const twilioAccountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
     const twilioAuthToken = Deno.env.get('TWILIO_AUTH_TOKEN');
-    const twilioPhoneNumber = Deno.env.get('TWILIO_PHONE_NUMBER');
+    const messagingServiceSid = Deno.env.get('TWILIO_MESSAGING_SERVICE_SID');
 
-    if (!twilioAccountSid || !twilioAuthToken || !twilioPhoneNumber) {
+    if (!twilioAccountSid || !twilioAuthToken || !messagingServiceSid) {
       logStep('Twilio credentials missing');
       
       await supabase.from('sms_logs').insert({
@@ -234,7 +234,7 @@ serve(async (req) => {
       );
     }
 
-    // Send SMS via Twilio
+    // Send SMS via Twilio using Messaging Service for A2P 10DLC compliance
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;
     const twilioAuth = btoa(`${twilioAccountSid}:${twilioAuthToken}`);
 
@@ -246,7 +246,7 @@ serve(async (req) => {
       },
       body: new URLSearchParams({
         To: formattedPhone,
-        From: twilioPhoneNumber,
+        MessagingServiceSid: messagingServiceSid,
         Body: smsMessage,
       }),
     });

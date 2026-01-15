@@ -176,13 +176,13 @@ serve(async (req) => {
     // Validate Twilio credentials
     const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
     const authToken = Deno.env.get('TWILIO_AUTH_TOKEN');
-    const fromNumber = Deno.env.get('TWILIO_FROM_NUMBER');
+    const messagingServiceSid = Deno.env.get('TWILIO_MESSAGING_SERVICE_SID');
 
-    if (!accountSid || !authToken || !fromNumber) {
-      throw new Error('Missing Twilio credentials - check TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER');
+    if (!accountSid || !authToken || !messagingServiceSid) {
+      throw new Error('Missing Twilio credentials - check TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_MESSAGING_SERVICE_SID');
     }
 
-    // Send SMS via Twilio
+    // Send SMS via Twilio using Messaging Service for A2P 10DLC compliance
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
     const auth = btoa(`${accountSid}:${authToken}`);
 
@@ -194,7 +194,7 @@ serve(async (req) => {
       },
       body: new URLSearchParams({
         To: recipientPhone,
-        From: fromNumber,
+        MessagingServiceSid: messagingServiceSid,
         Body: message,
       }),
     });
