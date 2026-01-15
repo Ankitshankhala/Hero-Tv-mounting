@@ -268,14 +268,35 @@ async function sendNotifications(booking: any, chosenWorker: any) {
     { auth: { persistSession: false } }
   );
   try {
-    // Get worker email
-    const { data: workerData } = await supabase
+    // Fetch COMPLETE worker data including phone - this is the single source of truth
+    const { data: workerData, error: workerFetchError } = await supabase
       .from('users')
-      .select('email')
+      .select('id, name, email, phone')
       .eq('id', chosenWorker.worker_id)
       .single();
     
-    const workerEmail = workerData?.email;
+    if (workerFetchError || !workerData) {
+      logStep('Failed to fetch complete worker data', { 
+        error: workerFetchError?.message,
+        worker_id: chosenWorker.worker_id 
+      });
+    }
+    
+    // Build resolved worker data object to pass to email functions
+    const resolvedWorkerData = {
+      id: workerData?.id || chosenWorker.worker_id,
+      name: workerData?.name || chosenWorker.worker_name || 'TBD',
+      email: workerData?.email || '',
+      phone: workerData?.phone || null
+    };
+    
+    logStep('Worker data resolved for notifications', { 
+      name: resolvedWorkerData.name,
+      hasPhone: !!resolvedWorkerData.phone,
+      hasEmail: !!resolvedWorkerData.email
+    });
+
+    const workerEmail = resolvedWorkerData.email;
 
     // Send worker assignment email via unified dispatcher
     if (workerEmail) {
@@ -334,7 +355,7 @@ async function sendNotifications(booking: any, chosenWorker: any) {
       logStep('Error invoking customer SMS function', { error: customerSmsErr });
     }
 
-    // Send customer confirmation email via unified dispatcher
+    // Send customer confirmation email via unified dispatcher WITH pre-resolved worker data
     const customerEmail = booking.customer_id
       ? booking.customer?.email
       : booking.guest_customer_info?.email;
@@ -347,7 +368,8 @@ async function sendNotifications(booking: any, chosenWorker: any) {
             body: { 
               bookingId: booking.id, 
               recipientEmail: customerEmail,
-              emailType: 'booking_confirmation'
+              emailType: 'booking_confirmation',
+              workerData: resolvedWorkerData  // Pass pre-resolved worker data
             },
           }
         );
@@ -356,7 +378,10 @@ async function sendNotifications(booking: any, chosenWorker: any) {
             error: custEmailErr.message,
           });
         } else {
-          logStep('Customer confirmation email dispatched successfully');
+          logStep('Customer confirmation email dispatched with worker data', {
+            workerName: resolvedWorkerData.name,
+            hasPhone: !!resolvedWorkerData.phone
+          });
         }
       } catch (custErr) {
         logStep('Error invoking customer email dispatcher', { error: custErr });

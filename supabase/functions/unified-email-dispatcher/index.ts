@@ -20,9 +20,10 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { bookingId, recipientEmail, emailType } = await req.json();
+    const { bookingId, recipientEmail, emailType, workerData } = await req.json();
     
-    console.log(`[UNIFIED-EMAIL-DISPATCHER] Processing: ${emailType} for ${recipientEmail}`);
+    console.log(`[UNIFIED-EMAIL-DISPATCHER] Processing: ${emailType} for ${recipientEmail}`, 
+      workerData ? `(with pre-resolved worker: ${workerData.name})` : '(no workerData passed)');
 
     // Validate required parameters
     if (!bookingId || !recipientEmail || !emailType) {
@@ -71,7 +72,10 @@ serve(async (req) => {
       case 'booking_confirmation':
       case 'customer_booking_confirmation': // Support both naming conventions
         emailResponse = await supabase.functions.invoke('send-customer-booking-confirmation-email', {
-          body: { bookingId }
+          body: { 
+            bookingId,
+            workerData  // Forward pre-resolved worker data (may be undefined for legacy calls)
+          }
         });
         break;
         
