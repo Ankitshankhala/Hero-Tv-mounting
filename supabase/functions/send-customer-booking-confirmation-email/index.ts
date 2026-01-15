@@ -59,8 +59,10 @@ serve(async (req) => {
     const body = await req.json();
     const bookingId = body.bookingId || body.booking_id; // Support both formats
     const forceResend = body.force === true; // Allow admin force resend
+    const passedWorkerData = body.workerData; // Pre-resolved worker data from assign function
     
-    console.log(`[CUSTOMER-CONFIRMATION-EMAIL] Processing confirmation for booking ${bookingId}${forceResend ? ' (FORCE)' : ''}`);
+    console.log(`[CUSTOMER-CONFIRMATION-EMAIL] Processing confirmation for booking ${bookingId}${forceResend ? ' (FORCE)' : ''}`,
+      passedWorkerData ? `(pre-resolved worker: ${passedWorkerData.name})` : '(no workerData passed - will use fallback)');
 
     // Fetch booking details (handle both registered and guest customers)
     const { data: booking, error: bookingError } = await supabase
@@ -101,23 +103,31 @@ serve(async (req) => {
       throw new Error('Customer email not found');
     }
 
-    // FALLBACK: If worker relation didn't resolve, fetch worker directly
-    let workerData = booking.worker;
+    // USE PRE-RESOLVED WORKER DATA if passed, otherwise fallback to relation/direct query
+    let workerData = passedWorkerData || null;
     
-    if (!workerData && booking.worker_id) {
-      console.log('[CUSTOMER-CONFIRMATION] Worker relation failed, fetching directly for worker_id:', booking.worker_id);
-      const { data: directWorker, error: workerError } = await supabase
-        .from('users')
-        .select('name, email, phone')
-        .eq('id', booking.worker_id)
-        .single();
+    if (!workerData) {
+      // Legacy path: try booking relation first
+      workerData = booking.worker;
       
-      if (directWorker) {
-        workerData = directWorker;
-        console.log('[CUSTOMER-CONFIRMATION] Worker fetched directly:', directWorker.name, directWorker.phone);
-      } else {
-        console.warn('[CUSTOMER-CONFIRMATION] Failed to fetch worker directly:', workerError?.message);
+      // FALLBACK: If worker relation didn't resolve, fetch worker directly
+      if (!workerData && booking.worker_id) {
+        console.log('[CUSTOMER-CONFIRMATION] No pre-resolved workerData, fetching directly for worker_id:', booking.worker_id);
+        const { data: directWorker, error: workerError } = await supabase
+          .from('users')
+          .select('name, email, phone')
+          .eq('id', booking.worker_id)
+          .single();
+        
+        if (directWorker) {
+          workerData = directWorker;
+          console.log('[CUSTOMER-CONFIRMATION] Worker fetched directly:', directWorker.name, directWorker.phone);
+        } else {
+          console.warn('[CUSTOMER-CONFIRMATION] Failed to fetch worker directly:', workerError?.message);
+        }
       }
+    } else {
+      console.log('[CUSTOMER-CONFIRMATION] Using pre-resolved workerData:', workerData.name, workerData.phone ? '(has phone)' : '(no phone)');
     }
 
     // Extract worker information with fallback to support number
