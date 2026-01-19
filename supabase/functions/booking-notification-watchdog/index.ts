@@ -60,9 +60,9 @@ serve(async (req) => {
       .single();
 
     if (bookingError || !booking) {
-      console.log(`[WATCHDOG] Booking not found: ${bookingId}`);
+      console.log(`[WATCHDOG] Booking not found: ${bookingId}, error: ${bookingError?.message || 'no data'}`);
       return new Response(
-        JSON.stringify({ success: false, error: 'Booking not found' }),
+        JSON.stringify({ success: false, error: 'Booking not found', details: bookingError?.message }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
       );
     }
