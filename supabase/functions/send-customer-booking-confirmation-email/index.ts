@@ -65,6 +65,7 @@ serve(async (req) => {
       passedWorkerData ? `(pre-resolved worker: ${passedWorkerData.name})` : '(no workerData passed - will use fallback)');
 
     // Fetch booking details (handle both registered and guest customers)
+    // Use explicit foreign key names to avoid ambiguity with multiple user relationships
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
       .select(`
@@ -76,8 +77,8 @@ serve(async (req) => {
           base_price
         ),
         service:services(name),
-        customer:users!customer_id(name, email),
-        worker:users!worker_id(name, email, phone)
+        customer:users!bookings_customer_id_fkey(name, email),
+        worker:users!bookings_worker_id_fkey(name, email, phone)
       `)
       .eq('id', bookingId)
       .single();
