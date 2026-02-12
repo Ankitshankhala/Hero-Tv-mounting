@@ -152,6 +152,9 @@ verify_jwt = false
 [functions.sync-stripe-payment-status]
 verify_jwt = false
 
+[functions.sync-payment-after-modification]
+verify_jwt = false
+
 [functions.booking-notification-watchdog]
 verify_jwt = false
 

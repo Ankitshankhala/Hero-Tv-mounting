@@ -92,14 +92,46 @@ serve(async (req) => {
 
     // CRITICAL FIX: Use the FULL authorized amount from Stripe, NOT recalculated amount
     // This prevents tip reversal - we capture exactly what was authorized
-    const captureAmountCents = currentIntent.amount_capturable || currentIntent.amount;
+    let captureAmountCents = currentIntent.amount_capturable || currentIntent.amount;
+    let activeIntentId = intentId;
     
+    // PRE-CAPTURE SAFETY NET: If DB total differs from Stripe hold, sync first
+    const dbTotalWithTip = servicesTotal + tipAmount;
+    const dbTotalCents = Math.round(dbTotalWithTip * 100);
+    
+    if (Math.abs(captureAmountCents - dbTotalCents) > 1 && currentIntent.status === 'requires_capture') {
+      console.warn('[CAPTURE-PAYMENT] ⚠️ Amount mismatch detected! Stripe:', captureAmountCents, 'DB:', dbTotalCents);
+      console.log('[CAPTURE-PAYMENT] Triggering sync-payment-after-modification...');
+      
+      try {
+        const { data: syncResult, error: syncError } = await supabase.functions.invoke('sync-payment-after-modification', {
+          body: { booking_id: booking.id, modification_reason: 'pre_capture_sync' }
+        });
+        
+        if (syncError) {
+          console.error('[CAPTURE-PAYMENT] Sync failed:', syncError);
+        } else if (syncResult?.new_payment_intent_id) {
+          console.log('[CAPTURE-PAYMENT] Synced to new PI:', syncResult.new_payment_intent_id);
+          activeIntentId = syncResult.new_payment_intent_id;
+          // Re-retrieve the updated PI
+          const updatedIntent = await stripe.paymentIntents.retrieve(activeIntentId);
+          captureAmountCents = updatedIntent.amount_capturable || updatedIntent.amount;
+          console.log('[CAPTURE-PAYMENT] Updated capture amount:', captureAmountCents);
+        } else {
+          console.log('[CAPTURE-PAYMENT] Sync result:', syncResult?.action || 'unknown');
+        }
+      } catch (syncErr) {
+        console.error('[CAPTURE-PAYMENT] Sync invocation error:', syncErr);
+        // Continue with original amount — better to capture something than nothing
+      }
+    }
+
     // Get the original authorized transaction to verify tip preservation
     const { data: authorizedTx } = await supabase
       .from('transactions')
       .select('amount, base_amount, tip_amount')
       .eq('booking_id', booking.id)
-      .eq('payment_intent_id', intentId)
+      .eq('payment_intent_id', activeIntentId)
       .eq('status', 'authorized')
       .single();
 
@@ -116,8 +148,8 @@ serve(async (req) => {
     }
 
     // Capture the payment through Stripe - use FULL authorized amount
-    console.log('[CAPTURE-PAYMENT] Capturing Stripe PaymentIntent:', intentId, 'amount:', captureAmountCents);
-    const paymentIntent = await stripe.paymentIntents.capture(intentId, {
+    console.log('[CAPTURE-PAYMENT] Capturing Stripe PaymentIntent:', activeIntentId, 'amount:', captureAmountCents);
+    const paymentIntent = await stripe.paymentIntents.capture(activeIntentId, {
       amount_to_capture: captureAmountCents
     });
 
@@ -153,7 +185,7 @@ serve(async (req) => {
         tip_amount: finalTipAmount
       })
       .eq('booking_id', booking.id)
-      .eq('payment_intent_id', intentId)
+      .eq('payment_intent_id', activeIntentId)
       .eq('status', 'authorized')
       .select()
       .single();
@@ -170,7 +202,7 @@ serve(async (req) => {
           base_amount: servicesTotal,
           tip_amount: tipAmount,
           status: 'completed',
-          payment_intent_id: intentId,
+          payment_intent_id: activeIntentId,
           transaction_type: 'capture',
           payment_method: 'card',
           captured_at: new Date().toISOString()
@@ -237,7 +269,7 @@ serve(async (req) => {
         success: true,
         transaction_id: finalTransaction.id,
         amount_captured: capturedAmount,
-        payment_intent_id: intentId,
+        payment_intent_id: activeIntentId,
         message: 'Payment captured successfully'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

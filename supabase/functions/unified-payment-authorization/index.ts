@@ -7,6 +7,9 @@ import { getSupabaseClient } from '../_shared/supabaseClient.ts';
  * Combines create-payment-intent + confirmation in single function
  * Reduces network round trips from 5 to 1 (80% reduction)
  * Target: Complete authorization in <1.5 seconds
+ * 
+ * CRITICAL: Saves stripe_customer_id and stripe_payment_method_id to booking
+ * so that worker service modifications can trigger seamless reauthorization.
  */
 serve(async (req) => {
   const startTime = performance.now();
@@ -46,8 +49,8 @@ serve(async (req) => {
 
     const dbStartTime = performance.now();
     
-    // Parallelize database queries
-    const [bookingResult, servicesResult] = await Promise.all([
+    // Parallelize database queries + Stripe customer lookup
+    const [bookingResult, servicesResult, existingCustomerResult] = await Promise.all([
       supabase
         .from('bookings')
         .select('id, customer_id, guest_customer_info')
@@ -56,7 +59,12 @@ serve(async (req) => {
       supabase
         .from('booking_services')
         .select('base_price, quantity')
-        .eq('booking_id', bookingId)
+        .eq('booking_id', bookingId),
+      supabase
+        .from('stripe_customers')
+        .select('*')
+        .eq('email', customerEmail)
+        .maybeSingle()
     ]);
 
     const dbTime = performance.now() - dbStartTime;
@@ -80,13 +88,57 @@ serve(async (req) => {
 
     const amountInCents = Math.round(amount * 100);
 
-    console.log('[UNIFIED-AUTH] Creating and confirming PaymentIntent...');
+    // --- Stripe Customer: find or create, then attach payment method ---
     const stripeStartTime = performance.now();
+    let stripeCustomerId: string;
 
-    // Create PaymentIntent with automatic confirmation
+    if (existingCustomerResult.data?.stripe_customer_id) {
+      stripeCustomerId = existingCustomerResult.data.stripe_customer_id;
+      console.log('[UNIFIED-AUTH] Using existing Stripe customer:', stripeCustomerId);
+      
+      // Attach payment method to existing customer (idempotent if already attached)
+      try {
+        await stripe.paymentMethods.attach(paymentMethodId, { customer: stripeCustomerId });
+      } catch (attachErr: any) {
+        // Ignore "already attached" errors
+        if (!attachErr.message?.includes('already been attached')) {
+          console.warn('[UNIFIED-AUTH] Payment method attach warning:', attachErr.message);
+        }
+      }
+    } else {
+      // Create new Stripe customer
+      console.log('[UNIFIED-AUTH] Creating new Stripe customer for:', customerEmail);
+      const customer = await stripe.customers.create({
+        email: customerEmail,
+        name: customerName || 'Guest Customer',
+        metadata: { booking_id: bookingId },
+      });
+      stripeCustomerId = customer.id;
+
+      // Attach payment method
+      await stripe.paymentMethods.attach(paymentMethodId, { customer: stripeCustomerId });
+
+      // Store in stripe_customers table
+      await supabase.from('stripe_customers').insert({
+        email: customerEmail,
+        name: customerName || 'Guest Customer',
+        stripe_customer_id: stripeCustomerId,
+        stripe_default_payment_method_id: paymentMethodId,
+      });
+    }
+
+    // Set as default payment method
+    await stripe.customers.update(stripeCustomerId, {
+      invoice_settings: { default_payment_method: paymentMethodId },
+    });
+
+    console.log('[UNIFIED-AUTH] Creating and confirming PaymentIntent...');
+
+    // Create PaymentIntent with automatic confirmation + customer
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountInCents,
       currency: 'usd',
+      customer: stripeCustomerId,
       capture_method: 'manual',
       payment_method: paymentMethodId,
       confirm: true, // Auto-confirm in single API call
@@ -104,7 +156,7 @@ serve(async (req) => {
     });
 
     const stripeTime = performance.now() - stripeStartTime;
-    console.log(`[PERF] Stripe create+confirm: ${stripeTime.toFixed(0)}ms`);
+    console.log(`[PERF] Stripe customer+create+confirm: ${stripeTime.toFixed(0)}ms`);
 
     // Check if authorization succeeded
     const isAuthorized = paymentIntent.status === 'requires_capture' || 
@@ -114,7 +166,23 @@ serve(async (req) => {
       throw new Error(`Payment authorization failed: ${paymentIntent.status}`);
     }
 
-    // Background database updates (non-blocking)
+    // CRITICAL: Synchronous booking update — must complete before response
+    // This saves payment_intent_id, stripe_customer_id, and stripe_payment_method_id
+    // so that worker service modifications can trigger seamless reauthorization.
+    const { error: bookingUpdateError } = await supabase.from('bookings').update({
+      payment_intent_id: paymentIntent.id,
+      payment_status: 'authorized',
+      status: 'confirmed',
+      stripe_customer_id: stripeCustomerId,
+      stripe_payment_method_id: paymentMethodId,
+    }).eq('id', bookingId);
+
+    if (bookingUpdateError) {
+      console.error('[UNIFIED-AUTH] CRITICAL: Booking update failed:', bookingUpdateError);
+      // Don't throw — payment succeeded, we need to return the PI ID
+    }
+
+    // Background non-critical writes (transaction, audit log, invoice)
     EdgeRuntime.waitUntil(
       Promise.all([
         supabase.from('transactions').insert({
@@ -129,11 +197,6 @@ serve(async (req) => {
           payment_method: 'card',
           guest_customer_email: customerEmail,
         }),
-        supabase.from('bookings').update({
-          payment_intent_id: paymentIntent.id,
-          payment_status: 'authorized',
-          status: 'confirmed',  // Also confirm booking
-        }).eq('id', bookingId),
         supabase.from('booking_audit_log').insert({
           booking_id: bookingId,
           operation: 'unified_payment_authorized',
@@ -142,13 +205,13 @@ serve(async (req) => {
           details: {
             amount: amount,
             stripe_status: paymentIntent.status,
+            stripe_customer_id: stripeCustomerId,
           }
         }),
-        // CRITICAL FIX: Generate draft invoice after authorization
         supabase.functions.invoke('generate-invoice', {
           body: {
             booking_id: bookingId,
-            send_email: false  // Don't email draft invoices
+            send_email: false
           }
         }).then(result => {
           console.log('[BACKGROUND] Draft invoice generated:', result.data?.invoice?.invoice_number || 'unknown');
