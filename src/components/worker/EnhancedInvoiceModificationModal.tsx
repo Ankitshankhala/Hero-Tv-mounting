@@ -242,6 +242,18 @@ export const EnhancedInvoiceModificationModal = ({
           : service
       ));
 
+      // Sync Stripe PaymentIntent with updated total
+      try {
+        const { data: syncData } = await supabase.functions.invoke('sync-payment-after-modification', {
+          body: { booking_id: job.id, modification_reason: 'quantity_change' }
+        });
+        if (syncData?.action === 'reauthorized') {
+          console.log('[SYNC] Payment reauthorized to:', syncData.new_amount);
+        }
+      } catch (syncErr) {
+        console.error('[SYNC] Payment sync after quantity change failed:', syncErr);
+      }
+
       toast({
         title: "Quantity Updated",
         description: `Service quantity updated to ${newQuantity}`,
@@ -324,34 +336,36 @@ export const EnhancedInvoiceModificationModal = ({
 
   const addNewService = async (newService: any) => {
     try {
-      const bookingService = {
-        booking_id: job.id,
-        service_id: newService.id,
-        service_name: newService.name,
-        base_price: newService.base_price,
-        quantity: newService.quantity,
-        configuration: newService.configuration || {}
-      };
-
-      const { data, error } = await supabase
-        .from('booking_services')
-        .insert(bookingService)
-        .select()
-        .single();
+      // Route through add-booking-services edge function for Stripe sync
+      const { data, error } = await supabase.functions.invoke('add-booking-services', {
+        body: {
+          booking_id: job.id,
+          services: [{
+            id: newService.id,
+            name: newService.name,
+            price: newService.base_price,
+            quantity: newService.quantity || 1,
+            configuration: newService.configuration || {}
+          }]
+        }
+      });
 
       if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Failed to add service');
 
-      setServices(prev => [...prev, data]);
+      await fetchBookingServices();
       
       toast({
         title: "Service Added",
-        description: `${newService.name} added to booking`,
+        description: data.incremented 
+          ? `${newService.name} added and payment updated to $${data.new_amount?.toFixed(2)}`
+          : `${newService.name} added to booking`,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding service:', error);
       toast({
         title: "Error",
-        description: "Failed to add service",
+        description: error.message || "Failed to add service",
         variant: "destructive",
       });
     }
@@ -379,17 +393,6 @@ export const EnhancedInvoiceModificationModal = ({
     try {
       const difference = currentTotalPrice - originalPrice;
 
-      // Update booking with new pending payment amount
-      const { error: updateError } = await supabase
-        .from('bookings')
-        .update({ 
-          pending_payment_amount: difference,
-          has_modifications: true 
-        })
-        .eq('id', job.id);
-
-      if (updateError) throw updateError;
-
       // Log the modification
       const { error: logError } = await supabase
         .from('invoice_service_modifications')
@@ -403,67 +406,51 @@ export const EnhancedInvoiceModificationModal = ({
 
       if (logError) console.error('Error logging modification:', logError);
 
-      // If there's a positive difference (additional charges), try card-on-file first
-      if (difference > 0) {
-        // Check if customer has saved payment method
-        const hasCardOnFile = job.customer?.has_saved_card && job.customer?.stripe_default_payment_method_id;
-        
-        if (hasCardOnFile) {
-          console.log('Customer has card on file, attempting automatic charge...');
-          try {
-            // Attempt automatic charge with card-on-file
-            const { data: paymentData, error: paymentError } = await supabase.functions.invoke('process-invoice-modification-payment', {
-              body: {
-                bookingId: job.id,
-                useCardOnFile: true
-              }
-            });
+      // Sync Stripe PaymentIntent with the updated total
+      console.log('[SUBMIT] Syncing payment after modification, difference:', difference);
+      const { data: syncData, error: syncError } = await supabase.functions.invoke('sync-payment-after-modification', {
+        body: { booking_id: job.id, modification_reason: 'submit_modification' }
+      });
 
-            if (paymentError) throw paymentError;
+      if (syncError) {
+        console.error('[SUBMIT] Payment sync error:', syncError);
+      }
 
-            if (paymentData?.success && paymentData?.used_card_on_file) {
-              // Successful card-on-file payment
-              toast({
-                title: "Payment Successful",
-                description: `Successfully charged $${difference.toFixed(2)} using saved payment method`,
-              });
+      const syncResult = syncData || {};
 
-              // Trigger invoice update
-              try {
-                await supabase.functions.invoke('update-invoice', {
-                  body: {
-                    booking_id: job.id,
-                    send_email: true
-                  }
-                });
-              } catch (invoiceError) {
-                console.error('Invoice update failed:', invoiceError);
-              }
+      if (syncResult.requires_manual_payment) {
+        // No saved payment method — fall back to payment modal
+        await supabase.from('bookings').update({
+          pending_payment_amount: difference,
+          has_modifications: true,
+        }).eq('id', job.id);
 
-              onModificationCreated();
-              onClose();
-              return;
-            } else {
-              // Card-on-file failed, fall back to payment modal
-              console.log('Card-on-file payment failed, showing payment modal...');
-            }
-          } catch (cofError) {
-            console.error('Card-on-file payment error:', cofError);
-            // Continue to payment modal as fallback
-          }
-        }
-
-        // Show payment modal as fallback or if no card-on-file
         toast({
-          title: "Success", 
-          description: `Invoice modified successfully. Additional amount: $${difference.toFixed(2)}`,
+          title: "Manual Payment Required",
+          description: `Services updated. Additional amount: $${Math.abs(difference).toFixed(2)} requires manual payment.`,
         });
         setShowPaymentModal(true);
-      } else {
-        // No additional payment needed
+      } else if (syncResult.action === 'reauthorized' || syncResult.action === 'no_op' || syncResult.action === 'additional_charge' || syncResult.action === 'partial_refund') {
+        // Payment synced successfully
         toast({
           title: "Success",
-          description: difference < 0 ? `Invoice modified successfully. Refund amount: $${Math.abs(difference).toFixed(2)}` : "Invoice modified successfully",
+          description: syncResult.action === 'reauthorized'
+            ? `Invoice modified. Payment updated to $${syncResult.new_amount?.toFixed(2)}`
+            : syncResult.action === 'additional_charge'
+            ? `Invoice modified. Additional charge of $${syncResult.additional_amount?.toFixed(2)} processed.`
+            : syncResult.action === 'partial_refund'
+            ? `Invoice modified. Refund of $${syncResult.refund_amount?.toFixed(2)} processed.`
+            : 'Invoice modified successfully.',
+        });
+        onModificationCreated();
+        onClose();
+      } else {
+        // Unknown result — still mark as modified
+        toast({
+          title: "Modifications Saved",
+          description: difference !== 0
+            ? `Services updated. Price difference: $${Math.abs(difference).toFixed(2)}`
+            : 'Services updated successfully.',
         });
         onModificationCreated();
         onClose();
