@@ -134,8 +134,7 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
                   guest_customer_info, location_notes, is_archived
                 `)
                 .order('created_at', { ascending: false })
-                .order('start_time_utc', { ascending: false, nullsFirst: false })
-                .limit(100);
+                .order('start_time_utc', { ascending: false, nullsFirst: false });
               return response;
             },
             !bypassCache,
