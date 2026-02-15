@@ -53,9 +53,9 @@ Deno.serve(async (req) => {
         { global: { headers: { Authorization: authHeader } } }
       );
       const token = authHeader.replace('Bearer ', '');
-      const { data, error } = await anonClient.auth.getClaims(token);
-      if (error || !data?.claims) throw new Error('Invalid auth token');
-      return data.claims.sub as string;
+      const { data, error } = await anonClient.auth.getUser(token);
+      if (error || !data?.user) throw new Error('Invalid auth token');
+      return data.user.id;
     }
 
     // === Helper: Verify caller is worker/admin for a booking ===
@@ -265,21 +265,21 @@ Deno.serve(async (req) => {
         const newVersion = booking.payment_version + 1;
         const idempotencyKey = `recalc_${bookingId}_v${newVersion}`;
 
-        // Save old PI reference & increment version
-        await supabase.from('bookings').update({
-          last_payment_intent_id: booking.payment_intent_id,
-          payment_version: newVersion,
-        }).eq('id', bookingId);
-
-        // Cancel old PI
+        // STEP 1: Cancel old PI FIRST (cancel-before-create)
+        const oldPiId = booking.payment_intent_id;
         try {
-          await stripe.paymentIntents.cancel(booking.payment_intent_id);
-          console.log('[PAYMENT-ENGINE] Cancelled old PI:', booking.payment_intent_id);
+          await stripe.paymentIntents.cancel(oldPiId);
+          console.log('[PAYMENT-ENGINE] Cancelled old PI:', oldPiId);
         } catch (e: any) {
-          console.warn('[PAYMENT-ENGINE] Cancel warning:', e.message);
+          // If already cancelled/succeeded, proceed; otherwise rethrow
+          if (!e.message?.includes('canceled') && !e.message?.includes('succeeded')) {
+            console.error('[PAYMENT-ENGINE] Cancel failed hard:', e.message);
+            throw new Error(`Failed to cancel old payment: ${e.message}`);
+          }
+          console.warn('[PAYMENT-ENGINE] Cancel warning (non-fatal):', e.message);
         }
 
-        // Create new PI
+        // STEP 2: Create new PI
         let newPI;
         try {
           newPI = await stripe.paymentIntents.create({
@@ -292,7 +292,7 @@ Deno.serve(async (req) => {
             off_session: true,
             metadata: {
               booking_id: bookingId,
-              original_payment_intent: booking.payment_intent_id,
+              original_payment_intent: oldPiId,
               reason: modification_reason || 'recalculate',
             }
           }, { idempotencyKey });
@@ -313,9 +313,11 @@ Deno.serve(async (req) => {
           throw new Error(`Unexpected PI status: ${newPI.status}`);
         }
 
-        // SYNCHRONOUS update
+        // STEP 3: Single final DB write with version increment + new PI + old PI reference
         await supabase.from('bookings').update({
           payment_intent_id: newPI.id,
+          last_payment_intent_id: oldPiId,
+          payment_version: newVersion,
           authorized_amount: expectedTotal,
           payment_status: 'authorized',
           pending_payment_amount: null,
@@ -427,7 +429,7 @@ Deno.serve(async (req) => {
       // Get booking
       const { data: booking, error: bErr } = await supabase
         .from('bookings')
-        .select('id, payment_intent_id, payment_status, tip_amount, payment_version')
+        .select('id, payment_intent_id, payment_status, tip_amount, payment_version, captured_amount, stripe_customer_id')
         .eq('id', bookingId)
         .single();
       if (bErr || !booking) throw new Error('Booking not found');
@@ -548,10 +550,13 @@ Deno.serve(async (req) => {
 
       const { data: booking, error: bErr } = await supabase
         .from('bookings')
-        .select('id, payment_intent_id, payment_version')
+        .select('id, payment_intent_id, payment_version, payment_status, captured_amount')
         .eq('id', bookingId)
         .single();
       if (bErr || !booking) throw new Error('Booking not found');
+      if (booking.payment_status !== 'captured') {
+        throw new Error(`Refund-difference requires captured booking, got: ${booking.payment_status}`);
+      }
       if (!booking.payment_intent_id) throw new Error('No payment_intent_id');
 
       // Look up official prices from services table
@@ -568,14 +573,12 @@ Deno.serve(async (req) => {
       for (const rs of removed_services) {
         const officialPrice = priceMap.get(rs.service_id);
         if (officialPrice === undefined) {
-          console.warn(`[PAYMENT-ENGINE] Service ${rs.service_id} not found in services table, using caller price`);
-          refundTotal += (Number(rs.base_price) || 0) * (rs.quantity || 1);
-        } else {
-          if (officialPrice !== Number(rs.base_price)) {
-            console.warn(`[PAYMENT-ENGINE] Price mismatch for ${rs.service_id}: caller=${rs.base_price}, official=${officialPrice}`);
-          }
-          refundTotal += officialPrice * (rs.quantity || 1);
+          throw new Error(`Service ${rs.service_id} not found. Cannot process refund.`);
         }
+        if (officialPrice !== Number(rs.base_price)) {
+          console.warn(`[PAYMENT-ENGINE] Price mismatch for ${rs.service_id}: caller=${rs.base_price}, official=${officialPrice}`);
+        }
+        refundTotal += officialPrice * (rs.quantity || 1);
       }
 
       if (refundTotal <= 0) {
