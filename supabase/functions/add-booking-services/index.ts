@@ -1,45 +1,35 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.0";
-import Stripe from 'https://esm.sh/stripe@14.21.0';
+import { getSupabaseClient } from '../_shared/supabaseClient.ts';
+import { corsHeaders } from '../_shared/stripe.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
+/**
+ * Add Booking Services — Inserts services into booking_services, then delegates
+ * payment recalculation to payment-engine. No direct Stripe calls.
+ */
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY');
+    const supabase = getSupabaseClient();
+    const { booking_id, services } = await req.json();
 
-    if (!stripeSecretKey) {
-      throw new Error('Stripe secret key not configured');
+    console.log('[ADD-BOOKING-SERVICES] Request:', { booking_id, services: services?.length });
+
+    if (!booking_id || !services?.length) {
+      throw new Error('booking_id and services are required');
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const stripe = new Stripe(stripeSecretKey, { apiVersion: '2023-10-16' });
-
-    const { booking_id, services, testing_mode = false } = await req.json();
-
-    console.log('[ADD-BOOKING-SERVICES] Request:', { booking_id, services: services.length });
-
-    // Get booking details including saved payment method
+    // Get booking details
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
-      .select('*, booking_services(*)')
+      .select('id, payment_intent_id, payment_status, booking_services(*)')
       .eq('id', booking_id)
       .single();
 
-    if (bookingError || !booking) {
-      throw new Error('Booking not found');
-    }
+    if (bookingError || !booking) throw new Error('Booking not found');
 
-    // CRITICAL FIX: Block adding services to already captured bookings
     if (booking.payment_status === 'captured') {
       throw new Error('Cannot add services to a booking that has already been charged. Please create a new booking for additional services.');
     }
@@ -48,36 +38,34 @@ serve(async (req) => {
       throw new Error('Booking has no payment intent');
     }
 
-    // Calculate current total
-    const currentTotal = booking.booking_services?.reduce((sum: number, bs: any) => 
-      sum + (bs.base_price * bs.quantity), 0
-    ) || 0;
+    // Fetch real prices from services table (FIX PRICING LEAK)
+    const serviceIds = services.map((s: any) => s.id);
+    const { data: officialServices, error: svcErr } = await supabase
+      .from('services')
+      .select('id, base_price, name')
+      .in('id', serviceIds);
 
-    // Calculate new services total
-    const newServicesTotal = services.reduce((sum: number, s: any) => 
-      sum + (s.price * s.quantity), 0
-    );
+    if (svcErr) throw new Error('Failed to fetch service prices');
 
-    const newTotal = currentTotal + newServicesTotal;
-    const newTotalCents = Math.round(newTotal * 100);
+    const priceMap = new Map(officialServices?.map(s => [s.id, Number(s.base_price)]) || []);
 
-    console.log('[ADD-BOOKING-SERVICES] Totals:', {
-      current: currentTotal,
-      new_services: newServicesTotal,
-      new_total: newTotal,
-      has_saved_payment: !!(booking.stripe_customer_id && booking.stripe_payment_method_id)
+    // Build service data with official prices
+    const servicesData = services.map((s: any) => {
+      const officialPrice = priceMap.get(s.id);
+      if (officialPrice === undefined) {
+        console.warn(`[ADD-BOOKING-SERVICES] Service ${s.id} not found in services table`);
+      }
+      return {
+        booking_id,
+        service_id: s.id,
+        service_name: s.name,
+        base_price: officialPrice ?? s.price ?? 0,
+        quantity: s.quantity || 1,
+        configuration: s.configuration || {},
+      };
     });
 
-    // Insert services into booking_services table
-    const servicesData = services.map((s: any) => ({
-      booking_id,
-      service_id: s.id,
-      service_name: s.name,
-      base_price: s.price,
-      quantity: s.quantity,
-      configuration: s.configuration || {}
-    }));
-
+    // Insert services
     const { data: insertedServices, error: insertError } = await supabase
       .from('booking_services')
       .insert(servicesData)
@@ -88,260 +76,66 @@ serve(async (req) => {
       throw new Error('Failed to add services to booking');
     }
 
-    // Store inserted IDs for potential rollback
     const insertedServiceIds = insertedServices?.map(s => s.id) || [];
 
-    // Check if booking has saved payment method for seamless reauthorization
-    const hasPaymentMethod = booking.stripe_customer_id && booking.stripe_payment_method_id;
+    // Delegate payment recalculation to payment-engine
+    console.log('[ADD-BOOKING-SERVICES] Delegating to payment-engine recalculate');
+    const { data: engineResult, error: engineError } = await supabase.functions.invoke('payment-engine', {
+      body: {
+        action: 'recalculate',
+        bookingId: booking_id,
+        modification_reason: 'service_addition',
+      },
+      headers: {
+        Authorization: req.headers.get('Authorization') || '',
+      },
+    });
 
-    if (hasPaymentMethod) {
-      // SEAMLESS REAUTHORIZATION: Use saved payment method to create new PaymentIntent
-      try {
-        console.log('[ADD-BOOKING-SERVICES] Creating new PaymentIntent with saved payment method');
-        
-        // Create new PaymentIntent with saved payment method (auto-confirm)
-        const newPaymentIntent = await stripe.paymentIntents.create({
-          amount: newTotalCents,
-          currency: 'usd',
-          customer: booking.stripe_customer_id,
-          payment_method: booking.stripe_payment_method_id,
-          capture_method: 'manual',
-          confirm: true,
-          off_session: true,
-          metadata: {
-            booking_id,
-            original_payment_intent: booking.payment_intent_id,
-            reason: 'service_addition'
-          }
-        });
+    if (engineError || !engineResult?.success) {
+      const errMsg = engineResult?.error || engineError?.message || 'Payment recalculation failed';
+      console.error('[ADD-BOOKING-SERVICES] Recalculate failed, rolling back:', errMsg);
 
-        console.log('[ADD-BOOKING-SERVICES] New PaymentIntent created:', {
-          id: newPaymentIntent.id,
-          status: newPaymentIntent.status,
-          amount: newPaymentIntent.amount
-        });
-
-        if (newPaymentIntent.status === 'requires_capture') {
-          // Cancel old PaymentIntent to release the hold
-          try {
-            console.log('[ADD-BOOKING-SERVICES] Canceling old PaymentIntent:', booking.payment_intent_id);
-            await stripe.paymentIntents.cancel(booking.payment_intent_id);
-          } catch (cancelError: any) {
-            // Log but don't fail - old PI might already be canceled or in wrong state
-            console.warn('[ADD-BOOKING-SERVICES] Could not cancel old PaymentIntent:', cancelError.message);
-          }
-
-          // Update booking with new payment_intent_id
-          await supabase
-            .from('bookings')
-            .update({ 
-              payment_intent_id: newPaymentIntent.id,
-              pending_payment_amount: newTotal,
-              payment_status: 'authorized'
-            })
-            .eq('id', booking_id);
-
-          // Update existing authorization transaction with new PaymentIntent
-          const { error: txUpdateError } = await supabase
-            .from('transactions')
-            .update({
-              payment_intent_id: newPaymentIntent.id,
-              amount: newTotal,
-              base_amount: newTotal
-            })
-            .eq('booking_id', booking_id)
-            .eq('status', 'authorized');
-
-          if (txUpdateError) {
-            console.warn('[ADD-BOOKING-SERVICES] Transaction update warning:', txUpdateError);
-            // Create new transaction if update failed
-            await supabase
-              .from('transactions')
-              .insert({
-                booking_id,
-                amount: newTotal,
-                base_amount: newTotal,
-                status: 'authorized',
-                payment_intent_id: newPaymentIntent.id,
-                transaction_type: 'authorization',
-                payment_method: 'card'
-              });
-          }
-
-          // Log audit entry
-          await supabase
-            .from('booking_audit_log')
-            .insert({
-              booking_id,
-              operation: 'authorization_updated',
-              status: 'success',
-              payment_intent_id: newPaymentIntent.id,
-              details: {
-                old_amount: currentTotal,
-                new_amount: newTotal,
-                old_payment_intent: booking.payment_intent_id,
-                new_payment_intent: newPaymentIntent.id,
-                services_added: services.length
-              }
-            });
-
-          console.log('[ADD-BOOKING-SERVICES] Authorization updated successfully');
-
-          // Update invoice
-          try {
-            console.log('[ADD-BOOKING-SERVICES] Updating invoice...');
-            await supabase.functions.invoke('update-invoice', {
-              body: {
-                booking_id,
-                send_email: false
-              }
-            });
-            console.log('[ADD-BOOKING-SERVICES] Invoice updated successfully');
-          } catch (invoiceError) {
-            console.error('[ADD-BOOKING-SERVICES] Invoice update failed:', invoiceError);
-          }
-
-          // Send notification email
-          try {
-            await supabase.functions.invoke('send-increment-notification', {
-              body: { 
-                booking_id,
-                original_amount: currentTotal,
-                added_amount: newServicesTotal,
-                new_total: newTotal
-              }
-            });
-          } catch (emailError) {
-            console.error('[ADD-BOOKING-SERVICES] Email notification failed:', emailError);
-          }
-
-          return new Response(
-            JSON.stringify({
-              success: true,
-              incremented: true,
-              new_amount: newTotal,
-              services_added: services.length,
-              payment_intent_id: newPaymentIntent.id
-            }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-
-        } else if (newPaymentIntent.status === 'requires_action' || newPaymentIntent.status === 'requires_confirmation') {
-          // Card requires 3DS authentication - return client_secret for frontend
-          console.log('[ADD-BOOKING-SERVICES] Payment requires customer authentication');
-          
-          return new Response(
-            JSON.stringify({
-              success: true,
-              incremented: false,
-              requires_action: true,
-              client_secret: newPaymentIntent.client_secret,
-              new_amount: newTotal,
-              new_payment_intent: newPaymentIntent.id,
-              old_payment_intent: booking.payment_intent_id
-            }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        } else {
-          throw new Error(`Unexpected PaymentIntent status: ${newPaymentIntent.status}`);
-        }
-
-      } catch (paymentError: any) {
-        console.error('[ADD-BOOKING-SERVICES] Payment reauthorization failed:', paymentError.message);
-        
-        // Check if it's a card decline or authentication required
-        if (paymentError.code === 'authentication_required' || 
-            paymentError.code === 'card_declined' ||
-            paymentError.type === 'StripeCardError') {
-          
-          // Rollback services since payment failed
-          if (insertedServiceIds.length > 0) {
-            await supabase
-              .from('booking_services')
-              .delete()
-              .in('id', insertedServiceIds);
-          }
-          
-          // Create new PaymentIntent without auto-confirm for manual payment
-          const manualPaymentIntent = await stripe.paymentIntents.create({
-            amount: newTotalCents,
-            currency: 'usd',
-            customer: booking.stripe_customer_id,
-            capture_method: 'manual',
-            metadata: {
-              booking_id,
-              original_payment_intent: booking.payment_intent_id,
-              reason: 'reauthorization_required'
-            }
-          });
-
-          return new Response(
-            JSON.stringify({
-              success: true,
-              incremented: false,
-              requires_new_payment: true,
-              client_secret: manualPaymentIntent.client_secret,
-              new_amount: newTotal,
-              old_payment_intent: booking.payment_intent_id,
-              new_payment_intent: manualPaymentIntent.id,
-              message: 'Card requires re-authentication. Please complete payment.'
-            }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-
-        // For other errors, rollback and throw
-        if (insertedServiceIds.length > 0) {
-          await supabase
-            .from('booking_services')
-            .delete()
-            .in('id', insertedServiceIds);
-        }
-        
-        throw new Error(`Payment authorization failed: ${paymentError.message}`);
+      // Rollback inserted services
+      if (insertedServiceIds.length > 0) {
+        await supabase.from('booking_services').delete().in('id', insertedServiceIds);
+        console.log('[ADD-BOOKING-SERVICES] Rolled back', insertedServiceIds.length, 'services');
       }
 
-    } else {
-      // NO SAVED PAYMENT METHOD: Create new PaymentIntent for manual payment
-      console.log('[ADD-BOOKING-SERVICES] No saved payment method - creating new PaymentIntent for manual payment');
-      
-      const newPaymentIntent = await stripe.paymentIntents.create({
-        amount: newTotalCents,
-        currency: 'usd',
-        capture_method: 'manual',
-        metadata: {
-          booking_id,
-          original_payment_intent: booking.payment_intent_id,
-          reason: 'no_saved_payment_method'
-        }
-      });
-
-      // Update booking pending amount (keep old payment_intent_id until new one is confirmed)
-      await supabase
-        .from('bookings')
-        .update({ 
-          pending_payment_amount: newTotal
-        })
-        .eq('id', booking_id);
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          incremented: false,
-          requires_new_payment: true,
-          client_secret: newPaymentIntent.client_secret,
-          new_amount: newTotal,
-          old_payment_intent: booking.payment_intent_id,
-          new_payment_intent: newPaymentIntent.id
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      throw new Error(errMsg);
     }
+
+    // Calculate new total for response
+    const currentTotal = booking.booking_services?.reduce((sum: number, bs: any) =>
+      sum + (Number(bs.base_price) * bs.quantity), 0) || 0;
+    const newServicesTotal = servicesData.reduce((sum, s) => sum + (s.base_price * s.quantity), 0);
+    const newTotal = currentTotal + newServicesTotal;
+
+    // Update invoice in background
+    EdgeRuntime.waitUntil(
+      Promise.all([
+        supabase.functions.invoke('update-invoice', {
+          body: { booking_id, send_email: false }
+        }).catch(e => console.error('[BG] Invoice update failed:', e)),
+        supabase.functions.invoke('send-increment-notification', {
+          body: { booking_id, original_amount: currentTotal, added_amount: newServicesTotal, new_total: newTotal }
+        }).catch(e => console.error('[BG] Email notification failed:', e)),
+      ])
+    );
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        incremented: true,
+        new_amount: newTotal,
+        services_added: services.length,
+        payment_intent_id: engineResult.new_payment_intent_id || booking.payment_intent_id,
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
 
   } catch (error: any) {
     console.error('[ADD-BOOKING-SERVICES] Error:', error);
     
-    // Provide specific error messages
     let errorMessage = 'Failed to add services';
     let errorCode = 'UNKNOWN_ERROR';
     
@@ -351,33 +145,19 @@ serve(async (req) => {
     } else if (error.message?.includes('no payment intent')) {
       errorMessage = 'No payment method on file. Please contact support.';
       errorCode = 'NO_PAYMENT_INTENT';
-    } else if (error.message?.includes('Payment authorization failed')) {
-      errorMessage = 'Payment authorization failed. Please check your payment method and try again.';
-      errorCode = 'PAYMENT_AUTH_FAILED';
     } else if (error.message?.includes('already been charged')) {
       errorMessage = error.message;
       errorCode = 'ALREADY_CAPTURED';
-    } else if (error.message?.includes('Stripe')) {
-      errorMessage = 'Payment processing error. Please try again or contact support.';
-      errorCode = 'STRIPE_ERROR';
-    } else if (error.message?.includes('duplicate')) {
-      errorMessage = 'One or more services have already been added to this booking.';
-      errorCode = 'DUPLICATE_SERVICE';
+    } else if (error.message?.includes('currently being modified')) {
+      errorMessage = 'Booking is currently being modified. Please try again.';
+      errorCode = 'LOCK_CONFLICT';
     } else {
       errorMessage = error.message || errorMessage;
     }
     
     return new Response(
-      JSON.stringify({
-        success: false,
-        error: errorMessage,
-        error_code: errorCode,
-        details: error.message
-      }),
-      { 
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      JSON.stringify({ success: false, error: errorMessage, error_code: errorCode }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

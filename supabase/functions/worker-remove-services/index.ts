@@ -1,16 +1,21 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import Stripe from "https://esm.sh/stripe@14.21.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+/**
+ * Worker Remove Services — Removes services from a booking, then delegates
+ * payment operations to payment-engine. No direct Stripe calls.
+ */
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  let user: any = null;
 
   try {
     const supabaseClient = createClient(
@@ -18,7 +23,6 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_ANON_KEY") ?? ""
     );
 
-    // Create service role client for privileged operations
     const supabaseService = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
@@ -27,162 +31,99 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization")!;
     const token = authHeader.replace("Bearer ", "");
     const { data } = await supabaseClient.auth.getUser(token);
-    const user = data.user;
+    user = data.user;
 
-    if (!user) {
-      throw new Error("User not authenticated");
-    }
+    if (!user) throw new Error("User not authenticated");
 
     const { booking_id, service_ids } = await req.json();
 
     if (!booking_id || !Array.isArray(service_ids) || service_ids.length === 0) {
-      console.error("[WORKER-REMOVE] Invalid request: missing booking_id or service_ids");
       throw new Error("Booking ID and service IDs are required");
     }
 
-    console.log(`[WORKER-REMOVE] Processing removal request for booking ${booking_id}, services: ${service_ids.join(', ')}`);
+    console.log(`[WORKER-REMOVE] Processing removal for booking ${booking_id}, services: ${service_ids.join(', ')}`);
 
-    // Idempotency check: verify services still exist
+    // Idempotency check
     const { data: existingServices, error: checkError } = await supabaseService
       .from('booking_services')
       .select('id')
       .eq('booking_id', booking_id)
       .in('id', service_ids);
 
-    if (checkError) {
-      console.error("[WORKER-REMOVE] Error checking existing services:", checkError);
-      throw new Error("Failed to verify services");
-    }
+    if (checkError) throw new Error("Failed to verify services");
 
-    // If no services found, they were already deleted - return success (idempotent)
     if (!existingServices || existingServices.length === 0) {
-      console.log("[WORKER-REMOVE] Services already removed, returning success (idempotent)");
+      console.log("[WORKER-REMOVE] Services already removed (idempotent)");
       return new Response(
         JSON.stringify({
-          success: true,
-          message: "Services already removed",
-          data: {
-            removed_services: 0,
-            service_names: [],
-            refund_amount: 0,
-            refund_id: null,
-            invoice_updated: false
-          }
+          success: true, message: "Services already removed",
+          data: { removed_services: 0, service_names: [], refund_amount: 0, refund_id: null, invoice_updated: false }
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Verify worker has access to this booking using service role
+    // Verify worker access
     const { data: booking, error: bookingError } = await supabaseService
       .from('bookings')
-      .select('*')
+      .select('id, payment_intent_id, payment_status, worker_id, status, tip_amount, has_modifications, stripe_customer_id, stripe_payment_method_id')
       .eq('id', booking_id)
       .single();
 
-    if (bookingError || !booking) {
-      console.error("[WORKER-REMOVE] Booking not found:", bookingError);
-      throw new Error("Booking not found");
-    }
+    if (bookingError || !booking) throw new Error("Booking not found");
+    if (booking.worker_id !== user.id) throw new Error("Access denied");
+    if (booking.status === 'completed') throw new Error("Cannot remove services from completed bookings");
 
-    if (booking.worker_id !== user.id) {
-      console.error("[WORKER-REMOVE] Access denied: worker_id mismatch");
-      throw new Error("Access denied");
-    }
-
-    // Phase 4: Prevent removing from completed bookings
-    if (booking.status === 'completed') {
-      console.error("[WORKER-REMOVE] Cannot remove services from completed booking");
-      throw new Error("Cannot remove services from completed bookings");
-    }
-
-    // Get services to be removed with their details
+    // Get services to be removed (snapshot before deletion)
     const { data: servicesToRemove, error: servicesError } = await supabaseService
       .from('booking_services')
-      .select('*')
+      .select('id, service_id, service_name, base_price, quantity, configuration')
       .eq('booking_id', booking_id)
       .in('id', service_ids);
 
-    if (servicesError) {
-      console.error("[WORKER-REMOVE] Error fetching services:", servicesError);
-      throw new Error("Failed to fetch services to remove");
-    }
+    if (servicesError) throw new Error("Failed to fetch services to remove");
+    if (!servicesToRemove?.length) throw new Error("Services not found");
 
-    if (!servicesToRemove?.length) {
-      console.error("[WORKER-REMOVE] No services found to remove");
-      throw new Error("Services not found");
-    }
-
-    // Phase 4: Check if we're removing all services
+    // Check if removing all services
     const { count: totalServicesCount } = await supabaseService
       .from('booking_services')
       .select('*', { count: 'exact', head: true })
       .eq('booking_id', booking_id);
 
     if (totalServicesCount === servicesToRemove.length) {
-      console.error("[WORKER-REMOVE] Cannot remove all services from booking");
       throw new Error("Cannot remove all services. At least one service must remain.");
     }
 
-    // Calculate total amount to refund including add-ons (TV mounting configuration)
-    const calculateServicePrice = (service: any) => {
-      let price = Number(service.base_price) || 0;
-      const config = service.configuration || {};
-
-      // Mount TV specific pricing with add-ons
-      if (service.service_name === 'Mount TV') {
-        if (config.over65) price += 50;
-        if (config.frameMount) price += 75;
-        if (config.wallType === 'steel' || config.wallType === 'brick' || config.wallType === 'concrete') {
-          price += 40;
-        }
-        if (config.soundbar) price += 30;
-      }
-
-      return price;
-    };
-
+    // Calculate refund amount from official prices
     const refundAmount = servicesToRemove.reduce((total, service) => {
-      const servicePrice = calculateServicePrice(service);
-      return total + (servicePrice * service.quantity);
+      return total + (Number(service.base_price) * service.quantity);
     }, 0);
 
     console.log(`[WORKER-REMOVE] Removing services worth $${refundAmount} from booking ${booking_id}`);
 
-    // Remove booking services using service role
+    // Delete services
     const { error: removeError } = await supabaseService
       .from('booking_services')
       .delete()
       .in('id', service_ids);
 
-    if (removeError) {
-      throw new Error(`Failed to remove services: ${removeError.message}`);
-    }
+    if (removeError) throw new Error(`Failed to remove services: ${removeError.message}`);
 
-    // Update invoice if it exists
+    // Update invoice
     const { data: invoice } = await supabaseService
       .from('invoices')
-      .select('*')
+      .select('id, tax_rate')
       .eq('booking_id', booking_id)
       .maybeSingle();
 
     if (invoice) {
-      // Remove invoice items for deleted services - delete by exact match
       for (const service of servicesToRemove) {
-        const servicePrice = calculateServicePrice(service);
-        const totalPrice = servicePrice * service.quantity;
-        
-        await supabaseService
-          .from('invoice_items')
-          .delete()
+        await supabaseService.from('invoice_items').delete()
           .eq('invoice_id', invoice.id)
           .eq('service_name', service.service_name)
-          .eq('unit_price', servicePrice)
-          .eq('quantity', service.quantity)
-          .eq('total_price', totalPrice);
+          .eq('quantity', service.quantity);
       }
 
-      // Recalculate invoice totals
       const { data: remainingItems } = await supabaseService
         .from('invoice_items')
         .select('total_price')
@@ -190,384 +131,94 @@ serve(async (req) => {
 
       const newAmount = remainingItems?.reduce((sum, item) => sum + Number(item.total_price), 0) || 0;
       const newTaxAmount = newAmount * (invoice.tax_rate || 0);
-      const newTotal = newAmount + newTaxAmount;
+      await supabaseService.from('invoices').update({
+        amount: newAmount, tax_amount: newTaxAmount, total_amount: newAmount + newTaxAmount,
+        updated_at: new Date().toISOString()
+      }).eq('id', invoice.id);
 
-      await supabaseService
-        .from('invoices')
-        .update({
-          amount: newAmount,
-          tax_amount: newTaxAmount,
-          total_amount: newTotal,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', invoice.id);
-
-      console.log(`[WORKER-REMOVE] Updated invoice ${invoice.id}: $${invoice.amount} -> $${newAmount}`);
-
-      // CRITICAL FIX: Also call update-invoice to ensure full sync (preserves invoice number)
-      try {
-        console.log('[WORKER-REMOVE] Syncing invoice via update-invoice...');
-        await supabaseService.functions.invoke('update-invoice', {
-          body: {
-            booking_id,
-            send_email: false
-          }
-        });
-        console.log('[WORKER-REMOVE] Invoice synced successfully');
-      } catch (syncError) {
-        console.error('[WORKER-REMOVE] Invoice sync failed:', syncError);
-        // Don't fail - manual update already done
-      }
-    } else {
-      // No invoice exists yet - create one via update-invoice (will create if not exists)
-      console.log('[WORKER-REMOVE] No invoice found, creating one...');
       try {
         await supabaseService.functions.invoke('update-invoice', {
-          body: {
-            booking_id,
-            send_email: false
-          }
+          body: { booking_id, send_email: false }
         });
-        console.log('[WORKER-REMOVE] Invoice created successfully');
-      } catch (createError) {
-        console.error('[WORKER-REMOVE] Invoice creation failed:', createError);
+      } catch (e) {
+        console.error('[WORKER-REMOVE] Invoice sync failed:', e);
       }
     }
 
-    // Mark booking as having modifications and create modification records
-    await supabaseService
-      .from('bookings')
-      .update({ has_modifications: true })
-      .eq('id', booking_id);
+    // Mark booking as modified + create modification records
+    await supabaseService.from('bookings').update({ has_modifications: true }).eq('id', booking_id);
 
-    // Phase 1: Create service modification records in correct table
     const modificationRecords = servicesToRemove.map(service => ({
-      booking_id: booking_id,
+      booking_id,
       worker_id: user.id,
       service_name: service.service_name,
       modification_type: 'removed',
-      price_change: -(service.base_price * service.quantity),
+      price_change: -(Number(service.base_price) * service.quantity),
       old_configuration: service.configuration || {},
       new_configuration: {}
     }));
 
-    const { error: modError } = await supabaseService
-      .from('invoice_service_modifications')
-      .insert(modificationRecords);
+    await supabaseService.from('invoice_service_modifications').insert(modificationRecords);
 
-    if (modError) {
-      console.error("[WORKER-REMOVE] Failed to create modification records:", modError);
-      throw new Error("Failed to log service modifications");
-    }
-
-    console.log(`[WORKER-REMOVE] Created ${modificationRecords.length} modification records`);
-
-    // Handle Stripe refund if payment exists
-    let refundResult = null;
+    // Delegate payment operations to payment-engine
+    let paymentResult = null;
     if (booking.payment_intent_id && refundAmount > 0) {
       try {
-        const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
-          apiVersion: "2023-10-16",
-        });
-
-        console.log(`[WORKER-REMOVE] Retrieving payment intent ${booking.payment_intent_id}`);
-        const paymentIntent = await stripe.paymentIntents.retrieve(booking.payment_intent_id);
-        
-        if (paymentIntent.status === 'succeeded') {
-          // Check total refunded amount to allow multiple partial refunds
-          const { data: existingRefunds } = await supabaseService
-            .from('transactions')
-            .select('amount')
-            .eq('booking_id', booking_id)
-            .eq('transaction_type', 'refund');
-
-          const totalRefunded = existingRefunds?.reduce((sum, r) => sum + Math.abs(r.amount), 0) || 0;
-          const originalAmount = paymentIntent.amount / 100; // Convert from cents
-
-          if (totalRefunded + refundAmount > originalAmount) {
-            console.error("[WORKER-REMOVE] Refund would exceed original payment", {
-              totalRefunded,
-              requestedRefund: refundAmount,
-              originalAmount
-            });
-            throw new Error(`Cannot refund $${refundAmount.toFixed(2)}. Total refunds would exceed original payment of $${originalAmount.toFixed(2)}`);
-          }
-
-          // Payment already captured - create partial refund
-          const refundAmountCents = Math.round(refundAmount * 100);
-          
-          console.log(`[WORKER-REMOVE] Creating refund of $${refundAmount} (${refundAmountCents} cents)`);
-          refundResult = await stripe.refunds.create({
-            payment_intent: booking.payment_intent_id,
-            amount: refundAmountCents,
-            reason: 'requested_by_customer',
-            metadata: {
-              booking_id: booking_id,
-              worker_id: user.id,
-              removed_services: servicesToRemove.map(s => s.service_name).join(', ')
-            }
+        if (booking.payment_status === 'authorized') {
+          // Pre-capture: recalculate
+          console.log('[WORKER-REMOVE] Delegating to payment-engine recalculate');
+          const { data: engineResult, error: engineError } = await supabaseService.functions.invoke('payment-engine', {
+            body: {
+              action: 'recalculate',
+              bookingId: booking_id,
+              modification_reason: 'service_removal',
+            },
+            headers: { Authorization: authHeader },
           });
 
-          console.log(`[WORKER-REMOVE] Partial refund created: ${refundResult.id} for $${refundAmount}`);
-
-          const { error: txError } = await supabaseService.from('transactions').insert({
-            booking_id: booking_id,
-            payment_intent_id: booking.payment_intent_id,
-            amount: -refundAmount, // Negative for refund
-            transaction_type: 'refund',
-            status: 'completed',
-            stripe_refund_id: refundResult.id,
-            cancellation_reason: 'Services removed by worker'
-          });
-
-          if (txError) {
-            console.error("[WORKER-REMOVE] Failed to create transaction record:", txError);
-          }
-        } else if (paymentIntent.status === 'requires_capture') {
-          // CRITICAL FIX: Payment not captured yet - create new authorization with reduced amount
-          console.log(`[WORKER-REMOVE] Payment pending capture, creating new authorization with reduced amount`);
-          
-          // Recalculate new total from remaining services
-          const { data: remainingServicesForCapture } = await supabaseService
-            .from('booking_services')
-            .select('base_price, quantity, configuration, service_name')
-            .eq('booking_id', booking_id);
-
-          const newServicesTotal = remainingServicesForCapture?.reduce((sum, s) => {
-            return sum + calculateServicePrice(s) * s.quantity;
-          }, 0) || 0;
-          
-          const tipAmount = booking.tip_amount || 0;
-          const newPendingAmount = newServicesTotal + tipAmount;
-          const newTotalCents = Math.round(newPendingAmount * 100);
-          
-          // Check if booking has saved payment method for seamless reauthorization
-          const hasPaymentMethod = booking.stripe_customer_id && booking.stripe_payment_method_id;
-          
-          if (hasPaymentMethod && newTotalCents > 0) {
-            try {
-              console.log(`[WORKER-REMOVE] Creating new PaymentIntent for $${newPendingAmount} with saved payment method`);
-              
-              // Create NEW PaymentIntent with reduced amount using saved payment method
-              const newPaymentIntent = await stripe.paymentIntents.create({
-                amount: newTotalCents,
-                currency: 'usd',
-                customer: booking.stripe_customer_id,
-                payment_method: booking.stripe_payment_method_id,
-                capture_method: 'manual',
-                confirm: true,
-                off_session: true,
-                metadata: {
-                  booking_id,
-                  original_payment_intent: booking.payment_intent_id,
-                  reason: 'service_removal'
-                }
-              });
-
-              if (newPaymentIntent.status === 'requires_capture') {
-                // SUCCESS: Cancel old PaymentIntent and update records
-                console.log(`[WORKER-REMOVE] New authorization successful: ${newPaymentIntent.id}`);
-                
-                try {
-                  await stripe.paymentIntents.cancel(booking.payment_intent_id);
-                  console.log(`[WORKER-REMOVE] Cancelled old PaymentIntent: ${booking.payment_intent_id}`);
-                } catch (cancelError) {
-                  console.warn('[WORKER-REMOVE] Could not cancel old PI:', cancelError.message);
-                }
-
-                // Update booking with new payment_intent_id
-                await supabaseService.from('bookings').update({
-                  payment_intent_id: newPaymentIntent.id,
-                  pending_payment_amount: newPendingAmount,
-                  payment_status: 'authorized',
-                  has_modifications: true
-                }).eq('id', booking_id);
-
-                // Update transactions table
-                const { error: txUpdateError } = await supabaseService
-                  .from('transactions')
-                  .update({
-                    payment_intent_id: newPaymentIntent.id,
-                    amount: newPendingAmount,
-                    base_amount: newServicesTotal
-                  })
-                  .eq('booking_id', booking_id)
-                  .eq('status', 'authorized');
-
-                if (txUpdateError) {
-                  console.log('[WORKER-REMOVE] Creating new transaction record');
-                  await supabaseService.from('transactions').insert({
-                    booking_id,
-                    amount: newPendingAmount,
-                    base_amount: newServicesTotal,
-                    status: 'authorized',
-                    payment_intent_id: newPaymentIntent.id,
-                    transaction_type: 'authorization',
-                    payment_method: 'card'
-                  });
-                }
-
-                // Log audit entry
-                await supabaseService.from('booking_audit_log').insert({
-                  booking_id,
-                  operation: 'authorization_reduced',
-                  status: 'success',
-                  payment_intent_id: newPaymentIntent.id,
-                  details: {
-                    old_amount: paymentIntent.amount / 100,
-                    new_amount: newPendingAmount,
-                    old_payment_intent: booking.payment_intent_id,
-                    new_payment_intent: newPaymentIntent.id,
-                    services_removed: servicesToRemove.length
-                  }
-                });
-
-                console.log(`[WORKER-REMOVE] Authorization updated: $${paymentIntent.amount / 100} -> $${newPendingAmount}`);
-                
-                // Return success with authorization updated flag
-                return new Response(
-                  JSON.stringify({
-                    success: true,
-                    message: "Services removed and authorization updated",
-                    data: {
-                      removed_services: servicesToRemove.length,
-                      service_names: servicesToRemove.map(s => s.service_name),
-                      refund_amount: 0,
-                      refund_id: null,
-                      invoice_updated: !!invoice,
-                      authorization_updated: true,
-                      new_payment_intent_id: newPaymentIntent.id,
-                      old_authorization: paymentIntent.amount / 100,
-                      new_authorization: newPendingAmount
-                    }
-                  }),
-                  { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-                );
-                
-              } else if (newPaymentIntent.status === 'requires_action') {
-                // 3DS required - return client_secret for frontend handling
-                console.log(`[WORKER-REMOVE] 3DS required for new authorization`);
-                
-                return new Response(
-                  JSON.stringify({
-                    success: true,
-                    message: "Services removed, payment requires authentication",
-                    data: {
-                      removed_services: servicesToRemove.length,
-                      service_names: servicesToRemove.map(s => s.service_name),
-                      refund_amount: 0,
-                      refund_id: null,
-                      invoice_updated: !!invoice,
-                      requires_new_payment: true,
-                      client_secret: newPaymentIntent.client_secret,
-                      new_payment_intent: newPaymentIntent.id,
-                      old_payment_intent: booking.payment_intent_id,
-                      new_amount: newPendingAmount,
-                      old_amount: paymentIntent.amount / 100
-                    }
-                  }),
-                  { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-                );
-              }
-            } catch (paymentError) {
-              // Card declined or requires authentication - create unconfirmed PI
-              console.error('[WORKER-REMOVE] Seamless reauthorization failed:', paymentError.message);
-              
-              const manualPI = await stripe.paymentIntents.create({
-                amount: newTotalCents,
-                currency: 'usd',
-                customer: booking.stripe_customer_id,
-                capture_method: 'manual',
-                metadata: { 
-                  booking_id, 
-                  reason: 'reauthorization_required_removal',
-                  original_payment_intent: booking.payment_intent_id
-                }
-              });
-              
-              return new Response(
-                JSON.stringify({
-                  success: true,
-                  message: "Services removed, new payment authorization required",
-                  data: {
-                    removed_services: servicesToRemove.length,
-                    service_names: servicesToRemove.map(s => s.service_name),
-                    refund_amount: 0,
-                    refund_id: null,
-                    invoice_updated: !!invoice,
-                    requires_new_payment: true,
-                    client_secret: manualPI.client_secret,
-                    new_payment_intent: manualPI.id,
-                    old_payment_intent: booking.payment_intent_id,
-                    new_amount: newPendingAmount,
-                    old_amount: paymentIntent.amount / 100
-                  }
-                }),
-                { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-              );
-            }
-          } else if (newTotalCents > 0) {
-            // No saved payment method - create PI for manual payment
-            console.log(`[WORKER-REMOVE] No saved payment method, creating manual authorization PI`);
-            
-            const newPI = await stripe.paymentIntents.create({
-              amount: newTotalCents,
-              currency: 'usd',
-              capture_method: 'manual',
-              metadata: { 
-                booking_id, 
-                reason: 'no_saved_payment_method_removal',
-                original_payment_intent: booking.payment_intent_id
-              }
-            });
-            
-            return new Response(
-              JSON.stringify({
-                success: true,
-                message: "Services removed, new payment authorization required",
-                data: {
-                  removed_services: servicesToRemove.length,
-                  service_names: servicesToRemove.map(s => s.service_name),
-                  refund_amount: 0,
-                  refund_id: null,
-                  invoice_updated: !!invoice,
-                  requires_new_payment: true,
-                  client_secret: newPI.client_secret,
-                  new_payment_intent: newPI.id,
-                  old_payment_intent: booking.payment_intent_id,
-                  new_amount: newPendingAmount,
-                  old_amount: paymentIntent.amount / 100
-                }
-              }),
-              { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-            );
+          if (engineError) {
+            console.error('[WORKER-REMOVE] Recalculate failed:', engineError);
           } else {
-            // New total is zero - just update booking
-            console.log(`[WORKER-REMOVE] New total is $0, updating booking only`);
-            await supabaseService.from('bookings').update({ 
-              pending_payment_amount: 0,
-              has_modifications: true
-            }).eq('id', booking_id);
+            paymentResult = engineResult;
+            console.log('[WORKER-REMOVE] Recalculate result:', engineResult?.action);
           }
-        } else {
-          console.log(`[WORKER-REMOVE] Payment status: ${paymentIntent.status}, no refund needed`);
+        } else if (booking.payment_status === 'captured') {
+          // Post-capture: refund difference
+          console.log('[WORKER-REMOVE] Delegating to payment-engine refund-difference');
+          const { data: engineResult, error: engineError } = await supabaseService.functions.invoke('payment-engine', {
+            body: {
+              action: 'refund-difference',
+              bookingId: booking_id,
+              removed_services: servicesToRemove.map(s => ({
+                service_id: s.service_id,
+                service_name: s.service_name,
+                base_price: Number(s.base_price),
+                quantity: s.quantity,
+              })),
+            },
+            headers: { Authorization: authHeader },
+          });
+
+          if (engineError) {
+            console.error('[WORKER-REMOVE] Refund failed:', engineError);
+          } else {
+            paymentResult = engineResult;
+            console.log('[WORKER-REMOVE] Refund result:', engineResult?.action);
+          }
         }
-      } catch (stripeError) {
-        console.error(`[WORKER-REMOVE] Stripe refund failed:`, stripeError);
-        // Phase 2: Better error message
-        throw new Error(`Failed to process refund: ${stripeError.message || "Unknown error"}`);
+      } catch (paymentError: any) {
+        console.error('[WORKER-REMOVE] Payment operation failed:', paymentError.message);
       }
     }
 
-    // Log the removal
+    // Log removal
     await supabaseService.from('sms_logs').insert({
-      booking_id: booking_id,
+      booking_id,
       recipient_number: 'system',
       message: `Services removed by worker: ${servicesToRemove.map(s => s.service_name).join(', ')}`,
       status: 'sent'
     });
 
-    // Phase 2: Enhanced success response
     return new Response(
       JSON.stringify({
         success: true,
@@ -575,36 +226,23 @@ serve(async (req) => {
         data: {
           removed_services: servicesToRemove.length,
           service_names: servicesToRemove.map(s => s.service_name),
-          refund_amount: refundAmount,
-          refund_id: refundResult?.id || null,
-          invoice_updated: !!invoice
+          refund_amount: paymentResult?.refund_amount || 0,
+          refund_id: paymentResult?.refund_id || null,
+          invoice_updated: !!invoice,
+          authorization_updated: paymentResult?.action === 'reauthorized',
+          new_payment_intent_id: paymentResult?.new_payment_intent_id || null,
         }
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
   } catch (error) {
-    // Phase 2: Enhanced error handling and logging
     const errorMessage = error instanceof Error ? error.message : "Failed to remove services";
-    const errorDetails = error instanceof Error ? error.stack : String(error);
-    
-    console.error("[WORKER-REMOVE] Error:", {
-      message: errorMessage,
-      details: errorDetails,
-      user_id: user?.id,
-      timestamp: new Date().toISOString()
-    });
+    console.error("[WORKER-REMOVE] Error:", { message: errorMessage, user_id: user?.id });
 
     return new Response(
-      JSON.stringify({
-        success: false,
-        error: errorMessage,
-        timestamp: new Date().toISOString()
-      }),
-      { 
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 400
-      }
+      JSON.stringify({ success: false, error: errorMessage, timestamp: new Date().toISOString() }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
     );
   }
 });

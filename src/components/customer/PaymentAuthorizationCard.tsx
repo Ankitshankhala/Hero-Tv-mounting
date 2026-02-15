@@ -2,7 +2,6 @@ import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CreditCard, Shield, Clock } from 'lucide-react';
-import { useStripePayment } from '@/hooks/useStripePayment';
 import { useToast } from '@/hooks/use-toast';
 import { StripeCardElement } from '@/components/StripeCardElement';
 import { supabase } from '@/integrations/supabase/client';
@@ -27,7 +26,6 @@ export const PaymentAuthorizationCard = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [isCardReady, setIsCardReady] = useState(false);
   const [cardError, setCardError] = useState('');
-  const { confirmCardPayment } = useStripePayment();
   const { toast } = useToast();
   
   const stripeRef = useRef<any>(null);
@@ -69,151 +67,44 @@ export const PaymentAuthorizationCard = ({
     setIsProcessing(true);
     
     try {
-      console.log('💳 Payment authorization started:', {
-        hasStripe: !!stripeRef.current,
-        hasElements: !!elementsRef.current,
-        hasCardElement: !!cardElementRef.current,
-        amount,
-        customerEmail,
-        bookingId
+      console.log('💳 Payment authorization started:', { amount, customerEmail, bookingId });
+      
+      // Create payment method from card element
+      const { error: pmError, paymentMethod } = await stripeRef.current.createPaymentMethod({
+        type: 'card',
+        card: cardElementRef.current,
+        billing_details: {
+          name: customerName,
+          email: customerEmail,
+        },
       });
-      
-      console.log('Starting payment authorization process...');
-      
-      // Create payment intent with manual capture using Supabase function directly
-      const { data, error: intentError } = await supabase.functions.invoke('create-payment-intent', {
+
+      if (pmError || !paymentMethod) {
+        throw new Error(pmError?.message || 'Failed to create payment method');
+      }
+
+      // Delegate to unified-payment-authorization (which delegates to payment-engine)
+      const { data: authData, error: authError } = await supabase.functions.invoke('unified-payment-authorization', {
         body: {
-          amount: amount, // Pass amount in dollars, edge function will convert to cents
-          currency: 'usd',
-          booking_id: bookingId,
-          idempotency_key: crypto.randomUUID(),
-          user_id: null, // This is for guest customer use
-          customer_email: customerEmail,
-          customer_name: customerName,
-          testing_mode: process.env.NODE_ENV === 'development',
+          bookingId,
+          customerEmail,
+          customerName,
+          paymentMethodId: paymentMethod.id,
+          tip: 0,
         }
       });
 
-      if (intentError || !data?.client_secret) {
-        throw new Error(intentError?.message || 'Failed to create payment intent');
+      if (authError || !authData?.success) {
+        throw new Error(authError?.message || authData?.error || 'Payment authorization failed');
       }
 
-      const { client_secret: clientSecret, payment_intent_id: paymentIntentId } = data;
+      console.log('✅ Payment authorized:', authData.payment_intent_id);
 
-      if (!clientSecret) {
-        throw new Error('Failed to create payment intent');
-      }
-
-      // Confirm the payment authorization with the real card element
-      const { paymentIntent, error: stripeError } = await stripeRef.current.confirmCardPayment(clientSecret, {
-        payment_method: {
-          card: cardElementRef.current,
-          billing_details: {
-            name: customerName,
-            email: customerEmail,
-          },
-        }
+      toast({
+        title: "Payment Authorized Successfully",
+        description: `Your booking is confirmed! $${amount.toFixed(2)} is authorized and will be charged when service is completed.`,
       });
-
-      if (stripeError) {
-        throw new Error(stripeError.message);
-      }
-
-      if (paymentIntent?.status === 'requires_capture') {
-        // Update transaction status to 'authorized' after successful payment
-        try {
-          const { data: updateData, error: updateError } = await supabase.functions.invoke(
-            'update-transaction-status',
-            {
-              body: {
-                payment_intent_id: paymentIntentId,
-                status: 'authorized'
-              }
-            }
-          );
-          
-          if (updateError || !updateData?.success) {
-            console.warn('Update transaction status failed, attempting verification sync:', updateError);
-            
-            // Fallback: Use verify-payment-intent to sync statuses
-            try {
-              const { data: verifyData, error: verifyError } = await supabase.functions.invoke(
-                'verify-payment-intent',
-                {
-                  body: {
-                    payment_intent_id: paymentIntentId,
-                    booking_id: bookingId,
-                  },
-                }
-              );
-
-              if (verifyError || !verifyData?.success) {
-                throw new Error(verifyError?.message || verifyData?.error || 'Failed to verify payment status');
-              }
-
-              console.log('Payment status verified and synced successfully');
-            } catch (verifyErr) {
-              console.error('Both update and verify failed:', verifyErr);
-              throw new Error('Payment authorized but failed to update transaction status');
-            }
-          }
-          
-          console.log('Transaction status updated to authorized via edge function');
-
-          // Invoke booking consistency check
-          try {
-            await supabase.functions.invoke('booking-status-consistency-check', {
-              body: { booking_id: bookingId },
-            });
-          } catch (consistencyError) {
-            console.warn('Booking consistency check failed:', consistencyError);
-            // Don't fail the entire flow for this
-          }
-
-          // Save card for future use after successful authorization
-          try {
-            // Get current user to save card to their profile
-            const { data: { user } } = await supabase.auth.getUser();
-            
-            if (user?.id) {
-              const { data: saveCardData, error: saveCardError } = await supabase.functions.invoke(
-                'save-card-from-intent',
-                {
-                  body: {
-                    paymentIntentId: paymentIntentId,
-                    userId: user.id
-                  }
-                }
-              );
-              
-              if (saveCardError) {
-                console.warn('Failed to save card for future use:', saveCardError);
-                // Don't throw error as card saving is non-critical for the current flow
-              } else if (saveCardData?.success && !saveCardData?.alreadySaved) {
-                console.log('Card saved for future use:', saveCardData);
-                toast({
-                  title: "Card Saved",
-                  description: "Your payment method has been securely saved for future bookings.",
-                });
-              }
-            }
-          } catch (saveCardError) {
-            console.warn('Error saving card for future use:', saveCardError);
-            // Don't throw error as card saving is non-critical for the current flow
-          }
-          
-          toast({
-            title: "Payment Authorized Successfully",
-            description: `Your booking is confirmed! $${amount.toFixed(2)} is authorized and will be charged when service is completed.`,
-          });
-          onAuthorizationSuccess(paymentIntentId);
-        } catch (error) {
-          console.error('Error updating transaction status:', error);
-          throw new Error('Payment authorized but failed to update transaction status');
-        }
-      } else {
-        throw new Error(`Unexpected payment status: ${paymentIntent?.status}`);
-      }
+      onAuthorizationSuccess(authData.payment_intent_id);
 
     } catch (error) {
       console.error('Payment authorization error:', error);

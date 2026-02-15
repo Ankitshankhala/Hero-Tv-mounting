@@ -163,7 +163,6 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
           services: cart.map(item => ({
             id: item.id,
             name: item.name,
-            price: item.price,
             quantity: item.quantity,
             configuration: item.options || {}
           }))
