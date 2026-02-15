@@ -117,9 +117,24 @@ export const EnhancedInlineBookingFlow = ({
       
       // Only restore if booking is less than 30 minutes old
       if (bookingAge < thirtyMinutes) {
-        setBookingId(pendingBookingId);
-        setHasCreatedBooking(true);
-        optimizedLog('📂 Restored pending booking from session:', pendingBookingId);
+        // Verify booking is still in a valid state before restoring
+        supabase
+          .from('bookings')
+          .select('id, payment_status, status')
+          .eq('id', pendingBookingId)
+          .single()
+          .then(({ data: booking }) => {
+            if (booking && booking.payment_status !== 'captured' && booking.status !== 'completed') {
+              setBookingId(pendingBookingId);
+              setHasCreatedBooking(true);
+              optimizedLog('📂 Restored pending booking from session:', pendingBookingId);
+            } else {
+              // Booking already completed/captured — clear stale session
+              optimizedLog('🧹 Cleared completed booking from session:', pendingBookingId);
+              sessionStorage.removeItem('pendingBookingId');
+              sessionStorage.removeItem('pendingBookingTimestamp');
+            }
+          });
       } else {
         // Clear expired session data
         sessionStorage.removeItem('pendingBookingId');
