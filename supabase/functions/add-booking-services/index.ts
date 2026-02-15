@@ -30,10 +30,6 @@ serve(async (req) => {
 
     if (bookingError || !booking) throw new Error('Booking not found');
 
-    if (booking.payment_status === 'captured') {
-      throw new Error('Cannot add services to a booking that has already been charged. Please create a new booking for additional services.');
-    }
-
     if (!booking.payment_intent_id) {
       throw new Error('Booking has no payment intent');
     }
@@ -53,13 +49,13 @@ serve(async (req) => {
     const servicesData = services.map((s: any) => {
       const officialPrice = priceMap.get(s.id);
       if (officialPrice === undefined) {
-        console.warn(`[ADD-BOOKING-SERVICES] Service ${s.id} not found in services table`);
+        throw new Error(`Service ${s.id} not found. Cannot add unknown service.`);
       }
       return {
         booking_id,
         service_id: s.id,
         service_name: s.name,
-        base_price: officialPrice ?? s.price ?? 0,
+        base_price: officialPrice,
         quantity: s.quantity || 1,
         configuration: s.configuration || {},
       };
@@ -78,11 +74,12 @@ serve(async (req) => {
 
     const insertedServiceIds = insertedServices?.map(s => s.id) || [];
 
-    // Delegate payment recalculation to payment-engine
-    console.log('[ADD-BOOKING-SERVICES] Delegating to payment-engine recalculate');
+    // Delegate payment operation to payment-engine based on payment_status
+    const engineAction = booking.payment_status === 'captured' ? 'charge-difference' : 'recalculate';
+    console.log(`[ADD-BOOKING-SERVICES] Delegating to payment-engine ${engineAction}`);
     const { data: engineResult, error: engineError } = await supabase.functions.invoke('payment-engine', {
       body: {
-        action: 'recalculate',
+        action: engineAction,
         bookingId: booking_id,
         modification_reason: 'service_addition',
       },
@@ -92,8 +89,8 @@ serve(async (req) => {
     });
 
     if (engineError || !engineResult?.success) {
-      const errMsg = engineResult?.error || engineError?.message || 'Payment recalculation failed';
-      console.error('[ADD-BOOKING-SERVICES] Recalculate failed, rolling back:', errMsg);
+      const errMsg = engineResult?.error || engineError?.message || 'Payment operation failed';
+      console.error(`[ADD-BOOKING-SERVICES] ${engineAction} failed, rolling back:`, errMsg);
 
       // Rollback inserted services
       if (insertedServiceIds.length > 0) {
@@ -145,9 +142,6 @@ serve(async (req) => {
     } else if (error.message?.includes('no payment intent')) {
       errorMessage = 'No payment method on file. Please contact support.';
       errorCode = 'NO_PAYMENT_INTENT';
-    } else if (error.message?.includes('already been charged')) {
-      errorMessage = error.message;
-      errorCode = 'ALREADY_CAPTURED';
     } else if (error.message?.includes('currently being modified')) {
       errorMessage = 'Booking is currently being modified. Please try again.';
       errorCode = 'LOCK_CONFLICT';
