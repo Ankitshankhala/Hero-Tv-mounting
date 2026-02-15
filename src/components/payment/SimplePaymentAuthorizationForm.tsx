@@ -204,11 +204,11 @@ export const SimplePaymentAuthorizationForm = ({
           'unified-payment-authorization',
           {
             body: {
-              amount,
               bookingId,
               customerEmail,
               customerName,
               paymentMethodId: paymentMethod.id,
+              tip: 0,
             },
           }
         ),

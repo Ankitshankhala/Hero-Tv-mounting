@@ -249,7 +249,9 @@ export type Database = {
       bookings: {
         Row: {
           archived_at: string | null
+          authorized_amount: number | null
           cancellation_deadline: string | null
+          captured_amount: number | null
           confirmation_email_sent: boolean | null
           coupon_code: string | null
           coupon_discount: number | null
@@ -261,6 +263,7 @@ export type Database = {
           has_modifications: boolean | null
           id: string
           is_archived: boolean | null
+          last_payment_intent_id: string | null
           late_fee_amount: number | null
           late_fee_charged: boolean | null
           local_service_date: string | null
@@ -268,6 +271,7 @@ export type Database = {
           location_notes: string | null
           payment_intent_id: string | null
           payment_status: string | null
+          payment_version: number
           pending_payment_amount: number | null
           preferred_worker_id: string | null
           requires_manual_payment: boolean | null
@@ -290,7 +294,9 @@ export type Database = {
         }
         Insert: {
           archived_at?: string | null
+          authorized_amount?: number | null
           cancellation_deadline?: string | null
+          captured_amount?: number | null
           confirmation_email_sent?: boolean | null
           coupon_code?: string | null
           coupon_discount?: number | null
@@ -302,6 +308,7 @@ export type Database = {
           has_modifications?: boolean | null
           id?: string
           is_archived?: boolean | null
+          last_payment_intent_id?: string | null
           late_fee_amount?: number | null
           late_fee_charged?: boolean | null
           local_service_date?: string | null
@@ -309,6 +316,7 @@ export type Database = {
           location_notes?: string | null
           payment_intent_id?: string | null
           payment_status?: string | null
+          payment_version?: number
           pending_payment_amount?: number | null
           preferred_worker_id?: string | null
           requires_manual_payment?: boolean | null
@@ -331,7 +339,9 @@ export type Database = {
         }
         Update: {
           archived_at?: string | null
+          authorized_amount?: number | null
           cancellation_deadline?: string | null
+          captured_amount?: number | null
           confirmation_email_sent?: boolean | null
           coupon_code?: string | null
           coupon_discount?: number | null
@@ -343,6 +353,7 @@ export type Database = {
           has_modifications?: boolean | null
           id?: string
           is_archived?: boolean | null
+          last_payment_intent_id?: string | null
           late_fee_amount?: number | null
           late_fee_charged?: boolean | null
           local_service_date?: string | null
@@ -350,6 +361,7 @@ export type Database = {
           location_notes?: string | null
           payment_intent_id?: string | null
           payment_status?: string | null
+          payment_version?: number
           pending_payment_amount?: number | null
           preferred_worker_id?: string | null
           requires_manual_payment?: boolean | null
@@ -3326,6 +3338,21 @@ export type Database = {
       load_zcta_polygons_from_data: {
         Args: { polygon_data: Json }
         Returns: Json
+      }
+      lock_booking_for_payment: {
+        Args: { p_booking_id: string }
+        Returns: {
+          authorized_amount: number
+          captured_amount: number
+          id: string
+          last_payment_intent_id: string
+          payment_intent_id: string
+          payment_status: string
+          payment_version: number
+          stripe_customer_id: string
+          stripe_payment_method_id: string
+          tip_amount: number
+        }[]
       }
       longtransactionsenabled: { Args: never; Returns: boolean }
       merge_worker_service_areas: {

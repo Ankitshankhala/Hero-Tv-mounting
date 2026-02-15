@@ -1,111 +1,55 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { createStripeClient, corsHeaders } from '../_shared/stripe.ts';
+import { corsHeaders } from '../_shared/stripe.ts';
+import { getSupabaseClient } from '../_shared/supabaseClient.ts';
 
+/**
+ * Charge Saved Payment Method — Thin proxy to payment-engine charge-difference.
+ * No direct Stripe calls.
+ */
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const stripe = createStripeClient();
+    const supabase = getSupabaseClient();
+    const { bookingId } = await req.json();
 
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-    );
+    if (!bookingId) throw new Error('bookingId is required');
 
-    const { bookingId, amount, notes } = await req.json();
+    console.log('[CHARGE-SAVED] Delegating to payment-engine charge-difference:', bookingId);
 
-    console.log('Charging saved payment method:', {
-      bookingId,
-      amount
+    const { data: engineResult, error: engineError } = await supabase.functions.invoke('payment-engine', {
+      body: {
+        action: 'charge-difference',
+        bookingId,
+      },
+      headers: {
+        Authorization: req.headers.get('Authorization') || '',
+      },
     });
 
-    // Get booking with customer info
-    const { data: booking, error: bookingError } = await supabaseClient
-      .from('bookings')
-      .select('*, customer:users!customer_id(email, name)')
-      .eq('id', bookingId)
-      .single();
-
-    if (bookingError || !booking) {
-      throw new Error('Booking not found');
+    if (engineError) {
+      throw new Error(engineError.message || 'Failed to charge payment method');
     }
 
-    if (!booking.stripe_customer_id || !booking.stripe_payment_method_id) {
-      throw new Error('No saved payment method found for this booking');
+    if (!engineResult?.success) {
+      throw new Error(engineResult?.error || 'Failed to charge payment method');
     }
-
-    console.log('Creating payment intent for saved method');
-
-    // Create a PaymentIntent with the saved payment method
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // Convert to cents
-      currency: 'usd',
-      customer: booking.stripe_customer_id,
-      payment_method: booking.stripe_payment_method_id,
-      off_session: true, // Charging when customer is not present
-      confirm: true, // Automatically confirm the payment
-      description: `Payment for booking ${bookingId}`,
-      metadata: {
-        booking_id: bookingId,
-        type: 'saved_payment_method_charge'
-      }
-    });
-
-    console.log('Payment intent created:', paymentIntent.id, 'status:', paymentIntent.status);
-
-    // Create transaction record
-    const { error: transactionError } = await supabaseClient
-      .from('transactions')
-      .insert({
-        booking_id: bookingId,
-        amount: amount,
-        status: paymentIntent.status === 'succeeded' ? 'completed' : 'pending',
-        payment_intent_id: paymentIntent.id,
-        transaction_type: 'payment',
-        notes: notes || 'Charged saved payment method'
-      });
-
-    if (transactionError) {
-      console.error('Error creating transaction:', transactionError);
-    }
-
-    // Update booking status
-    const updateData: any = {
-      payment_status: paymentIntent.status === 'succeeded' ? 'paid' : 'pending',
-      updated_at: new Date().toISOString(),
-    };
-
-    if (paymentIntent.status === 'succeeded') {
-      updateData.status = 'completed';
-      updateData.pending_payment_amount = 0;
-    }
-
-    await supabaseClient
-      .from('bookings')
-      .update(updateData)
-      .eq('id', bookingId);
-
-    console.log('Booking updated with payment status');
 
     return new Response(
       JSON.stringify({
         success: true,
-        payment_intent_id: paymentIntent.id,
-        status: paymentIntent.status,
-        amount: amount,
+        payment_intent_id: engineResult.payment_intent_id,
+        status: 'succeeded',
+        amount: engineResult.additional_amount,
       }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
+
   } catch (error: any) {
-    console.error('Error charging saved payment method:', error);
+    console.error('[CHARGE-SAVED] Error:', error);
     
-    // Handle specific Stripe errors
     let errorMessage = 'Failed to charge payment method';
     if (error.type === 'StripeCardError') {
       errorMessage = 'Card was declined. Please update payment method.';
@@ -114,14 +58,8 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({
-        success: false,
-        error: errorMessage,
-      }),
-      {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
+      JSON.stringify({ success: false, error: errorMessage }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

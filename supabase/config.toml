@@ -166,3 +166,6 @@ verify_jwt = false
 
 [functions.assign-authorized-booking-worker]
 verify_jwt = false
+
+[functions.payment-engine]
+verify_jwt = false

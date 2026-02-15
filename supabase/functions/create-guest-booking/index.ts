@@ -145,11 +145,23 @@ Deno.serve(async (req) => {
 
     // Insert booking services if provided
     if (services.length > 0) {
+      // FIX PRICING LEAK: Fetch real prices from services table
+      const serviceIds = services.map((s: any) => s.id);
+      const { data: officialServices, error: officialError } = await supabaseClient
+        .from('services')
+        .select('id, base_price')
+        .in('id', serviceIds);
+      
+      const priceMap = new Map(officialServices?.map(s => [s.id, Number(s.base_price)]) || []);
+      if (officialError) {
+        console.warn('⚠️ Could not fetch official prices, using provided prices:', officialError);
+      }
+
       const serviceInserts = services.map((service: any) => ({
         booking_id: booking.id,
         service_id: service.id,
         service_name: service.name || 'Unknown Service',
-        base_price: service.price || 0,
+        base_price: priceMap.get(service.id) ?? service.price ?? 0,
         quantity: service.quantity || 1,
         configuration: service.options || {},
       }));
