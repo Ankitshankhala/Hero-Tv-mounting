@@ -1,60 +1,94 @@
 
-# Why the New Stripe Key Is Still Not Working
+# Root Cause: Stale Stripe Customer IDs After Key Change
 
-## The Problem: Edge Functions Cache Secrets at Boot Time
+## What Is Happening
 
-You updated `STRIPE_SECRET_KEY` in the Supabase secrets dashboard — but the edge function logs still show the **old invalid `mk_1T2D4...` key**. This is expected Supabase behavior:
+The Stripe API key was changed (from the invalid `mk_` prefix key to a valid one). However, the new key is connected to a **different Stripe account or mode** than before. The `stripe_customers` table in the database still holds customer IDs (like `cus_Tyx1zsQPbk3h07`) that were created under the **old** Stripe account. Stripe returns a 404 "No such customer" error because those IDs do not exist in the current account, causing the payment engine to throw a 400 error.
 
-- When a secret is updated in the dashboard, **already-running (warm) edge function instances keep the old value in memory**
-- The new secret is only picked up when a function does a **cold boot** (i.e., is redeployed or the instance expires naturally)
-- The logs confirm the `payment-engine` booted at 16:07:24 UTC — **before** your key update — and it still had the old key cached
+The flow breaks here in `payment-engine`:
+```
+1. Booking submitted with customerEmail = "charusolutions@gmail.com"
+2. payment-engine looks up stripe_customers table → finds cus_Tyx1zsQPbk3h07
+3. Tries to attach paymentMethod to cus_Tyx1zsQPbk3h07 in Stripe
+4. Stripe: "No such customer" (ID belongs to old account/mode)
+5. payment-engine throws → 400 returned to frontend
+```
 
-You do not need to change any code. You only need to **redeploy** the affected edge functions so they cold-boot with the new key.
+## Two-Part Fix
 
----
+### Part 1: Clear Stale Customer Records (Database)
+Delete all rows from the `stripe_customers` table so the payment engine can create fresh customers in the correct Stripe account. Also clear `stripe_customer_id` and `stripe_payment_method_id` from the `bookings` table (for any bookings in `payment_pending` status) and from the `users` table.
 
-## Which Edge Functions Use STRIPE_SECRET_KEY
+SQL to run:
+```sql
+-- Clear stale stripe customers
+DELETE FROM stripe_customers;
 
-From the codebase search, 7 functions read this secret directly:
+-- Clear stale stripe references on pending/unprocessed bookings
+UPDATE bookings
+SET stripe_customer_id = NULL, stripe_payment_method_id = NULL
+WHERE payment_status IN ('pending', 'payment_pending');
 
-| Function | Purpose |
-|---|---|
-| `payment-engine` | Primary — all authorize/capture/refund ops |
-| `admin-process-refund` | Admin-triggered refunds |
-| `stripe-transactions-sync` | Sync Stripe charges to DB |
-| `sync-stripe-captures` | Sync captured payment intents |
-| `unified-payment-verification` | Verify PaymentIntent status |
-| `cleanup-pending-bookings` | Cancels expired Stripe authorizations |
-| `bulk-delete-payment-pending` | Bulk cancel/void pending bookings |
+-- Clear stale stripe references on users table
+UPDATE users
+SET stripe_customer_id = NULL, stripe_default_payment_method_id = NULL, has_saved_card = FALSE;
+```
 
-Plus the shared helper `_shared/stripe.ts` which is imported by `payment-engine` and others.
+### Part 2: Make payment-engine Resilient (Code)
+Update the `payment-engine` authorize action to handle the case where a stored `stripe_customer_id` no longer exists in Stripe. Instead of crashing, it should:
+1. Catch the `resource_missing` error from the attach/customer lookup
+2. Delete the stale `stripe_customers` record
+3. Create a **new** Stripe customer and continue
 
-The most critical one is `payment-engine` — it is the single function that all payment authorizations flow through.
+This makes the system self-healing for future key changes or account switches.
 
----
+**In `supabase/functions/payment-engine/index.ts`**, the authorize block's customer lookup section (lines ~106–136) will be updated:
 
-## The Fix: Redeploy All Stripe-Using Edge Functions
+```typescript
+// BEFORE (crashes on stale customer):
+if (existingCustomer?.stripe_customer_id) {
+  stripeCustomerId = existingCustomer.stripe_customer_id;
+  try {
+    await stripe.paymentMethods.attach(paymentMethodId, { customer: stripeCustomerId });
+  } catch (e: any) {
+    if (!e.message?.includes('already been attached')) {
+      console.warn('[PAYMENT-ENGINE] attach warning:', e.message);
+    }
+  }
+}
 
-Redeploying forces a fresh cold boot, which makes each function read the new `STRIPE_SECRET_KEY` from the secrets store.
+// AFTER (self-heals on stale/missing customer):
+if (existingCustomer?.stripe_customer_id) {
+  stripeCustomerId = existingCustomer.stripe_customer_id;
+  try {
+    // Verify customer still exists in Stripe
+    await stripe.customers.retrieve(stripeCustomerId);
+    await stripe.paymentMethods.attach(paymentMethodId, { customer: stripeCustomerId });
+  } catch (e: any) {
+    if (e.code === 'resource_missing' || e.message?.includes('No such customer')) {
+      // Stale customer — delete and recreate below
+      console.warn('[PAYMENT-ENGINE] Stale customer detected, recreating:', stripeCustomerId);
+      await supabase.from('stripe_customers').delete().eq('email', customerEmail);
+      stripeCustomerId = ''; // Fall through to creation
+    } else if (!e.message?.includes('already been attached')) {
+      console.warn('[PAYMENT-ENGINE] attach warning:', e.message);
+    }
+  }
+}
 
-Functions to redeploy (in priority order):
-1. `payment-engine` — most critical, fixes the 400 error immediately
-2. `admin-process-refund`
-3. `stripe-transactions-sync`
-4. `sync-stripe-captures`
-5. `unified-payment-verification`
-6. `cleanup-pending-bookings`
-7. `bulk-delete-payment-pending`
+if (!stripeCustomerId) {
+  const customer = await stripe.customers.create({ ... });
+  // ... save to stripe_customers
+}
+```
 
-No code changes are needed. This is purely a redeployment to flush the cached secret.
+## Steps
 
----
+1. Run the database cleanup SQL (via migration) to remove all stale `stripe_customers` rows and clear stale references on bookings/users
+2. Update `payment-engine/index.ts` to handle `resource_missing` gracefully so the system self-heals if this ever happens again
+3. Redeploy `payment-engine`
+4. Test a new booking with a fresh card entry — the payment engine will create a new customer in the current Stripe account and authorize successfully
 
-## What Will Happen After Redeploy
+## Important Note on Test vs Live Mode
 
-Once `payment-engine` is redeployed with the valid `sk_test_` or `sk_live_` key:
-
-1. The `StripeAuthenticationError` will stop
-2. Payment authorizations from the customer booking flow will succeed
-3. The 400 error chain (`payment-engine` → `unified-payment-authorization` → frontend) will be resolved
-4. The booking at `b3fc028e-f05c-4e93-ad1e-bc37cb0853fb` can be retried immediately
+The publishable key in `.env` starts with `pk_live_` and the key in `src/lib/stripe.ts` also starts with `pk_live_`. Make sure the `STRIPE_SECRET_KEY` secret in Supabase is the **live** secret key (`sk_live_...`) from the **same** Stripe account, not a test key. Mixing live publishable with test secret (or vice versa) will continue to cause customer-not-found errors since customers created in test mode don't exist in live mode.
