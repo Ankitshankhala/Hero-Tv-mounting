@@ -110,17 +110,26 @@ Deno.serve(async (req) => {
         .eq('email', customerEmail)
         .maybeSingle();
 
-      let stripeCustomerId: string;
+      let stripeCustomerId: string = '';
       if (existingCustomer?.stripe_customer_id) {
         stripeCustomerId = existingCustomer.stripe_customer_id;
         try {
+          // Verify customer still exists in Stripe (guards against stale IDs after key changes)
+          await stripe.customers.retrieve(stripeCustomerId);
           await stripe.paymentMethods.attach(paymentMethodId, { customer: stripeCustomerId });
         } catch (e: any) {
-          if (!e.message?.includes('already been attached')) {
+          if (e.code === 'resource_missing' || e.message?.includes('No such customer')) {
+            // Stale customer ID — delete local record and fall through to create a fresh one
+            console.warn('[PAYMENT-ENGINE] Stale customer detected, recreating:', stripeCustomerId);
+            await supabase.from('stripe_customers').delete().eq('email', customerEmail);
+            stripeCustomerId = ''; // Fall through to creation below
+          } else if (!e.message?.includes('already been attached')) {
             console.warn('[PAYMENT-ENGINE] attach warning:', e.message);
           }
         }
-      } else {
+      }
+
+      if (!stripeCustomerId) {
         const customer = await stripe.customers.create({
           email: customerEmail,
           name: customerName || 'Guest Customer',
