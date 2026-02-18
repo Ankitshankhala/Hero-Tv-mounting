@@ -1,142 +1,60 @@
 
-# Root Cause: `booking_id=eq.undefined` in Admin Dashboard
+# Why the New Stripe Key Is Still Not Working
 
-## The Exact Failure Chain
+## The Problem: Edge Functions Cache Secrets at Boot Time
 
-The bug is caused by **three cooperating problems** across two files. Here is the complete execution path that produces `booking_id=eq.undefined`.
+You updated `STRIPE_SECRET_KEY` in the Supabase secrets dashboard — but the edge function logs still show the **old invalid `mk_1T2D4...` key**. This is expected Supabase behavior:
 
----
+- When a secret is updated in the dashboard, **already-running (warm) edge function instances keep the old value in memory**
+- The new secret is only picked up when a function does a **cold boot** (i.e., is redeployed or the instance expires naturally)
+- The logs confirm the `payment-engine` booted at 16:07:24 UTC — **before** your key update — and it still had the old key cached
 
-### Step 1 — Supabase Realtime fires a DELETE event
-
-When a booking is deleted (e.g., bulk-delete of `payment_pending` bookings), Supabase Realtime sends a payload shaped like this:
-
-```text
-{
-  eventType: 'DELETE',
-  new: {},          <-- EMPTY object, no id
-  old: { id: '...', ... }
-}
-```
-
-For a **DELETE** event, Supabase puts the booking data in `old`, and `new` is always `{}`.
+You do not need to change any code. You only need to **redeploy** the affected edge functions so they cold-boot with the new key.
 
 ---
 
-### Step 2 — `useRealtimeBookings.tsx` line 161 passes the wrong record
+## Which Edge Functions Use STRIPE_SECRET_KEY
 
-Look at this line:
+From the codebase search, 7 functions read this secret directly:
 
-```text
-// line 161 in useRealtimeBookings.tsx
-onBookingUpdate(newRecord || oldRecord, reassignmentInfo);
-```
+| Function | Purpose |
+|---|---|
+| `payment-engine` | Primary — all authorize/capture/refund ops |
+| `admin-process-refund` | Admin-triggered refunds |
+| `stripe-transactions-sync` | Sync Stripe charges to DB |
+| `sync-stripe-captures` | Sync captured payment intents |
+| `unified-payment-verification` | Verify PaymentIntent status |
+| `cleanup-pending-bookings` | Cancels expired Stripe authorizations |
+| `bulk-delete-payment-pending` | Bulk cancel/void pending bookings |
 
-`newRecord` is `{}` — a **truthy empty object**. So `newRecord || oldRecord` evaluates to `{}` (the empty object), **never falling through to `oldRecord`**.
+Plus the shared helper `_shared/stripe.ts` which is imported by `payment-engine` and others.
 
-The callback fires with an empty `{}` object as `updatedBooking`.
-
----
-
-### Step 3 — `useBookingManager.tsx` `handleBookingUpdate` receives `{}` and fires queries
-
-```text
-// line 367-378 in useBookingManager.tsx
-const handleBookingUpdate = async (updatedBooking: any) => {
-  const enrichedBooking = await enrichSingleBooking(updatedBooking);
-
-  // Line 378: updatedBooking.id is UNDEFINED here
-  const { data: bookingServicesData } = await supabase
-    .from('booking_services')
-    .select(...)
-    .eq('booking_id', updatedBooking.id);  // <-- undefined!
-```
-
-And again at line 394:
-
-```text
-  const { data: txData } = await supabase
-    .from('transactions')
-    .select(...)
-    .eq('booking_id', updatedBooking.id);  // <-- undefined again!
-```
-
-Both `.eq('booking_id', undefined)` calls are sent to the API as `booking_id=eq.undefined`, producing **400 errors**.
+The most critical one is `payment-engine` — it is the single function that all payment authorizations flow through.
 
 ---
 
-### Why it also fires for UPDATE events sometimes
+## The Fix: Redeploy All Stripe-Using Edge Functions
 
-For UPDATE events, `new` contains the full new row, so `new.id` is normally present. However, there is a secondary trigger: the `transactions-admin` realtime channel inside `useBookingManager.tsx` (lines 453-481) fires on `transactions` table changes and calls `setBookings`. This does NOT call `handleBookingUpdate`, so it is NOT related to this bug.
+Redeploying forces a fresh cold boot, which makes each function read the new `STRIPE_SECRET_KEY` from the secrets store.
 
-The DELETE case is the primary trigger. The `handleBulkDeletePaymentPending` button (visible in the admin UI) deletes many bookings at once, which fires many DELETE payloads in rapid succession — which is exactly why you see the errors in bursts.
+Functions to redeploy (in priority order):
+1. `payment-engine` — most critical, fixes the 400 error immediately
+2. `admin-process-refund`
+3. `stripe-transactions-sync`
+4. `sync-stripe-captures`
+5. `unified-payment-verification`
+6. `cleanup-pending-bookings`
+7. `bulk-delete-payment-pending`
 
----
-
-### Secondary Trigger: also happens for INSERT events
-
-For an **INSERT** event:
-
-```text
-{
-  eventType: 'INSERT',
-  new: { id: 'abc', ... },  <-- has id, fine
-  old: {}                    <-- empty
-}
-```
-
-This works fine. INSERT is not a problem.
+No code changes are needed. This is purely a redeployment to flush the cached secret.
 
 ---
 
-## Summary of Root Causes
+## What Will Happen After Redeploy
 
-| # | Location | Problem |
-|---|---|---|
-| 1 | `useRealtimeBookings.tsx` line 161 | `newRecord \|\| oldRecord` uses `newRecord` even when it is `{}` (truthy empty object), discarding the `old` record which has the actual data for DELETE events |
-| 2 | `useBookingManager.tsx` line 367 | `handleBookingUpdate` has no guard for missing `updatedBooking.id` before firing sub-queries |
-| 3 | `useBookingManager.tsx` line 378 & 394 | Two `.eq('booking_id', updatedBooking.id)` calls fire unconditionally even when `id` is `undefined` |
+Once `payment-engine` is redeployed with the valid `sk_test_` or `sk_live_` key:
 
----
-
-## The Fix (Two Changes)
-
-### Fix 1 — `useRealtimeBookings.tsx` line 161: Check object has data
-
-Replace:
-```text
-onBookingUpdate(newRecord || oldRecord, reassignmentInfo);
-```
-
-With:
-```text
-const recordToPass = (newRecord && newRecord.id) ? newRecord : oldRecord;
-if (recordToPass?.id) {
-  onBookingUpdate(recordToPass, reassignmentInfo);
-}
-```
-
-This correctly uses `oldRecord` for DELETE payloads (which have a real `id`), and skips the callback entirely if neither record has an id.
-
-### Fix 2 — `useBookingManager.tsx` line 367: Add an early guard
-
-Add at the very top of `handleBookingUpdate`:
-```text
-const handleBookingUpdate = async (updatedBooking: any) => {
-  if (!updatedBooking?.id) {
-    console.warn('handleBookingUpdate received booking without id, skipping', updatedBooking);
-    return;
-  }
-  // ... rest of function
-```
-
-This is a defensive safety net even after Fix 1, ensuring no downstream query ever receives `undefined` as a booking ID.
-
----
-
-## Files to Change
-
-- `src/hooks/useRealtimeBookings.tsx` — line 161 (primary fix)
-- `src/hooks/useBookingManager.tsx` — line 367 (defensive guard)
-
-No database changes, no edge function changes, no migrations required.
+1. The `StripeAuthenticationError` will stop
+2. Payment authorizations from the customer booking flow will succeed
+3. The 400 error chain (`payment-engine` → `unified-payment-authorization` → frontend) will be resolved
+4. The booking at `b3fc028e-f05c-4e93-ad1e-bc37cb0853fb` can be retried immediately
