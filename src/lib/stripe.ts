@@ -1,7 +1,7 @@
 // Stripe publishable key - should match the key type used in backend
 // This key is safe to expose in the frontend
 export const STRIPE_PUBLISHABLE_KEY =
-  "pk_live_51RYKUCCrUPkotWKCM10E0EeqJ5j24WbloBt4CemrXYkJxsGUdS6Xxl5hsyh7UaIHBeI9nVtgqjmXI3sTD7xyvNnV00s1GO6it4";
+  "pk_live_51RYKUCCrUPkotWKCHc4J7LROBSe2nsbBsMGE666Ya8lHdnQwd2X87VQD2C03ARWKszv0GWbzJWsas1xpax74ga3F00rEkp9L3z";
 
 // Validate Stripe configuration
 export const validateStripeConfig = () => {
