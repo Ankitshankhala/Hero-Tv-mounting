@@ -1,69 +1,142 @@
 
+# Root Cause: `booking_id=eq.undefined` in Admin Dashboard
 
-# Backfill Missing Data on 6 Uncaptured Bookings
+## The Exact Failure Chain
 
-## Current State
+The bug is caused by **three cooperating problems** across two files. Here is the complete execution path that produces `booking_id=eq.undefined`.
 
-| Customer | Booking ID | Stripe $ | DB Services $ | Missing Fields | Status |
-|---|---|---|---|---|---|
-| taelorflorence | 96be055a | $90 | $90 | `authorized_amount` | confirmed |
-| ayaanasim2015 | 59ebdee5 | $215 | $215 | `authorized_amount` | confirmed |
-| christiandavis727 | a0e0d2c8 | $150 | $150 | `authorized_amount`, `stripe_customer_id`, `stripe_payment_method_id` | confirmed |
-| simondelagarza | 17379c9a | $90 | (unknown) | `payment_intent_id`, `authorized_amount`, `stripe_customer_id`, `stripe_payment_method_id` | completed |
-| nathanevans4 | 05a1c0c7 | $366 | $265 | `authorized_amount`, `stripe_customer_id`, `stripe_payment_method_id` | completed |
-| noahlangston | e888d83d | $98 | $85 | `authorized_amount`, `stripe_customer_id`, `stripe_payment_method_id` | completed |
+---
 
-Two bookings already have `stripe_customer_id` (taelorflorence, ayaanasim2015) -- only `authorized_amount` is missing.
+### Step 1 — Supabase Realtime fires a DELETE event
 
-Four bookings have no `stripe_customers` record at all (christiandavis727, simondelagarza, nathanevans4, noahlangston) -- these were guest checkouts with no saved customer.
-
-## Backfill Steps
-
-### Step 1: Backfill `authorized_amount` from Stripe amounts (all 6 bookings)
-
-Set `authorized_amount` to the actual Stripe-authorized value so the capture action's mismatch check passes.
+When a booking is deleted (e.g., bulk-delete of `payment_pending` bookings), Supabase Realtime sends a payload shaped like this:
 
 ```text
-UPDATE bookings SET authorized_amount = 90    WHERE id = '96be055a-b38e-4de1-acb9-1bef90b27f0c';
-UPDATE bookings SET authorized_amount = 215   WHERE id = '59ebdee5-08e7-448d-8411-520053a208f8';
-UPDATE bookings SET authorized_amount = 150   WHERE id = 'a0e0d2c8-5621-4b1d-8cea-b6e3fbbe7536';
-UPDATE bookings SET authorized_amount = 90    WHERE id = '17379c9a-c4c8-4f8c-9d62-011fd0b57cd8';
-UPDATE bookings SET authorized_amount = 366   WHERE id = '05a1c0c7-f337-4328-9762-ba85546f06b6';
-UPDATE bookings SET authorized_amount = 98    WHERE id = 'e888d83d-bdc9-4a27-bba9-ed8768201d57';
+{
+  eventType: 'DELETE',
+  new: {},          <-- EMPTY object, no id
+  old: { id: '...', ... }
+}
 ```
 
-### Step 2: Backfill `payment_intent_id` on simondelagarza booking
+For a **DELETE** event, Supabase puts the booking data in `old`, and `new` is always `{}`.
 
-This booking has a linked transaction with the PI but the booking itself is NULL.
+---
+
+### Step 2 — `useRealtimeBookings.tsx` line 161 passes the wrong record
+
+Look at this line:
 
 ```text
-UPDATE bookings 
-SET payment_intent_id = 'pi_3T0BSICrUPkotWKC1rHs0EqA'
-WHERE id = '17379c9a-c4c8-4f8c-9d62-011fd0b57cd8';
+// line 161 in useRealtimeBookings.tsx
+onBookingUpdate(newRecord || oldRecord, reassignmentInfo);
 ```
 
-### Step 3: Fix transaction `base_amount` where it's 0
+`newRecord` is `{}` — a **truthy empty object**. So `newRecord || oldRecord` evaluates to `{}` (the empty object), **never falling through to `oldRecord`**.
 
-Four transactions have `base_amount = 0` despite having real amounts. This matters for tip/base breakdown during capture.
+The callback fires with an empty `{}` object as `updatedBooking`.
+
+---
+
+### Step 3 — `useBookingManager.tsx` `handleBookingUpdate` receives `{}` and fires queries
 
 ```text
-UPDATE transactions SET base_amount = 90   WHERE booking_id = '96be055a-b38e-4de1-acb9-1bef90b27f0c' AND status = 'authorized' AND base_amount = 0;
-UPDATE transactions SET base_amount = 215  WHERE booking_id = '59ebdee5-08e7-448d-8411-520053a208f8' AND status = 'authorized' AND base_amount = 0;
-UPDATE transactions SET base_amount = 310  WHERE booking_id = '05a1c0c7-f337-4328-9762-ba85546f06b6' AND status = 'authorized' AND base_amount = 0;
-UPDATE transactions SET base_amount = 85   WHERE booking_id = 'e888d83d-bdc9-4a27-bba9-ed8768201d57' AND status = 'authorized' AND base_amount = 0;
+// line 367-378 in useBookingManager.tsx
+const handleBookingUpdate = async (updatedBooking: any) => {
+  const enrichedBooking = await enrichSingleBooking(updatedBooking);
+
+  // Line 378: updatedBooking.id is UNDEFINED here
+  const { data: bookingServicesData } = await supabase
+    .from('booking_services')
+    .select(...)
+    .eq('booking_id', updatedBooking.id);  // <-- undefined!
 ```
 
-### What This Does NOT Fix
+And again at line 394:
 
-- **Missing `stripe_customer_id`** on 4 guest bookings: These customers have no record in `stripe_customers`. This only matters if you need to recalculate (add/remove services) -- it does NOT block capture. Capture uses the `payment_intent_id` directly.
-- **Amount mismatches** (nathanevans4: Stripe $366 vs services $265, noahlangston: Stripe $98 vs services $85): By setting `authorized_amount` to the Stripe value, the capture check will pass. The full authorized amount gets captured, which is correct -- you should capture what Stripe holds, not recalculate from services.
+```text
+  const { data: txData } = await supabase
+    .from('transactions')
+    .select(...)
+    .eq('booking_id', updatedBooking.id);  // <-- undefined again!
+```
 
-### Urgency
+Both `.eq('booking_id', undefined)` calls are sent to the API as `booking_id=eq.undefined`, producing **400 errors**.
 
-These authorizations expire ~7 days after creation:
-- Feb 11 booking expires ~Feb 18
-- Feb 12 bookings expire ~Feb 19
-- Feb 13 bookings expire ~Feb 20
+---
 
-The 3 "completed" bookings (simondelagarza, nathanevans4, noahlangston) should be captured immediately after backfill.
+### Why it also fires for UPDATE events sometimes
 
+For UPDATE events, `new` contains the full new row, so `new.id` is normally present. However, there is a secondary trigger: the `transactions-admin` realtime channel inside `useBookingManager.tsx` (lines 453-481) fires on `transactions` table changes and calls `setBookings`. This does NOT call `handleBookingUpdate`, so it is NOT related to this bug.
+
+The DELETE case is the primary trigger. The `handleBulkDeletePaymentPending` button (visible in the admin UI) deletes many bookings at once, which fires many DELETE payloads in rapid succession — which is exactly why you see the errors in bursts.
+
+---
+
+### Secondary Trigger: also happens for INSERT events
+
+For an **INSERT** event:
+
+```text
+{
+  eventType: 'INSERT',
+  new: { id: 'abc', ... },  <-- has id, fine
+  old: {}                    <-- empty
+}
+```
+
+This works fine. INSERT is not a problem.
+
+---
+
+## Summary of Root Causes
+
+| # | Location | Problem |
+|---|---|---|
+| 1 | `useRealtimeBookings.tsx` line 161 | `newRecord \|\| oldRecord` uses `newRecord` even when it is `{}` (truthy empty object), discarding the `old` record which has the actual data for DELETE events |
+| 2 | `useBookingManager.tsx` line 367 | `handleBookingUpdate` has no guard for missing `updatedBooking.id` before firing sub-queries |
+| 3 | `useBookingManager.tsx` line 378 & 394 | Two `.eq('booking_id', updatedBooking.id)` calls fire unconditionally even when `id` is `undefined` |
+
+---
+
+## The Fix (Two Changes)
+
+### Fix 1 — `useRealtimeBookings.tsx` line 161: Check object has data
+
+Replace:
+```text
+onBookingUpdate(newRecord || oldRecord, reassignmentInfo);
+```
+
+With:
+```text
+const recordToPass = (newRecord && newRecord.id) ? newRecord : oldRecord;
+if (recordToPass?.id) {
+  onBookingUpdate(recordToPass, reassignmentInfo);
+}
+```
+
+This correctly uses `oldRecord` for DELETE payloads (which have a real `id`), and skips the callback entirely if neither record has an id.
+
+### Fix 2 — `useBookingManager.tsx` line 367: Add an early guard
+
+Add at the very top of `handleBookingUpdate`:
+```text
+const handleBookingUpdate = async (updatedBooking: any) => {
+  if (!updatedBooking?.id) {
+    console.warn('handleBookingUpdate received booking without id, skipping', updatedBooking);
+    return;
+  }
+  // ... rest of function
+```
+
+This is a defensive safety net even after Fix 1, ensuring no downstream query ever receives `undefined` as a booking ID.
+
+---
+
+## Files to Change
+
+- `src/hooks/useRealtimeBookings.tsx` — line 161 (primary fix)
+- `src/hooks/useBookingManager.tsx` — line 367 (defensive guard)
+
+No database changes, no edge function changes, no migrations required.
