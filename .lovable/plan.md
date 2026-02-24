@@ -1,77 +1,88 @@
 
 
-# Fix: Server-Side Tiered Pricing in create-guest-booking
+# Fix: Coupon Creation and Validation System
 
-## The Problem
+## Root Cause Analysis
 
-The `create-guest-booking` edge function fetches only `base_price` from the `services` table (line 152) and uses it to override the frontend's calculated price. For tiered services like "Mount TV", the flat `base_price` is $90 (1 TV price), but 2 TVs should cost $170 ($90 + $80). The server blindly stores $90, and then the payment engine authorizes based on that incorrect stored value.
+There are **two connected issues** that make the entire coupon system non-functional:
 
-## What Changes
+### Issue 1: Coupons Cannot Be Created (Primary Blocker)
 
-**One file**: `supabase/functions/create-guest-booking/index.ts` (lines 148-167)
+The database has a CHECK constraint called `percentage_has_max_discount`:
 
-### Current Code (Broken)
-```typescript
-const { data: officialServices } = await supabaseClient
-  .from('services')
-  .select('id, base_price')
-  .in('id', serviceIds);
-
-const priceMap = new Map(officialServices?.map(s => [s.id, Number(s.base_price)]) || []);
-
-const serviceInserts = services.map((service: any) => ({
-  booking_id: booking.id,
-  service_id: service.id,
-  service_name: service.name || 'Unknown Service',
-  base_price: priceMap.get(service.id) ?? service.price ?? 0,
-  quantity: service.quantity || 1,
-  configuration: service.options || {},
-}));
+```
+CHECK (discount_type <> 'percentage' OR max_discount_amount IS NOT NULL)
 ```
 
-### Fixed Code
-1. Fetch `pricing_config` alongside `base_price` from the `services` table
-2. For services with `pricing_type: 'tiered'`, extract the TV count from the service name (e.g., "Mount TV (2 TVs)") and calculate the correct tiered total using `pricing_config.tiers`
-3. For non-tiered services, continue using the flat `base_price` as before (no behavior change)
+This means: **every percentage coupon MUST have a `max_discount_amount` value**. But the Create Coupon form (line 163) labels this field as "Optional" and allows it to be left blank. When the admin submits without it, the database rejects the insert with:
 
-### Also Fix: `payment-engine/index.ts` refund-difference action (lines 571-590)
-
-The `refund-difference` action has the same pattern -- it fetches flat `base_price` to calculate refund amounts for removed services. If a tiered service like "Mount TV (2 TVs)" is removed, it would refund $90 instead of $170. Apply the same tiered-aware pricing logic here.
-
-The `authorize`, `recalculate`, `capture`, and `charge-difference` actions do NOT need changes -- they all use `getServicesTotal()` which reads from `booking_services` (already stored values), so fixing the storage in `create-guest-booking` fixes the entire downstream chain.
-
-## How Tiered Calculation Works Server-Side
-
-```text
-1. Fetch service record with pricing_config
-2. Check if pricing_config.pricing_type === 'tiered'
-3. If yes:
-   a. Extract TV count from service name: "Mount TV (2 TVs)" -> 2
-   b. Also check service.quantity from the frontend payload as fallback
-   c. Iterate through pricing_config.tiers:
-      - TV 1: find tier with quantity=1 -> $90
-      - TV 2: find tier with quantity=2 -> $80
-      - Total: $170
-   d. For quantities beyond defined tiers, use the tier marked is_default_for_additional
-4. If not tiered: use base_price (current behavior, unchanged)
+```
+"new row for relation "coupons" violates check constraint "percentage_has_max_discount""
 ```
 
-## Fallback Safety
+This is the exact error visible in the console logs right now.
 
-If the name regex fails or `pricing_config` is missing, the code falls back to `base_price` -- identical to today's behavior. No new failure modes are introduced.
+### Issue 2: NaN Warning in the Form
 
-## Steps
+When a number input is cleared (empty string), `parseFloat('')` returns `NaN`, which React passes as the input's `value` attribute, producing the console error:
 
-1. Update `create-guest-booking/index.ts` lines 148-167 to fetch `pricing_config` and calculate tiered prices
-2. Update `payment-engine/index.ts` lines 571-590 (refund-difference) with same tiered pricing awareness
-3. Redeploy both edge functions
-4. No database changes needed
-5. No frontend changes needed
+```
+Warning: Received NaN for the `value` attribute.
+```
 
-## What This Does NOT Do
+This affects `discount_value` and `min_order_amount` fields.
 
-- Does not touch Sterling Berkhalter's booking
-- Does not change any frontend code
-- Does not change how non-tiered services are priced
-- Does not affect the authorize/capture/recalculate actions (they read from booking_services which will now be correct)
+### Issue 3: Validation During Booking
+
+The `validate-coupon` edge function and `is_coupon_valid` database function are actually correct. The reason validation "doesn't work" during booking is simply that **no valid coupons can be created** due to Issue 1. The existing HERO10 coupon expired on 2025-11-15, so it fails the date check.
+
+---
+
+## The Fix
+
+### File 1: `src/components/admin/CreateCouponModal.tsx`
+
+**Change A - Make `max_discount_amount` required for percentage coupons:**
+- Remove the "Optional" placeholder when discount type is percentage
+- Add `required` attribute when discount type is percentage
+- Auto-set a sensible default or show a clear validation message
+- When switching from percentage to fixed, clear `max_discount_amount`
+
+**Change B - Fix NaN on empty number inputs:**
+- Guard all `parseFloat()` / `parseInt()` calls with fallback to 0 or undefined
+- For `discount_value`: `parseFloat(e.target.value) || 0`
+- For `min_order_amount`: `parseFloat(e.target.value) || 0`
+- For `max_discount_amount`: keep as `undefined` when empty (for fixed type), but require a value for percentage type
+
+**Change C - Add client-side validation before submit:**
+- If `discount_type === 'percentage'` and `max_discount_amount` is empty/undefined, show a toast error and prevent submission
+- Validate `discount_value > 0`
+- Validate `valid_until > valid_from` (mirrors DB constraint `valid_date_range`)
+
+**Change D - Add missing DialogDescription for accessibility:**
+- Fix the console warning: `Missing Description or aria-describedby for DialogContent`
+
+### No Edge Function or Database Changes Needed
+
+- The `validate-coupon` edge function is correct
+- The `is_coupon_valid` database function is correct
+- The CHECK constraints are sensible (percentage coupons SHOULD have a max cap)
+- The form just needs to enforce what the database already requires
+
+---
+
+## What This Fixes
+
+| Problem | Before | After |
+|---|---|---|
+| Creating percentage coupon | Fails silently with DB error | Form requires max discount amount, validates before submit |
+| NaN warning in console | Shows on every cleared number input | Properly handles empty inputs |
+| Coupon validation at booking | No valid coupons exist to test | Admin can create valid coupons, which then validate correctly at checkout |
+| Accessibility warning | Missing DialogDescription | Added proper description |
+
+## Files to Change
+
+| File | Change |
+|---|---|
+| `src/components/admin/CreateCouponModal.tsx` | Make max_discount_amount required for percentage type, fix NaN handling, add client-side validation, add DialogDescription |
 
