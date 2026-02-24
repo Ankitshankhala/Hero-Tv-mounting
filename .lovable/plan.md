@@ -1,108 +1,77 @@
 
-# Root Cause: The "Book Service" Button Delay
 
-## What's Causing the Delay
+# Fix: Server-Side Tiered Pricing in create-guest-booking
 
-The delay happens for two separate reasons that compound each other:
+## The Problem
 
-### Reason 1: Lazy Loading the Booking Modal (Primary Cause)
+The `create-guest-booking` edge function fetches only `base_price` from the `services` table (line 152) and uses it to override the frontend's calculated price. For tiered services like "Mount TV", the flat `base_price` is $90 (1 TV price), but 2 TVs should cost $170 ($90 + $80). The server blindly stores $90, and then the payment engine authorizes based on that incorrect stored value.
 
-In `src/pages/Index.tsx` (line 17), the entire `EnhancedInlineBookingFlow` component is loaded using `React.lazy()`:
+## What Changes
 
-```js
-const EnhancedInlineBookingFlow = lazy(() => import('@/components/EnhancedInlineBookingFlow'));
+**One file**: `supabase/functions/create-guest-booking/index.ts` (lines 148-167)
+
+### Current Code (Broken)
+```typescript
+const { data: officialServices } = await supabaseClient
+  .from('services')
+  .select('id, base_price')
+  .in('id', serviceIds);
+
+const priceMap = new Map(officialServices?.map(s => [s.id, Number(s.base_price)]) || []);
+
+const serviceInserts = services.map((service: any) => ({
+  booking_id: booking.id,
+  service_id: service.id,
+  service_name: service.name || 'Unknown Service',
+  base_price: priceMap.get(service.id) ?? service.price ?? 0,
+  quantity: service.quantity || 1,
+  configuration: service.options || {},
+}));
 ```
 
-This means **when the user clicks "Book Service", React must first download the JavaScript bundle for the entire booking flow over the network before anything appears on screen**. This is a large component that imports many sub-components (PaymentAuthorizationForm, ScheduleStep, ContactLocationStep, ServiceConfigurationStep, TipStep, BookingSuccessModal, etc.).
+### Fixed Code
+1. Fetch `pricing_config` alongside `base_price` from the `services` table
+2. For services with `pricing_type: 'tiered'`, extract the TV count from the service name (e.g., "Mount TV (2 TVs)") and calculate the correct tiered total using `pricing_config.tiers`
+3. For non-tiered services, continue using the flat `base_price` as before (no behavior change)
 
-The `EnhancedInlineBookingFlow` component is only mounted inside a `{showBookingFlow && ...}` conditional, so the `lazy()` import does not even begin downloading until the button is clicked.
+### Also Fix: `payment-engine/index.ts` refund-difference action (lines 571-590)
 
-While there is a prefetch strategy in `src/App.tsx` using `requestIdleCallback`, it only prefetches the ZIP index file — **it does NOT prefetch the `EnhancedInlineBookingFlow` bundle**. This means every user experiences a cold network load on click.
+The `refund-difference` action has the same pattern -- it fetches flat `base_price` to calculate refund amounts for removed services. If a tiered service like "Mount TV (2 TVs)" is removed, it would refund $90 instead of $170. Apply the same tiered-aware pricing logic here.
 
-### Reason 2: Session Storage Supabase Query on Every Mount
+The `authorize`, `recalculate`, `capture`, and `charge-difference` actions do NOT need changes -- they all use `getServicesTotal()` which reads from `booking_services` (already stored values), so fixing the storage in `create-guest-booking` fixes the entire downstream chain.
 
-Inside `EnhancedInlineBookingFlow.tsx` (lines 110–143), there is a `useState(() => {...})` initializer that immediately fires a Supabase query to check for a pending booking in sessionStorage. While this runs in the background, it adds latency on mount.
+## How Tiered Calculation Works Server-Side
 
-### Reason 3: useBookingFlowState Instantiates Three Heavy Hooks at Once
-
-When the modal mounts, `useBookingFlowState` is called which immediately instantiates:
-- `useBookingFormState` — state initialization
-- `useZctaWorkerAvailability` — sets up state and listeners
-- `useBookingOperations` — calls `useAuth()` and `useToast()`
-
-All of this happens synchronously before the user sees anything.
-
----
-
-## The Solution: Prefetch the Bundle When Cart Has Items
-
-The fix is **one targeted change in `src/pages/Index.tsx`**: trigger a background prefetch of the `EnhancedInlineBookingFlow` bundle as soon as the cart has at least one item. This way the JavaScript is downloaded in the background while the user is still browsing — not after they click the button.
-
-```
-User adds item to cart → Background download begins → User clicks "Book Service" → Modal opens instantly (already loaded)
+```text
+1. Fetch service record with pricing_config
+2. Check if pricing_config.pricing_type === 'tiered'
+3. If yes:
+   a. Extract TV count from service name: "Mount TV (2 TVs)" -> 2
+   b. Also check service.quantity from the frontend payload as fallback
+   c. Iterate through pricing_config.tiers:
+      - TV 1: find tier with quantity=1 -> $90
+      - TV 2: find tier with quantity=2 -> $80
+      - Total: $170
+   d. For quantities beyond defined tiers, use the tier marked is_default_for_additional
+4. If not tiered: use base_price (current behavior, unchanged)
 ```
 
-This eliminates the network delay entirely.
+## Fallback Safety
 
----
+If the name regex fails or `pricing_config` is missing, the code falls back to `base_price` -- identical to today's behavior. No new failure modes are introduced.
 
-## Technical Implementation
+## Steps
 
-### File to Change: `src/pages/Index.tsx`
+1. Update `create-guest-booking/index.ts` lines 148-167 to fetch `pricing_config` and calculate tiered prices
+2. Update `payment-engine/index.ts` lines 571-590 (refund-difference) with same tiered pricing awareness
+3. Redeploy both edge functions
+4. No database changes needed
+5. No frontend changes needed
 
-**Current code (line 17):**
-```js
-const EnhancedInlineBookingFlow = lazy(() => import('@/components/EnhancedInlineBookingFlow'));
-```
+## What This Does NOT Do
 
-**Change 1 — Add a `useEffect` prefetch triggered by cart items:**
+- Does not touch Sterling Berkhalter's booking
+- Does not change any frontend code
+- Does not change how non-tiered services are priced
+- Does not affect the authorize/capture/recalculate actions (they read from booking_services which will now be correct)
 
-After the `lazy()` declaration, add a `useEffect` inside the `Index` component that watches `cart.length`. When the cart gets its first item, it triggers a dynamic import as a background prefetch (not lazy — the result is discarded since the module gets cached by the browser/bundler automatically):
-
-```js
-// Inside the Index component, after the cart state:
-useEffect(() => {
-  if (cart.length > 0) {
-    // Prefetch the booking flow bundle in the background
-    // so it's ready instantly when user clicks "Book Service"
-    import('@/components/EnhancedInlineBookingFlow').catch(() => {});
-  }
-}, [cart.length > 0]); // Only trigger once when cart goes from empty to non-empty
-```
-
-This is safe because:
-- Module bundlers (Vite) cache the imported module — loading it twice is a no-op on the second call
-- The `lazy()` declaration still works for the `Suspense`/`fallback` machinery
-- The `catch(() => {})` silently ignores any prefetch failures (user still gets the regular lazy fallback)
-
-**Change 2 — Simplify the `useEffect` dependency to avoid re-running:**
-```js
-const cartHasItems = cart.length > 0;
-useEffect(() => {
-  if (cartHasItems) {
-    import('@/components/EnhancedInlineBookingFlow').catch(() => {});
-  }
-}, [cartHasItems]);
-```
-
----
-
-## Files to Change
-
-Only **one file** needs to change:
-
-| File | Change |
-|---|---|
-| `src/pages/Index.tsx` | Add a `useEffect` to prefetch `EnhancedInlineBookingFlow` when cart has items |
-
----
-
-## Expected Result
-
-| Scenario | Before Fix | After Fix |
-|---|---|---|
-| User clicks "Book Service" with cold cache | 1–4 second delay (network download) | Instant (already downloaded) |
-| User clicks "Book Service" with warm cache | ~200ms delay | Instant |
-| Users who never add to cart | No change | No change (prefetch doesn't run) |
-
-The `LazyLoader` spinner that shows during the Suspense fallback will effectively never be seen by real users since the bundle will already be in browser memory by the time they click.
