@@ -4,6 +4,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,7 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useCoupons } from '@/hooks/useCoupons';
+import { useToast } from '@/hooks/use-toast';
 import { Shuffle } from 'lucide-react';
 
 interface CreateCouponModalProps {
@@ -28,6 +30,7 @@ interface CreateCouponModalProps {
 
 export const CreateCouponModal = ({ open, onClose, onSuccess }: CreateCouponModalProps) => {
   const { createCoupon } = useCoupons();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     code: '',
@@ -42,6 +45,8 @@ export const CreateCouponModal = ({ open, onClose, onSuccess }: CreateCouponModa
     usage_limit_per_customer: 1,
   });
 
+  const isPercentage = formData.discount_type === 'percentage';
+
   const generateCode = () => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let code = '';
@@ -53,14 +58,28 @@ export const CreateCouponModal = ({ open, onClose, onSuccess }: CreateCouponModa
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    
+    // Client-side validation
+    if (formData.discount_value <= 0) {
+      toast({ title: 'Validation Error', description: 'Discount value must be greater than 0.', variant: 'destructive' });
+      return;
+    }
+    if (isPercentage && (formData.max_discount_amount === undefined || formData.max_discount_amount <= 0)) {
+      toast({ title: 'Validation Error', description: 'Max discount amount is required for percentage coupons.', variant: 'destructive' });
+      return;
+    }
+    if (!formData.valid_until || formData.valid_until <= formData.valid_from) {
+      toast({ title: 'Validation Error', description: 'Valid Until must be after Valid From.', variant: 'destructive' });
+      return;
+    }
 
+    setLoading(true);
     try {
       await createCoupon({
         code: formData.code.toUpperCase(),
         discount_type: formData.discount_type,
         discount_value: formData.discount_value,
-        max_discount_amount: formData.max_discount_amount,
+        max_discount_amount: isPercentage ? formData.max_discount_amount : undefined,
         min_order_amount: formData.min_order_amount,
         is_active: formData.is_active,
         valid_from: new Date(formData.valid_from).toISOString(),
@@ -71,8 +90,6 @@ export const CreateCouponModal = ({ open, onClose, onSuccess }: CreateCouponModa
       
       onSuccess();
       onClose();
-      
-      // Reset form
       setFormData({
         code: '',
         discount_type: 'percentage',
@@ -97,6 +114,7 @@ export const CreateCouponModal = ({ open, onClose, onSuccess }: CreateCouponModa
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New Coupon</DialogTitle>
+          <DialogDescription>Fill in the details below to create a new discount coupon.</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -125,7 +143,11 @@ export const CreateCouponModal = ({ open, onClose, onSuccess }: CreateCouponModa
               <Select
                 value={formData.discount_type}
                 onValueChange={(value: 'percentage' | 'fixed') =>
-                  setFormData({ ...formData, discount_type: value })
+                  setFormData({
+                    ...formData,
+                    discount_type: value,
+                    max_discount_amount: value === 'fixed' ? undefined : formData.max_discount_amount,
+                  })
                 }
               >
                 <SelectTrigger>
@@ -141,39 +163,40 @@ export const CreateCouponModal = ({ open, onClose, onSuccess }: CreateCouponModa
             {/* Discount Value */}
             <div>
               <Label htmlFor="discount_value">
-                Discount Value * {formData.discount_type === 'percentage' ? '(%)' : '($)'}
+                Discount Value * {isPercentage ? '(%)' : '($)'}
               </Label>
               <Input
                 id="discount_value"
                 type="number"
                 step="0.01"
                 min="0"
-                max={formData.discount_type === 'percentage' ? 100 : undefined}
-                value={formData.discount_value}
+                max={isPercentage ? 100 : undefined}
+                value={formData.discount_value || ''}
                 onChange={(e) =>
-                  setFormData({ ...formData, discount_value: parseFloat(e.target.value) })
+                  setFormData({ ...formData, discount_value: parseFloat(e.target.value) || 0 })
                 }
                 required
               />
             </div>
 
-            {/* Max Discount (for percentage) */}
-            {formData.discount_type === 'percentage' && (
+            {/* Max Discount (required for percentage) */}
+            {isPercentage && (
               <div>
-                <Label htmlFor="max_discount_amount">Max Discount Amount ($)</Label>
+                <Label htmlFor="max_discount_amount">Max Discount Amount ($) *</Label>
                 <Input
                   id="max_discount_amount"
                   type="number"
                   step="0.01"
-                  min="0"
-                  value={formData.max_discount_amount || ''}
+                  min="0.01"
+                  value={formData.max_discount_amount ?? ''}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      max_discount_amount: e.target.value ? parseFloat(e.target.value) : undefined,
+                      max_discount_amount: e.target.value ? parseFloat(e.target.value) || undefined : undefined,
                     })
                   }
-                  placeholder="Optional"
+                  placeholder="Required for percentage coupons"
+                  required
                 />
               </div>
             )}
@@ -186,9 +209,9 @@ export const CreateCouponModal = ({ open, onClose, onSuccess }: CreateCouponModa
                 type="number"
                 step="0.01"
                 min="0"
-                value={formData.min_order_amount}
+                value={formData.min_order_amount || ''}
                 onChange={(e) =>
-                  setFormData({ ...formData, min_order_amount: parseFloat(e.target.value) })
+                  setFormData({ ...formData, min_order_amount: parseFloat(e.target.value) || 0 })
                 }
               />
             </div>
@@ -224,11 +247,11 @@ export const CreateCouponModal = ({ open, onClose, onSuccess }: CreateCouponModa
                 id="usage_limit_total"
                 type="number"
                 min="1"
-                value={formData.usage_limit_total || ''}
+                value={formData.usage_limit_total ?? ''}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
-                    usage_limit_total: e.target.value ? parseInt(e.target.value) : undefined,
+                    usage_limit_total: e.target.value ? parseInt(e.target.value) || undefined : undefined,
                   })
                 }
                 placeholder="Unlimited"
@@ -242,9 +265,9 @@ export const CreateCouponModal = ({ open, onClose, onSuccess }: CreateCouponModa
                 id="usage_limit_per_customer"
                 type="number"
                 min="1"
-                value={formData.usage_limit_per_customer}
+                value={formData.usage_limit_per_customer || ''}
                 onChange={(e) =>
-                  setFormData({ ...formData, usage_limit_per_customer: parseInt(e.target.value) })
+                  setFormData({ ...formData, usage_limit_per_customer: parseInt(e.target.value) || 1 })
                 }
                 required
               />
