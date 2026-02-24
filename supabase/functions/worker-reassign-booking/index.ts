@@ -90,6 +90,16 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error('Cannot reassign completed or cancelled bookings');
     }
 
+    // Check payment authorization expiry (7-day Stripe window)
+    const authCreatedAt = new Date(booking.created_at);
+    const now = new Date();
+    const daysSinceAuth = (now.getTime() - authCreatedAt.getTime()) / (1000 * 60 * 60 * 24);
+    const paymentExpired = booking.payment_status === 'authorized' && daysSinceAuth > 7;
+
+    if (paymentExpired) {
+      console.log(`Payment authorization expired for booking ${requestData.bookingId} (${daysSinceAuth.toFixed(1)} days old)`);
+    }
+
     // Validate new worker exists and is active
     const { data: newWorker, error: workerError } = await supabase
       .from('users')
@@ -103,13 +113,20 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error('New worker not found or inactive');
     }
 
+    // Build update fields
+    const updateFields: Record<string, unknown> = {
+      worker_id: requestData.newWorkerId,
+      status: 'confirmed',
+    };
+
+    if (paymentExpired) {
+      updateFields.requires_manual_payment = true;
+    }
+
     // Update booking
     const { error: updateError } = await supabase
       .from('bookings')
-      .update({ 
-        worker_id: requestData.newWorkerId,
-        status: 'confirmed'
-      })
+      .update(updateFields)
       .eq('id', requestData.bookingId);
 
     if (updateError) {
@@ -143,7 +160,9 @@ const handler = async (req: Request): Promise<Response> => {
         details: {
           old_worker_id: booking.worker_id,
           new_worker_id: requestData.newWorkerId,
-          reason: requestData.reason || 'No reason provided'
+          reason: requestData.reason || 'No reason provided',
+          payment_expired: paymentExpired,
+          days_since_authorization: Math.round(daysSinceAuth),
         }
       });
 
@@ -179,15 +198,16 @@ const handler = async (req: Request): Promise<Response> => {
       }
       
       console.log('Reassignment notifications sent successfully');
-    } catch (emailError) {
+    } catch (emailError: unknown) {
       console.error('Email notification failed:', emailError);
+      const errorMsg = emailError instanceof Error ? emailError.message : 'Unknown email error';
       // Log but don't fail - reassignment succeeded even if emails failed
       await supabase.from('sms_logs').insert({
         booking_id: requestData.bookingId,
         recipient_number: 'system',
         message: 'Reassignment email notification failed',
         status: 'failed',
-        error_message: emailError.message
+        error_message: errorMsg
       });
     }
 
@@ -196,17 +216,19 @@ const handler = async (req: Request): Promise<Response> => {
       success: true,
       bookingId: requestData.bookingId,
       newWorkerId: requestData.newWorkerId,
-      newWorkerName: newWorker.name
+      newWorkerName: newWorker.name,
+      paymentExpired,
     }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error in worker reassign booking:", error);
+    const errorMsg = error instanceof Error ? error.message : 'Reassignment failed';
     
     return new Response(JSON.stringify({ 
-      error: error.message || 'Reassignment failed' 
+      error: errorMsg
     }), {
       status: 500,
       headers: { "Content-Type": "application/json", ...corsHeaders },
