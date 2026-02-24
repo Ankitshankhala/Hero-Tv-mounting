@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/select';
 
 export const CouponsManager = () => {
-  const { coupons, loading, toggleCouponStatus, deleteCoupon, fetchCouponAnalytics } = useCoupons();
+  const { coupons, loading, fetchCoupons, toggleCouponStatus, deleteCoupon, fetchCouponAnalytics } = useCoupons();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'expired'>('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -264,7 +264,7 @@ export const CouponsManager = () => {
       <CreateCouponModal
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        onSuccess={loadAnalytics}
+        onSuccess={() => { fetchCoupons(); loadAnalytics(); }}
       />
 
       {selectedCoupon && (
@@ -276,7 +276,7 @@ export const CouponsManager = () => {
               setSelectedCoupon(null);
             }}
             coupon={selectedCoupon}
-            onSuccess={loadAnalytics}
+            onSuccess={() => { fetchCoupons(); loadAnalytics(); }}
           />
 
           <CouponUsageModal
