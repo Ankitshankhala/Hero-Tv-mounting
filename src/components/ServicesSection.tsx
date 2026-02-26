@@ -10,23 +10,55 @@ interface ServicesSectionProps {
 
 const getServiceImage = (serviceName: string): string => {
   const imageMap: { [key: string]: string } = {
+    // TV Mounting
     'Mount TV': '/lovable-uploads/9b4cf239-a12b-4275-9ca2-a4abafb59c40.png',
     'TV Mounting': '/lovable-uploads/9b4cf239-a12b-4275-9ca2-a4abafb59c40.png',
+    'TV Wall Mounting': '/lovable-uploads/9b4cf239-a12b-4275-9ca2-a4abafb59c40.png',
+    'Dismount TV': '/lovable-uploads/9b4cf239-a12b-4275-9ca2-a4abafb59c40.png',
+    'Transport TV': '/lovable-uploads/9b4cf239-a12b-4275-9ca2-a4abafb59c40.png',
+    'Supersize TV': '/lovable-uploads/9b4cf239-a12b-4275-9ca2-a4abafb59c40.png',
+    'Supersize TV With Crew': '/lovable-uploads/9b4cf239-a12b-4275-9ca2-a4abafb59c40.png',
+    // Mounts
     'Full Motion Mount': '/lovable-uploads/77f65da7-38bc-4d01-afdd-bb998049c77b.png',
+    'Buy Full Motion Mount (Living Room)': '/lovable-uploads/77f65da7-38bc-4d01-afdd-bb998049c77b.png',
     'Flat Mount': '/lovable-uploads/4a49b814-b16a-4daf-aa91-3a52fcbb5fae.png',
+    'Buy Flat Tilt Mount (Bedroom)': '/lovable-uploads/4a49b814-b16a-4daf-aa91-3a52fcbb5fae.png',
+    // Cable Concealment
     'Cover Cables': '/lovable-uploads/6889f051-f5b1-4f2a-a093-a09693378bd4.png',
     'Cable Concealment': '/lovable-uploads/6889f051-f5b1-4f2a-a093-a09693378bd4.png',
+    'Cable Management': '/lovable-uploads/6889f051-f5b1-4f2a-a093-a09693378bd4.png',
     'Simple Cable Concealment': '/lovable-uploads/cf56b4f9-cc16-4662-ba09-6186268ae1a0.png',
     'In-Wall Cable Concealment': '/lovable-uploads/cf56b4f9-cc16-4662-ba09-6186268ae1a0.png',
     'Fire Safe Cable Concealment': '/lovable-uploads/ebfd43c9-5c9d-4d15-b395-a22f44063cb6.png',
+    'In-Wall Fire Safe Cable Concealment': '/lovable-uploads/ebfd43c9-5c9d-4d15-b395-a22f44063cb6.png',
+    // General Mounting & Misc
     'General Mounting': '/lovable-uploads/a5b8dff7-04c1-4590-a491-0d8a7f9d004c.png',
-    'Furniture Assembly': '/lovable-uploads/fe916134-126d-4cff-aefa-608f842b536a.png',
-    'Hire Second Technician': '/lovable-uploads/f430204b-2ef5-4727-b3ee-7f4d9d26ded4.png',
-    'Dismount TV': '/lovable-uploads/9b4cf239-a12b-4275-9ca2-a4abafb59c40.png',
+    'General Mounting 15 Minutes (Worker Only)': '/lovable-uploads/a5b8dff7-04c1-4590-a491-0d8a7f9d004c.png',
     'Shelf Mounting': '/lovable-uploads/a5b8dff7-04c1-4590-a491-0d8a7f9d004c.png',
-    'Soundbar Installation': '/lovable-uploads/a5b8dff7-04c1-4590-a491-0d8a7f9d004c.png',
     'Mirror Mounting': '/lovable-uploads/a5b8dff7-04c1-4590-a491-0d8a7f9d004c.png',
     'Art Hanging': '/lovable-uploads/a5b8dff7-04c1-4590-a491-0d8a7f9d004c.png',
+    'Move Outlet': '/lovable-uploads/a5b8dff7-04c1-4590-a491-0d8a7f9d004c.png',
+    'Custom Lighting': '/lovable-uploads/a5b8dff7-04c1-4590-a491-0d8a7f9d004c.png',
+    'Luxury Accent Wall': '/lovable-uploads/a5b8dff7-04c1-4590-a491-0d8a7f9d004c.png',
+    'Luxury Deck': '/lovable-uploads/a5b8dff7-04c1-4590-a491-0d8a7f9d004c.png',
+    'Luxury Garden': '/lovable-uploads/a5b8dff7-04c1-4590-a491-0d8a7f9d004c.png',
+    // Soundbar
+    'Soundbar Installation': '/lovable-uploads/a5b8dff7-04c1-4590-a491-0d8a7f9d004c.png',
+    'Mount Soundbar': '/lovable-uploads/a5b8dff7-04c1-4590-a491-0d8a7f9d004c.png',
+    'Mount Soundbar (Worker Only)': '/lovable-uploads/a5b8dff7-04c1-4590-a491-0d8a7f9d004c.png',
+    // Furniture
+    'Furniture Assembly': '/lovable-uploads/fe916134-126d-4cff-aefa-608f842b536a.png',
+    'Furniture Assembly 15 Minutes (Worker Only)': '/lovable-uploads/fe916134-126d-4cff-aefa-608f842b536a.png',
+    // People / Add-ons
+    'Hire Second Technician': '/lovable-uploads/f430204b-2ef5-4727-b3ee-7f4d9d26ded4.png',
+    // Worker-only modifiers
+    'Over 65" Modifier (Worker Only)': '/lovable-uploads/9b4cf239-a12b-4275-9ca2-a4abafb59c40.png',
+    'Frame TV Modifier (Worker Only)': '/lovable-uploads/9b4cf239-a12b-4275-9ca2-a4abafb59c40.png',
+    'Steel Studs Modifier (Worker Only)': '/lovable-uploads/a5b8dff7-04c1-4590-a491-0d8a7f9d004c.png',
+    'HDMI Cable (Worker Only)': '/lovable-uploads/6889f051-f5b1-4f2a-a093-a09693378bd4.png',
+    "6' Extension Cord (Worker Only)": '/lovable-uploads/6889f051-f5b1-4f2a-a093-a09693378bd4.png',
+    'Toggle Bolt (Worker Only)': '/lovable-uploads/a5b8dff7-04c1-4590-a491-0d8a7f9d004c.png',
+    'Extra Charge (Worker Only)': '/lovable-uploads/a5b8dff7-04c1-4590-a491-0d8a7f9d004c.png',
   };
   
   return imageMap[serviceName] || '/lovable-uploads/885a4cd2-a143-4e2e-b07c-e10030eb73c1.png';
