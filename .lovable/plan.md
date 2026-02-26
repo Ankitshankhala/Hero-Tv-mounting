@@ -1,61 +1,44 @@
 
 
-# Fix: Service Images Not Displaying Due to Auth Refresh Loop
+# Speed Up Services Loading & Remove Dark Image Overlay
 
-## Root Cause
+## Changes
 
-The browser has a **stale/expired Supabase refresh token** (`j4xsmgyp2vd6`) that is stuck in an infinite retry loop. Every ~10 seconds, the Supabase auth client tries to refresh this token and fails with "Failed to fetch." This has two cascading effects:
+### 1. Remove the dark gradient overlay from service card images
+**File: `src/components/ServiceCard.tsx`** (line 52)
 
-1. **Services data falls back to hardcoded data** -- The `ServicesCacheContext` correctly loads fallback services from `fallbackServices.ts`, so service cards still appear.
-2. **Image URLs point to Supabase storage** -- The fallback data contains `image_url` values like `https://ggvplltpwsnvtcbpazbe.supabase.co/storage/v1/object/public/service-images/...`. These also fail to load because the network/auth is broken.
-3. **onError fallback fires but coverage is incomplete** -- The `ServiceCard` has an `onError` handler that swaps to local `/lovable-uploads/` images via `getServiceImage()`. However, this map only covers 17 service names. Many services in the fallback data (e.g., "Buy Full Motion Mount (Living Room)", "Custom Lighting", "Luxury Accent Wall", "Luxury Deck", "Luxury Garden", "Transport TV", "Move Outlet", etc.) have no local mapping and fall through to a single generic placeholder.
+The line `<div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent" />` places a dark gradient over every service image, making them hard to see. This will be removed entirely so images display clearly.
 
-## Why Images Were Previously Visible
+### 2. Switch images from lazy to eager loading
+**File: `src/components/ServiceCard.tsx`** (line 43)
 
-When the Supabase connection was healthy, the app fetched services from the database and loaded images directly from Supabase storage -- both worked fine. The auth token refresh loop (likely caused by a corrupted browser session) broke ALL requests to Supabase simultaneously.
+The `loading="lazy"` attribute delays image rendering until the user scrolls near them. Since the Services section is prominently visible on the homepage, changing this to `loading="eager"` (or removing the attribute) ensures images load immediately with the page.
 
-## Solution
+### 3. Set loading state to false immediately when fallback data is available
+**File: `src/contexts/ServicesCacheContext.tsx`** (line 83)
 
-### 1. Add auth session recovery to prevent infinite refresh loops
-**File: `src/integrations/supabase/client.ts`**
+Currently `isLoading` starts as `true`, which causes the skeleton loader to flash briefly even though fallback data is already loaded in the initial state (line 78-82). Changing the initial state to `false` when cache/fallback data exists eliminates the skeleton flash entirely -- services render instantly.
 
-Add an `onAuthStateChange` listener that detects repeated token refresh failures and automatically signs out to break the loop. This allows the app to make anonymous requests (services are public via anon key and RLS policies).
+```
+Change line 83 from:
+  const [isLoading, setIsLoading] = useState(true);
+To:
+  const [isLoading, setIsLoading] = useState(() => {
+    const cached = readCache();
+    return !cached?.services && getFallbackServicesArray().length === 0;
+  });
+```
 
-### 2. Expand `getServiceImage()` to cover ALL fallback service names
-**File: `src/components/ServicesSection.tsx`**
+This means:
+- If localStorage cache exists: no loading state, instant render
+- If fallback data exists (always does): no loading state, instant render
+- Fresh data still loads in the background and swaps in silently
 
-Add local image mappings for every visible service in `fallbackServices.ts` that currently has no mapping. This ensures that when remote images fail, every card shows an appropriate local image instead of a generic placeholder.
+## Summary
 
-New mappings to add:
-- "Buy Full Motion Mount (Living Room)" -- use full-motion mount image
-- "Buy Flat Tilt Mount (Bedroom)" -- use flat mount image
-- "In-Wall Fire Safe Cable Concealment" -- use fire safe cable image
-- "Custom Lighting" -- use general mounting image (closest match)
-- "Luxury Accent Wall" -- use general mounting image
-- "Luxury Deck" -- use general mounting image
-- "Luxury Garden" -- use general mounting image
-- "Distant Address Fee" -- use generic placeholder
-- "Transport TV" -- use TV mounting image
-- "Move Outlet" -- use general mounting image
-- "Mount Soundbar" / "Mount Soundbar (Worker Only)" -- use general mounting image
-- "General Mounting 15 Minutes (Worker Only)" -- use general mounting image
-- "Furniture Assembly 15 Minutes (Worker Only)" -- use furniture assembly image
-- All other "Worker Only" services -- use appropriate category images
-- "Supersize TV" / "Supersize TV With Crew" -- use TV mounting image
-
-### 3. Immediate user action: Clear stale browser session
-The user should clear their browser's localStorage for the site (or open in incognito) to immediately resolve the auth loop. The code fix in step 1 will prevent this from happening again.
-
-## Technical Summary
-
-| File | Change |
+| Change | Effect |
 |---|---|
-| `src/integrations/supabase/client.ts` | Add auth error detection to auto-signout on repeated refresh failures |
-| `src/components/ServicesSection.tsx` | Expand `getServiceImage()` to cover all 30+ visible service names |
-
-## Result
-- The auth refresh loop will self-heal by signing out stale sessions
-- Anonymous requests will succeed for public data (services, images)
-- All service cards will have proper local fallback images
-- No database or edge function changes needed
+| Remove dark gradient overlay | Images are clear and easy to see |
+| Change `loading="lazy"` to `loading="eager"` | Images load immediately, no scroll-triggered delay |
+| Initialize `isLoading` as `false` when data exists | No skeleton flash, services appear instantly |
 
