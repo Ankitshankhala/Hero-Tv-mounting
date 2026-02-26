@@ -1,130 +1,69 @@
 
 
-# Fix: Worker Reassign Job Black Screen
+# Fix: "Unable to Load Services" Error
 
-## Root Cause Analysis
+## Root Cause
 
-There are **two distinct bugs** causing problems:
+The Supabase client is experiencing **auth token lock timeouts** (visible in console: `lock:sb-ggvplltpwsnvtcbpazbe-auth-token timed out waiting 10000ms`). When this happens, ALL Supabase requests fail with "Failed to fetch", including the public services query. After 3 retries (with exponential backoff), the `usePublicServicesData` hook gives up and shows the "Unable to Load Services" error screen.
 
-### Bug 1: Black Screen Crash (UI)
+The services data is fine in the database (20 services exist, RLS policies are correct for public read). This is a **client-side network/auth issue**, not a data issue.
 
-In `ReassignJobModal.tsx` line 150, when no eligible workers are found:
+## The Problem
 
-```tsx
-<SelectItem value="" disabled>
-  No eligible workers found
-</SelectItem>
-```
-
-**Radix UI Select crashes when a `SelectItem` has an empty string `value=""`**. This is a known Radix UI bug -- it throws an unrecoverable React render error, which kills the entire component tree and produces a black/white screen. There is no error boundary wrapping this modal, so the crash propagates to the entire page.
-
-### Bug 2: No Payment Authorization Check (Backend)
-
-The `worker-reassign-booking` edge function reassigns bookings without checking the payment authorization status. Stripe payment authorizations expire after **7 days**. If a worker tries to reassign a booking where the authorization has expired, the reassignment succeeds in the database but the new worker inherits a booking with a dead payment -- they cannot capture payment later, causing financial issues.
-
----
+`usePublicServicesData` (used by `ServicesSection`) has **zero fallback** -- when network fails, users see a dead page. Meanwhile, `ServicesCacheContext` already has fallback data from `fallbackServices.ts`, but it's not being used by the services display.
 
 ## The Fix
 
-### File 1: `src/components/worker/ReassignJobModal.tsx`
+### 1. Add fallback services to `usePublicServicesData` hook
 
-**Change A - Fix the crash on empty worker list:**
-- Replace the `SelectItem value=""` with a plain `<div>` message inside `SelectContent` when no workers are found
-- Radix Select only crashes when `SelectItem` has invalid/empty values
+**File: `src/hooks/usePublicServicesData.tsx`**
 
-**Change B - Add error boundary safety:**
-- Wrap the entire `handleReassign` function in proper try/catch (already exists but needs tightening)
-- Add `DialogDescription` for accessibility (missing, causes console warning)
+When all retries are exhausted, instead of showing an error with empty services, fall back to the cached/hardcoded services data from `ServicesCacheContext` or `fallbackServices.ts`. This ensures users always see services even when the network is down.
 
-**Change C - Show payment authorization warning:**
-- After fetching the booking in the eligible-workers call, check if payment authorization might be expired (booking created more than 7 days ago with `payment_status === 'authorized'`)
-- Show a warning banner in the modal: "Payment authorization may have expired for this booking. The new worker may need to collect payment manually."
+Changes:
+- Import `getFallbackServicesArray` from `@/constants/fallbackServices`
+- In the error handler (after all retries exhausted), check localStorage cache first, then use hardcoded fallbacks
+- Set services to fallback data instead of empty array
+- Change the error state to a warning (services shown but may be stale) instead of a blocking error
 
-### File 2: `supabase/functions/worker-reassign-booking/index.ts`
+### 2. Use `ServicesCacheContext` in `ServicesSection` as primary source
 
-**Change A - Add payment authorization expiry check:**
-- After fetching the booking (line 73), check if the booking has `payment_status === 'authorized'` and the authorization is older than 7 days
-- If expired, set `requires_manual_payment = true` on the booking after reassignment so the new worker and admin know
-- Add the expiry status to the audit log details
-- Return `paymentExpired: true` in the response so the UI can inform the worker
+**File: `src/components/ServicesSection.tsx`**
 
-**Change B - Fix the `sms_logs` insert in the error handler (line 185-191):**
-- The `sms_logs` table has a `status` column of type `USER-DEFINED` (enum), and `'failed'` may need to match the enum exactly
-- Also, `emailError.message` on line 190 might be undefined if `emailError` is not an Error instance -- guard with optional chaining
+Instead of using `usePublicServicesData` (which fetches independently), use the `useServicesCache` hook from `ServicesCacheContext`. This context:
+- Initializes immediately from localStorage cache or fallback data
+- Fetches fresh data in the background
+- Has real-time subscription for updates
+- Never shows an empty/error state on first load
 
-### File 3: `src/components/worker/JobActions.tsx`
+Changes:
+- Replace `usePublicServicesData()` with `useServicesCache()` 
+- Use `publicServices` from the cache context (already filtered by `is_visible`)
+- Remove redundant error/retry UI since cache always has data
+- Keep the loading skeleton only for the brief moment before cache initializes (rare)
 
-**No changes needed.** The modal is already wrapped in state-controlled rendering. The crash comes from inside the modal's Radix Select component, which is fixed in File 1.
+### 3. Improve Supabase client auth resilience
 
----
+**File: `src/integrations/supabase/client.ts`**
+
+Add auth configuration to reduce lock timeout issues:
+- Set `lock` timeout to a shorter value
+- Add `persistSession: true` and `detectSessionInUrl: true` explicitly
+- Set `flowType: 'pkce'` for better auth handling
 
 ## Technical Details
 
-### SelectItem Fix (File 1, line 148-159)
-
-```text
-BEFORE:
-  {workers.length === 0 && !fetchingWorkers ? (
-    <SelectItem value="" disabled>
-      No eligible workers found
-    </SelectItem>
-  ) : ( ... )}
-
-AFTER:
-  {workers.length === 0 && !fetchingWorkers ? (
-    <div className="py-2 px-3 text-sm text-muted-foreground">
-      No eligible workers found
-    </div>
-  ) : ( ... )}
-```
-
-### Payment Expiry Check (File 2, after line 91)
-
-```text
-Add after booking status validation:
-
-  // Check payment authorization expiry (7-day window)
-  const authCreatedAt = new Date(booking.created_at);
-  const now = new Date();
-  const daysSinceAuth = (now.getTime() - authCreatedAt.getTime()) / (1000 * 60 * 60 * 24);
-  const paymentExpired = booking.payment_status === 'authorized' && daysSinceAuth > 7;
-
-  // If payment is expired, flag the booking for manual payment
-  if (paymentExpired) {
-    updateFields.requires_manual_payment = true;
-  }
-```
-
-### Response Enhancement (File 2, line 195-202)
-
-```text
-Add paymentExpired flag to the success response so the UI can display
-an appropriate warning to the worker about needing manual payment collection.
-```
-
-### Modal Warning (File 1)
-
-```text
-When the reassignment response returns paymentExpired: true, show a toast warning:
-"Booking reassigned, but payment authorization has expired. 
- The new worker will need to collect payment manually."
-```
-
----
-
-## What This Fixes
-
-| Problem | Before | After |
-|---|---|---|
-| Black screen on reassign | Radix Select crashes on empty value | Uses plain div for empty state |
-| Expired payment auth | Silently reassigns with dead payment | Flags booking and warns worker |
-| Console accessibility warning | Missing DialogDescription | Added |
-| sms_logs error logging | Could fail on undefined message | Properly guarded |
-
-## Files to Change
-
 | File | Change |
 |---|---|
-| `src/components/worker/ReassignJobModal.tsx` | Fix SelectItem crash, add DialogDescription, show payment expiry warning |
-| `supabase/functions/worker-reassign-booking/index.ts` | Add 7-day payment auth check, flag `requires_manual_payment`, fix sms_logs error handler |
+| `src/components/ServicesSection.tsx` | Switch from `usePublicServicesData` to `useServicesCache` for fallback-aware data |
+| `src/hooks/usePublicServicesData.tsx` | Add fallback services when all retries fail instead of empty array |
+| `src/integrations/supabase/client.ts` | Add auth config to reduce lock timeout issues |
+
+## Impact
+
+- Users will **always** see services on the homepage, even with network issues
+- Fallback data may be slightly stale but services/prices rarely change
+- No database changes needed
+- No edge function changes needed
+- The "Unable to Load Services" error screen will only appear if both network AND cache AND fallback all fail (virtually impossible)
 
