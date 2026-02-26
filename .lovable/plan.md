@@ -1,49 +1,61 @@
 
 
-# Fix: Service Card Images Not Loading
+# Fix: Service Images Not Displaying Due to Auth Refresh Loop
 
-## Problem
-When Supabase API requests fail (network issues, auth lock timeouts), the app correctly falls back to hardcoded service data. However, that fallback data contains Supabase **storage URLs** for images, which also fail to load when the network is down. The local `/lovable-uploads/` images (which would work offline) are never used because the fallback `image_url` field is not null.
+## Root Cause
+
+The browser has a **stale/expired Supabase refresh token** (`j4xsmgyp2vd6`) that is stuck in an infinite retry loop. Every ~10 seconds, the Supabase auth client tries to refresh this token and fails with "Failed to fetch." This has two cascading effects:
+
+1. **Services data falls back to hardcoded data** -- The `ServicesCacheContext` correctly loads fallback services from `fallbackServices.ts`, so service cards still appear.
+2. **Image URLs point to Supabase storage** -- The fallback data contains `image_url` values like `https://ggvplltpwsnvtcbpazbe.supabase.co/storage/v1/object/public/service-images/...`. These also fail to load because the network/auth is broken.
+3. **onError fallback fires but coverage is incomplete** -- The `ServiceCard` has an `onError` handler that swaps to local `/lovable-uploads/` images via `getServiceImage()`. However, this map only covers 17 service names. Many services in the fallback data (e.g., "Buy Full Motion Mount (Living Room)", "Custom Lighting", "Luxury Accent Wall", "Luxury Deck", "Luxury Garden", "Transport TV", "Move Outlet", etc.) have no local mapping and fall through to a single generic placeholder.
+
+## Why Images Were Previously Visible
+
+When the Supabase connection was healthy, the app fetched services from the database and loaded images directly from Supabase storage -- both worked fine. The auth token refresh loop (likely caused by a corrupted browser session) broke ALL requests to Supabase simultaneously.
 
 ## Solution
 
-### 1. Add image error fallback in ServiceCard component
-**File: `src/components/ServiceCard.tsx`**
+### 1. Add auth session recovery to prevent infinite refresh loops
+**File: `src/integrations/supabase/client.ts`**
 
-Add an `onError` handler to the `<img>` tag that swaps to a local fallback image when the remote URL fails to load. This is the most robust fix since it handles ANY image loading failure regardless of cause.
+Add an `onAuthStateChange` listener that detects repeated token refresh failures and automatically signs out to break the loop. This allows the app to make anonymous requests (services are public via anon key and RLS policies).
 
-Changes:
-- Add `onError` handler on the `<img>` element
-- When the remote image fails, replace `src` with a default local placeholder image (`/lovable-uploads/885a4cd2-a143-4e2e-b07c-e10030eb73c1.png`)
-
-### 2. Expand `getServiceImage()` to cover all visible services
+### 2. Expand `getServiceImage()` to cover ALL fallback service names
 **File: `src/components/ServicesSection.tsx`**
 
-The current `getServiceImage()` only maps 9 service names to local images. Many visible services (like "Cable Concealment", "In-Wall Cable Concealment", "Dismount TV", etc.) have no local mapping. Update the map to include all visible services, so when remote images fail, every service has a meaningful local fallback.
+Add local image mappings for every visible service in `fallbackServices.ts` that currently has no mapping. This ensures that when remote images fail, every card shows an appropriate local image instead of a generic placeholder.
 
-Changes:
-- Add local image mappings for all visible services that currently fall through to the generic placeholder
-- Pass `getServiceImage(service.name)` as a `fallbackImage` prop to `ServiceCard`
+New mappings to add:
+- "Buy Full Motion Mount (Living Room)" -- use full-motion mount image
+- "Buy Flat Tilt Mount (Bedroom)" -- use flat mount image
+- "In-Wall Fire Safe Cable Concealment" -- use fire safe cable image
+- "Custom Lighting" -- use general mounting image (closest match)
+- "Luxury Accent Wall" -- use general mounting image
+- "Luxury Deck" -- use general mounting image
+- "Luxury Garden" -- use general mounting image
+- "Distant Address Fee" -- use generic placeholder
+- "Transport TV" -- use TV mounting image
+- "Move Outlet" -- use general mounting image
+- "Mount Soundbar" / "Mount Soundbar (Worker Only)" -- use general mounting image
+- "General Mounting 15 Minutes (Worker Only)" -- use general mounting image
+- "Furniture Assembly 15 Minutes (Worker Only)" -- use furniture assembly image
+- All other "Worker Only" services -- use appropriate category images
+- "Supersize TV" / "Supersize TV With Crew" -- use TV mounting image
 
-### 3. Update ServiceCard to accept a fallback image prop
-**File: `src/components/ServiceCard.tsx`**
-
-Add an optional `fallbackImage` prop so each card knows which local image to use when the primary `image` URL fails.
-
-Changes:
-- Add `fallbackImage?: string` to the props interface
-- In the `onError` handler, use `fallbackImage` if provided, otherwise use the generic placeholder
+### 3. Immediate user action: Clear stale browser session
+The user should clear their browser's localStorage for the site (or open in incognito) to immediately resolve the auth loop. The code fix in step 1 will prevent this from happening again.
 
 ## Technical Summary
 
 | File | Change |
 |---|---|
-| `src/components/ServiceCard.tsx` | Add `onError` image handler + `fallbackImage` prop |
-| `src/components/ServicesSection.tsx` | Pass local fallback image to each ServiceCard |
+| `src/integrations/supabase/client.ts` | Add auth error detection to auto-signout on repeated refresh failures |
+| `src/components/ServicesSection.tsx` | Expand `getServiceImage()` to cover all 30+ visible service names |
 
 ## Result
-- Images always display, even during network failures
-- Remote Supabase storage images load when network is available
-- Local `/lovable-uploads/` images serve as automatic fallback when remote fails
-- No layout shift or blank cards
+- The auth refresh loop will self-heal by signing out stale sessions
+- Anonymous requests will succeed for public data (services, images)
+- All service cards will have proper local fallback images
+- No database or edge function changes needed
 
