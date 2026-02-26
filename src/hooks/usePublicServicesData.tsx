@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { logger, measurePerformance } from '@/utils/logger';
+import { getFallbackServicesArray } from '@/constants/fallbackServices';
 
 export interface PublicService {
   id: string;
@@ -122,7 +123,43 @@ export const usePublicServicesData = () => {
           fetchServices(attempt + 1);
         }, retryDelay);
       } else {
-        // All retries exhausted
+        // All retries exhausted - use fallback data instead of showing error
+        logger.dev('[SERVICES] All retries exhausted, using fallback data');
+        
+        // Try localStorage cache first
+        try {
+          const cached = localStorage.getItem('services_cache_v1');
+          if (cached) {
+            const cacheData = JSON.parse(cached);
+            if (cacheData?.services?.length > 0) {
+              const visibleServices = cacheData.services.filter((s: any) => s.is_visible);
+              setServices(visibleServices as PublicService[]);
+              setLoading(false);
+              setError(null);
+              return;
+            }
+          }
+        } catch { /* ignore */ }
+
+        // Fall back to hardcoded services
+        const fallback = getFallbackServicesArray();
+        if (fallback.length > 0) {
+          setServices(fallback.map(s => ({
+            id: s.id,
+            name: s.name,
+            description: s.description ?? null,
+            base_price: s.base_price ?? 0,
+            duration_minutes: s.duration_minutes ?? 0,
+            image_url: s.image_url ?? null,
+            sort_order: s.sort_order ?? 0,
+            pricing_config: s.pricing_config ?? null,
+          })) as PublicService[]);
+          setLoading(false);
+          setError(null);
+          return;
+        }
+
+        // Only show error if no fallback available at all
         const finalError = new Error(
           isTimeout 
             ? 'Service loading timeout. Please check your connection.' 
@@ -131,7 +168,7 @@ export const usePublicServicesData = () => {
         
         setError(finalError);
         setLoading(false);
-        setServices([]); // Explicit empty state
+        setServices([]);
         
         toast({
           title: "Unable to Load Services",
