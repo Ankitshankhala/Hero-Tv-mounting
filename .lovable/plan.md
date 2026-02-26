@@ -1,69 +1,49 @@
 
 
-# Fix: "Unable to Load Services" Error
+# Fix: Service Card Images Not Loading
 
-## Root Cause
+## Problem
+When Supabase API requests fail (network issues, auth lock timeouts), the app correctly falls back to hardcoded service data. However, that fallback data contains Supabase **storage URLs** for images, which also fail to load when the network is down. The local `/lovable-uploads/` images (which would work offline) are never used because the fallback `image_url` field is not null.
 
-The Supabase client is experiencing **auth token lock timeouts** (visible in console: `lock:sb-ggvplltpwsnvtcbpazbe-auth-token timed out waiting 10000ms`). When this happens, ALL Supabase requests fail with "Failed to fetch", including the public services query. After 3 retries (with exponential backoff), the `usePublicServicesData` hook gives up and shows the "Unable to Load Services" error screen.
+## Solution
 
-The services data is fine in the database (20 services exist, RLS policies are correct for public read). This is a **client-side network/auth issue**, not a data issue.
+### 1. Add image error fallback in ServiceCard component
+**File: `src/components/ServiceCard.tsx`**
 
-## The Problem
-
-`usePublicServicesData` (used by `ServicesSection`) has **zero fallback** -- when network fails, users see a dead page. Meanwhile, `ServicesCacheContext` already has fallback data from `fallbackServices.ts`, but it's not being used by the services display.
-
-## The Fix
-
-### 1. Add fallback services to `usePublicServicesData` hook
-
-**File: `src/hooks/usePublicServicesData.tsx`**
-
-When all retries are exhausted, instead of showing an error with empty services, fall back to the cached/hardcoded services data from `ServicesCacheContext` or `fallbackServices.ts`. This ensures users always see services even when the network is down.
+Add an `onError` handler to the `<img>` tag that swaps to a local fallback image when the remote URL fails to load. This is the most robust fix since it handles ANY image loading failure regardless of cause.
 
 Changes:
-- Import `getFallbackServicesArray` from `@/constants/fallbackServices`
-- In the error handler (after all retries exhausted), check localStorage cache first, then use hardcoded fallbacks
-- Set services to fallback data instead of empty array
-- Change the error state to a warning (services shown but may be stale) instead of a blocking error
+- Add `onError` handler on the `<img>` element
+- When the remote image fails, replace `src` with a default local placeholder image (`/lovable-uploads/885a4cd2-a143-4e2e-b07c-e10030eb73c1.png`)
 
-### 2. Use `ServicesCacheContext` in `ServicesSection` as primary source
-
+### 2. Expand `getServiceImage()` to cover all visible services
 **File: `src/components/ServicesSection.tsx`**
 
-Instead of using `usePublicServicesData` (which fetches independently), use the `useServicesCache` hook from `ServicesCacheContext`. This context:
-- Initializes immediately from localStorage cache or fallback data
-- Fetches fresh data in the background
-- Has real-time subscription for updates
-- Never shows an empty/error state on first load
+The current `getServiceImage()` only maps 9 service names to local images. Many visible services (like "Cable Concealment", "In-Wall Cable Concealment", "Dismount TV", etc.) have no local mapping. Update the map to include all visible services, so when remote images fail, every service has a meaningful local fallback.
 
 Changes:
-- Replace `usePublicServicesData()` with `useServicesCache()` 
-- Use `publicServices` from the cache context (already filtered by `is_visible`)
-- Remove redundant error/retry UI since cache always has data
-- Keep the loading skeleton only for the brief moment before cache initializes (rare)
+- Add local image mappings for all visible services that currently fall through to the generic placeholder
+- Pass `getServiceImage(service.name)` as a `fallbackImage` prop to `ServiceCard`
 
-### 3. Improve Supabase client auth resilience
+### 3. Update ServiceCard to accept a fallback image prop
+**File: `src/components/ServiceCard.tsx`**
 
-**File: `src/integrations/supabase/client.ts`**
+Add an optional `fallbackImage` prop so each card knows which local image to use when the primary `image` URL fails.
 
-Add auth configuration to reduce lock timeout issues:
-- Set `lock` timeout to a shorter value
-- Add `persistSession: true` and `detectSessionInUrl: true` explicitly
-- Set `flowType: 'pkce'` for better auth handling
+Changes:
+- Add `fallbackImage?: string` to the props interface
+- In the `onError` handler, use `fallbackImage` if provided, otherwise use the generic placeholder
 
-## Technical Details
+## Technical Summary
 
 | File | Change |
 |---|---|
-| `src/components/ServicesSection.tsx` | Switch from `usePublicServicesData` to `useServicesCache` for fallback-aware data |
-| `src/hooks/usePublicServicesData.tsx` | Add fallback services when all retries fail instead of empty array |
-| `src/integrations/supabase/client.ts` | Add auth config to reduce lock timeout issues |
+| `src/components/ServiceCard.tsx` | Add `onError` image handler + `fallbackImage` prop |
+| `src/components/ServicesSection.tsx` | Pass local fallback image to each ServiceCard |
 
-## Impact
-
-- Users will **always** see services on the homepage, even with network issues
-- Fallback data may be slightly stale but services/prices rarely change
-- No database changes needed
-- No edge function changes needed
-- The "Unable to Load Services" error screen will only appear if both network AND cache AND fallback all fail (virtually impossible)
+## Result
+- Images always display, even during network failures
+- Remote Supabase storage images load when network is available
+- Local `/lovable-uploads/` images serve as automatic fallback when remote fails
+- No layout shift or blank cards
 
