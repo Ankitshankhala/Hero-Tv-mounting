@@ -15,3 +15,44 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     flowType: 'pkce',
   },
 });
+
+// Auto-recover from stale auth refresh loops
+let authFailureCount = 0;
+const MAX_AUTH_FAILURES = 3;
+
+supabase.auth.onAuthStateChange((event) => {
+  if (event === 'TOKEN_REFRESHED') {
+    authFailureCount = 0;
+  } else if (event === 'SIGNED_OUT') {
+    authFailureCount = 0;
+  }
+});
+
+// Patch: detect repeated refresh failures and auto-signout
+const originalRefresh = supabase.auth.refreshSession.bind(supabase.auth);
+supabase.auth.refreshSession = async (...args) => {
+  try {
+    const result = await originalRefresh(...args);
+    if (result.error) {
+      authFailureCount++;
+      console.warn(`[Auth Recovery] Refresh failed (${authFailureCount}/${MAX_AUTH_FAILURES}):`, result.error.message);
+      if (authFailureCount >= MAX_AUTH_FAILURES) {
+        console.warn('[Auth Recovery] Too many refresh failures, signing out stale session');
+        authFailureCount = 0;
+        await supabase.auth.signOut({ scope: 'local' });
+      }
+    } else {
+      authFailureCount = 0;
+    }
+    return result;
+  } catch (err) {
+    authFailureCount++;
+    console.warn(`[Auth Recovery] Refresh threw (${authFailureCount}/${MAX_AUTH_FAILURES}):`, err);
+    if (authFailureCount >= MAX_AUTH_FAILURES) {
+      console.warn('[Auth Recovery] Too many refresh failures, signing out stale session');
+      authFailureCount = 0;
+      try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
+    }
+    throw err;
+  }
+};
