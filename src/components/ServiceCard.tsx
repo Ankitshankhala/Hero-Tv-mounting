@@ -40,7 +40,7 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ id, name, price, image
            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
            width="400"
            height="300"
-           loading="lazy"
+           loading="eager"
            decoding="async"
            style={{ aspectRatio: '4/3' }}
            onError={(e) => {
@@ -49,7 +49,7 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ id, name, price, image
              target.src = fallbackImage || '/lovable-uploads/885a4cd2-a143-4e2e-b07c-e10030eb73c1.png';
            }}
          />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent" />
+        
       </div>
       
       <div className="p-6">
