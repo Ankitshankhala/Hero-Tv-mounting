@@ -13,9 +13,5 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     persistSession: true,
     detectSessionInUrl: true,
     flowType: 'pkce',
-    lock: {
-      enabled: true,
-      timeout: 5000, // Reduce from default 10s to 5s to fail faster
-    },
   },
 });
