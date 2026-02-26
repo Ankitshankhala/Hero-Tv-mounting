@@ -1,44 +1,53 @@
 
 
-# Speed Up Services Loading & Remove Dark Image Overlay
+# Fix: Show Correct Service Images (Use Database URLs, Not Wrong Placeholders)
 
-## Changes
+## Problem
 
-### 1. Remove the dark gradient overlay from service card images
-**File: `src/components/ServiceCard.tsx`** (line 52)
+The `getServiceImage()` function maps 45+ service names to only 6 unique local image files. These local images are generic category placeholders — they are NOT the actual photos for each service. When Supabase storage URLs load successfully, the correct images show. But whenever the `onError` fallback triggers, services get wrong images (e.g., "Custom Lighting" shows a general mounting photo, "Luxury Garden" shows a general mounting photo, etc.).
 
-The line `<div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent" />` places a dark gradient over every service image, making them hard to see. This will be removed entirely so images display clearly.
+## Root Cause
 
-### 2. Switch images from lazy to eager loading
-**File: `src/components/ServiceCard.tsx`** (line 43)
+The previous fix added local image mappings as fallbacks, but these mappings were assigned based on rough categories rather than actual service photos. Since these local files don't match the real service images, they make services look wrong when they appear.
 
-The `loading="lazy"` attribute delays image rendering until the user scrolls near them. Since the Services section is prominently visible on the homepage, changing this to `loading="eager"` (or removing the attribute) ensures images load immediately with the page.
+## Solution
 
-### 3. Set loading state to false immediately when fallback data is available
-**File: `src/contexts/ServicesCacheContext.tsx`** (line 83)
+### 1. Remove the incorrect `getServiceImage()` mapping entirely
+**File: `src/components/ServicesSection.tsx`**
 
-Currently `isLoading` starts as `true`, which causes the skeleton loader to flash briefly even though fallback data is already loaded in the initial state (line 78-82). Changing the initial state to `false` when cache/fallback data exists eliminates the skeleton flash entirely -- services render instantly.
+Delete the entire `getServiceImage()` function and its 45+ wrong mappings. Instead, always use the `image_url` from the database/fallback data as the primary image source. For the fallback (when remote URLs fail), use a single generic company placeholder rather than pretending to know which image belongs to which service.
 
+Changes:
+- Remove the `getServiceImage()` function (lines 11-65)
+- Change `image` prop to use `service.image_url` directly (with a single generic fallback)
+- Change `fallbackImage` prop to use the generic placeholder for all services
+
+### 2. Keep the `onError` handler in ServiceCard
+**File: `src/components/ServiceCard.tsx`**
+
+No changes needed here — the `onError` handler already correctly swaps to `fallbackImage` when the primary image fails. It just needs to receive the right fallback (a generic placeholder, not a wrong image).
+
+## Technical Details
+
+**Before (wrong):**
 ```
-Change line 83 from:
-  const [isLoading, setIsLoading] = useState(true);
-To:
-  const [isLoading, setIsLoading] = useState(() => {
-    const cached = readCache();
-    return !cached?.services && getFallbackServicesArray().length === 0;
-  });
+image={service.image_url || getServiceImage(service.name)}  // Falls back to wrong local image
+fallbackImage={getServiceImage(service.name)}                // Wrong image on error
 ```
 
-This means:
-- If localStorage cache exists: no loading state, instant render
-- If fallback data exists (always does): no loading state, instant render
-- Fresh data still loads in the background and swaps in silently
+**After (correct):**
+```
+image={service.image_url || '/lovable-uploads/885a4cd2-a143-4e2e-b07c-e10030eb73c1.png'}
+fallbackImage="/lovable-uploads/885a4cd2-a143-4e2e-b07c-e10030eb73c1.png"
+```
 
-## Summary
+This way:
+- When Supabase is available: each service shows its own correct image from `image_url`
+- When Supabase is down: services show a neutral generic placeholder instead of a wrong image
 
-| Change | Effect |
+## Files Changed
+
+| File | Change |
 |---|---|
-| Remove dark gradient overlay | Images are clear and easy to see |
-| Change `loading="lazy"` to `loading="eager"` | Images load immediately, no scroll-triggered delay |
-| Initialize `isLoading` as `false` when data exists | No skeleton flash, services appear instantly |
+| `src/components/ServicesSection.tsx` | Remove `getServiceImage()`, use `image_url` directly with generic fallback |
 
