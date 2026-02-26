@@ -1,53 +1,64 @@
 
 
-# Fix: Show Correct Service Images (Use Database URLs, Not Wrong Placeholders)
-
-## Problem
-
-The `getServiceImage()` function maps 45+ service names to only 6 unique local image files. These local images are generic category placeholders — they are NOT the actual photos for each service. When Supabase storage URLs load successfully, the correct images show. But whenever the `onError` fallback triggers, services get wrong images (e.g., "Custom Lighting" shows a general mounting photo, "Luxury Garden" shows a general mounting photo, etc.).
+# Fix: Admin Not Loading & Auth Recovery Not Working
 
 ## Root Cause
 
-The previous fix added local image mappings as fallbacks, but these mappings were assigned based on rough categories rather than actual service photos. Since these local files don't match the real service images, they make services look wrong when they appear.
+The `supabase.auth.refreshSession` patch added in the previous fix does NOT intercept Supabase's internal automatic token refresh. Supabase internally calls a private `_refreshAccessToken` method, which bypasses the patched public method. This means:
+
+- The stale refresh token (`j4xsmgyp2vd6`) keeps retrying forever
+- The 3-failure auto-signout never triggers
+- `getSession()` in `useAuth.tsx` hangs waiting for the refresh to complete
+- `loading` stays `true`, so the Admin page shows an infinite spinner
+- Network congestion from the retry loop also slows down image loading
 
 ## Solution
 
-### 1. Remove the incorrect `getServiceImage()` mapping entirely
-**File: `src/components/ServicesSection.tsx`**
+### 1. Add auth initialization timeout to `useAuth.tsx`
 
-Delete the entire `getServiceImage()` function and its 45+ wrong mappings. Instead, always use the `image_url` from the database/fallback data as the primary image source. For the fallback (when remote URLs fail), use a single generic company placeholder rather than pretending to know which image belongs to which service.
+Add a safety timeout (5 seconds) to the `initializeAuth` function. If `getSession()` doesn't resolve within that time, force `loading = false`, clear the stale auth state, and let the page render (showing the login form for admin, or the public homepage for services).
 
-Changes:
-- Remove the `getServiceImage()` function (lines 11-65)
-- Change `image` prop to use `service.image_url` directly (with a single generic fallback)
-- Change `fallbackImage` prop to use the generic placeholder for all services
+```text
+File: src/hooks/useAuth.tsx
 
-### 2. Keep the `onError` handler in ServiceCard
-**File: `src/components/ServiceCard.tsx`**
-
-No changes needed here — the `onError` handler already correctly swaps to `fallbackImage` when the primary image fails. It just needs to receive the right fallback (a generic placeholder, not a wrong image).
-
-## Technical Details
-
-**Before (wrong):**
-```
-image={service.image_url || getServiceImage(service.name)}  // Falls back to wrong local image
-fallbackImage={getServiceImage(service.name)}                // Wrong image on error
+In initializeAuth():
+- Wrap getSession() with a Promise.race against a 5-second timeout
+- On timeout: call cleanupAuthState(), set loading=false, clear user/session
+- This breaks the infinite loading spinner
 ```
 
-**After (correct):**
-```
-image={service.image_url || '/lovable-uploads/885a4cd2-a143-4e2e-b07c-e10030eb73c1.png'}
-fallbackImage="/lovable-uploads/885a4cd2-a143-4e2e-b07c-e10030eb73c1.png"
+### 2. Replace the broken refreshSession patch in `client.ts`
+
+Remove the current `refreshSession` monkey-patch (it doesn't work for internal refreshes). Replace it with a simpler approach: a periodic check that detects if the auth state has been stuck with a stale token. Use `onAuthStateChange` combined with a timer:
+
+```text
+File: src/integrations/supabase/client.ts
+
+- Remove the refreshSession monkey-patch (lines 31-57)
+- Add a "stuck auth detector": after the client is created, set up a listener
+  that tracks the last successful auth event timestamp
+- If no successful TOKEN_REFRESHED event occurs within 15 seconds of the first
+  failure, automatically call signOut({ scope: 'local' }) to clear stale tokens
 ```
 
-This way:
-- When Supabase is available: each service shows its own correct image from `image_url`
-- When Supabase is down: services show a neutral generic placeholder instead of a wrong image
+### 3. Service images -- no code changes needed
+
+The `ServicesSection.tsx` is already correct:
+- Uses `service.image_url` from database/fallback data as the primary source
+- Falls back to `GENERIC_PLACEHOLDER` on error
+- Once the auth loop is broken, Supabase storage URLs will load normally again
 
 ## Files Changed
 
 | File | Change |
 |---|---|
-| `src/components/ServicesSection.tsx` | Remove `getServiceImage()`, use `image_url` directly with generic fallback |
+| `src/hooks/useAuth.tsx` | Add 5-second timeout to `initializeAuth` to prevent infinite loading |
+| `src/integrations/supabase/client.ts` | Replace broken `refreshSession` patch with a timer-based stuck-auth detector |
+
+## Expected Result
+
+- Admin page loads within 5 seconds even with a stale token (shows login form)
+- Stale auth sessions are automatically cleared, breaking the refresh loop
+- Service images load normally once network congestion from the retry loop stops
+- No database or edge function changes needed
 
