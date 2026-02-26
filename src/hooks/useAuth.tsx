@@ -65,10 +65,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     );
 
-    // THEN check for existing session
+    // THEN check for existing session (with timeout to prevent infinite loading)
     const initializeAuth = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Auth initialization timeout')), 5000)
+        );
+
+        const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
         console.log('Initial session:', session?.user?.email);
         
         setSession(session);
@@ -79,6 +84,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
+        // On timeout or error, clear stale auth state so the page renders
+        cleanupAuthState();
+        setSession(null);
+        setUser(null);
+        setProfile(null);
       } finally {
         setLoading(false);
       }

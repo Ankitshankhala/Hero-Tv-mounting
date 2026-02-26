@@ -16,43 +16,46 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
   },
 });
 
-// Auto-recover from stale auth refresh loops
-let authFailureCount = 0;
-const MAX_AUTH_FAILURES = 3;
+// Stuck-auth detector: if we detect a stale session that can't refresh,
+// automatically sign out after 15 seconds to break the infinite retry loop.
+let stuckAuthTimer: ReturnType<typeof setTimeout> | null = null;
+let lastSuccessfulAuth = Date.now();
 
 supabase.auth.onAuthStateChange((event) => {
-  if (event === 'TOKEN_REFRESHED') {
-    authFailureCount = 0;
+  if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') {
+    lastSuccessfulAuth = Date.now();
+    if (stuckAuthTimer) {
+      clearTimeout(stuckAuthTimer);
+      stuckAuthTimer = null;
+    }
   } else if (event === 'SIGNED_OUT') {
-    authFailureCount = 0;
+    lastSuccessfulAuth = Date.now();
+    if (stuckAuthTimer) {
+      clearTimeout(stuckAuthTimer);
+      stuckAuthTimer = null;
+    }
   }
 });
 
-// Patch: detect repeated refresh failures and auto-signout
-const originalRefresh = supabase.auth.refreshSession.bind(supabase.auth);
-supabase.auth.refreshSession = async (...args) => {
-  try {
-    const result = await originalRefresh(...args);
-    if (result.error) {
-      authFailureCount++;
-      console.warn(`[Auth Recovery] Refresh failed (${authFailureCount}/${MAX_AUTH_FAILURES}):`, result.error.message);
-      if (authFailureCount >= MAX_AUTH_FAILURES) {
-        console.warn('[Auth Recovery] Too many refresh failures, signing out stale session');
-        authFailureCount = 0;
-        await supabase.auth.signOut({ scope: 'local' });
+// Check on load: if there's a stored session, start the stuck detector
+supabase.auth.getSession().then(({ data: { session } }) => {
+  if (session) {
+    // Give 15 seconds for a successful token refresh
+    stuckAuthTimer = setTimeout(async () => {
+      const timeSinceSuccess = Date.now() - lastSuccessfulAuth;
+      if (timeSinceSuccess >= 14000) {
+        console.warn('[Auth Recovery] No successful auth event in 15s, clearing stale session');
+        try {
+          await supabase.auth.signOut({ scope: 'local' });
+        } catch (e) {
+          console.warn('[Auth Recovery] signOut failed, clearing storage manually');
+          Object.keys(localStorage).forEach((key) => {
+            if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+              localStorage.removeItem(key);
+            }
+          });
+        }
       }
-    } else {
-      authFailureCount = 0;
-    }
-    return result;
-  } catch (err) {
-    authFailureCount++;
-    console.warn(`[Auth Recovery] Refresh threw (${authFailureCount}/${MAX_AUTH_FAILURES}):`, err);
-    if (authFailureCount >= MAX_AUTH_FAILURES) {
-      console.warn('[Auth Recovery] Too many refresh failures, signing out stale session');
-      authFailureCount = 0;
-      try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
-    }
-    throw err;
+    }, 15000);
   }
-};
+});
