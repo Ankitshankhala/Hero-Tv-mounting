@@ -1,130 +1,73 @@
 
 
-# Fix: Worker Reassign Job Black Screen
+# Fix: "Unable to Load Services" on Homepage
 
-## Root Cause Analysis
+## Root Cause
 
-There are **two distinct bugs** causing problems:
+The homepage `ServicesSection` component uses `usePublicServicesData()` -- a hook with an aggressive **10-second timeout** and **no cache or fallback**. When the Supabase request takes longer than 10 seconds (cold start, slow connection, preview environment latency), every attempt gets aborted, all 4 retries fail, and the user sees "Unable to Load Services."
 
-### Bug 1: Black Screen Crash (UI)
+Meanwhile, a completely separate system -- `ServicesCacheContext` -- already exists in the app with localStorage caching AND hardcoded fallback services. But `ServicesSection` does not use it.
 
-In `ReassignJobModal.tsx` line 150, when no eligible workers are found:
+```text
+Current architecture (broken):
 
-```tsx
-<SelectItem value="" disabled>
-  No eligible workers found
-</SelectItem>
+ServicesCacheContext (has cache + fallbacks, works fine)
+  |-- NOT used by ServicesSection
+
+ServicesSection
+  |-- usePublicServicesData() (10s timeout, no cache, no fallbacks)
+  |-- All 4 attempts timeout --> "Unable to Load Services"
 ```
 
-**Radix UI Select crashes when a `SelectItem` has an empty string `value=""`**. This is a known Radix UI bug -- it throws an unrecoverable React render error, which kills the entire component tree and produces a black/white screen. There is no error boundary wrapping this modal, so the crash propagates to the entire page.
-
-### Bug 2: No Payment Authorization Check (Backend)
-
-The `worker-reassign-booking` edge function reassigns bookings without checking the payment authorization status. Stripe payment authorizations expire after **7 days**. If a worker tries to reassign a booking where the authorization has expired, the reassignment succeeds in the database but the new worker inherits a booking with a dead payment -- they cannot capture payment later, causing financial issues.
-
----
+The console logs confirm this: all requests hit the 10-second abort, retry 4 times over ~40 seconds, then give up -- while `ServicesCacheContext` also fails independently with "Failed to fetch" since it's a separate parallel request.
 
 ## The Fix
 
-### File 1: `src/components/worker/ReassignJobModal.tsx`
+**Replace `usePublicServicesData()` with `useServicesCache()` in `ServicesSection`** so it benefits from the existing cache and fallback system.
 
-**Change A - Fix the crash on empty worker list:**
-- Replace the `SelectItem value=""` with a plain `<div>` message inside `SelectContent` when no workers are found
-- Radix Select only crashes when `SelectItem` has invalid/empty values
+### File: `src/components/ServicesSection.tsx`
 
-**Change B - Add error boundary safety:**
-- Wrap the entire `handleReassign` function in proper try/catch (already exists but needs tightening)
-- Add `DialogDescription` for accessibility (missing, causes console warning)
+1. Replace import from `usePublicServicesData` to `useServicesCache` from `ServicesCacheContext`
+2. Swap the hook call: use `useServicesCache()` instead of `usePublicServicesData()`
+3. Map the returned `publicServices` to the expected shape (the fields are compatible)
+4. Use `refetch` from the cache context for the retry button
+5. Remove the `retryCount` and `error` state handling since the cache context always has fallback data -- the error state becomes unreachable
 
-**Change C - Show payment authorization warning:**
-- After fetching the booking in the eligible-workers call, check if payment authorization might be expired (booking created more than 7 days ago with `payment_status === 'authorized'`)
-- Show a warning banner in the modal: "Payment authorization may have expired for this booking. The new worker may need to collect payment manually."
+### What changes in behavior
 
-### File 2: `supabase/functions/worker-reassign-booking/index.ts`
+| Before | After |
+|---|---|
+| 10s timeout, 4 retries, then error | Instant display from cache/fallback, background refresh |
+| Shows skeleton loaders for 40+ seconds | Shows services immediately (cached or fallback) |
+| Shows "Unable to Load Services" error | Always shows services; stale data at worst |
+| Two separate fetch systems competing | Single unified fetch through ServicesCacheContext |
 
-**Change A - Add payment authorization expiry check:**
-- After fetching the booking (line 73), check if the booking has `payment_status === 'authorized'` and the authorization is older than 7 days
-- If expired, set `requires_manual_payment = true` on the booking after reassignment so the new worker and admin know
-- Add the expiry status to the audit log details
-- Return `paymentExpired: true` in the response so the UI can inform the worker
+### File: `src/hooks/usePublicServicesData.tsx`
 
-**Change B - Fix the `sms_logs` insert in the error handler (line 185-191):**
-- The `sms_logs` table has a `status` column of type `USER-DEFINED` (enum), and `'failed'` may need to match the enum exactly
-- Also, `emailError.message` on line 190 might be undefined if `emailError` is not an Error instance -- guard with optional chaining
+No changes needed. Other components (worker modals, admin panels) still use it. But `ServicesSection` -- the critical customer-facing homepage component -- will no longer depend on it.
 
-### File 3: `src/components/worker/JobActions.tsx`
-
-**No changes needed.** The modal is already wrapped in state-controlled rendering. The crash comes from inside the modal's Radix Select component, which is fixed in File 1.
-
----
-
-## Technical Details
-
-### SelectItem Fix (File 1, line 148-159)
+## Technical Detail
 
 ```text
-BEFORE:
-  {workers.length === 0 && !fetchingWorkers ? (
-    <SelectItem value="" disabled>
-      No eligible workers found
-    </SelectItem>
-  ) : ( ... )}
+BEFORE (ServicesSection.tsx, line 5 + 32):
+  import { usePublicServicesData } from '@/hooks/usePublicServicesData';
+  const { services, loading, error, retryCount, refetch } = usePublicServicesData();
 
 AFTER:
-  {workers.length === 0 && !fetchingWorkers ? (
-    <div className="py-2 px-3 text-sm text-muted-foreground">
-      No eligible workers found
-    </div>
-  ) : ( ... )}
+  import { useServicesCache } from '@/contexts/ServicesCacheContext';
+  const { publicServices, isLoading, refetch } = useServicesCache();
+  // Use publicServices instead of services throughout the component
 ```
 
-### Payment Expiry Check (File 2, after line 91)
+The `publicServices` from `ServicesCacheContext` already filters for `is_visible === true`, matching what `usePublicServicesData` does with its `.eq('is_visible', true)` query.
 
-```text
-Add after booking status validation:
+Since the cache context initializes with hardcoded fallback data, the component will always have services to display -- even on first load before any network request completes.
 
-  // Check payment authorization expiry (7-day window)
-  const authCreatedAt = new Date(booking.created_at);
-  const now = new Date();
-  const daysSinceAuth = (now.getTime() - authCreatedAt.getTime()) / (1000 * 60 * 60 * 24);
-  const paymentExpired = booking.payment_status === 'authorized' && daysSinceAuth > 7;
-
-  // If payment is expired, flag the booking for manual payment
-  if (paymentExpired) {
-    updateFields.requires_manual_payment = true;
-  }
-```
-
-### Response Enhancement (File 2, line 195-202)
-
-```text
-Add paymentExpired flag to the success response so the UI can display
-an appropriate warning to the worker about needing manual payment collection.
-```
-
-### Modal Warning (File 1)
-
-```text
-When the reassignment response returns paymentExpired: true, show a toast warning:
-"Booking reassigned, but payment authorization has expired. 
- The new worker will need to collect payment manually."
-```
-
----
-
-## What This Fixes
-
-| Problem | Before | After |
-|---|---|---|
-| Black screen on reassign | Radix Select crashes on empty value | Uses plain div for empty state |
-| Expired payment auth | Silently reassigns with dead payment | Flags booking and warns worker |
-| Console accessibility warning | Missing DialogDescription | Added |
-| sms_logs error logging | Could fail on undefined message | Properly guarded |
-
-## Files to Change
+## Scope
 
 | File | Change |
 |---|---|
-| `src/components/worker/ReassignJobModal.tsx` | Fix SelectItem crash, add DialogDescription, show payment expiry warning |
-| `supabase/functions/worker-reassign-booking/index.ts` | Add 7-day payment auth check, flag `requires_manual_payment`, fix sms_logs error handler |
+| `src/components/ServicesSection.tsx` | Switch from `usePublicServicesData` to `useServicesCache`, remove error/retry UI (fallbacks prevent it), simplify loading state |
+
+One file, minimal change, uses existing infrastructure.
 
