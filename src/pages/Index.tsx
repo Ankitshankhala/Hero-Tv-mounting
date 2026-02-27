@@ -1,5 +1,5 @@
 
-import React, { useState, lazy, Suspense } from 'react';
+import React, { useState, lazy, Suspense, useEffect } from 'react';
 import { Header } from '@/components/Header';
 import { useTestingMode, getEffectiveMinimumAmount } from '@/contexts/TestingModeContext';
 import { Footer } from '@/components/Footer';
@@ -33,6 +33,15 @@ const Index = () => {
   const [showBookingFlow, setShowBookingFlow] = useState(false);
   const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null);
   const { toast } = useToast();
+
+  // Prefetch the booking flow bundle as soon as the cart has items,
+  // so the modal opens instantly when "Book Service" is clicked.
+  const cartHasItems = cart.length > 0;
+  useEffect(() => {
+    if (cartHasItems) {
+      import('@/components/EnhancedInlineBookingFlow').catch(() => {});
+    }
+  }, [cartHasItems]);
 
   const addToCart = (item: CartItem) => {
     setCart(prev => {
