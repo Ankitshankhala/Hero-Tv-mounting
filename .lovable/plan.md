@@ -1,73 +1,39 @@
 
 
-# Fix: "Unable to Load Services" on Homepage
+# Create Admin User: admin@herotvmounting.com
 
-## Root Cause
+## Approach
 
-The homepage `ServicesSection` component uses `usePublicServicesData()` -- a hook with an aggressive **10-second timeout** and **no cache or fallback**. When the Supabase request takes longer than 10 seconds (cold start, slow connection, preview environment latency), every attempt gets aborted, all 4 retries fail, and the user sees "Unable to Load Services."
+Create a one-time-use edge function `create-admin-user` that:
+1. Creates the auth user in Supabase Auth with email `admin@herotvmounting.com` and password `Impervious96!!`
+2. Inserts the corresponding profile row in the `users` table with `role = 'admin'`
+3. Returns success/failure status
 
-Meanwhile, a completely separate system -- `ServicesCacheContext` -- already exists in the app with localStorage caching AND hardcoded fallback services. But `ServicesSection` does not use it.
+After running it once, the function can be deleted.
 
-```text
-Current architecture (broken):
+## Files to Create/Edit
 
-ServicesCacheContext (has cache + fallbacks, works fine)
-  |-- NOT used by ServicesSection
+### 1. `supabase/functions/create-admin-user/index.ts` (NEW)
 
-ServicesSection
-  |-- usePublicServicesData() (10s timeout, no cache, no fallbacks)
-  |-- All 4 attempts timeout --> "Unable to Load Services"
-```
+- Uses the service role client (from `_shared/supabaseClient.ts`) to call `supabase.auth.admin.createUser()`
+- Sets `email_confirm: true` so the user can log in immediately without email verification
+- Inserts a row into `users` table with `role: 'admin'`, `name: 'Admin'`, `email: admin@herotvmounting.com`
+- Protected by a simple shared secret check (the service role key itself) to prevent unauthorized calls
 
-The console logs confirm this: all requests hit the 10-second abort, retry 4 times over ~40 seconds, then give up -- while `ServicesCacheContext` also fails independently with "Failed to fetch" since it's a separate parallel request.
+### 2. `supabase/config.toml`
 
-## The Fix
+- Add `[functions.create-admin-user]` with `verify_jwt = false` (since we call it before logging in)
 
-**Replace `usePublicServicesData()` with `useServicesCache()` in `ServicesSection`** so it benefits from the existing cache and fallback system.
+## Execution Plan
 
-### File: `src/components/ServicesSection.tsx`
+1. Create the edge function
+2. Add config entry
+3. Deploy the function
+4. Call it via `curl_edge_functions` to create the user
+5. Verify the user exists in the database
+6. Delete the edge function (cleanup)
 
-1. Replace import from `usePublicServicesData` to `useServicesCache` from `ServicesCacheContext`
-2. Swap the hook call: use `useServicesCache()` instead of `usePublicServicesData()`
-3. Map the returned `publicServices` to the expected shape (the fields are compatible)
-4. Use `refetch` from the cache context for the retry button
-5. Remove the `retryCount` and `error` state handling since the cache context always has fallback data -- the error state becomes unreachable
+## Security Note
 
-### What changes in behavior
-
-| Before | After |
-|---|---|
-| 10s timeout, 4 retries, then error | Instant display from cache/fallback, background refresh |
-| Shows skeleton loaders for 40+ seconds | Shows services immediately (cached or fallback) |
-| Shows "Unable to Load Services" error | Always shows services; stale data at worst |
-| Two separate fetch systems competing | Single unified fetch through ServicesCacheContext |
-
-### File: `src/hooks/usePublicServicesData.tsx`
-
-No changes needed. Other components (worker modals, admin panels) still use it. But `ServicesSection` -- the critical customer-facing homepage component -- will no longer depend on it.
-
-## Technical Detail
-
-```text
-BEFORE (ServicesSection.tsx, line 5 + 32):
-  import { usePublicServicesData } from '@/hooks/usePublicServicesData';
-  const { services, loading, error, retryCount, refetch } = usePublicServicesData();
-
-AFTER:
-  import { useServicesCache } from '@/contexts/ServicesCacheContext';
-  const { publicServices, isLoading, refetch } = useServicesCache();
-  // Use publicServices instead of services throughout the component
-```
-
-The `publicServices` from `ServicesCacheContext` already filters for `is_visible === true`, matching what `usePublicServicesData` does with its `.eq('is_visible', true)` query.
-
-Since the cache context initializes with hardcoded fallback data, the component will always have services to display -- even on first load before any network request completes.
-
-## Scope
-
-| File | Change |
-|---|---|
-| `src/components/ServicesSection.tsx` | Switch from `usePublicServicesData` to `useServicesCache`, remove error/retry UI (fallbacks prevent it), simplify loading state |
-
-One file, minimal change, uses existing infrastructure.
+The function uses the `SUPABASE_SERVICE_ROLE_KEY` as a bearer token check, so only someone with the service role key can invoke it. After successful creation, the function will be removed from the codebase.
 
