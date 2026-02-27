@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Users, AlertTriangle } from 'lucide-react';
+import { Users } from 'lucide-react';
 
 interface ReassignJobModalProps {
   isOpen: boolean;
@@ -27,34 +27,13 @@ export const ReassignJobModal = ({ isOpen, onClose, bookingId, onSuccess }: Reas
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
   const [fetchingWorkers, setFetchingWorkers] = useState(false);
-  const [paymentWarning, setPaymentWarning] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     if (isOpen) {
       fetchEligibleWorkers();
-      checkPaymentExpiry();
     }
   }, [isOpen, bookingId]);
-
-  const checkPaymentExpiry = async () => {
-    try {
-      const { data: booking } = await supabase
-        .from('bookings')
-        .select('created_at, payment_status')
-        .eq('id', bookingId)
-        .single();
-
-      if (booking && booking.payment_status === 'authorized') {
-        const daysSince = (Date.now() - new Date(booking.created_at!).getTime()) / (1000 * 60 * 60 * 24);
-        setPaymentWarning(daysSince > 7);
-      } else {
-        setPaymentWarning(false);
-      }
-    } catch {
-      setPaymentWarning(false);
-    }
-  };
 
   const fetchEligibleWorkers = async () => {
     setFetchingWorkers(true);
@@ -118,18 +97,10 @@ export const ReassignJobModal = ({ isOpen, onClose, bookingId, onSuccess }: Reas
       }
 
       if (data?.success) {
-        if (data.paymentExpired) {
-          toast({
-            title: "Job Reassigned — Payment Warning",
-            description: `Job reassigned to ${data.newWorkerName}, but payment authorization has expired. Manual payment collection will be required.`,
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Job Reassigned",
-            description: `Job has been reassigned to ${data.newWorkerName}. Customer has been notified of the reassignment.`,
-          });
-        }
+        toast({
+          title: "Job Reassigned",
+          description: `Job has been reassigned to ${data.newWorkerName}. Customer has been notified of the reassignment.`,
+        });
         onSuccess();
         onClose();
       } else {
@@ -150,7 +121,6 @@ export const ReassignJobModal = ({ isOpen, onClose, bookingId, onSuccess }: Reas
   const handleClose = () => {
     setSelectedWorkerId('');
     setReason('');
-    setPaymentWarning(false);
     onClose();
   };
 
@@ -162,19 +132,9 @@ export const ReassignJobModal = ({ isOpen, onClose, bookingId, onSuccess }: Reas
             <Users className="h-5 w-5" />
             Reassign Job
           </DialogTitle>
-          <DialogDescription>
-            Select a new worker to reassign this job to.
-          </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4">
-          {paymentWarning && (
-            <div className="flex items-start gap-2 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
-              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-              <span>Payment authorization has expired (over 7 days). The new worker will need to collect payment manually.</span>
-            </div>
-          )}
-
           <div>
             <Label htmlFor="worker-select">Select Worker</Label>
             <Select
@@ -187,9 +147,9 @@ export const ReassignJobModal = ({ isOpen, onClose, bookingId, onSuccess }: Reas
               </SelectTrigger>
               <SelectContent>
                 {workers.length === 0 && !fetchingWorkers ? (
-                  <div className="py-2 px-3 text-sm text-muted-foreground">
+                  <SelectItem value="" disabled>
                     No eligible workers found
-                  </div>
+                  </SelectItem>
                 ) : (
                   workers.map((worker) => (
                     <SelectItem key={worker.id} value={worker.id}>

@@ -1,44 +1,55 @@
 
 
-# Reset Admin Login to captain@herotvmounting.com
+# Fix: Delayed Notification on Remove Services
 
-## What We'll Do
+## Root Cause
 
-Create a one-time edge function that uses the Supabase Admin API to:
-1. Update the existing admin auth user's email from `admin@herotvmounting.com` to `captain@herotvmounting.com`
-2. Set a new password you can use immediately
-3. Update the `users` table email to match
-4. Delete the edge function after use (it's a one-time utility)
+The `RemoveServicesModal.tsx` already does an **optimistic UI update** (removes the service from the list immediately), but the **toast notification** waits for the entire edge function to finish. The `worker-remove-services` function takes 3-7 seconds because it sequentially:
 
-## Steps
+1. Validates auth + fetches booking (~200ms)
+2. Deletes services from DB (~100ms)
+3. Updates invoice items + recalculates totals (~300ms)
+4. Calls `payment-engine` recalculate which hits Stripe (cancel old PI + create new PI) (~2-5s)
+5. Inserts modification records + SMS log (~200ms)
 
-### 1. Create edge function `reset-admin-login`
-- Uses `supabase.auth.admin.updateUserById()` to change the email and password for user `f47ac10b-58cc-4372-a567-0e02b2c3d479`
-- Sets email to `captain@herotvmounting.com` with `email_confirm: true` (no verification needed)
-- Sets a temporary password: `HeroAdmin2026!`
-- Updates the `users` table email to match
+The toast only fires at line 191 **after step 5 completes**.
 
-### 2. Update the `users` table RLS policy
-- The existing "Direct admin access" RLS policy hardcodes `admin@herotvmounting.com` -- update it to use `captain@herotvmounting.com`
+## Solution
 
-### 3. Call the edge function once to apply the change
+Show an immediate toast right after the optimistic UI update (before `await`), then show a second toast only if payment details need reporting.
 
-### 4. Delete the edge function (security -- it should not persist)
+## Changes
 
-## After Implementation
+### `src/components/worker/RemoveServicesModal.tsx`
 
-You'll be able to log in at `/admin` with:
-- **Email:** captain@herotvmounting.com
-- **Password:** HeroAdmin2026!
+In the `removeService` function (lines 139-215):
 
-You should change the password after first login.
+**Before the `await` call (after optimistic update on line 150), add:**
+```typescript
+// Immediate feedback
+toast({
+  title: "Removing Service...",
+  description: `${serviceToRemove.service_name} is being removed.`,
+});
+```
 
-## Technical Details
+**After the response (lines 183-194), change the toast to only show payment-related info:**
+```typescript
+if (data.data?.authorization_updated || data.data?.refund_amount > 0) {
+  const authMsg = data.data?.authorization_updated 
+    ? `Authorization updated.` : '';
+  const refundMsg = data.data?.refund_amount > 0 
+    ? `Refund of $${data.data.refund_amount.toFixed(2)} processed.` : '';
+  toast({
+    title: "Payment Updated",
+    description: `${authMsg} ${refundMsg}`.trim(),
+  });
+}
+```
 
-| Step | Action |
-|---|---|
-| Edge function | `supabase/functions/reset-admin-login/index.ts` -- one-time admin credential reset |
-| SQL migration | Update "Direct admin access" RLS policy on `users` table to reference new email |
-| Users table | Update email column from `admin@herotvmounting.com` to `captain@herotvmounting.com` |
-| Cleanup | Delete the edge function after successful execution |
+This gives the worker instant visual feedback (within ~50ms) while the backend processes payment operations in the background.
+
+### No backend changes needed
+
+The edge function logic and sequencing remain the same -- this is purely a frontend UX improvement.
 

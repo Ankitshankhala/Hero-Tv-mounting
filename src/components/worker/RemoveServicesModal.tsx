@@ -149,12 +149,6 @@ export const RemoveServicesModal = ({
     const remainingServices = services.filter(service => service.id !== serviceId);
     setServices(remainingServices);
 
-    // Immediate feedback
-    toast({
-      title: "Removing Service...",
-      description: `${serviceToRemove.service_name} is being removed.`,
-    });
-
     try {
       const { data, error } = await supabase.functions.invoke('worker-remove-services', {
         body: {
@@ -186,17 +180,18 @@ export const RemoveServicesModal = ({
         return; // Don't show success toast yet - wait for reauth
       }
 
-      // Only show a follow-up toast if there are payment updates to report
-      if (data.data?.authorization_updated || data.data?.refund_amount > 0) {
-        const authMsg = data.data?.authorization_updated 
-          ? `Authorization updated.` : '';
-        const refundMsg = data.data?.refund_amount > 0 
-          ? `Refund of $${data.data.refund_amount.toFixed(2)} processed.` : '';
-        toast({
-          title: "Payment Updated",
-          description: `${authMsg} ${refundMsg}`.trim(),
-        });
-      }
+      // Build success message
+      const authMsg = data.data?.authorization_updated 
+        ? ` Authorization updated to $${data.data.new_authorization?.toFixed(2)}.` 
+        : '';
+      const refundMsg = data.data?.refund_amount > 0 
+        ? ` Refund of $${data.data.refund_amount.toFixed(2)} processed.` 
+        : '';
+      
+      toast({
+        title: "Service Removed",
+        description: `${serviceToRemove.service_name} removed.${authMsg}${refundMsg}`,
+      });
 
       // Check if this was the last service
       if (remainingServices.length === 0) {

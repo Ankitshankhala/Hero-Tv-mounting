@@ -65,15 +65,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     );
 
-    // THEN check for existing session (with timeout to prevent infinite loading)
+    // THEN check for existing session
     const initializeAuth = async () => {
       try {
-        const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Auth initialization timeout')), 5000)
-        );
-
-        const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
+        const { data: { session } } = await supabase.auth.getSession();
         console.log('Initial session:', session?.user?.email);
         
         setSession(session);
@@ -84,11 +79,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
-        // On timeout or error, clear stale auth state so the page renders
-        cleanupAuthState();
-        setSession(null);
-        setUser(null);
-        setProfile(null);
       } finally {
         setLoading(false);
       }
@@ -127,6 +117,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signIn = async (email: string, password: string) => {
     try {
       console.log('Attempting to sign in:', email);
+      
+      // Clean up existing state first
+      cleanupAuthState();
+      
+      // Attempt global sign out first
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (err) {
+        console.log('Global signout failed, continuing:', err);
+      }
 
       const { data, error } = await supabase.auth.signInWithPassword({ 
         email, 

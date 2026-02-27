@@ -158,13 +158,7 @@ export const useRealtimeBookings = ({
               newWorkerId: newRecord.worker_id
             } : null;
             
-            // Fix: for DELETE events, newRecord is {} (truthy but empty) — use oldRecord instead
-            const newRec = newRecord as Record<string, any>;
-            const oldRec = oldRecord as Record<string, any>;
-            const recordToPass = (newRec && newRec.id) ? newRec : oldRec;
-            if (recordToPass?.id) {
-              onBookingUpdate(recordToPass, reassignmentInfo);
-            }
+            onBookingUpdate(newRecord || oldRecord, reassignmentInfo);
           }
         }
       }

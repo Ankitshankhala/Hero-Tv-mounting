@@ -80,10 +80,7 @@ export const ServicesCacheProvider = ({ children }: { children: ReactNode }) => 
     const cached = readCache();
     return cached?.services || getFallbackServicesArray();
   });
-  const [isLoading, setIsLoading] = useState(() => {
-    const cached = readCache();
-    return !cached?.services && getFallbackServicesArray().length === 0;
-  });
+  const [isLoading, setIsLoading] = useState(true);
   const [isFromCache, setIsFromCache] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 

@@ -110,26 +110,17 @@ Deno.serve(async (req) => {
         .eq('email', customerEmail)
         .maybeSingle();
 
-      let stripeCustomerId: string = '';
+      let stripeCustomerId: string;
       if (existingCustomer?.stripe_customer_id) {
         stripeCustomerId = existingCustomer.stripe_customer_id;
         try {
-          // Verify customer still exists in Stripe (guards against stale IDs after key changes)
-          await stripe.customers.retrieve(stripeCustomerId);
           await stripe.paymentMethods.attach(paymentMethodId, { customer: stripeCustomerId });
         } catch (e: any) {
-          if (e.code === 'resource_missing' || e.message?.includes('No such customer')) {
-            // Stale customer ID — delete local record and fall through to create a fresh one
-            console.warn('[PAYMENT-ENGINE] Stale customer detected, recreating:', stripeCustomerId);
-            await supabase.from('stripe_customers').delete().eq('email', customerEmail);
-            stripeCustomerId = ''; // Fall through to creation below
-          } else if (!e.message?.includes('already been attached')) {
+          if (!e.message?.includes('already been attached')) {
             console.warn('[PAYMENT-ENGINE] attach warning:', e.message);
           }
         }
-      }
-
-      if (!stripeCustomerId) {
+      } else {
         const customer = await stripe.customers.create({
           email: customerEmail,
           name: customerName || 'Guest Customer',
@@ -568,57 +559,26 @@ Deno.serve(async (req) => {
       }
       if (!booking.payment_intent_id) throw new Error('No payment_intent_id');
 
-      // Look up official prices from services table (with tiered pricing support)
+      // Look up official prices from services table
       const serviceIds = removed_services.map((s: any) => s.service_id);
       const { data: officialServices, error: svcErr } = await supabase
         .from('services')
-        .select('id, base_price, pricing_config')
+        .select('id, base_price')
         .in('id', serviceIds);
       if (svcErr) throw new Error('Failed to fetch service prices');
 
-      const priceMap = new Map<string, { base_price: number; pricing_config: any }>();
-      for (const s of officialServices || []) {
-        priceMap.set(s.id, {
-          base_price: Number(s.base_price),
-          pricing_config: s.pricing_config,
-        });
-      }
+      const priceMap = new Map(officialServices?.map(s => [s.id, Number(s.base_price)]) || []);
 
       let refundTotal = 0;
       for (const rs of removed_services) {
-        const official = priceMap.get(rs.service_id);
-        if (!official) {
+        const officialPrice = priceMap.get(rs.service_id);
+        if (officialPrice === undefined) {
           throw new Error(`Service ${rs.service_id} not found. Cannot process refund.`);
         }
-
-        let officialPrice: number;
-        if (official.pricing_config?.pricing_type === 'tiered' && official.pricing_config?.tiers) {
-          // Extract quantity from service name (e.g., "Mount TV (2 TVs)")
-          const countMatch = rs.service_name?.match(/\((\d+)\s+TVs?\)/i);
-          const itemCount = countMatch ? parseInt(countMatch[1]) : (rs.quantity || 1);
-
-          // Calculate tiered total server-side
-          let tieredTotal = 0;
-          const tiers = official.pricing_config.tiers;
-          for (let i = 1; i <= itemCount; i++) {
-            const tier = tiers.find((t: any) => t.quantity === i);
-            if (tier) {
-              tieredTotal += tier.price;
-            } else {
-              const defaultTier = tiers.find((t: any) => t.is_default_for_additional);
-              tieredTotal += defaultTier?.price || tiers[tiers.length - 1]?.price || 0;
-            }
-          }
-          officialPrice = tieredTotal;
-          console.log(`[PAYMENT-ENGINE] Tiered refund for "${rs.service_name}": ${itemCount} items = $${tieredTotal}`);
-        } else {
-          officialPrice = official.base_price;
-        }
-
         if (officialPrice !== Number(rs.base_price)) {
           console.warn(`[PAYMENT-ENGINE] Price mismatch for ${rs.service_id}: caller=${rs.base_price}, official=${officialPrice}`);
         }
-        refundTotal += officialPrice;
+        refundTotal += officialPrice * (rs.quantity || 1);
       }
 
       if (refundTotal <= 0) {

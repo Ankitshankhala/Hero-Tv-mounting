@@ -145,66 +145,26 @@ Deno.serve(async (req) => {
 
     // Insert booking services if provided
     if (services.length > 0) {
-      // FIX PRICING LEAK: Fetch real prices from services table (with tiered pricing support)
+      // FIX PRICING LEAK: Fetch real prices from services table
       const serviceIds = services.map((s: any) => s.id);
       const { data: officialServices, error: officialError } = await supabaseClient
         .from('services')
-        .select('id, base_price, pricing_config')
+        .select('id, base_price')
         .in('id', serviceIds);
       
+      const priceMap = new Map(officialServices?.map(s => [s.id, Number(s.base_price)]) || []);
       if (officialError) {
         console.warn('⚠️ Could not fetch official prices, using provided prices:', officialError);
       }
 
-      // Build a map with full pricing info
-      const priceMap = new Map<string, { base_price: number; pricing_config: any }>();
-      for (const s of officialServices || []) {
-        priceMap.set(s.id, {
-          base_price: Number(s.base_price),
-          pricing_config: s.pricing_config,
-        });
-      }
-
-      const serviceInserts = services.map((service: any) => {
-        const official = priceMap.get(service.id);
-        let finalPrice = service.price ?? 0;
-
-        if (official) {
-          if (official.pricing_config?.pricing_type === 'tiered' && official.pricing_config?.tiers) {
-            // Extract quantity from service name (e.g., "Mount TV (2 TVs)")
-            const countMatch = service.name?.match(/\((\d+)\s+TVs?\)/i);
-            const itemCount = countMatch ? parseInt(countMatch[1]) : (service.quantity || 1);
-
-            // Calculate tiered total server-side
-            let tieredTotal = 0;
-            const tiers = official.pricing_config.tiers;
-            for (let i = 1; i <= itemCount; i++) {
-              const tier = tiers.find((t: any) => t.quantity === i);
-              if (tier) {
-                tieredTotal += tier.price;
-              } else {
-                // Use default tier for additional items, or last defined tier
-                const defaultTier = tiers.find((t: any) => t.is_default_for_additional);
-                tieredTotal += defaultTier?.price || tiers[tiers.length - 1]?.price || 0;
-              }
-            }
-            finalPrice = tieredTotal;
-            console.log(`📊 Tiered pricing for "${service.name}": ${itemCount} items = $${tieredTotal}`);
-          } else {
-            // Non-tiered: use base_price as source of truth
-            finalPrice = official.base_price;
-          }
-        }
-
-        return {
-          booking_id: booking.id,
-          service_id: service.id,
-          service_name: service.name || 'Unknown Service',
-          base_price: finalPrice,
-          quantity: service.quantity || 1,
-          configuration: service.options || {},
-        };
-      });
+      const serviceInserts = services.map((service: any) => ({
+        booking_id: booking.id,
+        service_id: service.id,
+        service_name: service.name || 'Unknown Service',
+        base_price: priceMap.get(service.id) ?? service.price ?? 0,
+        quantity: service.quantity || 1,
+        configuration: service.options || {},
+      }));
 
       const { error: servicesError } = await supabaseClient
         .from('booking_services')

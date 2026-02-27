@@ -365,10 +365,6 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
   };
 
   const handleBookingUpdate = async (updatedBooking: any) => {
-    if (!updatedBooking?.id) {
-      console.warn('handleBookingUpdate received booking without id, skipping', updatedBooking);
-      return;
-    }
     console.log('Booking update received:', updatedBooking);
     
     try {

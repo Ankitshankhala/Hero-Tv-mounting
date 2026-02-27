@@ -9,11 +9,10 @@ interface ServiceCardProps {
   price: number;
   image: string;
   description: string;
-  fallbackImage?: string;
   onAddToCart: () => void;
 }
 
-export const ServiceCard: React.FC<ServiceCardProps> = ({ id, name, price, image, description, fallbackImage, onAddToCart }) => {
+export const ServiceCard: React.FC<ServiceCardProps> = ({ id, name, price, image, description, onAddToCart }) => {
   const [isClicked, setIsClicked] = useState(false);
   const { isTestingMode } = useTestingMode();
   
@@ -35,21 +34,16 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ id, name, price, image
     >
       <div className="relative w-full overflow-hidden aspect-[4/3]">
         <img 
-           src={image} 
-           alt={name}
-           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-           width="400"
-           height="300"
-           loading="eager"
-           decoding="async"
-           style={{ aspectRatio: '4/3' }}
-           onError={(e) => {
-             const target = e.currentTarget;
-             target.onerror = null;
-             target.src = fallbackImage || '/lovable-uploads/885a4cd2-a143-4e2e-b07c-e10030eb73c1.png';
-           }}
-         />
-        
+          src={image} 
+          alt={name}
+          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+          width="400"
+          height="300"
+          loading="lazy"
+          decoding="async"
+          style={{ aspectRatio: '4/3' }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent" />
       </div>
       
       <div className="p-6">
