@@ -1,38 +1,44 @@
 
 
-# Fix: Make Admin Login Resilient to Network Hiccups
+# Reset Admin Login to captain@herotvmounting.com
 
-## Problem
+## What We'll Do
 
-The `signIn` function in `useAuth.tsx` performs two unnecessary operations before the actual login:
-1. `cleanupAuthState()` — clears all Supabase tokens from localStorage/sessionStorage
-2. `supabase.auth.signOut({ scope: 'global' })` — makes a network request to invalidate all sessions
+Create a one-time edge function that uses the Supabase Admin API to:
+1. Update the existing admin auth user's email from `admin@herotvmounting.com` to `captain@herotvmounting.com`
+2. Set a new password you can use immediately
+3. Update the `users` table email to match
+4. Delete the edge function after use (it's a one-time utility)
 
-Both of these run BEFORE the actual `signInWithPassword` call. On flaky connections (like the Lovable preview environment), the signOut network call can fail or time out, and clearing localStorage corrupts the Supabase client's internal state.
+## Steps
 
-Additionally, the user is logging in with the wrong email (`captain@herotvmounting.com` instead of `admin@herotvmounting.com`).
+### 1. Create edge function `reset-admin-login`
+- Uses `supabase.auth.admin.updateUserById()` to change the email and password for user `f47ac10b-58cc-4372-a567-0e02b2c3d479`
+- Sets email to `captain@herotvmounting.com` with `email_confirm: true` (no verification needed)
+- Sets a temporary password: `HeroAdmin2026!`
+- Updates the `users` table email to match
 
-## Fix
+### 2. Update the `users` table RLS policy
+- The existing "Direct admin access" RLS policy hardcodes `admin@herotvmounting.com` -- update it to use `captain@herotvmounting.com`
 
-**File:** `src/hooks/useAuth.tsx` — `signIn` function (lines 127-152)
+### 3. Call the edge function once to apply the change
 
-Remove the `cleanupAuthState()` call and the pre-login `signOut({ scope: 'global' })` call. These should only happen on explicit sign-out, not before every sign-in. The Supabase client handles session replacement automatically when `signInWithPassword` succeeds.
+### 4. Delete the edge function (security -- it should not persist)
 
-```text
-Before:
-  cleanupAuthState()           // clears localStorage — breaks client state
-  signOut({ scope: 'global' }) // network call — can fail on flaky connections  
-  signInWithPassword(...)      // actual login
+## After Implementation
 
-After:
-  signInWithPassword(...)      // just sign in — Supabase replaces the session automatically
-```
+You'll be able to log in at `/admin` with:
+- **Email:** captain@herotvmounting.com
+- **Password:** HeroAdmin2026!
 
-This removes one network round-trip and prevents localStorage corruption, making login work even on intermittent connections.
+You should change the password after first login.
 
-## Summary
+## Technical Details
 
-| File | Change |
+| Step | Action |
 |---|---|
-| `src/hooks/useAuth.tsx` | Remove `cleanupAuthState()` and pre-login `signOut()` from the `signIn` function |
+| Edge function | `supabase/functions/reset-admin-login/index.ts` -- one-time admin credential reset |
+| SQL migration | Update "Direct admin access" RLS policy on `users` table to reference new email |
+| Users table | Update email column from `admin@herotvmounting.com` to `captain@herotvmounting.com` |
+| Cleanup | Delete the edge function after successful execution |
 
