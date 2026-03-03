@@ -1,39 +1,67 @@
 
 
-# Create Admin User: admin@herotvmounting.com
+# Fix: Mount TV Tiered Pricing Not Working
 
-## Approach
+## Root Cause
 
-Create a one-time-use edge function `create-admin-user` that:
-1. Creates the auth user in Supabase Auth with email `admin@herotvmounting.com` and password `Impervious96!!`
-2. Inserts the corresponding profile row in the `users` table with `role = 'admin'`
-3. Returns success/failure status
+The Mount TV service in the database has `pricing_config = NULL`. The tiered discount pricing (1st TV: $90, 2nd TV: $80, 3rd+: $70) and add-on price mappings only exist in the hardcoded fallback file (`fallbackServices.ts`), **not in the database**.
 
-After running it once, the function can be deleted.
+When the app loads:
+1. Fallback data is used initially (has pricing_config with tiers) -- discounts work briefly
+2. Live database fetch completes and replaces fallback data (pricing_config is NULL) -- discounts stop working
+3. `calculateTvMountingPrice()` falls back to `base_price * quantity` = $90 per TV with no discount
 
-## Files to Create/Edit
+## Fix: Populate pricing_config in the Database
 
-### 1. `supabase/functions/create-admin-user/index.ts` (NEW)
+### Step 1 - Database Migration
 
-- Uses the service role client (from `_shared/supabaseClient.ts`) to call `supabase.auth.admin.createUser()`
-- Sets `email_confirm: true` so the user can log in immediately without email verification
-- Inserts a row into `users` table with `role: 'admin'`, `name: 'Admin'`, `email: admin@herotvmounting.com`
-- Protected by a simple shared secret check (the service role key itself) to prevent unauthorized calls
+Run a SQL migration to set `pricing_config` on the Mount TV service row:
 
-### 2. `supabase/config.toml`
+```sql
+UPDATE services 
+SET pricing_config = '{
+  "pricing_type": "tiered",
+  "tiers": [
+    {"quantity": 1, "price": 90},
+    {"quantity": 2, "price": 80},
+    {"quantity": 3, "price": 70, "is_default_for_additional": true}
+  ],
+  "add_ons": {
+    "over65": 25,
+    "frameMount": 40,
+    "soundbar": 40,
+    "specialWall": 40
+  }
+}'::jsonb
+WHERE id = 'a50013bc-ee03-4452-b3ec-1683094d787a' AND name = 'Mount TV';
+```
 
-- Add `[functions.create-admin-user]` with `verify_jwt = false` (since we call it before logging in)
+This single migration is the complete fix. No code changes needed -- the existing `calculateTvMountingPrice()` function and `PricingEngine` already correctly read from `pricing_config` when it's present.
 
-## Execution Plan
+### Why No Code Changes Are Needed
 
-1. Create the edge function
-2. Add config entry
-3. Deploy the function
-4. Call it via `curl_edge_functions` to create the user
-5. Verify the user exists in the database
-6. Delete the edge function (cleanup)
+The code in `useTvMountingModal.tsx` line 48-65 already handles this correctly:
+```
+const pricingConfig = tvMountingService?.pricing_config;
+if (pricingConfig?.tiers) {
+  // Uses tiered pricing -- this path works when pricing_config exists
+}
+// Falls back to base_price * quantity when pricing_config is null
+```
 
-## Security Note
+The only problem is the data, not the code.
 
-The function uses the `SUPABASE_SERVICE_ROLE_KEY` as a bearer token check, so only someone with the service role key can invoke it. After successful creation, the function will be removed from the codebase.
+## Files Changed
+
+| File | Change |
+|---|---|
+| New SQL migration | `UPDATE services SET pricing_config = ...` for Mount TV |
+
+## Result After Fix
+
+- 1st TV: $90
+- 2nd TV: $80 (discount)
+- 3rd+ TV: $70 each (discount)
+- Add-on prices (over65: $25, frameMount: $40, soundbar: $40, specialWall: $40) consistently sourced from DB
+- Works immediately on load AND after DB fetch completes
 
