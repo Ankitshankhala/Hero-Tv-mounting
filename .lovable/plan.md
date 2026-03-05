@@ -1,67 +1,44 @@
 
 
-# Fix: Mount TV Tiered Pricing Not Working
+# Root Cause: Workers Cannot Reassign Jobs
 
-## Root Cause
+## The Problem
 
-The Mount TV service in the database has `pricing_config = NULL`. The tiered discount pricing (1st TV: $90, 2nd TV: $80, 3rd+: $70) and add-on price mappings only exist in the hardcoded fallback file (`fallbackServices.ts`), **not in the database**.
-
-When the app loads:
-1. Fallback data is used initially (has pricing_config with tiers) -- discounts work briefly
-2. Live database fetch completes and replaces fallback data (pricing_config is NULL) -- discounts stop working
-3. `calculateTvMountingPrice()` falls back to `base_price * quantity` = $90 per TV with no discount
-
-## Fix: Populate pricing_config in the Database
-
-### Step 1 - Database Migration
-
-Run a SQL migration to set `pricing_config` on the Mount TV service row:
+The `ReassignJobModal` calls the `worker-operations` edge function to fetch eligible workers. That function (line 58-66) runs this query:
 
 ```sql
-UPDATE services 
-SET pricing_config = '{
-  "pricing_type": "tiered",
-  "tiers": [
-    {"quantity": 1, "price": 90},
-    {"quantity": 2, "price": 80},
-    {"quantity": 3, "price": 70, "is_default_for_additional": true}
-  ],
-  "add_ons": {
-    "over65": 25,
-    "frameMount": 40,
-    "soundbar": 40,
-    "specialWall": 40
-  }
-}'::jsonb
-WHERE id = 'a50013bc-ee03-4452-b3ec-1683094d787a' AND name = 'Mount TV';
+SELECT worker_id, worker:users!worker_service_zipcodes_worker_id_fkey(id, name, email, is_active)
+FROM worker_service_zipcodes
+WHERE zipcode = ?
 ```
 
-This single migration is the complete fix. No code changes needed -- the existing `calculateTvMountingPrice()` function and `PricingEngine` already correctly read from `pricing_config` when it's present.
+The join uses a **named foreign key** (`worker_service_zipcodes_worker_id_fkey`) that **does not exist** on the `worker_service_zipcodes` table. The table has only a primary key constraint -- zero foreign keys.
 
-### Why No Code Changes Are Needed
+PostgREST returns an error like: *"Could not find a relationship between 'worker_service_zipcodes' and 'users'"*, which causes the eligible workers list to come back empty or error out. The modal shows "No eligible workers found."
 
-The code in `useTvMountingModal.tsx` line 48-65 already handles this correctly:
+**Why it worked before**: The foreign key likely existed at one point but was dropped during a migration that recreated or altered the table.
+
+## The Fix
+
+Two changes:
+
+### 1. Add the missing foreign key (SQL migration)
+
+```sql
+ALTER TABLE worker_service_zipcodes
+ADD CONSTRAINT worker_service_zipcodes_worker_id_fkey
+FOREIGN KEY (worker_id) REFERENCES users(id) ON DELETE CASCADE;
 ```
-const pricingConfig = tvMountingService?.pricing_config;
-if (pricingConfig?.tiers) {
-  // Uses tiered pricing -- this path works when pricing_config exists
-}
-// Falls back to base_price * quantity when pricing_config is null
-```
 
-The only problem is the data, not the code.
+### 2. Same fix for `bookings_customer_id_fkey` (verify it exists)
 
-## Files Changed
+The same edge function also joins `bookings` with `users!bookings_customer_id_fkey`. This one appears to exist (confirmed in types.ts), so no action needed there.
+
+### Files Changed
 
 | File | Change |
 |---|---|
-| New SQL migration | `UPDATE services SET pricing_config = ...` for Mount TV |
+| New SQL migration | Add missing FK `worker_service_zipcodes_worker_id_fkey` |
 
-## Result After Fix
-
-- 1st TV: $90
-- 2nd TV: $80 (discount)
-- 3rd+ TV: $70 each (discount)
-- Add-on prices (over65: $25, frameMount: $40, soundbar: $40, specialWall: $40) consistently sourced from DB
-- Works immediately on load AND after DB fetch completes
+No code changes needed -- the edge function query is correct, it just needs the FK to exist in the database.
 
