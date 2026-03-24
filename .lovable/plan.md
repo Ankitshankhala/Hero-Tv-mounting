@@ -1,98 +1,44 @@
 
 
-# Fix Add Services Payment Flow — Implementation Plan
+# Remove Services Payment Flow — Implementation Plan
 
-## Summary
-Six fixes addressing critical payment flow failures, ordered by severity.
+## Fix A: Remove completed status guard
+**File:** `worker-remove-services/index.ts` line 75
+- Delete `if (booking.status === 'completed') throw new Error("Cannot remove services from completed bookings");`
+- The payment-engine already branches correctly on `payment_status`
 
----
+## Fix B: Surface payment failure in edge function
+**File:** `worker-remove-services/index.ts` lines 163-237
+- Add a `paymentAdjustmentFailed` boolean flag, set to `true` when payment-engine errors or returns null while `refundAmount > 0`
+- Include `payment_adjustment_failed` in the response data object
+- No change to try/catch structure — just track and surface the failure
 
-## Fix 1: Unlock Stuck Bookings (CRITICAL)
-**File:** `src/components/worker/AddServicesModal.tsx` line 130
+## Fix C: Frontend safety check
+**File:** `RemoveServicesModal.tsx` lines 170-199
+- After `if (!data.success)` check, before the reauth check, add:
+  - If `data.data?.payment_adjustment_failed === true`, show destructive toast "Services removed but payment was not adjusted. Contact admin.", call `onModificationCreated()` to refresh, and return early
 
-**Before:**
-```typescript
-if (job.payment_status === 'captured' || job.status === 'completed') {
-  toast({ description: "This booking has already been charged..." });
-```
+## Fix D: Zero-total guard
+**File:** `worker-remove-services/index.ts`, after service deletion (line 110) and before payment-engine delegation (line 163)
+- Import Stripe client from `_shared/stripe.ts`
+- Calculate remaining services total from DB after deletion
+- If remaining total is `0` AND `booking.payment_status === 'authorized'` AND `booking.payment_intent_id`:
+  - Cancel the PI via Stripe
+  - Update booking: `payment_status: 'cancelled'`, `requires_manual_payment: true`, `payment_intent_id: null`
+  - Return early with `{ success: true, requires_manual_payment: true }`
 
-**After:**
-```typescript
-if (job.payment_status === 'captured') {
-  toast({ description: "This booking's payment has already been captured. Please create a new booking for additional services." });
-```
+## Technical Details
 
-Only block when payment is actually captured. Completed-but-authorized bookings remain accessible.
+### Edge function changes (worker-remove-services/index.ts):
+1. Add Stripe import at top
+2. Line 75: delete the completed guard
+3. After line 161 (modification records insert), before payment delegation: add zero-total guard block
+4. Lines 163-234: add `paymentAdjustmentFailed` tracking flag, set it on error/null result, include in response
 
----
+### Frontend changes (RemoveServicesModal.tsx):
+1. After line 173 (`if (!data.success)` block): add payment_adjustment_failed check with destructive toast and early return
 
-## Fix 2: Create-Before-Cancel in Payment Engine (CRITICAL)
-**File:** `supabase/functions/payment-engine/index.ts` lines 272-335 (recalculate, pre-capture branch)
-
-Flip the order from cancel→create→update to create→update→cancel:
-
-1. Create new PI first (if fails, old PI remains safe)
-2. Update booking DB with new PI ID
-3. Cancel old PI (if fails, log warning but don't throw — old PI expires naturally)
-
-This eliminates the window where both PIs are gone.
-
----
-
-## Fix 3: Atomic Server-Side Capture (HIGH)
-**File:** `supabase/functions/add-booking-services/index.ts`
-
-After payment-engine `recalculate` succeeds (and action was recalculate, not charge-difference), immediately invoke payment-engine `capture` within the same edge function. Return `amount_captured` in the response.
-
-**File:** `src/components/worker/AddServicesModal.tsx` lines 216-283
-
-Remove the separate frontend capture call. After `add-booking-services` returns success:
-- If response includes `amount_captured` → proceed to mark completed + archived
-- If response has no `amount_captured` and `new_amount > 0` → show hard error (Fix 4)
-
-The frontend flow becomes: one edge function call → status update → archive.
-
----
-
-## Fix 4: Null PI Gate Protection (MEDIUM)
-**File:** `src/components/worker/AddServicesModal.tsx`
-
-After removing the separate capture call (Fix 3), add a check: if `add-booking-services` returns `success: true` but no `amount_captured` and `new_amount > 0`, show a destructive toast: "Services added but payment was not captured. Contact admin." Do NOT mark as completed.
-
----
-
-## Fix 5: Reset Meagan Young's Booking (DATA)
-Run SQL via insert tool:
-```sql
-UPDATE bookings 
-SET status = 'confirmed'
-WHERE id = '1a327b1f-9973-4df9-8283-3149a430d937'
-  AND payment_status = 'authorized'
-  AND status = 'completed'
-  AND captured_amount IS NULL;
-```
-
-First verify with a SELECT to confirm the booking exists in this state.
-
----
-
-## Fix 6: Uncaptured PI Monitoring (MONITORING)
-Create a new edge function `detect-uncaptured-payments` that:
-1. Queries bookings where `payment_status = 'authorized'`, `status IN ('completed','confirmed')`, `scheduled_date < NOW() - INTERVAL '1 day'`, `captured_amount IS NULL`
-2. For each result, inserts an `admin_alert` with severity `high`
-3. Optionally sends SMS/email via existing notification infrastructure
-
-Schedule via pg_cron to run daily.
-
----
-
-## Files Changed Summary
-
-| File | Change |
-|---|---|
-| `src/components/worker/AddServicesModal.tsx` | Fix guard (line 130), remove capture call (lines 216-283), add safety check |
-| `supabase/functions/payment-engine/index.ts` | Flip recalculate to create-before-cancel (lines 272-335) |
-| `supabase/functions/add-booking-services/index.ts` | Add capture invocation after recalculate succeeds |
-| `supabase/functions/detect-uncaptured-payments/index.ts` | New monitoring function |
-| SQL (insert tool) | Reset Meagan Young booking, schedule pg_cron job |
+### Edge cases noted:
+- The "cannot remove all services" guard (line 93) still allows removing down to one $0-price service — the zero-total guard (Fix D) handles this
+- Fix D uses direct Stripe call (cancel only) since payment-engine doesn't have a "cancel" action for zero-total scenarios
 
