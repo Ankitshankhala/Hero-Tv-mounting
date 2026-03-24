@@ -1,67 +1,98 @@
 
 
-# Fix: Mount TV Tiered Pricing Not Working
+# Fix Add Services Payment Flow — Implementation Plan
 
-## Root Cause
+## Summary
+Six fixes addressing critical payment flow failures, ordered by severity.
 
-The Mount TV service in the database has `pricing_config = NULL`. The tiered discount pricing (1st TV: $90, 2nd TV: $80, 3rd+: $70) and add-on price mappings only exist in the hardcoded fallback file (`fallbackServices.ts`), **not in the database**.
+---
 
-When the app loads:
-1. Fallback data is used initially (has pricing_config with tiers) -- discounts work briefly
-2. Live database fetch completes and replaces fallback data (pricing_config is NULL) -- discounts stop working
-3. `calculateTvMountingPrice()` falls back to `base_price * quantity` = $90 per TV with no discount
+## Fix 1: Unlock Stuck Bookings (CRITICAL)
+**File:** `src/components/worker/AddServicesModal.tsx` line 130
 
-## Fix: Populate pricing_config in the Database
+**Before:**
+```typescript
+if (job.payment_status === 'captured' || job.status === 'completed') {
+  toast({ description: "This booking has already been charged..." });
+```
 
-### Step 1 - Database Migration
+**After:**
+```typescript
+if (job.payment_status === 'captured') {
+  toast({ description: "This booking's payment has already been captured. Please create a new booking for additional services." });
+```
 
-Run a SQL migration to set `pricing_config` on the Mount TV service row:
+Only block when payment is actually captured. Completed-but-authorized bookings remain accessible.
 
+---
+
+## Fix 2: Create-Before-Cancel in Payment Engine (CRITICAL)
+**File:** `supabase/functions/payment-engine/index.ts` lines 272-335 (recalculate, pre-capture branch)
+
+Flip the order from cancel→create→update to create→update→cancel:
+
+1. Create new PI first (if fails, old PI remains safe)
+2. Update booking DB with new PI ID
+3. Cancel old PI (if fails, log warning but don't throw — old PI expires naturally)
+
+This eliminates the window where both PIs are gone.
+
+---
+
+## Fix 3: Atomic Server-Side Capture (HIGH)
+**File:** `supabase/functions/add-booking-services/index.ts`
+
+After payment-engine `recalculate` succeeds (and action was recalculate, not charge-difference), immediately invoke payment-engine `capture` within the same edge function. Return `amount_captured` in the response.
+
+**File:** `src/components/worker/AddServicesModal.tsx` lines 216-283
+
+Remove the separate frontend capture call. After `add-booking-services` returns success:
+- If response includes `amount_captured` → proceed to mark completed + archived
+- If response has no `amount_captured` and `new_amount > 0` → show hard error (Fix 4)
+
+The frontend flow becomes: one edge function call → status update → archive.
+
+---
+
+## Fix 4: Null PI Gate Protection (MEDIUM)
+**File:** `src/components/worker/AddServicesModal.tsx`
+
+After removing the separate capture call (Fix 3), add a check: if `add-booking-services` returns `success: true` but no `amount_captured` and `new_amount > 0`, show a destructive toast: "Services added but payment was not captured. Contact admin." Do NOT mark as completed.
+
+---
+
+## Fix 5: Reset Meagan Young's Booking (DATA)
+Run SQL via insert tool:
 ```sql
-UPDATE services 
-SET pricing_config = '{
-  "pricing_type": "tiered",
-  "tiers": [
-    {"quantity": 1, "price": 90},
-    {"quantity": 2, "price": 80},
-    {"quantity": 3, "price": 70, "is_default_for_additional": true}
-  ],
-  "add_ons": {
-    "over65": 25,
-    "frameMount": 40,
-    "soundbar": 40,
-    "specialWall": 40
-  }
-}'::jsonb
-WHERE id = 'a50013bc-ee03-4452-b3ec-1683094d787a' AND name = 'Mount TV';
+UPDATE bookings 
+SET status = 'confirmed'
+WHERE id = '1a327b1f-9973-4df9-8283-3149a430d937'
+  AND payment_status = 'authorized'
+  AND status = 'completed'
+  AND captured_amount IS NULL;
 ```
 
-This single migration is the complete fix. No code changes needed -- the existing `calculateTvMountingPrice()` function and `PricingEngine` already correctly read from `pricing_config` when it's present.
+First verify with a SELECT to confirm the booking exists in this state.
 
-### Why No Code Changes Are Needed
+---
 
-The code in `useTvMountingModal.tsx` line 48-65 already handles this correctly:
-```
-const pricingConfig = tvMountingService?.pricing_config;
-if (pricingConfig?.tiers) {
-  // Uses tiered pricing -- this path works when pricing_config exists
-}
-// Falls back to base_price * quantity when pricing_config is null
-```
+## Fix 6: Uncaptured PI Monitoring (MONITORING)
+Create a new edge function `detect-uncaptured-payments` that:
+1. Queries bookings where `payment_status = 'authorized'`, `status IN ('completed','confirmed')`, `scheduled_date < NOW() - INTERVAL '1 day'`, `captured_amount IS NULL`
+2. For each result, inserts an `admin_alert` with severity `high`
+3. Optionally sends SMS/email via existing notification infrastructure
 
-The only problem is the data, not the code.
+Schedule via pg_cron to run daily.
 
-## Files Changed
+---
+
+## Files Changed Summary
 
 | File | Change |
 |---|---|
-| New SQL migration | `UPDATE services SET pricing_config = ...` for Mount TV |
-
-## Result After Fix
-
-- 1st TV: $90
-- 2nd TV: $80 (discount)
-- 3rd+ TV: $70 each (discount)
-- Add-on prices (over65: $25, frameMount: $40, soundbar: $40, specialWall: $40) consistently sourced from DB
-- Works immediately on load AND after DB fetch completes
+| `src/components/worker/AddServicesModal.tsx` | Fix guard (line 130), remove capture call (lines 216-283), add safety check |
+| `supabase/functions/payment-engine/index.ts` | Flip recalculate to create-before-cancel (lines 272-335) |
+| `supabase/functions/add-booking-services/index.ts` | Add capture invocation after recalculate succeeds |
+| `supabase/functions/detect-uncaptured-payments/index.ts` | New monitoring function |
+| SQL (insert tool) | Reset Meagan Young booking, schedule pg_cron job |
 
