@@ -172,6 +172,18 @@ export const RemoveServicesModal = ({
         throw new Error(data.error || 'Failed to remove service');
       }
 
+      // Fix C: Safety check — if payment adjustment failed, warn the worker
+      if (data.data?.payment_adjustment_failed === true) {
+        toast({
+          title: "Payment Not Adjusted",
+          description: "Services removed but payment was not adjusted. Contact admin.",
+          variant: "destructive",
+        });
+        onModificationCreated();
+        setRemoving(false);
+        return;
+      }
+
       // Check if reauthorization is required (3DS or no saved payment method)
       if (data.data?.requires_new_payment && data.data?.client_secret) {
         setReauthorizeData({
