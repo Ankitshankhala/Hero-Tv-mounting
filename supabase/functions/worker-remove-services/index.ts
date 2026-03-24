@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createStripeClient } from '../_shared/stripe.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,7 +9,7 @@ const corsHeaders = {
 
 /**
  * Worker Remove Services — Removes services from a booking, then delegates
- * payment operations to payment-engine. No direct Stripe calls.
+ * payment operations to payment-engine. No direct Stripe calls except zero-total cancel.
  */
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -57,7 +58,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: true, message: "Services already removed",
-          data: { removed_services: 0, service_names: [], refund_amount: 0, refund_id: null, invoice_updated: false }
+          data: { removed_services: 0, service_names: [], refund_amount: 0, refund_id: null, invoice_updated: false, payment_adjustment_failed: false }
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -72,7 +73,7 @@ serve(async (req) => {
 
     if (bookingError || !booking) throw new Error("Booking not found");
     if (booking.worker_id !== user.id) throw new Error("Access denied");
-    if (booking.status === 'completed') throw new Error("Cannot remove services from completed bookings");
+    // Fix A: Removed `status === 'completed'` guard. Payment-engine branches on payment_status.
 
     // Get services to be removed (snapshot before deletion)
     const { data: servicesToRemove, error: servicesError } = await supabaseService
@@ -160,8 +161,66 @@ serve(async (req) => {
 
     await supabaseService.from('invoice_service_modifications').insert(modificationRecords);
 
+    // Fix D: Zero-total guard — if remaining services total $0, cancel PI instead of recalculating
+    if (booking.payment_intent_id && booking.payment_status === 'authorized') {
+      const { data: remainingServices } = await supabaseService
+        .from('booking_services')
+        .select('base_price, quantity')
+        .eq('booking_id', booking_id);
+
+      const remainingTotal = (remainingServices || []).reduce(
+        (sum, s) => sum + (Number(s.base_price) * Number(s.quantity)), 0
+      );
+
+      if (remainingTotal === 0) {
+        console.log('[WORKER-REMOVE] Remaining total is $0 — cancelling PI instead of recalculating');
+        try {
+          const stripe = createStripeClient();
+          await stripe.paymentIntents.cancel(booking.payment_intent_id, {
+            cancellation_reason: 'abandoned',
+          });
+        } catch (cancelErr: any) {
+          console.warn('[WORKER-REMOVE] PI cancel failed (may already be cancelled):', cancelErr.message);
+        }
+
+        await supabaseService.from('bookings').update({
+          payment_status: 'cancelled',
+          payment_intent_id: null,
+          requires_manual_payment: true,
+        }).eq('id', booking_id);
+
+        // Log removal
+        await supabaseService.from('sms_logs').insert({
+          booking_id,
+          recipient_number: 'system',
+          message: `Services removed by worker (zero-total, PI cancelled): ${servicesToRemove.map(s => s.service_name).join(', ')}`,
+          status: 'sent'
+        });
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            message: "Services removed, payment intent cancelled (zero total)",
+            data: {
+              removed_services: servicesToRemove.length,
+              service_names: servicesToRemove.map(s => s.service_name),
+              refund_amount: 0,
+              refund_id: null,
+              invoice_updated: !!invoice,
+              authorization_updated: false,
+              requires_manual_payment: true,
+              payment_adjustment_failed: false,
+            }
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     // Delegate payment operations to payment-engine
     let paymentResult = null;
+    let paymentAdjustmentFailed = false; // Fix B: track payment failure
+
     if (booking.payment_intent_id && refundAmount > 0) {
       try {
         if (booking.payment_status === 'authorized') {
@@ -178,6 +237,10 @@ serve(async (req) => {
 
           if (engineError) {
             console.error('[WORKER-REMOVE] Recalculate failed:', engineError);
+            paymentAdjustmentFailed = true;
+          } else if (!engineResult) {
+            console.error('[WORKER-REMOVE] Recalculate returned null');
+            paymentAdjustmentFailed = true;
           } else {
             paymentResult = engineResult;
             console.log('[WORKER-REMOVE] Recalculate result:', engineResult?.action);
@@ -201,6 +264,10 @@ serve(async (req) => {
 
           if (engineError) {
             console.error('[WORKER-REMOVE] Refund failed:', engineError);
+            paymentAdjustmentFailed = true;
+          } else if (!engineResult) {
+            console.error('[WORKER-REMOVE] Refund returned null');
+            paymentAdjustmentFailed = true;
           } else {
             paymentResult = engineResult;
             console.log('[WORKER-REMOVE] Refund result:', engineResult?.action);
@@ -208,6 +275,7 @@ serve(async (req) => {
         }
       } catch (paymentError: any) {
         console.error('[WORKER-REMOVE] Payment operation failed:', paymentError.message);
+        paymentAdjustmentFailed = true;
       }
     }
 
@@ -215,14 +283,16 @@ serve(async (req) => {
     await supabaseService.from('sms_logs').insert({
       booking_id,
       recipient_number: 'system',
-      message: `Services removed by worker: ${servicesToRemove.map(s => s.service_name).join(', ')}`,
+      message: `Services removed by worker: ${servicesToRemove.map(s => s.service_name).join(', ')}${paymentAdjustmentFailed ? ' [PAYMENT ADJUSTMENT FAILED]' : ''}`,
       status: 'sent'
     });
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: "Services removed successfully",
+        message: paymentAdjustmentFailed
+          ? "Services removed but payment adjustment failed"
+          : "Services removed successfully",
         data: {
           removed_services: servicesToRemove.length,
           service_names: servicesToRemove.map(s => s.service_name),
@@ -231,6 +301,7 @@ serve(async (req) => {
           invoice_updated: !!invoice,
           authorization_updated: paymentResult?.action === 'reauthorized',
           new_payment_intent_id: paymentResult?.new_payment_intent_id || null,
+          payment_adjustment_failed: paymentAdjustmentFailed,
         }
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
