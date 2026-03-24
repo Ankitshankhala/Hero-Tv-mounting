@@ -126,11 +126,11 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
   };
 
   const handleAddServicesAndCharge = async () => {
-    // CRITICAL FIX: Block adding services to already captured/completed bookings
-    if (job.payment_status === 'captured' || job.status === 'completed') {
+    // Only block if payment has actually been captured — completed-but-authorized bookings must remain accessible
+    if (job.payment_status === 'captured') {
       toast({
         title: "Cannot Add Services",
-        description: "This booking has already been charged. Please create a new booking for additional services.",
+        description: "This booking's payment has already been captured. Please create a new booking for additional services.",
         variant: "destructive",
       });
       return;
@@ -155,7 +155,7 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
         sum + (bs.base_price * bs.quantity), 0
       ) || job.service?.base_price || 0;
 
-      // Use the new add-booking-services function that handles incremental authorization
+      // Use the add-booking-services function which now handles capture atomically
       const { data, error } = await supabase.functions.invoke('add-booking-services', {
         body: {
           booking_id: job.id,
@@ -200,7 +200,6 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
           description: "Your card doesn't support authorization updates. Please re-enter card details.",
         });
 
-        // Show reauthorize payment dialog
         setReauthorizeData({
           original_amount: currentAmount,
           new_amount: data.new_amount,
@@ -213,83 +212,61 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
         return;
       }
 
-      // Step 3: Capture the full payment amount FIRST (before marking complete)
-      if (job.payment_intent_id) {
-        const { data: captureData, error: captureError } = await supabase.functions.invoke('capture-payment-intent', {
-          body: { 
-            booking_id: job.id  // Only send booking_id - edge function will fetch payment_intent_id
-          }
-        });
-
-        if (captureError || !captureData?.success) {
-          const errorMsg = captureData?.error || captureError?.message || 'Payment capture failed';
-          toast({
-            title: "Services Added, Payment Capture Failed",
-            description: `${errorMsg}. Services were added successfully, but payment was not captured. Use the "Charge" button on the job card to complete payment.`,
-            variant: "destructive",
-          });
-          setCart([]);
-          setProcessing(false);
-          onClose();
-          onServicesAdded?.();
-          return;
-        }
-
-        // Step 4: Mark job as completed ONLY after successful payment capture
-        const { error: updateError } = await supabase
-          .from('bookings')
-          .update({ status: 'completed' })
-          .eq('id', job.id);
-
-        if (updateError) {
-          console.error('Error marking job complete:', updateError);
-          toast({
-            title: "Payment Captured Successfully",
-            description: `Payment of $${captureData.amount_captured.toFixed(2)} was captured, but couldn't mark job as complete. Please manually update the job status in the dashboard.`,
-            variant: "destructive",
-          });
-          setCart([]);
-          setProcessing(false);
-          onClose();
-          onServicesAdded?.();
-          return;
-        }
-
-        // Step 5: Explicitly archive the job after successful completion
-        const { error: archiveError } = await supabase
-          .from('bookings')
-          .update({ 
-            is_archived: true, 
-            archived_at: new Date().toISOString() 
-          })
-          .eq('id', job.id);
-        
-        if (archiveError) {
-          console.error('[ADD-SERVICES] Auto-archive failed:', archiveError);
-          // Log but don't fail - trigger should handle it
-        } else {
-          console.log('[ADD-SERVICES] Job explicitly archived after capture');
-        }
-
-        // Complete success!
+      // Fix 4: Safety check — if amount > 0 but no capture happened, show hard error
+      if (data.new_amount > 0 && !data.amount_captured && data.amount_captured !== 0) {
         toast({
-          title: "✓ Job Completed Successfully",
-          description: `Added ${cart.length} service(s), captured payment of $${data.new_amount.toFixed(2)}, and marked job complete.`,
+          title: "Services Added — Payment Not Captured",
+          description: "Services were added but payment could not be captured. Please use the 'Charge' button or contact admin.",
+          variant: "destructive",
         });
-      } else {
-        toast({
-          title: "✓ Services Added",
-          description: `Successfully added ${cart.length} service(s) to the booking.`,
-        });
+        setCart([]);
+        setProcessing(false);
+        onClose();
+        onServicesAdded?.();
+        return;
       }
 
-      // Reset cart and close modal
+      // Capture was handled server-side — mark job as completed + archived
+      const { error: updateError } = await supabase
+        .from('bookings')
+        .update({ status: 'completed' })
+        .eq('id', job.id);
+
+      if (updateError) {
+        console.error('Error marking job complete:', updateError);
+        toast({
+          title: "Payment Captured Successfully",
+          description: `Payment of $${data.amount_captured?.toFixed(2)} was captured, but couldn't mark job as complete. Please manually update the job status.`,
+          variant: "destructive",
+        });
+        setCart([]);
+        setProcessing(false);
+        onClose();
+        onServicesAdded?.();
+        return;
+      }
+
+      // Archive the job
+      const { error: archiveError } = await supabase
+        .from('bookings')
+        .update({ 
+          is_archived: true, 
+          archived_at: new Date().toISOString() 
+        })
+        .eq('id', job.id);
+      
+      if (archiveError) {
+        console.error('[ADD-SERVICES] Auto-archive failed:', archiveError);
+      }
+
+      toast({
+        title: "✓ Job Completed Successfully",
+        description: `Added ${cart.length} service(s), captured payment of $${data.amount_captured?.toFixed(2) || data.new_amount?.toFixed(2)}, and marked job complete.`,
+      });
+
       setCart([]);
       onClose();
-      
-      if (onServicesAdded) {
-        onServicesAdded();
-      }
+      onServicesAdded?.();
 
     } catch (error: any) {
       console.error('Error adding services and charging:', error);
@@ -297,7 +274,6 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
       let errorTitle = "Service Addition Failed";
       let errorDescription = "An unexpected error occurred while adding services. Please try again.";
       
-      // Parse structured errors
       if (error.error_code) {
         errorTitle = `Error: ${error.error_code}`;
         errorDescription = error.error || error.details || errorDescription;
@@ -305,7 +281,6 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
         errorDescription = error.message;
       }
       
-      // Provide actionable guidance based on error
       if (error.message?.includes('payment')) {
         errorDescription += " Please verify the payment method is valid.";
       } else if (error.message?.includes('booking')) {

@@ -270,25 +270,12 @@ Deno.serve(async (req) => {
       }
 
       if (currentPI.status === 'requires_capture') {
-        // PRE-CAPTURE: Cancel old, create new
+        // PRE-CAPTURE: Create new PI FIRST, then cancel old (create-before-cancel)
         const newVersion = booking.payment_version + 1;
         const idempotencyKey = `recalc_${bookingId}_v${newVersion}`;
-
-        // STEP 1: Cancel old PI FIRST (cancel-before-create)
         const oldPiId = booking.payment_intent_id;
-        try {
-          await stripe.paymentIntents.cancel(oldPiId);
-          console.log('[PAYMENT-ENGINE] Cancelled old PI:', oldPiId);
-        } catch (e: any) {
-          // If already cancelled/succeeded, proceed; otherwise rethrow
-          if (!e.message?.includes('canceled') && !e.message?.includes('succeeded')) {
-            console.error('[PAYMENT-ENGINE] Cancel failed hard:', e.message);
-            throw new Error(`Failed to cancel old payment: ${e.message}`);
-          }
-          console.warn('[PAYMENT-ENGINE] Cancel warning (non-fatal):', e.message);
-        }
 
-        // STEP 2: Create new PI
+        // STEP 1: Create new PI first — if this fails, old PI remains safe
         let newPI;
         try {
           newPI = await stripe.paymentIntents.create({
@@ -306,7 +293,7 @@ Deno.serve(async (req) => {
             }
           }, { idempotencyKey });
         } catch (createErr: any) {
-          console.error('[PAYMENT-ENGINE] New PI creation failed:', createErr.message);
+          console.error('[PAYMENT-ENGINE] New PI creation failed (old PI preserved):', createErr.message);
           await supabase.from('bookings').update({
             requires_manual_payment: true,
             pending_payment_amount: expectedTotal,
@@ -322,7 +309,7 @@ Deno.serve(async (req) => {
           throw new Error(`Unexpected PI status: ${newPI.status}`);
         }
 
-        // STEP 3: Single final DB write with version increment + new PI + old PI reference
+        // STEP 2: Update DB with new PI BEFORE cancelling old — commit new PI first
         await supabase.from('bookings').update({
           payment_intent_id: newPI.id,
           last_payment_intent_id: oldPiId,
@@ -333,6 +320,18 @@ Deno.serve(async (req) => {
           has_modifications: true,
           requires_manual_payment: false,
         }).eq('id', bookingId);
+
+        // STEP 3: Cancel old PI — if this fails, log but don't throw (old PI expires naturally)
+        try {
+          await stripe.paymentIntents.cancel(oldPiId);
+          console.log('[PAYMENT-ENGINE] Cancelled old PI:', oldPiId);
+        } catch (e: any) {
+          if (!e.message?.includes('canceled') && !e.message?.includes('succeeded')) {
+            console.warn('[PAYMENT-ENGINE] Old PI cancel failed (non-fatal, will expire):', e.message);
+          } else {
+            console.log('[PAYMENT-ENGINE] Old PI already cancelled/succeeded:', oldPiId);
+          }
+        }
 
         // Update transaction
         const { error: txErr } = await supabase.from('transactions')
