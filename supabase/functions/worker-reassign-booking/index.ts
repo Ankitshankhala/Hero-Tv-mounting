@@ -140,14 +140,16 @@ const handler = async (req: Request): Promise<Response> => {
       .eq('booking_id', requestData.bookingId)
       .eq('worker_id', booking.worker_id);
 
-    // Create new worker_bookings record
+    // Create or re-activate worker_bookings record (handles re-assignment to a previous worker)
     await supabase
       .from('worker_bookings')
-      .insert({
+      .upsert({
         booking_id: requestData.bookingId,
         worker_id: requestData.newWorkerId,
         status: 'assigned',
         ack_status: 'pending'
+      }, {
+        onConflict: 'booking_id,worker_id'
       });
 
     // Add audit log
