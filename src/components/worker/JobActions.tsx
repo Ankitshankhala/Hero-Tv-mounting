@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Trash2, Phone, MapPin, CreditCard, DollarSign, Plus, Users, Clock, Archive, CheckCircle } from 'lucide-react';
+import { Trash2, Phone, MapPin, CreditCard, DollarSign, Plus, Users, Clock, Archive, CheckCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PaymentCaptureButton } from './PaymentCaptureButton';
+
 import { initiatePhoneCall } from '@/utils/phoneUtils';
 import { MapAppSelector } from './MapAppSelector';
 import { ReassignJobModal } from './ReassignJobModal';
