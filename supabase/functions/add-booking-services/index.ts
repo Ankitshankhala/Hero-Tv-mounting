@@ -105,12 +105,14 @@ serve(async (req) => {
     // Adding services only updates the authorized amount via `recalculate`.
     // Final capture happens only when the worker clicks
     // "Complete Job & Accept Payment" → worker-complete-and-capture.
-    const captureResult: { amount_captured?: number; payment_intent_id?: string } | null = null;
 
     // Calculate new total for response
     const currentTotal = booking.booking_services?.reduce((sum: number, bs: any) =>
       sum + (Number(bs.base_price) * bs.quantity), 0) || 0;
-    const newServicesTotal = servicesData.reduce((sum, s) => sum + (s.base_price * s.quantity), 0);
+    const newServicesTotal = (servicesData as any[]).reduce(
+      (sum: number, s: any) => sum + (Number(s.base_price) * s.quantity),
+      0
+    );
     const newTotal = currentTotal + newServicesTotal;
 
     // Update invoice in background
@@ -129,10 +131,10 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         incremented: true,
-        new_amount: captureResult?.amount_captured || newTotal,
+        new_amount: newTotal,
         services_added: services.length,
-        payment_intent_id: captureResult?.payment_intent_id || engineResult.new_payment_intent_id || booking.payment_intent_id,
-        amount_captured: captureResult?.amount_captured || null,
+        payment_intent_id: engineResult.new_payment_intent_id || booking.payment_intent_id,
+        amount_captured: null,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
