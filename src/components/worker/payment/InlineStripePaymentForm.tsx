@@ -7,20 +7,29 @@ import { StripeCardElement } from '@/components/StripeCardElement';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
+/**
+ * InlineStripePaymentForm — Worker-side card collection for the
+ * **payment recovery / manual charge** flow only (used by PaymentCollectionModal
+ * when a booking has no successful authorization and the worker needs to
+ * collect payment with a fresh card).
+ *
+ * This form must NEVER be used for the Add/Remove Services flow. Service
+ * changes adjust authorization through `payment-engine` only; final capture
+ * happens via `worker-complete-and-capture`. 3DS re-authorization is handled
+ * exclusively by `ReauthorizePaymentDialog`.
+ */
 interface InlineStripePaymentFormProps {
   job: any;
   amount: string;
-  clientSecret?: string; // For confirming existing PaymentIntents
   onPaymentSuccess: () => void;
   onPaymentFailure?: (error: string) => void;
 }
 
-export const InlineStripePaymentForm = ({ 
-  job, 
-  amount, 
-  clientSecret,
+export const InlineStripePaymentForm = ({
+  job,
+  amount,
   onPaymentSuccess,
-  onPaymentFailure 
+  onPaymentFailure,
 }: InlineStripePaymentFormProps) => {
   const [stripe, setStripe] = useState<any>(null);
   const [cardElement, setCardElement] = useState<any>(null);
@@ -28,7 +37,7 @@ export const InlineStripePaymentForm = ({
   const [cardError, setCardError] = useState('');
   const { toast } = useToast();
 
-  const handleStripeReady = (stripeInstance: any, elements: any, cardEl: any) => {
+  const handleStripeReady = (stripeInstance: any, _elements: any, cardEl: any) => {
     setStripe(stripeInstance);
     setCardElement(cardEl);
   };
@@ -38,9 +47,9 @@ export const InlineStripePaymentForm = ({
       const error = 'Payment form not ready. Please try again.';
       onPaymentFailure?.(error);
       toast({
-        title: "Payment Error",
+        title: 'Payment Error',
         description: error,
-        variant: "destructive"
+        variant: 'destructive',
       });
       return;
     }
@@ -48,126 +57,54 @@ export const InlineStripePaymentForm = ({
     setProcessing(true);
 
     try {
-      if (clientSecret) {
-        // Confirm existing PaymentIntent using client secret
-        const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
-          payment_method: {
-            card: cardElement,
-          }
-        });
+      // Manual-charge / payment-recovery path: collect a brand-new card,
+      // hand it to `process-manual-charge` which authorizes and captures
+      // server-side as a single recovery action.
+      const { error, paymentMethod } = await stripe.createPaymentMethod({
+        type: 'card',
+        card: cardElement,
+      });
 
-        if (error) {
-          throw new Error(error.message);
-        }
-
-        console.log('PaymentIntent status:', paymentIntent.status);
-        
-        // Handle payment based on status
-        if (paymentIntent.status === 'requires_capture') {
-          console.log('Payment requires manual capture, triggering capture process...');
-          
-          // Trigger payment capture
-          const { data: captureData, error: captureError } = await supabase.functions.invoke('capture-payment-intent', {
-            body: {
-              payment_intent_id: paymentIntent.id,
-              booking_id: job.id
-            }
-          });
-
-          if (captureError) {
-            console.error('Capture error:', captureError);
-            throw new Error(`Payment capture failed: ${captureError.message}`);
-          }
-
-          if (!captureData?.success) {
-            throw new Error(captureData?.error || 'Payment capture failed');
-          }
-
-          toast({
-            title: "Payment Successful",
-            description: `Successfully charged $${amount} for additional services`,
-          });
-
-          onPaymentSuccess();
-        } else if (['succeeded', 'processing'].includes(paymentIntent.status)) {
-          // Update transaction status via edge function
-          const { data, error: updateError } = await supabase.functions.invoke('process-service-addition-payment', {
-            body: {
-              payment_intent_id: paymentIntent.id,
-              booking_id: job.id
-            }
-          });
-
-          if (updateError) {
-            console.error('Edge function error:', updateError);
-            throw new Error(updateError.message);
-          }
-
-          toast({
-            title: "Payment Successful",
-            description: `Successfully charged $${amount} for additional services`,
-          });
-
-          onPaymentSuccess();
-        } else {
-          console.error('Unexpected PaymentIntent status:', paymentIntent.status);
-          throw new Error(`Payment status: ${paymentIntent.status}. Please contact support if you were charged.`);
-        }
-
-      } else {
-        // Create new payment method and process through edge function (original flow)
-        const { error, paymentMethod } = await stripe.createPaymentMethod({
-          type: 'card',
-          card: cardElement,
-        });
-
-        if (error) {
-          throw new Error(error.message);
-        }
-
-        // Get customer information
-        const customerEmail = job.customer?.email || job.guest_customer_info?.email;
-        const customerName = job.customer?.name || job.guest_customer_info?.name;
-        
-        const amountInDollars = parseFloat(amount);
-
-        // Process the payment through edge function
-        const { data, error: functionError } = await supabase.functions.invoke('process-manual-charge', {
-          body: {
-            bookingId: job.id,
-            customerId: job.customer?.id || null,
-            paymentMethodId: paymentMethod.id,
-            amount: amountInDollars,
-            chargeType: 'additional_services',
-            description: `Additional services for Booking #${job.id.slice(0, 8)} - $${amount}`
-          }
-        });
-
-        if (functionError) {
-          throw new Error(functionError.message);
-        }
-
-        if (!data?.success) {
-          throw new Error(data?.error || 'Payment processing failed');
-        }
-
-        toast({
-          title: "Payment Successful",
-          description: `Successfully charged $${amount} for additional services`,
-        });
-
-        onPaymentSuccess();
+      if (error) {
+        throw new Error(error.message);
       }
 
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Payment processing failed';
-      console.error('Payment error:', error);
-      
+      const amountInDollars = parseFloat(amount);
+
+      const { data, error: functionError } = await supabase.functions.invoke('process-manual-charge', {
+        body: {
+          bookingId: job.id,
+          customerId: job.customer?.id || null,
+          paymentMethodId: paymentMethod.id,
+          amount: amountInDollars,
+          chargeType: 'additional_services',
+          description: `Manual charge for Booking #${job.id.slice(0, 8)} - $${amount}`,
+        },
+      });
+
+      if (functionError) {
+        throw new Error(functionError.message);
+      }
+
+      if (!data?.success) {
+        throw new Error(data?.error || 'Payment processing failed');
+      }
+
+      toast({
+        title: 'Payment Successful',
+        description: `Successfully charged $${amount}`,
+      });
+
+      onPaymentSuccess();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Payment processing failed';
+      console.error('[InlineStripePaymentForm] Payment error:', err);
+
       onPaymentFailure?.(errorMessage);
       toast({
-        title: "Payment Failed",
+        title: 'Payment Failed',
         description: errorMessage,
-        variant: "destructive"
+        variant: 'destructive',
       });
     } finally {
       setProcessing(false);
@@ -216,10 +153,7 @@ export const InlineStripePaymentForm = ({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <StripeCardElement 
-            onReady={handleStripeReady}
-            onError={setCardError}
-          />
+          <StripeCardElement onReady={handleStripeReady} onError={setCardError} />
           {cardError && (
             <Alert variant="destructive" className="mt-3">
               <AlertDescription>{cardError}</AlertDescription>
@@ -229,7 +163,7 @@ export const InlineStripePaymentForm = ({
       </Card>
 
       {/* Payment Button */}
-      <Button 
+      <Button
         onClick={handlePayment}
         disabled={processing || !stripe || !!cardError}
         className="w-full bg-green-600 hover:bg-green-700 text-white"
