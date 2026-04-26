@@ -65,13 +65,13 @@ serve(async (req) => {
       
       // Background task: Log to admin alerts
       EdgeRuntime.waitUntil(
-        supabase.from('admin_alerts').insert({
+        Promise.resolve(supabase.from('admin_alerts').insert({
           alert_type: 'payment_blocked_db_error',
           severity: 'critical',
           booking_id: booking_id,
           message: 'Payment blocked: Database error fetching booking services',
           details: { error: servicesResult.error.message, timestamp: new Date().toISOString() }
-        })
+        }))
       );
       
       throw new Error('Failed to fetch booking services');
