@@ -5,15 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ServiceCard } from '@/components/ServiceCard';
 import { TvMountingModal } from '@/components/TvMountingModal';
-import { InlineStripePaymentForm } from './payment/InlineStripePaymentForm';
-import { PaymentVerificationForm } from './payment/PaymentVerificationForm';
 import { ReauthorizePaymentDialog } from './payment/ReauthorizePaymentDialog';
 import { CartItem } from '@/types';
 import { usePublicServicesData } from '@/hooks/usePublicServicesData';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useTestingMode, getEffectiveServicePrice } from '@/contexts/TestingModeContext';
-import { ShoppingCart, CreditCard, Plus, X, ArrowLeft } from 'lucide-react';
+import { ShoppingCart, Plus, X } from 'lucide-react';
 
 interface AddServicesModalProps {
   isOpen: boolean;
@@ -42,14 +40,7 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showTvModal, setShowTvModal] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [showReauthorizeDialog, setShowReauthorizeDialog] = useState(false);
-  const [paymentData, setPaymentData] = useState<{
-    clientSecret: string;
-    amount: number;
-    paymentIntentId: string;
-    sessionId?: string;
-  } | null>(null);
   const [reauthorizeData, setReauthorizeData] = useState<{
     original_amount: number;
     new_amount: number;
@@ -212,61 +203,22 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
         return;
       }
 
-      // Fix 4: Safety check — if amount > 0 but no capture happened, show hard error
-      if (data.new_amount > 0 && !data.amount_captured && data.amount_captured !== 0) {
-        toast({
-          title: "Services Added — Payment Not Captured",
-          description: "Services were added but payment could not be captured. Please use the 'Charge' button or contact admin.",
-          variant: "destructive",
-        });
-        setCart([]);
-        setProcessing(false);
-        onClose();
-        onServicesAdded?.();
-        return;
-      }
-
-      // Capture was handled server-side — mark job as completed + archived
-      const { error: updateError } = await supabase
-        .from('bookings')
-        .update({ status: 'completed' })
-        .eq('id', job.id);
-
-      if (updateError) {
-        console.error('Error marking job complete:', updateError);
-        toast({
-          title: "Payment Captured Successfully",
-          description: `Payment of $${data.amount_captured?.toFixed(2)} was captured, but couldn't mark job as complete. Please manually update the job status.`,
-          variant: "destructive",
-        });
-        setCart([]);
-        setProcessing(false);
-        onClose();
-        onServicesAdded?.();
-        return;
-      }
-
-      // Archive the job
-      const { error: archiveError } = await supabase
-        .from('bookings')
-        .update({ 
-          is_archived: true, 
-          archived_at: new Date().toISOString() 
-        })
-        .eq('id', job.id);
-      
-      if (archiveError) {
-        console.error('[ADD-SERVICES] Auto-archive failed:', archiveError);
-      }
-
+      // Authorization-only flow: NEVER capture, complete, or archive from this modal.
+      // Capture happens exclusively via worker-complete-and-capture when the worker
+      // clicks "Complete Job & Accept Payment".
+      const newAuthorized = typeof data.new_amount === 'number' ? data.new_amount : null;
       toast({
-        title: "✓ Job Completed Successfully",
-        description: `Added ${cart.length} service(s), captured payment of $${data.amount_captured?.toFixed(2) || data.new_amount?.toFixed(2)}, and marked job complete.`,
+        title: "✓ Services Added",
+        description: newAuthorized != null
+          ? `Authorization updated to $${newAuthorized.toFixed(2)}. Complete the job to capture payment.`
+          : `Services added. Complete the job to capture payment.`,
       });
 
       setCart([]);
+      setProcessing(false);
       onClose();
       onServicesAdded?.();
+      return;
 
     } catch (error: any) {
       console.error('Error adding services and charging:', error);
