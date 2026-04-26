@@ -1,88 +1,101 @@
-## What's broken (verified)
+# Unified Worker "Complete Job & Accept Payment" Flow
 
-There are **two real bugs** — and the user's note is correct that this is a polygon-vs-polygon problem, but the good news is your project **already has the correct backend** for this. It's just not being used in one place, and the other place keeps destroying itself mid-draw.
+## Goal
 
-### Bug 1 — Worker map silently returns zero ZIPs
+Replace today's split 2-step flow (frontend marks `status=completed` → then calls capture) with a single atomic server-side action: **one button → one edge function → capture-then-complete-then-archive**. No worker UI ever mutates booking status. Jobs cannot enter `status=completed` unless Stripe capture succeeded.
 
-`src/components/worker/service-area/ServiceAreaMap.tsx`, function `computeZipCodes` (line 366):
+## Current problems (verified in code)
 
-```ts
-const zipCodes: string[] = []; // Database computes this
-setPrecomputedZipCodes(zipCodes);
-```
+- `src/components/worker/JobActions.tsx` (lines 61–115) updates `bookings.status='completed'` first, then calls `capture-payment-intent`. If capture fails the booking is left `completed + authorized` and the worker dashboard hides it (active list excludes `status==='completed'`).
+- Two separate "Charge" buttons exist (`JobActions` Mark Complete + `worker/PaymentCaptureButton`), with contradictory visibility rules — workers don't know which to click.
+- `WorkerDashboardWithSidebar.tsx` calls a non-existent function `capture-payment` (line 205) — silently fails.
+- `add-booking-services` auto-captures and completes the job after adding services (lines 104–125 in `supabase/functions/add-booking-services/index.ts`). This contradicts the rule "capture only via the worker's complete button."
+- `worker/PaymentCaptureButton.tsx` treats `bookingStatus==='completed'` as "Payment Captured" — wrong; a completed booking can still be unpaid today.
 
-It's literally hardcoded to an empty array with a stale "database computes this" comment. So when a worker draws a polygon:
+## Plan
 
-- The "Found ZIP codes" panel is always empty
-- `requestBody.zipCodes = precomputedZipCodes` is skipped (length 0)
-- The save falls back to a server path, often returning "No ZIP codes found" → `suggestManualMode` → manual fallback UI
-- This matches what you're seeing: drawings don't capture the ZIPs underneath
+### 1. Backend: add atomic action `complete-and-capture` to `payment-engine`
 
-The admin version of the same function (`AdminServiceAreaMap.tsx` line 88–139) **is correct** — it calls the existing PostGIS RPC `get_zcta_codes_for_polygon(polygon_coords)` against the `us_zcta_polygons` table. We just need to mirror that into the worker map.
+In `supabase/functions/payment-engine/index.ts`, add a new action alongside the existing `capture` action:
 
-### Bug 2 — Admin map tears itself down while drawing
+- Validate auth + worker/admin owns booking.
+- Load booking; if `payment_status` already `captured`/`completed` → idempotently set `status='completed'`, archive, return success.
+- Reject if `status` not in (`confirmed`, `in_progress`, `payment_authorized`) or `payment_status !== 'authorized'` or no `payment_intent_id` or `requires_manual_payment=true`.
+- Recalculate expected total from `booking_services` + `tip_amount`.
+- Retrieve PI from Stripe.
+  - If `pi.status === 'succeeded'` (Stripe already captured, DB out of sync) → finalize DB and return `recovered_from_stripe: true`.
+  - If `pi.status !== 'requires_capture'` → throw clear error.
+  - If amount mismatch >1¢ → throw "Booking total changed, please recalculate first".
+- Capture with `idempotencyKey: complete_capture_${bookingId}_v${payment_version}`.
+- Only after Stripe `succeeded`: in one DB pass set `status='completed'`, `payment_status='captured'`, `captured_amount`, `pending_payment_amount=null`, `is_archived=true`, `archived_at=now()`. Update/insert transaction row. Insert `booking_audit_log` row. Fire-and-forget invoice generation.
 
-`src/components/admin/AdminServiceAreaMap.tsx`, line 851:
+Keep the existing `capture` action for admin/legacy callers but it will no longer be the worker path.
 
-```ts
-}, [isActive, serviceAreas]);
-```
+### 2. Backend: thin wrapper edge function `worker-complete-and-capture`
 
-The map-initialization `useEffect` depends on `serviceAreas`. Every time `loadServiceAreas()` runs — including right after Save, after realtime sync, or when a polygon is added — the map is unmounted and rebuilt. If admin is mid-draw, the polygon, the draw control, and the in-progress shape are all destroyed. This is the "sometimes admin can't capture" behavior.
+New function `supabase/functions/worker-complete-and-capture/index.ts` that just forwards `{ booking_id }` to `payment-engine` action `complete-and-capture` with the caller's Authorization header. This gives the frontend a single, clearly-named endpoint.
 
-The `serviceAreas` reference is only needed *inside* event handlers (e.g., to populate the area-selection dropdown). It does not belong in the init dependency array.
+### 3. Backend: stop auto-capturing in `add-booking-services`
 
-### What's NOT broken (so we don't touch it)
+In `supabase/functions/add-booking-services/index.ts`:
+- Remove the atomic capture block (lines ~104–125).
+- Keep `recalculate` / `charge-difference` (so authorization stays in sync).
+- Job stays active; capture happens only when worker clicks the unified button.
 
-- PostGIS data: `us_zcta_polygons` has the polygons, RLS allows public SELECT
-- RPC `get_zcta_codes_for_polygon(polygon_coords jsonb)` exists and works
-- Edge function `service-area-upsert` already accepts a precomputed `zipCodes` array
-- Admin's `computeZipCodes` already uses the correct GeoJSON-ring format `[[lng,lat], …, [lng,lat]]` with the polygon closed
-- Coordinate order, CRS (WGS84), polygon closure — all already handled correctly on the admin side. We just copy that pattern.
+Update `AddServicesModal` button label from "Charge Full Amount & Complete Job" to "Add Services to Job".
 
-## The fix
+### 4. Frontend: unify worker action in `JobActions.tsx`
 
-### Change 1 — Wire the worker map to the same RPC the admin uses
+- Remove `handleMarkComplete`'s frontend status update + capture chain.
+- Remove the "Charge" Mark-Complete button and the second `<PaymentCaptureButton>` charge button.
+- Add a single button **"Complete Job & Accept Payment"** shown when:  
+  `status ∈ {confirmed, in_progress, payment_authorized}` AND `payment_status === 'authorized'` AND `payment_intent_id` AND `!requires_manual_payment`.
+- On click → `supabase.functions.invoke('worker-complete-and-capture', { body: { booking_id: job.id } })`. Toast success/failure; refresh on success only.
+- Keep `Archive Job` button for already-captured jobs.
+- Keep `Collect Payment` (re-auth) button for `failed`/`cancelled` payment_status — that's a separate recovery path.
 
-In `src/components/worker/service-area/ServiceAreaMap.tsx`, replace the stub `computeZipCodes` with the same call admin already uses:
+### 5. Retire worker-side `PaymentCaptureButton` from job cards
 
-- Build a closed GeoJSON ring from `coordinates` (`[lng, lat]` pairs, first point repeated at the end)
-- Call `supabase.rpc('get_zcta_codes_for_polygon', { polygon_coords: ring })`
-- Set `precomputedZipCodes` to the returned array
-- Keep the existing toast for "few ZIPs found" and the optional `renderZipBoundaries` preview
+- Remove its usage in `JobActions.tsx`.
+- Leave `src/components/admin/PaymentCaptureButton.tsx` (admin recovery) untouched.
+- Worker-side `src/components/worker/PaymentCaptureButton.tsx` becomes unused → delete (or keep only for an explicit admin recovery surface).
 
-This is a ~25-line replacement inside one function. No other worker code changes — `saveServiceArea` already forwards `precomputedZipCodes` to the edge function correctly.
+### 6. Fix `WorkerDashboardWithSidebar.tsx`
 
-### Change 2 — Stop rebuilding the admin map on every state change
+- Remove the broken `capture-payment` invocation in `updateJobStatus` (line 205).
+- The status dropdown should not allow workers to push to `completed` directly. Either remove the "completed" option from `getValidNextStatuses` or route any "complete" intent through the new `worker-complete-and-capture` function.
 
-In `src/components/admin/AdminServiceAreaMap.tsx`:
+### 7. Database safety guard (migration)
 
-- Change the init `useEffect` dependency at line 851 from `[isActive, serviceAreas]` → `[isActive]`
-- Add a `serviceAreasRef = useRef<ServiceArea[]>([])` and keep it in sync with a tiny `useEffect(() => { serviceAreasRef.current = serviceAreas }, [serviceAreas])`
-- In the two spots inside the init effect that read `serviceAreas` (the `Draw.Event.CREATED` handler around line 571 — choosing default existing-vs-new selection), read from `serviceAreasRef.current` instead
+Add/strengthen a trigger so a booking transition into `status='completed'` requires `payment_status IN ('captured','completed')`. This way, even if any legacy code path tries the old "complete-then-capture" pattern, Postgres rejects it. Continue to allow the legacy `'completed'` payment_status string for old rows; new writes use `'captured'`.
 
-The dropdown that lists existing areas in the JSX (lines 1191, 1218, 1223, 1289, 1297, 1305) keeps reading `serviceAreas` directly — those are render-time reads and re-render normally. Nothing else needs to move.
+### 8. Recovery alignment
 
-### Change 3 — Tiny cleanup (low risk, high signal)
+`sync-stripe-captures` already sets `payment_status='captured'` for Stripe-succeeded PIs. Extend its update to also set `status='completed'`, `is_archived=true`, `archived_at=now()`, `captured_amount` so out-of-sync bookings are fully repaired. `detect-uncaptured-payments` continues to alert admin for stuck authorizations.
 
-While we're in `ServiceAreaMap.tsx`, remove the misleading log line `'🔍 Database will compute ZIP codes for polygon...'` since the client now actually does the RPC call. Replace with a single accurate log that mirrors admin's style. No other logging or behavior changes.
+## Final worker UX
 
-## What we deliberately don't do
+Active job card buttons: Call Customer · Open Map · Add Services · Remove Services · Reassign · Change Time · **Complete Job & Accept Payment**.
 
-- **No edge function changes.** `service-area-upsert` already trusts the precomputed array.
-- **No database / RPC / RLS / migration changes.** Everything server-side already works.
-- **No switch to client-side Turf.js.** The user's message suggests Turf as one option — we don't need it. PostGIS via the existing RPC is faster, already deployed, and avoids shipping the full ~50 MB ZCTA GeoJSON to every worker browser just to compute intersections.
-- **No changes to `WorkerServiceAreasMap.tsx`, `ServiceCoverageMapWithBoundaries.tsx`, or any of the other map components.** They aren't part of the broken draw-and-capture flow.
-- **No changes to the draw controls, leaflet-draw config, edit/delete handlers, or saved-area display.** Existing polygons keep rendering exactly as they do today.
+Click → backend captures Stripe → DB atomically marks completed + captured + archived → invoice queued → toast "Payment captured: $X". On failure → job stays active, clear error toast, no DB mutation.
 
 ## Files touched
 
-1. `src/components/worker/service-area/ServiceAreaMap.tsx` — replace `computeZipCodes` body to call `get_zcta_codes_for_polygon` (matches admin)
-2. `src/components/admin/AdminServiceAreaMap.tsx` — drop `serviceAreas` from the init `useEffect` deps, add `serviceAreasRef`, read from ref inside the `CREATED` handler
+Backend:
+- `supabase/functions/payment-engine/index.ts` — new `complete-and-capture` action.
+- `supabase/functions/worker-complete-and-capture/index.ts` — new wrapper.
+- `supabase/functions/add-booking-services/index.ts` — remove auto-capture block.
+- `supabase/functions/sync-stripe-captures/index.ts` — also complete+archive on recovery.
+- New migration — trigger requiring captured payment for `status='completed'`.
 
-## How we'll verify after the change
+Frontend:
+- `src/components/worker/JobActions.tsx` — single button, single backend call.
+- `src/components/worker/AddServicesModal.tsx` — relabel button, no capture expectation.
+- `src/components/worker/PaymentCaptureButton.tsx` — remove usage (delete file).
+- `src/pages/WorkerDashboardWithSidebar.tsx` — remove broken `capture-payment` call.
 
-- Worker: draw a polygon over a known multi-ZIP area → "Found ZIP codes" badge shows the actual count → Save → `worker_service_areas` row gets the right zipcodes
-- Admin: start drawing, let realtime fire / save another area in another tab → in-progress polygon survives, draw control stays mounted
-- Existing saved areas still render on map load (regression check on both)
-- `service_area_audit_logs` shows successful upserts again instead of only deletes
+## Out of scope
+
+- Re-auth / `Collect Payment` flow for failed/cancelled cards (kept as is).
+- Admin `PaymentCaptureButton` (kept for admin recovery view).
+- Tip collection UI changes.
