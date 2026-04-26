@@ -81,7 +81,7 @@ export const StripeModeToggle: React.FC = () => {
             <div>
               <CardTitle className="flex items-center gap-2">
                 {isTest ? (
-                  <TestTube className="h-5 w-5 text-amber-600" />
+                  <TestTube className="h-5 w-5 text-secondary-foreground" />
                 ) : (
                   <Zap className="h-5 w-5 text-emerald-600" />
                 )}
@@ -120,21 +120,21 @@ export const StripeModeToggle: React.FC = () => {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="text-sm text-muted-foreground space-y-2">
-          <p>
-            <strong>Current mode:</strong>{" "}
+        <CardContent className="text-sm text-primary-foreground space-y-2">
+          <p className="text-primary-foreground">
+            <strong className="text-primary-foreground">Current mode:</strong>{" "}
             <span
               className={
-                isTest ? "text-amber-700 font-medium" : "text-emerald-700 font-medium"
+                isTest ? "font-medium text-secondary-foreground" : "text-emerald-700 font-medium"
               }
             >
               {mode.toUpperCase()}
             </span>
           </p>
-          <p>
-            <strong>Required secrets:</strong> Both{" "}
-            <code className="px-1 rounded bg-muted">STRIPE_SECRET_KEY</code> and{" "}
-            <code className="px-1 rounded bg-muted">STRIPE_SECRET_KEY_TEST</code>{" "}
+          <p className="text-secondary-foreground">
+            <strong className="text-primary-foreground">Required secrets:</strong> Both{" "}
+            <code className="px-1 rounded bg-muted text-destructive">STRIPE_SECRET_KEY</code> and{" "}
+            <code className="px-1 rounded bg-muted text-destructive">STRIPE_SECRET_KEY_TEST</code>{" "}
             must be configured in Supabase Edge Function Secrets for the toggle
             to work in either direction.
           </p>
