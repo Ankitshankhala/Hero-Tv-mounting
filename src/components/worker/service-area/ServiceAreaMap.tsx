@@ -969,8 +969,8 @@ const ServiceAreaMap = ({
         drawnItemsRef.current.clearLayers();
       }
 
-      // Reload service areas
-      await loadServiceAreas();
+      // Reload service areas AND zipcodes (badge counts depend on both)
+      await Promise.all([loadServiceAreas(), fetchServiceAreas()]);
       setShowZipFallback(false);
       if (onServiceAreaUpdate) {
         onServiceAreaUpdate();
@@ -1065,8 +1065,8 @@ const ServiceAreaMap = ({
         drawnItemsRef.current.clearLayers();
       }
 
-      // Reload service areas
-      await loadServiceAreas();
+      // Reload service areas AND zipcodes (badge counts depend on both)
+      await Promise.all([loadServiceAreas(), fetchServiceAreas()]);
       setShowZipFallback(false);
       if (onServiceAreaUpdate) {
         onServiceAreaUpdate();
@@ -1095,7 +1095,7 @@ const ServiceAreaMap = ({
         title: "Success",
         description: "Service area deleted"
       });
-      await loadServiceAreas();
+      await Promise.all([loadServiceAreas(), fetchServiceAreas()]);
 
       // Clear map
       if (drawnItemsRef.current) {
