@@ -1534,7 +1534,7 @@ const ServiceAreaMap = ({
              </div>
 
              {/* Area Selection Interface */}
-             <AreaSelectionInterface />
+             {renderAreaSelectionInterface()}
              
              {/* Show simple controls when no polygon is drawn and not in area selection mode */}
              {!currentPolygon && !showAreaSelection}
