@@ -686,12 +686,15 @@ Deno.serve(async (req) => {
       const userId = await validateAuth(req.headers.get('Authorization'));
       await verifyWorkerOrAdmin(userId, bookingId);
 
-      const { data: booking, error: bErr } = await supabase
-        .from('bookings')
-        .select('id, status, payment_intent_id, payment_status, tip_amount, payment_version, captured_amount, requires_manual_payment, worker_id')
-        .eq('id', bookingId)
-        .single();
-      if (bErr || !booking) throw new Error('Booking not found');
+      // H1 fix: take a row-level lock to serialise concurrent "Complete & Capture" clicks.
+      // The Stripe capture itself is idempotent via idempotencyKey, but the DB writes
+      // (transactions row, audit log, archive) race without the lock.
+      const { data: lockData, error: lockError } = await supabase.rpc('lock_booking_for_payment', {
+        p_booking_id: bookingId,
+      });
+      if (lockError) throw new Error(`Failed to lock booking: ${lockError.message}`);
+      const booking = lockData?.[0];
+      if (!booking) throw new Error('Booking not found');
 
       const nowIso = new Date().toISOString();
 
