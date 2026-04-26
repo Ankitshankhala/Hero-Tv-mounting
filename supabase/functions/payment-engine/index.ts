@@ -738,16 +738,18 @@ Deno.serve(async (req) => {
         recovered = true;
       } else if (pi.status === 'requires_capture') {
         const capturableCents = pi.amount_capturable || pi.amount;
-        if (Math.abs(capturableCents - expectedCents) > 1) {
-          console.error('[PAYMENT-ENGINE] complete-and-capture mismatch:', { capturableCents, expectedCents });
+        // Allow capturing LESS than authorized (after a worker removed services).
+        // Reject only if the expected total exceeds the authorization.
+        if (expectedCents > capturableCents) {
+          console.error('[PAYMENT-ENGINE] complete-and-capture exceeds authorization:', { capturableCents, expectedCents });
           throw new Error(
-            `Booking total changed. Expected $${expectedTotal.toFixed(2)} but Stripe has $${(capturableCents / 100).toFixed(2)} authorized. Please recalculate authorization first.`
+            `Final amount $${expectedTotal.toFixed(2)} exceeds authorized $${(capturableCents / 100).toFixed(2)}. Worker must update authorization first.`
           );
         }
 
         const captured = await stripe.paymentIntents.capture(
           booking.payment_intent_id,
-          { amount_to_capture: capturableCents },
+          { amount_to_capture: expectedCents },
           { idempotencyKey: `complete_capture_${bookingId}_v${booking.payment_version || 1}` }
         );
 
