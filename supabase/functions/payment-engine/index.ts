@@ -35,17 +35,18 @@ Deno.serve(async (req) => {
     const stripe = createStripeClient();
     const supabase = getSupabaseClient();
     const payload = await req.json();
-    const { action } = payload;
+    const rawAction = payload.action;
 
-    if (!action) {
+    if (!rawAction) {
       throw new Error('action is required');
     }
 
-    // Canonicalize action: 'modify-authorization' is the new name; 'recalculate' is kept as alias.
-    const canonicalAction = action === 'modify-authorization' ? 'recalculate' : action;
-    payload.action = canonicalAction;
+    // H4 fix: canonicalize once and use the canonical name everywhere below.
+    // 'modify-authorization' is the new public name; 'recalculate' is the legacy alias.
+    const action = rawAction === 'modify-authorization' ? 'recalculate' : rawAction;
+    payload.action = action;
 
-    console.log(`[PAYMENT-ENGINE] Action: ${canonicalAction} (raw: ${action})`, JSON.stringify(payload, null, 2));
+    console.log(`[PAYMENT-ENGINE] Action: ${action} (raw: ${rawAction})`, JSON.stringify(payload, null, 2));
 
     // === Helper: Calculate services total from DB ===
     async function getServicesTotal(bookingId: string) {
@@ -685,12 +686,26 @@ Deno.serve(async (req) => {
       const userId = await validateAuth(req.headers.get('Authorization'));
       await verifyWorkerOrAdmin(userId, bookingId);
 
-      const { data: booking, error: bErr } = await supabase
+      // H1 fix: take a row-level lock to serialise concurrent "Complete & Capture" clicks.
+      // The Stripe capture itself is idempotent via idempotencyKey, but the DB writes
+      // (transactions row, audit log, archive) race without the lock.
+      const { data: lockData, error: lockError } = await supabase.rpc('lock_booking_for_payment', {
+        p_booking_id: bookingId,
+      });
+      if (lockError) throw new Error(`Failed to lock booking: ${lockError.message}`);
+      const lockedRow = lockData?.[0];
+      if (!lockedRow) throw new Error('Booking not found');
+
+      // The lock RPC doesn't return status / requires_manual_payment / worker_id.
+      // Fetch them now (still inside the FOR UPDATE transaction window).
+      const { data: extra, error: extraErr } = await supabase
         .from('bookings')
-        .select('id, status, payment_intent_id, payment_status, tip_amount, payment_version, captured_amount, requires_manual_payment, worker_id')
+        .select('status, requires_manual_payment, worker_id')
         .eq('id', bookingId)
         .single();
-      if (bErr || !booking) throw new Error('Booking not found');
+      if (extraErr || !extra) throw new Error('Booking not found');
+
+      const booking = { ...lockedRow, ...extra };
 
       const nowIso = new Date().toISOString();
 
@@ -985,7 +1000,7 @@ Deno.serve(async (req) => {
     // ========== ACTION: FINALIZE-REAUTHORIZATION ==========
     // Called by frontend AFTER customer confirms the new PI in Stripe's modal.
     // Atomically swaps the booking to the new PI and cancels the old one.
-    if (canonicalAction === 'finalize-reauthorization') {
+    if (action === 'finalize-reauthorization') {
       const { bookingId, new_payment_intent_id } = payload;
       if (!bookingId || !new_payment_intent_id) {
         throw new Error('bookingId and new_payment_intent_id are required');
@@ -1098,7 +1113,7 @@ Deno.serve(async (req) => {
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    throw new Error(`Unknown action: ${canonicalAction}`);
+    throw new Error(`Unknown action: ${action}`);
 
   } catch (error: any) {
     console.error('[PAYMENT-ENGINE] Error:', error);

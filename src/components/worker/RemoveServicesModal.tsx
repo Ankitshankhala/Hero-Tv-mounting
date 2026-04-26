@@ -156,11 +156,14 @@ export const RemoveServicesModal = ({
     });
 
     try {
+      // C1 fix: forward Bearer — payment-engine.recalculate runs validateAuth().
+      const { data: { session } } = await supabase.auth.getSession();
       const { data, error } = await supabase.functions.invoke('worker-remove-services', {
         body: {
           booking_id: job.id,
           service_ids: [serviceId]
-        }
+        },
+        headers: { Authorization: `Bearer ${session?.access_token ?? ''}` },
       });
 
       if (error) {

@@ -302,12 +302,15 @@ export const EnhancedInvoiceModificationModal = ({
     setServices(prev => prev.filter(service => service.id !== serviceId));
 
     try {
+      // C1 fix: forward Bearer — payment-engine.recalculate runs validateAuth().
+      const { data: { session } } = await supabase.auth.getSession();
       // Use edge function for consistent removal logic
       const { data, error } = await supabase.functions.invoke('worker-remove-services', {
         body: {
           booking_id: job.id,
           service_ids: [serviceId]
-        }
+        },
+        headers: { Authorization: `Bearer ${session?.access_token ?? ''}` },
       });
 
       if (error) throw error;
@@ -336,6 +339,8 @@ export const EnhancedInvoiceModificationModal = ({
 
   const addNewService = async (newService: any) => {
     try {
+      // C1 fix: forward Bearer — payment-engine.recalculate runs validateAuth().
+      const { data: { session } } = await supabase.auth.getSession();
       // Route through add-booking-services edge function for Stripe sync
       const { data, error } = await supabase.functions.invoke('add-booking-services', {
         body: {
@@ -347,7 +352,8 @@ export const EnhancedInvoiceModificationModal = ({
             quantity: newService.quantity || 1,
             configuration: newService.configuration || {}
           }]
-        }
+        },
+        headers: { Authorization: `Bearer ${session?.access_token ?? ''}` },
       });
 
       if (error) throw error;

@@ -392,12 +392,15 @@ export const useRealTimeInvoiceOperations = (bookingId: string | null) => {
       try {
         console.log('Removing service via edge function', { serviceId, serviceName: serviceToRemove.service_name });
 
+        // C1 fix: forward Bearer — payment-engine.recalculate runs validateAuth().
+        const { data: { session } } = await supabase.auth.getSession();
         // Use edge function for consistent removal logic with refund handling
         const { data, error } = await supabase.functions.invoke('worker-remove-services', {
           body: {
             booking_id: bookingId,
             service_ids: [serviceId]
-          }
+          },
+          headers: { Authorization: `Bearer ${session?.access_token ?? ''}` },
         });
 
         if (error) throw error;

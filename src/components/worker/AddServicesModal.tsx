@@ -146,7 +146,8 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
         sum + (bs.base_price * bs.quantity), 0
       ) || job.service?.base_price || 0;
 
-      // Use the add-booking-services function which now handles capture atomically
+      // C1 fix: forward Bearer token — payment-engine.recalculate runs validateAuth().
+      const { data: { session } } = await supabase.auth.getSession();
       const { data, error } = await supabase.functions.invoke('add-booking-services', {
         body: {
           booking_id: job.id,
@@ -157,7 +158,8 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
             quantity: item.quantity,
             configuration: item.options || {}
           }))
-        }
+        },
+        headers: { Authorization: `Bearer ${session?.access_token ?? ''}` },
       });
 
       if (error) {
