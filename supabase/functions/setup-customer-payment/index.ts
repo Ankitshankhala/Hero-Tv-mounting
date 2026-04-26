@@ -1,12 +1,15 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { createStripeClient, corsHeaders } from '../_shared/stripe.ts';
+import { createStripeClient, corsHeaders, refreshStripeMode } from '../_shared/stripe.ts';
 
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
+  // Hydrate Stripe mode (test/live) from app_settings before any Stripe call.
+  await refreshStripeMode();
 
   try {
     const stripe = createStripeClient();
