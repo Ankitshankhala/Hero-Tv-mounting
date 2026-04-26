@@ -249,37 +249,6 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
     }
   };
 
-  const handlePaymentSuccess = () => {
-    toast({
-      title: "✓ Payment Authorized Successfully",
-      description: `Successfully authorized $${paymentData?.amount.toFixed(2)} for additional services. Payment will be captured when the job is completed.`,
-    });
-
-    // Reset everything and close modal
-    setCart([]);
-    setShowPaymentForm(false);
-    setPaymentData(null);
-    setProcessing(false);
-    onClose();
-    
-    if (onServicesAdded) {
-      onServicesAdded();
-    }
-  };
-
-  const handlePaymentFailure = (error: string) => {
-    toast({
-      title: "Payment Failed",
-      description: error,
-      variant: "destructive",
-    });
-  };
-
-  const handleBackToServices = () => {
-    setShowPaymentForm(false);
-    setPaymentData(null);
-  };
-
   if (!isOpen) return null;
 
   return (
@@ -288,26 +257,30 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-slate-800 border-slate-700 [&>button]:text-white [&>button]:opacity-100 [&>button]:hover:text-slate-300 [&>button]:hover:opacity-80">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-white flex items-center space-x-2">
-              {showPaymentForm && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleBackToServices}
-                  className="text-white hover:text-slate-300"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-              )}
-              <span>
-                {showPaymentForm ? 'Payment Required' : `Add Services to Job #${job.id.slice(0, 8)}`}
-              </span>
-              {isTestingMode && !showPaymentForm && (
+              <span>{`Add Services to Job #${job.id.slice(0, 8)}`}</span>
+              {isTestingMode && (
                 <Badge variant="secondary" className="bg-yellow-600 text-yellow-100">
                   TEST MODE: $1 pricing active
                 </Badge>
               )}
             </DialogTitle>
           </DialogHeader>
+
+          <div className="space-y-6">
+            <>
+              {/* Current Job Info */}
+              <Card className="bg-slate-700 border-slate-600">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-white text-sm">Current Job</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-sm text-slate-300 space-y-1">
+                    <div>Customer: {job.customer?.name}</div>
+                    <div>Date: {job.scheduled_date} at {job.scheduled_start}</div>
+                    <div>Original Service: {job.service?.name}</div>
+                  </div>
+                </CardContent>
+              </Card>
 
           <div className="space-y-6">
             {/* Show Payment Form or Services Selection */}
