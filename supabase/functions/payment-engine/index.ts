@@ -11,7 +11,15 @@ import { getSupabaseClient } from '../_shared/supabaseClient.ts';
  *   stripe.paymentIntents.capture()
  *   stripe.refunds.create()
  * 
- * Actions: authorize, recalculate, capture, charge-difference, refund-difference
+ * Actions:
+ *   authorize                  — initial customer authorization
+ *   modify-authorization       — worker added/removed services; update PI only (NEVER captures)
+ *   recalculate                — legacy alias for modify-authorization
+ *   finalize-reauthorization   — frontend-confirmed new PI handoff (after Stripe popup)
+ *   capture                    — legacy single capture
+ *   complete-and-capture       — atomic capture + complete + archive (worker's only completion path)
+ *   charge-difference          — post-capture upcharge
+ *   refund-difference          — post-capture refund
  */
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
