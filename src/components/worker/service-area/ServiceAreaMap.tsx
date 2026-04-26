@@ -1306,8 +1306,10 @@ const ServiceAreaMap = ({
     }
   };
 
-  // Area Selection Interface Component
-  const AreaSelectionInterface = () => {
+  // Area Selection Interface (rendered as a function call, NOT a nested component,
+  // to avoid remounting the input on every parent re-render — which was causing
+  // the area-name input to lose focus after each keystroke).
+  const renderAreaSelectionInterface = () => {
     if (!showAreaSelection || !currentPolygon) return null;
     return <Card className="border-blue-200 bg-blue-50">
         <CardContent className="pt-4">
@@ -1532,7 +1534,7 @@ const ServiceAreaMap = ({
              </div>
 
              {/* Area Selection Interface */}
-             <AreaSelectionInterface />
+             {renderAreaSelectionInterface()}
              
              {/* Show simple controls when no polygon is drawn and not in area selection mode */}
              {!currentPolygon && !showAreaSelection}
