@@ -1,9 +1,10 @@
 // Supabase Edge Function: stripe-transactions-sync
 // Sync recent Stripe charges into the public.transactions table
-// Requires secret: STRIPE_SECRET_KEY
+// Reads STRIPE_SECRET_KEY (live) or STRIPE_SECRET_KEY_TEST (test) based on STRIPE_MODE.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.0";
+import { getStripeSecretKey, getStripeMode } from "../_shared/stripe.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -18,19 +19,22 @@ serve(async (req) => {
   try {
     const { since_days = 45 } = await req.json().catch(() => ({ since_days: 45 }));
 
-    const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    if (!STRIPE_SECRET_KEY) {
-      console.error("[STRIPE-SYNC] Missing STRIPE_SECRET_KEY");
-      return new Response(JSON.stringify({ error: "Missing STRIPE_SECRET_KEY" }), {
+    let STRIPE_SECRET_KEY: string;
+    try {
+      STRIPE_SECRET_KEY = getStripeSecretKey();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("[STRIPE-SYNC]", msg);
+      return new Response(JSON.stringify({ error: msg }), {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
 
-    console.log(`[STRIPE-SYNC] Starting sync for last ${since_days} days`);
+    console.log(`[STRIPE-SYNC] Mode: ${getStripeMode()} | Starting sync for last ${since_days} days`);
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
       auth: { persistSession: false },
