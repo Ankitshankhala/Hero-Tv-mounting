@@ -5,15 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ServiceCard } from '@/components/ServiceCard';
 import { TvMountingModal } from '@/components/TvMountingModal';
-import { InlineStripePaymentForm } from './payment/InlineStripePaymentForm';
-import { PaymentVerificationForm } from './payment/PaymentVerificationForm';
 import { ReauthorizePaymentDialog } from './payment/ReauthorizePaymentDialog';
 import { CartItem } from '@/types';
 import { usePublicServicesData } from '@/hooks/usePublicServicesData';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useTestingMode, getEffectiveServicePrice } from '@/contexts/TestingModeContext';
-import { ShoppingCart, CreditCard, Plus, X, ArrowLeft } from 'lucide-react';
+import { ShoppingCart, Plus, X } from 'lucide-react';
 
 interface AddServicesModalProps {
   isOpen: boolean;
@@ -42,14 +40,7 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showTvModal, setShowTvModal] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [showReauthorizeDialog, setShowReauthorizeDialog] = useState(false);
-  const [paymentData, setPaymentData] = useState<{
-    clientSecret: string;
-    amount: number;
-    paymentIntentId: string;
-    sessionId?: string;
-  } | null>(null);
   const [reauthorizeData, setReauthorizeData] = useState<{
     original_amount: number;
     new_amount: number;
@@ -212,61 +203,22 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
         return;
       }
 
-      // Fix 4: Safety check — if amount > 0 but no capture happened, show hard error
-      if (data.new_amount > 0 && !data.amount_captured && data.amount_captured !== 0) {
-        toast({
-          title: "Services Added — Payment Not Captured",
-          description: "Services were added but payment could not be captured. Please use the 'Charge' button or contact admin.",
-          variant: "destructive",
-        });
-        setCart([]);
-        setProcessing(false);
-        onClose();
-        onServicesAdded?.();
-        return;
-      }
-
-      // Capture was handled server-side — mark job as completed + archived
-      const { error: updateError } = await supabase
-        .from('bookings')
-        .update({ status: 'completed' })
-        .eq('id', job.id);
-
-      if (updateError) {
-        console.error('Error marking job complete:', updateError);
-        toast({
-          title: "Payment Captured Successfully",
-          description: `Payment of $${data.amount_captured?.toFixed(2)} was captured, but couldn't mark job as complete. Please manually update the job status.`,
-          variant: "destructive",
-        });
-        setCart([]);
-        setProcessing(false);
-        onClose();
-        onServicesAdded?.();
-        return;
-      }
-
-      // Archive the job
-      const { error: archiveError } = await supabase
-        .from('bookings')
-        .update({ 
-          is_archived: true, 
-          archived_at: new Date().toISOString() 
-        })
-        .eq('id', job.id);
-      
-      if (archiveError) {
-        console.error('[ADD-SERVICES] Auto-archive failed:', archiveError);
-      }
-
+      // Authorization-only flow: NEVER capture, complete, or archive from this modal.
+      // Capture happens exclusively via worker-complete-and-capture when the worker
+      // clicks "Complete Job & Accept Payment".
+      const newAuthorized = typeof data.new_amount === 'number' ? data.new_amount : null;
       toast({
-        title: "✓ Job Completed Successfully",
-        description: `Added ${cart.length} service(s), captured payment of $${data.amount_captured?.toFixed(2) || data.new_amount?.toFixed(2)}, and marked job complete.`,
+        title: "✓ Services Added",
+        description: newAuthorized != null
+          ? `Authorization updated to $${newAuthorized.toFixed(2)}. Complete the job to capture payment.`
+          : `Services added. Complete the job to capture payment.`,
       });
 
       setCart([]);
+      setProcessing(false);
       onClose();
       onServicesAdded?.();
+      return;
 
     } catch (error: any) {
       console.error('Error adding services and charging:', error);
@@ -297,37 +249,6 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
     }
   };
 
-  const handlePaymentSuccess = () => {
-    toast({
-      title: "✓ Payment Authorized Successfully",
-      description: `Successfully authorized $${paymentData?.amount.toFixed(2)} for additional services. Payment will be captured when the job is completed.`,
-    });
-
-    // Reset everything and close modal
-    setCart([]);
-    setShowPaymentForm(false);
-    setPaymentData(null);
-    setProcessing(false);
-    onClose();
-    
-    if (onServicesAdded) {
-      onServicesAdded();
-    }
-  };
-
-  const handlePaymentFailure = (error: string) => {
-    toast({
-      title: "Payment Failed",
-      description: error,
-      variant: "destructive",
-    });
-  };
-
-  const handleBackToServices = () => {
-    setShowPaymentForm(false);
-    setPaymentData(null);
-  };
-
   if (!isOpen) return null;
 
   return (
@@ -336,20 +257,8 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-slate-800 border-slate-700 [&>button]:text-white [&>button]:opacity-100 [&>button]:hover:text-slate-300 [&>button]:hover:opacity-80">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-white flex items-center space-x-2">
-              {showPaymentForm && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleBackToServices}
-                  className="text-white hover:text-slate-300"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-              )}
-              <span>
-                {showPaymentForm ? 'Payment Required' : `Add Services to Job #${job.id.slice(0, 8)}`}
-              </span>
-              {isTestingMode && !showPaymentForm && (
+              <span>{`Add Services to Job #${job.id.slice(0, 8)}`}</span>
+              {isTestingMode && (
                 <Badge variant="secondary" className="bg-yellow-600 text-yellow-100">
                   TEST MODE: $1 pricing active
                 </Badge>
@@ -358,45 +267,20 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
           </DialogHeader>
 
           <div className="space-y-6">
-            {/* Show Payment Form or Services Selection */}
-            {showPaymentForm && paymentData ? (
-              <div className="space-y-4">
-                <Card className="bg-slate-700 border-slate-600">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-white text-sm">Additional Payment Required</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-sm text-slate-300 space-y-1">
-                      <div>Services added to booking successfully</div>
-                      <div>Additional payment of <span className="text-emerald-400 font-bold">${paymentData.amount.toFixed(2)}</span> required</div>
-                      <div>Customer payment will be processed immediately</div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <InlineStripePaymentForm
-                  job={job}
-                  amount={paymentData.amount.toFixed(2)}
-                  clientSecret={paymentData.clientSecret}
-                  onPaymentSuccess={handlePaymentSuccess}
-                  onPaymentFailure={handlePaymentFailure}
-                />
-              </div>
-            ) : (
-              <>
-                {/* Current Job Info */}
-                <Card className="bg-slate-700 border-slate-600">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-white text-sm">Current Job</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-sm text-slate-300 space-y-1">
-                      <div>Customer: {job.customer?.name}</div>
-                      <div>Date: {job.scheduled_date} at {job.scheduled_start}</div>
-                      <div>Original Service: {job.service?.name}</div>
-                    </div>
-                  </CardContent>
-                </Card>
+            <>
+              {/* Current Job Info */}
+              <Card className="bg-slate-700 border-slate-600">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-white text-sm">Current Job</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-sm text-slate-300 space-y-1">
+                    <div>Customer: {job.customer?.name}</div>
+                    <div>Date: {job.scheduled_date} at {job.scheduled_start}</div>
+                    <div>Original Service: {job.service?.name}</div>
+                  </div>
+                </CardContent>
+              </Card>
 
             {/* Services Grid */}
             {loading ? (
@@ -406,7 +290,7 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {services.map((service) => (
-                   <ServiceCard 
+                  <ServiceCard
                     key={service.id}
                     id={service.id}
                     name={service.name}
@@ -466,37 +350,36 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
                       </div>
                     </div>
                   ))}
-                  
+
                   <div className="border-t border-slate-500 pt-4">
                     <div className="flex justify-between items-center text-lg font-bold">
                       <span className="text-white">Total:</span>
                       <span className="text-emerald-400">${getTotalPrice().toFixed(2)}</span>
                     </div>
                   </div>
-                  
-                  <Button 
+
+                  <Button
                     onClick={handleAddServicesAndCharge}
                     disabled={processing}
                     className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold py-3"
                   >
-                    <CreditCard className="h-5 w-5 mr-2" />
+                    <Plus className="h-5 w-5 mr-2" />
                     {processing ? 'Processing...' : `Add Services to Job (+$${getTotalPrice().toFixed(2)})`}
                   </Button>
                 </CardContent>
               </Card>
             )}
 
-                {/* Empty State */}
-                {cart.length === 0 && (
-                  <div className="text-center py-8">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-700/50 rounded-full mb-4">
-                      <Plus className="h-8 w-8 text-slate-400" />
-                    </div>
-                    <p className="text-slate-400 text-lg">Select services to add to this job</p>
-                  </div>
-                )}
-              </>
+            {/* Empty State */}
+            {cart.length === 0 && (
+              <div className="text-center py-8">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-700/50 rounded-full mb-4">
+                  <Plus className="h-8 w-8 text-slate-400" />
+                </div>
+                <p className="text-slate-400 text-lg">Select services to add to this job</p>
+              </div>
             )}
+            </>
           </div>
         </DialogContent>
       </Dialog>

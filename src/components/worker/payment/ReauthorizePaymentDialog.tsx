@@ -88,7 +88,7 @@ export const ReauthorizePaymentDialog = ({
     setProcessing(true);
 
     try {
-      // Confirm the new payment intent
+      // 1) Confirm the new PI client-side (handles 3DS popup if required).
       const { error, paymentIntent } = await stripe.confirmCardPayment(client_secret, {
         payment_method: {
           card: cardElement,
@@ -100,59 +100,46 @@ export const ReauthorizePaymentDialog = ({
       }
 
       if (paymentIntent.status !== 'requires_capture') {
-        throw new Error('Payment authorization failed');
+        throw new Error(`Authorization failed (status: ${paymentIntent.status})`);
       }
 
-      // Cancel the old payment intent
-      try {
-        await supabase.functions.invoke('cancel-payment-intent', {
+      // 2) Hand off to payment-engine for the atomic swap. The engine:
+      //    - bumps payment_version
+      //    - swaps bookings.payment_intent_id from old → new
+      //    - updates authorized_amount
+      //    - cancels the old PI on Stripe
+      //    - writes the authorization transaction + audit log
+      // The frontend must NEVER write payment_intent_id directly.
+      const { data: finalizeData, error: finalizeError } = await supabase.functions.invoke(
+        'payment-engine',
+        {
           body: {
-            payment_intent_id: old_payment_intent,
-            reason: 'Replaced with new payment intent for service additions'
-          }
-        });
-      } catch (cancelError) {
-        console.error('Failed to cancel old payment intent:', cancelError);
-        // Don't fail the whole operation
+            action: 'finalize-reauthorization',
+            booking_id,
+            old_payment_intent_id: old_payment_intent,
+            new_payment_intent_id: new_payment_intent,
+            new_amount,
+          },
+        }
+      );
+
+      if (finalizeError || !finalizeData?.success) {
+        const msg = finalizeData?.error || finalizeError?.message || 'Failed to finalize re-authorization';
+        throw new Error(msg);
       }
-
-      // Update booking with new payment intent
-      const { error: updateError } = await supabase
-        .from('bookings')
-        .update({
-          payment_intent_id: new_payment_intent,
-          pending_payment_amount: new_amount
-        })
-        .eq('id', booking_id);
-
-      if (updateError) {
-        throw updateError;
-      }
-
-      // Create authorization transaction for new payment intent
-      await supabase
-        .from('transactions')
-        .insert({
-          booking_id,
-          amount: new_amount,
-          status: 'authorized',
-          payment_intent_id: new_payment_intent,
-          transaction_type: 'authorization',
-          payment_method: 'card'
-        });
 
       toast({
         title: "Payment Re-authorized",
-        description: `Successfully authorized $${new_amount.toFixed(2)}`,
+        description: `Authorization updated to $${new_amount.toFixed(2)}. Complete the job to capture payment.`,
       });
 
       onSuccess?.();
       onClose();
 
     } catch (error: any) {
-      console.error('Re-authorization error:', error);
+      console.error('[ReauthorizePaymentDialog] Re-authorization error:', error);
       toast({
-        title: "Payment Failed",
+        title: "Re-authorization Failed",
         description: error.message || 'Failed to re-authorize payment',
         variant: "destructive"
       });
