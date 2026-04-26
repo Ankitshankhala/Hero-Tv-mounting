@@ -231,12 +231,12 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating guest booking:', error);
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message || 'Failed to create guest booking',
+        error: error?.message || 'Failed to create guest booking',
       }),
       {
         status: 400,
