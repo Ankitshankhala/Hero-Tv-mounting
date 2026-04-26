@@ -55,6 +55,10 @@ const AdminServiceAreaMap = ({
   const drawnItemsRef = useRef<L.FeatureGroup | null>(null);
   const drawControlRef = useRef<L.Control.Draw | null>(null);
   const [serviceAreas, setServiceAreas] = useState<ServiceArea[]>([]);
+  // Mirror of serviceAreas for use inside long-lived event handlers (e.g. Draw.CREATED)
+  // so we don't have to put `serviceAreas` in the map-init effect's deps and tear the
+  // map down on every reload.
+  const serviceAreasRef = useRef<ServiceArea[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [areaName, setAreaName] = useState('Service Area');
@@ -567,9 +571,11 @@ const AdminServiceAreaMap = ({
         
         setShowAreaSelection(true);
         
-        // Set default selection based on existing areas
-        if (serviceAreas.length > 0) {
-          const activeAreas = serviceAreas.filter(area => area.is_active);
+        // Set default selection based on existing areas (read from ref so this
+        // handler stays stable even as serviceAreas updates).
+        const currentAreas = serviceAreasRef.current;
+        if (currentAreas.length > 0) {
+          const activeAreas = currentAreas.filter(area => area.is_active);
           if (activeAreas.length > 0) {
             setAreaSelectionMode('existing');
             setSelectedExistingArea(activeAreas[0]);
@@ -848,7 +854,13 @@ const AdminServiceAreaMap = ({
         map.remove();
       };
     }
-  }, [isActive, serviceAreas]);
+  }, [isActive]);
+
+  // Keep ref in sync so Draw event handlers see the latest serviceAreas
+  // without forcing the map to re-initialize.
+  useEffect(() => {
+    serviceAreasRef.current = serviceAreas;
+  }, [serviceAreas]);
 
   // Handle map invalidation when component becomes active/visible
   useEffect(() => {
