@@ -101,30 +101,11 @@ serve(async (req) => {
       throw new Error(errMsg);
     }
 
-    // Fix 3: Atomic capture — if recalculate succeeded and booking is pre-capture, capture immediately
-    let captureResult = null;
-    if (engineAction === 'recalculate' && engineResult.action !== 'requires_manual_payment') {
-      console.log('[ADD-BOOKING-SERVICES] Recalculate succeeded, capturing payment atomically');
-      const { data: capData, error: capError } = await supabase.functions.invoke('payment-engine', {
-        body: {
-          action: 'capture',
-          bookingId: booking_id,
-        },
-        headers: {
-          Authorization: req.headers.get('Authorization') || '',
-        },
-      });
-
-      if (capError || !capData?.success) {
-        const capErrMsg = capData?.error || capError?.message || 'Capture failed after recalculate';
-        console.error('[ADD-BOOKING-SERVICES] Atomic capture failed:', capErrMsg);
-        // Don't rollback services — they're added and PI is updated. Return success without capture.
-        captureResult = null;
-      } else {
-        captureResult = capData;
-        console.log('[ADD-BOOKING-SERVICES] Atomic capture succeeded:', capData.amount_captured);
-      }
-    }
+    // Note: Capture is intentionally NOT performed here.
+    // Adding services only updates the authorized amount via `recalculate`.
+    // Final capture happens only when the worker clicks
+    // "Complete Job & Accept Payment" → worker-complete-and-capture.
+    const captureResult: { amount_captured?: number; payment_intent_id?: string } | null = null;
 
     // Calculate new total for response
     const currentTotal = booking.booking_services?.reduce((sum: number, bs: any) =>
