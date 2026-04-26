@@ -2,6 +2,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createStripeClient, corsHeaders } from '../_shared/stripe.ts';
 import { getSupabaseClient } from '../_shared/supabaseClient.ts';
 
+declare const EdgeRuntime: { waitUntil: (promise: Promise<unknown>) => void };
+
 serve(async (req) => {
   const startTime = performance.now();
   
@@ -63,13 +65,13 @@ serve(async (req) => {
       
       // Background task: Log to admin alerts
       EdgeRuntime.waitUntil(
-        supabase.from('admin_alerts').insert({
+        Promise.resolve(supabase.from('admin_alerts').insert({
           alert_type: 'payment_blocked_db_error',
           severity: 'critical',
           booking_id: booking_id,
           message: 'Payment blocked: Database error fetching booking services',
           details: { error: servicesResult.error.message, timestamp: new Date().toISOString() }
-        })
+        }))
       );
       
       throw new Error('Failed to fetch booking services');

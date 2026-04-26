@@ -2,6 +2,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getSupabaseClient } from '../_shared/supabaseClient.ts';
 import { corsHeaders } from '../_shared/stripe.ts';
 
+declare const EdgeRuntime: { waitUntil: (promise: Promise<unknown>) => void };
+
 /**
  * Add Booking Services — Inserts services into booking_services, then delegates
  * payment recalculation to payment-engine. No direct Stripe calls.

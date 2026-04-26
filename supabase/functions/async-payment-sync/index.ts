@@ -2,6 +2,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createStripeClient, corsHeaders } from '../_shared/stripe.ts';
 import { getSupabaseClient } from '../_shared/supabaseClient.ts';
 
+declare const EdgeRuntime: { waitUntil: (promise: Promise<unknown>) => void };
+
 /**
  * Async Payment Sync Function
  * Handles payment status synchronization in the background
