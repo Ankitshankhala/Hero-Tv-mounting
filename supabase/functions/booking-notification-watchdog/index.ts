@@ -87,11 +87,13 @@ serve(async (req) => {
       console.log(`[WATCHDOG] Sending customer confirmation email...`);
       
       // Prepare worker data to pass to email function
-      const workerData = booking.worker ? {
-        id: booking.worker.id,
-        name: booking.worker.name,
-        email: booking.worker.email,
-        phone: booking.worker.phone
+      // Supabase typegen may infer joined relation as array; normalize to single object
+      const workerRel: any = Array.isArray(booking.worker) ? booking.worker[0] : booking.worker;
+      const workerData = workerRel ? {
+        id: workerRel.id,
+        name: workerRel.name,
+        email: workerRel.email,
+        phone: workerRel.phone
       } : null;
 
       console.log(`[WATCHDOG] Worker data for email:`, workerData ? 
