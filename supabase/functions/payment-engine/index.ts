@@ -599,18 +599,19 @@ Deno.serve(async (req) => {
       const pi = await stripe.paymentIntents.retrieve(booking.payment_intent_id);
       const capturableCents = pi.amount_capturable || pi.amount;
 
-      // STRICT MISMATCH CHECK
-      if (Math.abs(capturableCents - expectedCents) > 1) {
-        console.error('[PAYMENT-ENGINE] capture mismatch:', { capturableCents, expectedCents });
+      // Capture amount must NEVER exceed what was authorized.
+      // It is OK to capture LESS than authorized (e.g. after worker removed services).
+      if (expectedCents > capturableCents) {
+        console.error('[PAYMENT-ENGINE] capture exceeds authorization:', { capturableCents, expectedCents });
         throw new Error(
-          `Booking total changed. Expected $${expectedTotal.toFixed(2)} but Stripe has $${(capturableCents / 100).toFixed(2)} authorized. ` +
-          `Please recalculate payment first.`
+          `Final amount $${expectedTotal.toFixed(2)} exceeds authorized $${(capturableCents / 100).toFixed(2)}. ` +
+          `Worker must update authorization before capturing.`
         );
       }
 
-      // Capture
+      // Capture only what's actually owed; Stripe releases any remainder.
       const captured = await stripe.paymentIntents.capture(booking.payment_intent_id, {
-        amount_to_capture: capturableCents,
+        amount_to_capture: expectedCents,
       });
 
       if (captured.status !== 'succeeded') {
