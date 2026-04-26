@@ -264,8 +264,61 @@ Deno.serve(async (req) => {
 
       // If amounts match, no-op
       if (Math.abs(currentPI.amount - expectedCents) <= 1) {
+        await supabase.from('bookings').update({
+          authorized_amount: expectedTotal,
+          has_modifications: true,
+        }).eq('id', bookingId);
         return new Response(JSON.stringify({ success: true, action: 'no_op', reason: 'amounts_match' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      // LOWER AMOUNT (e.g. service removal pre-capture): no Stripe round-trip.
+      // The current authorization already covers it. Final capture will take the lower amount.
+      if (currentPI.status === 'requires_capture' && expectedCents < currentPI.amount) {
+        await supabase.from('bookings').update({
+          authorized_amount: expectedTotal,
+          pending_payment_amount: null,
+          has_modifications: true,
+          requires_manual_payment: false,
+        }).eq('id', bookingId);
+
+        // Update authorized transaction row (best-effort)
+        await supabase.from('transactions')
+          .update({
+            amount: expectedTotal,
+            base_amount: servicesTotal,
+            tip_amount: tipAmount,
+          })
+          .eq('booking_id', bookingId)
+          .eq('payment_intent_id', booking.payment_intent_id)
+          .eq('status', 'authorized');
+
+        EdgeRuntime.waitUntil(
+          Promise.all([
+            supabase.from('booking_audit_log').insert({
+              booking_id: bookingId,
+              operation: 'payment_engine_lower_amount_noop',
+              status: 'success',
+              payment_intent_id: booking.payment_intent_id,
+              details: {
+                stripe_authorized: currentPI.amount / 100,
+                new_expected: expectedTotal,
+                modification_reason,
+              },
+            }),
+            supabase.functions.invoke('update-invoice', {
+              body: { booking_id: bookingId, send_email: false }
+            }).catch(e => console.error('[BG] Invoice update failed:', e)),
+          ]).catch(e => console.error('[BG] Error:', e))
+        );
+
+        return new Response(JSON.stringify({
+          success: true,
+          action: 'no_op_lower_amount',
+          stripe_authorized: currentPI.amount / 100,
+          new_expected: expectedTotal,
+          payment_intent_id: booking.payment_intent_id,
+        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
       // Check for saved payment method
