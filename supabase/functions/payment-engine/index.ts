@@ -35,17 +35,18 @@ Deno.serve(async (req) => {
     const stripe = createStripeClient();
     const supabase = getSupabaseClient();
     const payload = await req.json();
-    const { action } = payload;
+    const rawAction = payload.action;
 
-    if (!action) {
+    if (!rawAction) {
       throw new Error('action is required');
     }
 
-    // Canonicalize action: 'modify-authorization' is the new name; 'recalculate' is kept as alias.
-    const canonicalAction = action === 'modify-authorization' ? 'recalculate' : action;
-    payload.action = canonicalAction;
+    // H4 fix: canonicalize once and use the canonical name everywhere below.
+    // 'modify-authorization' is the new public name; 'recalculate' is the legacy alias.
+    const action = rawAction === 'modify-authorization' ? 'recalculate' : rawAction;
+    payload.action = action;
 
-    console.log(`[PAYMENT-ENGINE] Action: ${canonicalAction} (raw: ${action})`, JSON.stringify(payload, null, 2));
+    console.log(`[PAYMENT-ENGINE] Action: ${action} (raw: ${rawAction})`, JSON.stringify(payload, null, 2));
 
     // === Helper: Calculate services total from DB ===
     async function getServicesTotal(bookingId: string) {
@@ -985,7 +986,7 @@ Deno.serve(async (req) => {
     // ========== ACTION: FINALIZE-REAUTHORIZATION ==========
     // Called by frontend AFTER customer confirms the new PI in Stripe's modal.
     // Atomically swaps the booking to the new PI and cancels the old one.
-    if (canonicalAction === 'finalize-reauthorization') {
+    if (action === 'finalize-reauthorization') {
       const { bookingId, new_payment_intent_id } = payload;
       if (!bookingId || !new_payment_intent_id) {
         throw new Error('bookingId and new_payment_intent_id are required');
@@ -1098,7 +1099,7 @@ Deno.serve(async (req) => {
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    throw new Error(`Unknown action: ${canonicalAction}`);
+    throw new Error(`Unknown action: ${action}`);
 
   } catch (error: any) {
     console.error('[PAYMENT-ENGINE] Error:', error);
