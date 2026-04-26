@@ -153,13 +153,16 @@ serve(async (req) => {
     let message = '';
     let recipientName = '';
 
-    if (booking.worker?.phone) {
+    const worker = Array.isArray((booking as any).worker) ? (booking as any).worker[0] : (booking as any).worker;
+    const customer = Array.isArray((booking as any).customer) ? (booking as any).customer[0] : (booking as any).customer;
+
+    if (worker?.phone) {
       // Send to worker
-      recipientPhone = formatPhoneE164(booking.worker.phone);
-      recipientName = booking.worker.name || 'Worker';
+      recipientPhone = formatPhoneE164(worker.phone);
+      recipientName = worker.name || 'Worker';
       
-      const customerName = booking.customer?.name || 
-                          booking.guest_customer_info?.name || 
+      const customerName = customer?.name || 
+                          (booking as any).guest_customer_info?.name || 
                           'Customer';
       
       message = `Hi ${recipientName}! You've been assigned to a new booking on ${booking.scheduled_date} at ${booking.scheduled_start}. Customer: ${customerName}. Please log in to view details.`;
