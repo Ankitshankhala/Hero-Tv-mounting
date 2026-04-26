@@ -693,8 +693,19 @@ Deno.serve(async (req) => {
         p_booking_id: bookingId,
       });
       if (lockError) throw new Error(`Failed to lock booking: ${lockError.message}`);
-      const booking = lockData?.[0];
-      if (!booking) throw new Error('Booking not found');
+      const lockedRow = lockData?.[0];
+      if (!lockedRow) throw new Error('Booking not found');
+
+      // The lock RPC doesn't return status / requires_manual_payment / worker_id.
+      // Fetch them now (still inside the FOR UPDATE transaction window).
+      const { data: extra, error: extraErr } = await supabase
+        .from('bookings')
+        .select('status, requires_manual_payment, worker_id')
+        .eq('id', bookingId)
+        .single();
+      if (extraErr || !extra) throw new Error('Booking not found');
+
+      const booking = { ...lockedRow, ...extra };
 
       const nowIso = new Date().toISOString();
 
