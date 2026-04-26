@@ -108,9 +108,15 @@ Deno.serve(async (req) => {
     console.log('\n💰 STEP 2: Recalculating transaction amounts...');
     
     // Get all transactions with their booking services
-    const { data: transactions, error: txError } = await supabaseClient.rpc('get_transactions_for_repair', {
-      days_back: 90
-    }).catch(async () => {
+    let transactions: any[] | null = null;
+    let txError: any = null;
+    try {
+      const rpcResult: any = await supabaseClient.rpc('get_transactions_for_repair', {
+        days_back: 90
+      });
+      transactions = rpcResult.data;
+      txError = rpcResult.error;
+    } catch (_e) {
       // Fallback if RPC doesn't exist - query directly
       const { data, error } = await supabaseClient
         .from('transactions')
@@ -129,9 +135,9 @@ Deno.serve(async (req) => {
         `)
         .gte('bookings.created_at', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString())
         .not('bookings.payment_intent_id', 'is', null);
-      
-      return { data, error };
-    });
+      transactions = data as any;
+      txError = error;
+    }
 
     if (txError) {
       console.error('Error fetching transactions:', txError);
@@ -155,7 +161,7 @@ Deno.serve(async (req) => {
         newTipAmount: correctTipAmount,
         needsUpdate: t.base_amount !== servicesTotal || t.tip_amount !== correctTipAmount,
       };
-    }).filter(t => t.needsUpdate);
+    }).filter((t: any) => t.needsUpdate);
 
     console.log(`Found ${transactionsNeedingFix.length} transactions needing correction`);
 

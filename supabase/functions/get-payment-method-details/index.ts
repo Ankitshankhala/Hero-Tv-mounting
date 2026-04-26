@@ -39,11 +39,11 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching payment method details:', error);
     return new Response(
       JSON.stringify({
-        error: error.message || 'Failed to fetch payment method details',
+        error: error?.message || 'Failed to fetch payment method details',
       }),
       {
         status: 400,

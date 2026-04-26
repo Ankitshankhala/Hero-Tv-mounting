@@ -141,12 +141,12 @@ serve(async (req) => {
 
     // Build service items list
     const serviceItems = booking.booking_services && booking.booking_services.length > 0
-      ? booking.booking_services.map(bs => `${bs.service_name} (Qty: ${bs.quantity})`).join('<br>')
+      ? booking.booking_services.map((bs: any) => `${bs.service_name} (Qty: ${bs.quantity})`).join('<br>')
       : booking.service?.name || 'Service details unavailable';
 
     // Calculate total amount
     const totalAmount = booking.booking_services && booking.booking_services.length > 0
-      ? booking.booking_services.reduce((sum, bs) => sum + (bs.base_price * bs.quantity), 0)
+      ? booking.booking_services.reduce((sum: number, bs: any) => sum + (bs.base_price * bs.quantity), 0)
       : booking.total_price || 0;
 
     // Format date and time

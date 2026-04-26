@@ -118,12 +118,12 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error setting up customer payment:', error);
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message || 'Failed to setup customer payment',
+        error: error?.message || 'Failed to setup customer payment',
       }),
       {
         status: 400,
