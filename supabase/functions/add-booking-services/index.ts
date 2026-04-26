@@ -93,6 +93,9 @@ serve(async (req) => {
       },
     });
 
+    // Note: 'requires_customer_action' is NOT a failure — engine successfully created
+    // a new PI awaiting 3DS confirmation. Do not rollback inserted services in that case;
+    // the frontend will open the Stripe popup and call finalize-reauthorization.
     if (engineError || !engineResult?.success) {
       const errMsg = engineResult?.error || engineError?.message || 'Payment operation failed';
       console.error(`[ADD-BOOKING-SERVICES] ${engineAction} failed, rolling back:`, errMsg);
@@ -140,6 +143,12 @@ serve(async (req) => {
         services_added: services.length,
         payment_intent_id: engineResult.new_payment_intent_id || booking.payment_intent_id,
         amount_captured: null,
+        // Forward reauthorization handoff so the frontend can open Stripe 3DS popup.
+        action: engineResult.action,
+        requires_new_payment: engineResult.action === 'requires_customer_action',
+        client_secret: engineResult.client_secret ?? null,
+        old_payment_intent_id: engineResult.old_payment_intent_id ?? null,
+        new_payment_intent_id: engineResult.new_payment_intent_id ?? null,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

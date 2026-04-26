@@ -184,8 +184,11 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
         return;
       }
 
-      // Check if card doesn't support increment and requires new payment
-      if (data.requires_new_payment && data.client_secret) {
+      // Card requires 3DS / fresh confirmation — engine returned a new PI awaiting customer action.
+      if (
+        (data.action === 'requires_customer_action' || data.requires_new_payment) &&
+        data.client_secret
+      ) {
         toast({
           title: "Payment Re-authorization Required",
           description: "Your card doesn't support authorization updates. Please re-enter card details.",
@@ -195,8 +198,8 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
           original_amount: currentAmount,
           new_amount: data.new_amount,
           client_secret: data.client_secret,
-          old_payment_intent: data.old_payment_intent,
-          new_payment_intent: data.new_payment_intent
+          old_payment_intent: data.old_payment_intent_id,
+          new_payment_intent: data.new_payment_intent_id,
         });
         setShowReauthorizeDialog(true);
         setProcessing(false);

@@ -110,15 +110,20 @@ export const ReauthorizePaymentDialog = ({
       //    - cancels the old PI on Stripe
       //    - writes the authorization transaction + audit log
       // The frontend must NEVER write payment_intent_id directly.
+      // payment-engine.finalize-reauthorization expects { bookingId, new_payment_intent_id }
+      // and runs validateAuth() — Bearer token is required.
+      const { data: { session } } = await supabase.auth.getSession();
+
       const { data: finalizeData, error: finalizeError } = await supabase.functions.invoke(
         'payment-engine',
         {
           body: {
             action: 'finalize-reauthorization',
-            booking_id,
-            old_payment_intent_id: old_payment_intent,
+            bookingId: booking_id,
             new_payment_intent_id: new_payment_intent,
-            new_amount,
+          },
+          headers: {
+            Authorization: `Bearer ${session?.access_token ?? ''}`,
           },
         }
       );
