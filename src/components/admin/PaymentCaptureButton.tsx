@@ -32,11 +32,14 @@ export const PaymentCaptureButton = ({ transaction, onCaptureSuccess }: PaymentC
     setCapturing(true);
     
     try {
+      // C1 fix: forward Bearer — payment-engine.capture runs validateAuth().
+      const { data: { session } } = await supabase.auth.getSession();
       const { data, error } = await supabase.functions.invoke('capture-payment-intent', {
         body: { 
           payment_intent_id: transaction.payment_intent_id,
           booking_id: transaction.booking_id 
-        }
+        },
+        headers: { Authorization: `Bearer ${session?.access_token ?? ''}` },
       });
 
       if (error) {

@@ -59,8 +59,11 @@ export const PaymentRecoveryTools = () => {
     try {
       console.log('Admin retry capture for booking:', bookingId);
       
+      // C1 fix: forward Bearer — payment-engine.capture runs validateAuth().
+      const { data: { session } } = await supabase.auth.getSession();
       const { data, error } = await supabase.functions.invoke('capture-payment-intent', {
-        body: { booking_id: bookingId }
+        body: { booking_id: bookingId },
+        headers: { Authorization: `Bearer ${session?.access_token ?? ''}` },
       });
 
       console.log('Admin capture response:', { data, error });
