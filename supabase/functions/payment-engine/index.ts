@@ -36,7 +36,11 @@ Deno.serve(async (req) => {
       throw new Error('action is required');
     }
 
-    console.log(`[PAYMENT-ENGINE] Action: ${action}`, JSON.stringify(payload, null, 2));
+    // Canonicalize action: 'modify-authorization' is the new name; 'recalculate' is kept as alias.
+    const canonicalAction = action === 'modify-authorization' ? 'recalculate' : action;
+    payload.action = canonicalAction;
+
+    console.log(`[PAYMENT-ENGINE] Action: ${canonicalAction} (raw: ${action})`, JSON.stringify(payload, null, 2));
 
     // === Helper: Calculate services total from DB ===
     async function getServicesTotal(bookingId: string) {
