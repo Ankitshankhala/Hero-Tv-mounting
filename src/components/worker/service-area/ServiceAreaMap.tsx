@@ -362,7 +362,8 @@ const ServiceAreaMap = ({
     }
   };
 
-  // Function to compute ZIP codes client-side using ZCTA data
+  // Compute ZIP codes by intersecting the drawn polygon against ZCTA polygons
+  // server-side via PostGIS (same RPC the admin map uses).
   const computeZipCodes = async (coordinates: Array<{ lat: number; lng: number }>) => {
     if (!coordinates || coordinates.length < 3) {
       setPrecomputedZipCodes([]);
@@ -371,23 +372,51 @@ const ServiceAreaMap = ({
 
     setComputingZipCodes(true);
     try {
-      console.log('🔍 Database will compute ZIP codes for polygon...');
-      const zipCodes: string[] = []; // Database computes this
-      
-      console.log(`✅ Found ${zipCodes.length} ZIP codes:`, zipCodes.slice(0, 10));
+      // Build a closed GeoJSON-style ring: [[lng, lat], ..., [lng, lat]] (first == last)
+      const ring: number[][] = [
+        ...coordinates.map(p => [p.lng, p.lat]),
+        [coordinates[0].lng, coordinates[0].lat],
+      ];
+
+      console.log('🔍 Fetching ZIP codes for polygon:', {
+        pointCount: coordinates.length,
+        samplePoint: coordinates[0],
+      });
+
+      const { data, error } = await supabase.rpc('get_zcta_codes_for_polygon', {
+        polygon_coords: ring,
+      });
+
+      if (error) {
+        console.error('ZIP code fetch error:', error);
+        throw error;
+      }
+
+      const zipCodes: string[] = (data as string[] | null) || [];
       setPrecomputedZipCodes(zipCodes);
-      
-      // Render ZIP code boundaries if enabled
+      console.log(`✅ Found ${zipCodes.length} ZIP codes:`, zipCodes.slice(0, 10));
+
+      // Render ZIP code boundaries if preview is enabled
       if (showZipBoundariesPreview && zipCodes.length > 0) {
         await renderZipBoundaries(zipCodes);
       }
-      
-      // Show warning if very few ZIP codes found
-      if (zipCodes.length < 5) {
+
+      // Warn (but don't block) when the polygon barely covers anything
+      if (zipCodes.length === 0) {
+        toast({
+          title: "No ZIP codes found",
+          description: "Your polygon doesn't intersect any ZIP areas. Try drawing a larger shape.",
+          variant: "destructive",
+        });
+      } else if (zipCodes.length < 5) {
         toast({
           title: "Few ZIP codes found",
           description: `Only ${zipCodes.length} ZIP codes found. Consider enlarging the polygon.`,
-          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "ZIP codes found",
+          description: `${zipCodes.length} ZIP codes intersect your polygon.`,
         });
       }
     } catch (error) {
@@ -395,8 +424,8 @@ const ServiceAreaMap = ({
       setPrecomputedZipCodes([]);
       toast({
         title: "ZIP computation failed",
-        description: "Could not compute ZIP codes. Will use server fallback.",
-        variant: "destructive"
+        description: "Could not compute ZIP codes. Will use server fallback on save.",
+        variant: "destructive",
       });
     } finally {
       setComputingZipCodes(false);
