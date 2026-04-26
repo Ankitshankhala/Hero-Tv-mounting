@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getSupabaseClient } from '../_shared/supabaseClient.ts';
-import { corsHeaders } from '../_shared/stripe.ts';
+import { corsHeaders, refreshStripeMode } from '../_shared/stripe.ts';
 
 /**
  * Capture Payment Intent — Thin proxy to payment-engine capture action.
@@ -10,6 +10,9 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
+  // Hydrate Stripe mode (test/live) from app_settings before any Stripe call.
+  await refreshStripeMode();
 
   try {
     const supabase = getSupabaseClient();

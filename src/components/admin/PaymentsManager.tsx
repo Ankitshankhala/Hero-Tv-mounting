@@ -14,6 +14,7 @@ import { PaymentSyncButton } from './PaymentSyncButton';
 import { StripeSyncButton } from './StripeSyncButton';
 import { PaymentHealthCheck } from './PaymentHealthCheck';
 import { PaymentCaptureHistory } from './PaymentCaptureHistory';
+import { StripeModeToggle } from './StripeModeToggle';
 
 
 interface Transaction {
@@ -229,6 +230,9 @@ export const PaymentsManager = () => {
 
   return (
     <div className="space-y-6">
+      {/* 0. Stripe Test/Live Mode Toggle */}
+      <StripeModeToggle />
+
       {/* 1. Payment Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
