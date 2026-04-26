@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { getStripeMode } from "../_shared/stripe.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,7 +18,12 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    const STRIPE_SECRET_KEY = Deno.env.get('STRIPE_SECRET_KEY');
+    const mode = getStripeMode();
+    const STRIPE_SECRET_KEY =
+      mode === 'test'
+        ? Deno.env.get('STRIPE_SECRET_KEY_TEST')
+        : Deno.env.get('STRIPE_SECRET_KEY');
+    console.log(`[UNIFIED-PAYMENT-VERIFICATION] Stripe mode: ${mode}`);
     
     const { 
       paymentIntentId, 
