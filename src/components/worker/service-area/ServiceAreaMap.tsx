@@ -517,7 +517,8 @@ const ServiceAreaMap = ({
   useEffect(() => {
     if (!workerId) return;
     loadServiceAreas();
-    // Remove redundant fetchServiceAreas call
+    // Also fetch zipcodes so badge counts populate on first render
+    fetchServiceAreas();
   }, [workerId]);
 
   // Update ZIP markers when dependencies change
