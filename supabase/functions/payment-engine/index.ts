@@ -2,6 +2,8 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createStripeClient, corsHeaders, refreshStripeMode } from '../_shared/stripe.ts';
 import { getSupabaseClient } from '../_shared/supabaseClient.ts';
 
+declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void };
+
 /**
  * Payment Engine — Single authoritative Stripe operations handler.
  * 

@@ -81,7 +81,7 @@ serve(async (req) => {
 
     // Build service items list
     const serviceItems = booking.booking_services && booking.booking_services.length > 0
-      ? booking.booking_services.map(bs => `${bs.service_name} x${bs.quantity}`).join('<br>')
+      ? booking.booking_services.map((bs: any) => `${bs.service_name} x${bs.quantity}`).join('<br>')
       : 'Service details not available';
 
     // Format date and time
