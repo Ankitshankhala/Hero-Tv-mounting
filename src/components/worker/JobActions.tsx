@@ -49,7 +49,8 @@ const JobActions = ({
     ['confirmed', 'in_progress', 'payment_authorized'].includes(job.status) &&
     job.payment_status === 'authorized' &&
     !!job.payment_intent_id &&
-    !job.requires_manual_payment;
+    !job.requires_manual_payment &&
+    !job.pending_payment_amount; // H6: do not allow capture while a re-auth is pending
 
   const canCollectPayment =
     job.payment_status === 'failed' || job.payment_status === 'cancelled';
@@ -71,9 +72,16 @@ const JobActions = ({
     if (completing) return;
     setCompleting(true);
     try {
+      // C1 fix: payment-engine.complete-and-capture runs validateAuth(); we MUST
+      // forward the user's Bearer token because verify_jwt is false on this function
+      // (the SDK does not auto-attach the user JWT in that case).
+      const { data: { session } } = await supabase.auth.getSession();
       const { data, error } = await supabase.functions.invoke(
         'worker-complete-and-capture',
-        { body: { booking_id: job.id } }
+        {
+          body: { booking_id: job.id },
+          headers: { Authorization: `Bearer ${session?.access_token ?? ''}` },
+        }
       );
 
       if (error) {
