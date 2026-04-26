@@ -282,47 +282,6 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
                 </CardContent>
               </Card>
 
-          <div className="space-y-6">
-            {/* Show Payment Form or Services Selection */}
-            {showPaymentForm && paymentData ? (
-              <div className="space-y-4">
-                <Card className="bg-slate-700 border-slate-600">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-white text-sm">Additional Payment Required</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-sm text-slate-300 space-y-1">
-                      <div>Services added to booking successfully</div>
-                      <div>Additional payment of <span className="text-emerald-400 font-bold">${paymentData.amount.toFixed(2)}</span> required</div>
-                      <div>Customer payment will be processed immediately</div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <InlineStripePaymentForm
-                  job={job}
-                  amount={paymentData.amount.toFixed(2)}
-                  clientSecret={paymentData.clientSecret}
-                  onPaymentSuccess={handlePaymentSuccess}
-                  onPaymentFailure={handlePaymentFailure}
-                />
-              </div>
-            ) : (
-              <>
-                {/* Current Job Info */}
-                <Card className="bg-slate-700 border-slate-600">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-white text-sm">Current Job</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-sm text-slate-300 space-y-1">
-                      <div>Customer: {job.customer?.name}</div>
-                      <div>Date: {job.scheduled_date} at {job.scheduled_start}</div>
-                      <div>Original Service: {job.service?.name}</div>
-                    </div>
-                  </CardContent>
-                </Card>
-
             {/* Services Grid */}
             {loading ? (
               <div className="text-center py-8">
@@ -331,7 +290,7 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {services.map((service) => (
-                   <ServiceCard 
+                  <ServiceCard
                     key={service.id}
                     id={service.id}
                     name={service.name}
@@ -391,37 +350,36 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
                       </div>
                     </div>
                   ))}
-                  
+
                   <div className="border-t border-slate-500 pt-4">
                     <div className="flex justify-between items-center text-lg font-bold">
                       <span className="text-white">Total:</span>
                       <span className="text-emerald-400">${getTotalPrice().toFixed(2)}</span>
                     </div>
                   </div>
-                  
-                  <Button 
+
+                  <Button
                     onClick={handleAddServicesAndCharge}
                     disabled={processing}
                     className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold py-3"
                   >
-                    <CreditCard className="h-5 w-5 mr-2" />
+                    <Plus className="h-5 w-5 mr-2" />
                     {processing ? 'Processing...' : `Add Services to Job (+$${getTotalPrice().toFixed(2)})`}
                   </Button>
                 </CardContent>
               </Card>
             )}
 
-                {/* Empty State */}
-                {cart.length === 0 && (
-                  <div className="text-center py-8">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-700/50 rounded-full mb-4">
-                      <Plus className="h-8 w-8 text-slate-400" />
-                    </div>
-                    <p className="text-slate-400 text-lg">Select services to add to this job</p>
-                  </div>
-                )}
-              </>
+            {/* Empty State */}
+            {cart.length === 0 && (
+              <div className="text-center py-8">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-700/50 rounded-full mb-4">
+                  <Plus className="h-8 w-8 text-slate-400" />
+                </div>
+                <p className="text-slate-400 text-lg">Select services to add to this job</p>
+              </div>
             )}
+            </>
           </div>
         </DialogContent>
       </Dialog>
