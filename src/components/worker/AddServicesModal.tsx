@@ -480,7 +480,7 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
                     className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold py-3"
                   >
                     <CreditCard className="h-5 w-5 mr-2" />
-                    {processing ? 'Processing...' : `Charge Full Amount & Complete Job $${getTotalPrice().toFixed(2)}`}
+                    {processing ? 'Processing...' : `Add Services to Job (+$${getTotalPrice().toFixed(2)})`}
                   </Button>
                 </CardContent>
               </Card>
