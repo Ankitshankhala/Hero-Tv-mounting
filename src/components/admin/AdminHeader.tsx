@@ -12,6 +12,7 @@ import { TodaysJobsModal } from './TodaysJobsModal';
 import { ArrowSidebarToggle } from './ArrowSidebarToggle';
 import { NotificationBell } from './NotificationBell';
 import { GlobalSearch } from './GlobalSearch';
+import { StripeModeBadge } from './StripeModeBadge';
 interface AdminHeaderProps {
   onNavigate?: (section: string) => void;
 }
@@ -102,10 +103,8 @@ export const AdminHeader = ({
             {/* Notifications */}
             <NotificationBell />
             
-            {/* Stripe Status Indicator */}
-            <Badge variant="default" className="bg-green-600">
-              ✅ Live Keys
-            </Badge>
+            {/* Stripe mode (Live/Test) — driven by VITE_STRIPE_MODE */}
+            <StripeModeBadge />
             
             {/* Testing Mode Status & Controls */}
             {isTestingMode ? <div className="flex items-center space-x-2">
