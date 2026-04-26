@@ -76,7 +76,7 @@ export const StripeModeToggle: React.FC = () => {
             : "border-emerald-400/40"
         }
       >
-        <CardHeader>
+        <CardHeader className="bg-secondary text-primary">
           <div className="flex items-center justify-between gap-4">
             <div>
               <CardTitle className="flex items-center gap-2">
@@ -120,9 +120,9 @@ export const StripeModeToggle: React.FC = () => {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="text-sm text-primary-foreground space-y-2">
-          <p className="text-primary-foreground">
-            <strong className="text-primary-foreground">Current mode:</strong>{" "}
+        <CardContent className="text-sm text-primary space-y-2">
+          <p className="text-primary">
+            <strong className="text-primary">Current mode:</strong>{" "}
             <span
               className={
                 isTest ? "font-medium text-secondary-foreground" : "text-emerald-700 font-medium"
@@ -132,7 +132,7 @@ export const StripeModeToggle: React.FC = () => {
             </span>
           </p>
           <p className="text-secondary-foreground">
-            <strong className="text-primary-foreground">Required secrets:</strong> Both{" "}
+            <strong className="text-primary">Required secrets:</strong> Both{" "}
             <code className="px-1 rounded bg-muted text-destructive">STRIPE_SECRET_KEY</code> and{" "}
             <code className="px-1 rounded bg-muted text-destructive">STRIPE_SECRET_KEY_TEST</code>{" "}
             must be configured in Supabase Edge Function Secrets for the toggle
