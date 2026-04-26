@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.0";
 import Stripe from 'https://esm.sh/stripe@14.21.0';
+import { getStripeMode } from "../_shared/stripe.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,7 +16,12 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY');
+    const mode = getStripeMode();
+    const stripeSecretKey =
+      mode === 'test'
+        ? Deno.env.get('STRIPE_SECRET_KEY_TEST')
+        : Deno.env.get('STRIPE_SECRET_KEY');
+    console.log(`[BULK-DELETE-PAYMENT-PENDING] Stripe mode: ${mode}`);
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const stripe = stripeSecretKey ? new Stripe(stripeSecretKey, { apiVersion: '2023-10-16' }) : null;
