@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CheckCircle, XCircle, AlertTriangle, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { STRIPE_PUBLISHABLE_KEY, STRIPE_MODE } from '@/lib/stripe';
 
 interface StripeConfigStatus {
   hasPublishableKey: boolean;
@@ -29,11 +30,11 @@ export const StripeConfigStatus = () => {
     setIsChecking(true);
     
     try {
-      // Check frontend publishable key
-      const publishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '';
+      // Check active publishable key (matches STRIPE_MODE)
+      const publishableKey = STRIPE_PUBLISHABLE_KEY;
       const hasPublishableKey = !!publishableKey;
-      const isLive = publishableKey.startsWith('pk_live_');
-      const keyType = publishableKey.startsWith('pk_live_') ? 'live' : 
+      const isLive = STRIPE_MODE === 'live' && publishableKey.startsWith('pk_live_');
+      const keyType = publishableKey.startsWith('pk_live_') ? 'live' :
                      publishableKey.startsWith('pk_test_') ? 'test' : 'unknown';
 
       // Check backend secret key via edge function

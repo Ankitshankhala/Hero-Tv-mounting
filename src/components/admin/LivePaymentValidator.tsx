@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { STRIPE_PUBLISHABLE_KEY, STRIPE_MODE } from '@/lib/stripe';
 
 interface ValidationResult {
   category: string;
@@ -22,15 +23,15 @@ export const LivePaymentValidator = () => {
     const results: ValidationResult[] = [];
 
     try {
-      // Check frontend Stripe configuration
-      const stripeKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+      // Check the publishable key matching the active STRIPE_MODE
+      const stripeKey = STRIPE_PUBLISHABLE_KEY;
       
       if (!stripeKey) {
         results.push({
           category: 'Frontend Config',
           status: 'fail',
-          message: 'No Stripe publishable key found',
-          details: 'VITE_STRIPE_PUBLISHABLE_KEY not configured'
+          message: `No Stripe publishable key found for mode "${STRIPE_MODE}"`,
+          details: `Set ${STRIPE_MODE === 'test' ? 'VITE_STRIPE_PUBLISHABLE_KEY_TEST' : 'VITE_STRIPE_PUBLISHABLE_KEY'} in .env`
         });
       } else if (stripeKey.startsWith('pk_test_')) {
         results.push({
