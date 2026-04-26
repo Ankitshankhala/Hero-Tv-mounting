@@ -101,35 +101,18 @@ serve(async (req) => {
       throw new Error(errMsg);
     }
 
-    // Fix 3: Atomic capture — if recalculate succeeded and booking is pre-capture, capture immediately
-    let captureResult = null;
-    if (engineAction === 'recalculate' && engineResult.action !== 'requires_manual_payment') {
-      console.log('[ADD-BOOKING-SERVICES] Recalculate succeeded, capturing payment atomically');
-      const { data: capData, error: capError } = await supabase.functions.invoke('payment-engine', {
-        body: {
-          action: 'capture',
-          bookingId: booking_id,
-        },
-        headers: {
-          Authorization: req.headers.get('Authorization') || '',
-        },
-      });
-
-      if (capError || !capData?.success) {
-        const capErrMsg = capData?.error || capError?.message || 'Capture failed after recalculate';
-        console.error('[ADD-BOOKING-SERVICES] Atomic capture failed:', capErrMsg);
-        // Don't rollback services — they're added and PI is updated. Return success without capture.
-        captureResult = null;
-      } else {
-        captureResult = capData;
-        console.log('[ADD-BOOKING-SERVICES] Atomic capture succeeded:', capData.amount_captured);
-      }
-    }
+    // Note: Capture is intentionally NOT performed here.
+    // Adding services only updates the authorized amount via `recalculate`.
+    // Final capture happens only when the worker clicks
+    // "Complete Job & Accept Payment" → worker-complete-and-capture.
 
     // Calculate new total for response
     const currentTotal = booking.booking_services?.reduce((sum: number, bs: any) =>
       sum + (Number(bs.base_price) * bs.quantity), 0) || 0;
-    const newServicesTotal = servicesData.reduce((sum, s) => sum + (s.base_price * s.quantity), 0);
+    const newServicesTotal = (servicesData as any[]).reduce(
+      (sum: number, s: any) => sum + (Number(s.base_price) * s.quantity),
+      0
+    );
     const newTotal = currentTotal + newServicesTotal;
 
     // Update invoice in background
@@ -148,10 +131,10 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         incremented: true,
-        new_amount: captureResult?.amount_captured || newTotal,
+        new_amount: newTotal,
         services_added: services.length,
-        payment_intent_id: captureResult?.payment_intent_id || engineResult.new_payment_intent_id || booking.payment_intent_id,
-        amount_captured: captureResult?.amount_captured || null,
+        payment_intent_id: engineResult.new_payment_intent_id || booking.payment_intent_id,
+        amount_captured: null,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

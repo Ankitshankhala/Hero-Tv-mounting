@@ -191,7 +191,18 @@ export function WorkerDashboardWithSidebar() {
 
   const updateJobStatus = async (jobId: string, newStatus: BookingStatus) => {
     try {
-      // Update the job status in the database
+      // Workers must NEVER mark a job 'completed' from the frontend.
+      // The only path to completion is the unified
+      // worker-complete-and-capture edge function (triggered from JobActions).
+      if (newStatus === 'completed') {
+        toast({
+          title: 'Use "Complete Job & Accept Payment"',
+          description:
+            'Completion now happens together with payment capture. Use the green button on the job card.',
+        });
+        return;
+      }
+
       const { error } = await supabase
         .from('bookings')
         .update({ status: newStatus })
@@ -199,49 +210,18 @@ export function WorkerDashboardWithSidebar() {
 
       if (error) throw error;
 
-      // Handle payment capture for completed jobs
-      if (newStatus === 'completed') {
-        try {
-          const { error: captureError } = await supabase.functions.invoke('capture-payment', {
-            body: { bookingId: jobId }
-          });
+      toast({
+        title: 'Job Status Updated',
+        description: `Job status has been updated to ${newStatus}.`,
+      });
 
-          if (captureError) {
-            console.error('Error capturing payment:', captureError);
-            toast({
-              title: "Payment Capture Failed",
-              description: "Job marked as completed, but payment capture failed. Please contact support.",
-              variant: "destructive",
-            });
-          } else {
-            toast({
-              title: "Job Completed Successfully",
-              description: "Payment has been captured and the job is now complete.",
-            });
-          }
-        } catch (captureError) {
-          console.error('Error in payment capture:', captureError);
-          toast({
-            title: "Payment Capture Error",
-            description: "Job marked as completed, but there was an issue capturing payment.",
-            variant: "destructive",
-          });
-        }
-      } else {
-        toast({
-          title: "Job Status Updated",
-          description: `Job status has been updated to ${newStatus}.`,
-        });
-      }
-
-      // Refresh the jobs list
       await fetchWorkerJobs();
     } catch (error) {
       console.error('Error updating job status:', error);
       toast({
-        title: "Update Failed",
-        description: "Failed to update job status. Please try again.",
-        variant: "destructive",
+        title: 'Update Failed',
+        description: 'Failed to update job status. Please try again.',
+        variant: 'destructive',
       });
     }
   };

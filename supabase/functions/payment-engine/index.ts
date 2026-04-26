@@ -524,6 +524,178 @@ Deno.serve(async (req) => {
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
+    // ========== ACTION: COMPLETE-AND-CAPTURE ==========
+    // Atomic: capture authorized payment, mark booking completed, archive.
+    // The ONLY path workers should use to finish a job. Booking status is never
+    // mutated unless Stripe capture succeeds.
+    if (action === 'complete-and-capture') {
+      const { bookingId } = payload;
+      if (!bookingId) throw new Error('bookingId required');
+
+      const userId = await validateAuth(req.headers.get('Authorization'));
+      await verifyWorkerOrAdmin(userId, bookingId);
+
+      const { data: booking, error: bErr } = await supabase
+        .from('bookings')
+        .select('id, status, payment_intent_id, payment_status, tip_amount, payment_version, captured_amount, requires_manual_payment, worker_id')
+        .eq('id', bookingId)
+        .single();
+      if (bErr || !booking) throw new Error('Booking not found');
+
+      const nowIso = new Date().toISOString();
+
+      // Idempotent success — already captured, just finalize state
+      if (booking.payment_status === 'captured' || booking.payment_status === 'completed') {
+        await supabase.from('bookings').update({
+          status: 'completed',
+          is_archived: true,
+          archived_at: nowIso,
+          updated_at: nowIso,
+        }).eq('id', bookingId);
+
+        return new Response(JSON.stringify({
+          success: true,
+          already_captured: true,
+          amount_captured: Number(booking.captured_amount) || 0,
+          payment_intent_id: booking.payment_intent_id,
+          message: 'Payment already captured; job marked completed and archived',
+        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      // Pre-flight guards
+      const allowedStatuses = ['confirmed', 'in_progress', 'payment_authorized'];
+      if (!allowedStatuses.includes(String(booking.status))) {
+        throw new Error(`Cannot complete job from status: ${booking.status}`);
+      }
+      if (booking.payment_status !== 'authorized') {
+        throw new Error(`Cannot capture: payment_status is ${booking.payment_status}`);
+      }
+      if (!booking.payment_intent_id) {
+        throw new Error('No payment intent found for this booking');
+      }
+      if (booking.requires_manual_payment) {
+        throw new Error('This booking requires manual payment handling');
+      }
+
+      const servicesTotal = await getServicesTotal(bookingId);
+      const tipAmount = Number(booking.tip_amount) || 0;
+      const expectedTotal = servicesTotal + tipAmount;
+      const expectedCents = Math.round(expectedTotal * 100);
+
+      const pi = await stripe.paymentIntents.retrieve(booking.payment_intent_id);
+
+      let capturedAmount: number;
+      let recovered = false;
+
+      if (pi.status === 'succeeded') {
+        // Stripe already captured but DB out of sync — recover
+        capturedAmount = (pi.amount_received || pi.amount || expectedCents) / 100;
+        recovered = true;
+      } else if (pi.status === 'requires_capture') {
+        const capturableCents = pi.amount_capturable || pi.amount;
+        if (Math.abs(capturableCents - expectedCents) > 1) {
+          console.error('[PAYMENT-ENGINE] complete-and-capture mismatch:', { capturableCents, expectedCents });
+          throw new Error(
+            `Booking total changed. Expected $${expectedTotal.toFixed(2)} but Stripe has $${(capturableCents / 100).toFixed(2)} authorized. Please recalculate authorization first.`
+          );
+        }
+
+        const captured = await stripe.paymentIntents.capture(
+          booking.payment_intent_id,
+          { amount_to_capture: capturableCents },
+          { idempotencyKey: `complete_capture_${bookingId}_v${booking.payment_version || 1}` }
+        );
+
+        if (captured.status !== 'succeeded') {
+          throw new Error(`Capture failed: ${captured.status}`);
+        }
+        capturedAmount = captured.amount_received / 100;
+      } else {
+        throw new Error(`Payment cannot be captured. Stripe status is ${pi.status}`);
+      }
+
+      // Atomic finalize: status + payment + archive in one update
+      const { error: updErr } = await supabase.from('bookings').update({
+        status: 'completed',
+        payment_status: 'captured',
+        captured_amount: capturedAmount,
+        pending_payment_amount: null,
+        requires_manual_payment: false,
+        is_archived: true,
+        archived_at: nowIso,
+        updated_at: nowIso,
+      }).eq('id', bookingId);
+
+      if (updErr) {
+        console.error('[PAYMENT-ENGINE] Booking finalize update failed:', updErr);
+        throw new Error(`Capture succeeded but DB update failed: ${updErr.message}`);
+      }
+
+      // Update existing authorized transaction, or insert new capture row
+      const { data: updatedTx, error: txUpdateError } = await supabase
+        .from('transactions')
+        .update({
+          status: 'completed',
+          transaction_type: 'capture',
+          captured_at: nowIso,
+          captured_by: userId,
+          amount: capturedAmount,
+          base_amount: servicesTotal,
+          tip_amount: tipAmount,
+        })
+        .eq('booking_id', bookingId)
+        .eq('payment_intent_id', booking.payment_intent_id)
+        .eq('status', 'authorized')
+        .select('id');
+
+      if (txUpdateError || !updatedTx?.length) {
+        await supabase.from('transactions').insert({
+          booking_id: bookingId,
+          amount: capturedAmount,
+          base_amount: servicesTotal,
+          tip_amount: tipAmount,
+          status: 'completed',
+          payment_intent_id: booking.payment_intent_id,
+          transaction_type: 'capture',
+          payment_method: 'card',
+          captured_at: nowIso,
+          captured_by: userId,
+        });
+      }
+
+      // Audit log (best-effort)
+      await supabase.from('booking_audit_log').insert({
+        booking_id: bookingId,
+        operation: 'worker_complete_and_capture',
+        status: 'success',
+        payment_intent_id: booking.payment_intent_id,
+        created_by: userId,
+        details: {
+          captured_amount: capturedAmount,
+          services_total: servicesTotal,
+          tip_amount: tipAmount,
+          recovered_from_stripe: recovered,
+        },
+      }).then(() => {}, (e) => console.error('[PAYMENT-ENGINE] audit log failed:', e));
+
+      // Background invoice
+      EdgeRuntime.waitUntil(
+        supabase.functions.invoke('generate-invoice', {
+          body: { booking_id: bookingId, send_email: true, force_regenerate: true }
+        }).catch(e => console.error('[BG] Invoice gen failed:', e))
+      );
+
+      return new Response(JSON.stringify({
+        success: true,
+        amount_captured: capturedAmount,
+        payment_intent_id: booking.payment_intent_id,
+        recovered_from_stripe: recovered,
+        message: recovered
+          ? 'Payment was already captured in Stripe; job completed and archived'
+          : 'Job completed and payment captured',
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     // ========== ACTION: CHARGE-DIFFERENCE ==========
     if (action === 'charge-difference') {
       const { bookingId } = payload;

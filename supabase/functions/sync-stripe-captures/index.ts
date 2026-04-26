@@ -123,20 +123,33 @@ serve(async (req) => {
       const amount = (pi.amount_received || pi.amount || 0) / 100;
       const updates: string[] = [];
 
-      // Update booking
+      // Update booking. When Stripe shows the PI as succeeded but our DB
+      // missed the capture, also complete + archive so the worker view stays
+      // consistent with reality.
+      const isCapturedSync = pi.status === 'succeeded';
+      const nowIso = new Date().toISOString();
+      const bookingUpdate: Record<string, unknown> = {
+        payment_status: dbPaymentStatus,
+      };
+      if (isCapturedSync) {
+        bookingUpdate.status = 'completed';
+        bookingUpdate.captured_amount = amount;
+        bookingUpdate.pending_payment_amount = null;
+        bookingUpdate.requires_manual_payment = false;
+        bookingUpdate.is_archived = true;
+        bookingUpdate.archived_at = nowIso;
+        bookingUpdate.updated_at = nowIso;
+      }
+
       const { data: updatedBooking, error: bookingErr } = await supabase
         .from('bookings')
-        .update({ 
-          payment_status: dbPaymentStatus,
-          is_archived: dbPaymentStatus === 'captured' ? false : undefined,
-          archived_at: dbPaymentStatus === 'captured' ? null : undefined,
-        })
+        .update(bookingUpdate)
         .eq('payment_intent_id', piId)
         .select('id')
         .maybeSingle();
 
       if (updatedBooking) {
-        updates.push(`Booking ${updatedBooking.id} → ${dbPaymentStatus}`);
+        updates.push(`Booking ${updatedBooking.id} → ${dbPaymentStatus}${isCapturedSync ? ' (completed+archived)' : ''}`);
       }
 
       // Update or insert transaction
