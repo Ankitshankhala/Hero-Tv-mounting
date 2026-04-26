@@ -1,20 +1,16 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { TestTube, Zap } from 'lucide-react';
-import { STRIPE_MODE } from '@/lib/stripe';
+import { useStripeMode } from '@/hooks/useStripeMode';
 
 /**
- * Shows the current Stripe mode (TEST vs LIVE).
- *
- * - LIVE: green badge — real money is moving.
- * - TEST: amber badge — safe to use Stripe test cards (e.g. 4242 4242 4242 4242).
- *
- * Controlled by VITE_STRIPE_MODE in .env. The backend STRIPE_MODE secret
- * must match this value, otherwise frontend and edge functions will
- * disagree about which Stripe environment they are talking to.
+ * Shows the current Stripe mode (TEST vs LIVE), reading from the runtime
+ * `app_settings.stripe_mode` row via `useStripeMode`. Updates instantly
+ * across tabs when an admin flips the toggle.
  */
 export const StripeModeBadge: React.FC<{ className?: string }> = ({ className }) => {
-  const isTest = STRIPE_MODE === 'test';
+  const { mode } = useStripeMode();
+  const isTest = mode === 'test';
 
   return (
     <Badge
