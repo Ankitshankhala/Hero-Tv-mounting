@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { CreditCard, AlertTriangle, DollarSign } from 'lucide-react';
-import { loadStripe } from '@stripe/stripe-js';
+import { ShieldCheck, AlertTriangle, DollarSign, Loader2 } from 'lucide-react';
+import { loadStripe, Stripe } from '@stripe/stripe-js';
 import { STRIPE_PUBLISHABLE_KEY } from '@/lib/stripe';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -20,6 +20,20 @@ interface ReauthorizePaymentDialogProps {
   onSuccess?: () => void;
 }
 
+/**
+ * Saved-card 3DS reauthorization.
+ *
+ * The pending PaymentIntent was created server-side with the customer's saved
+ * payment method already attached. We must NOT collect a new card here — that
+ * would override the saved card and (a) require the worker to type a card they
+ * don't own, (b) break the engine's finalize-reauthorization handoff.
+ *
+ * Instead we call `stripe.handleNextAction({ clientSecret })` which opens
+ * Stripe's hosted 3DS challenge UI for the already-attached saved card.
+ * If the PI is in `requires_capture` directly (rare — happens when the engine
+ * created an unconfirmed pending PI), we call `stripe.confirmCardPayment`
+ * with no payment_method override so Stripe uses the attached saved card.
+ */
 export const ReauthorizePaymentDialog = ({
   isOpen,
   onClose,
@@ -29,58 +43,69 @@ export const ReauthorizePaymentDialog = ({
   client_secret,
   old_payment_intent,
   new_payment_intent,
-  onSuccess
+  onSuccess,
 }: ReauthorizePaymentDialogProps) => {
   const [processing, setProcessing] = useState(false);
-  const [cardElement, setCardElement] = useState<any>(null);
-  const [stripe, setStripe] = useState<any>(null);
+  const [stripe, setStripe] = useState<Stripe | null>(null);
+  const [stripeLoading, setStripeLoading] = useState(false);
   const { toast } = useToast();
 
   React.useEffect(() => {
-    if (isOpen && client_secret) {
-      initializeStripe();
-    }
-  }, [isOpen, client_secret]);
-
-  const initializeStripe = async () => {
-    const stripeInstance = await loadStripe(STRIPE_PUBLISHABLE_KEY);
-    if (!stripeInstance) {
-      toast({
-        title: "Stripe Error",
-        description: "Failed to initialize payment system",
-        variant: "destructive"
+    if (!isOpen) return;
+    let cancelled = false;
+    setStripeLoading(true);
+    loadStripe(STRIPE_PUBLISHABLE_KEY)
+      .then((s) => {
+        if (cancelled) return;
+        if (!s) {
+          toast({
+            title: 'Stripe Error',
+            description: 'Failed to initialize Stripe',
+            variant: 'destructive',
+          });
+        }
+        setStripe(s);
+      })
+      .finally(() => {
+        if (!cancelled) setStripeLoading(false);
       });
-      return;
-    }
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, toast]);
 
-    setStripe(stripeInstance);
+  const finalizeOnEngine = async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-    const elements = stripeInstance.elements({
-      clientSecret: client_secret,
-    });
-
-    const cardElementInstance = elements.create('card', {
-      style: {
-        base: {
-          fontSize: '16px',
-          color: '#424770',
-          '::placeholder': {
-            color: '#aab7c4',
-          },
+    const { data: finalizeData, error: finalizeError } = await supabase.functions.invoke(
+      'payment-engine',
+      {
+        body: {
+          action: 'finalize-reauthorization',
+          bookingId: booking_id,
+          new_payment_intent_id: new_payment_intent,
+        },
+        headers: {
+          Authorization: `Bearer ${session?.access_token ?? ''}`,
         },
       },
-    });
+    );
 
-    cardElementInstance.mount('#card-element-reauth');
-    setCardElement(cardElementInstance);
+    if (finalizeError || !finalizeData?.success) {
+      const msg =
+        finalizeData?.error || finalizeError?.message || 'Failed to finalize re-authorization';
+      throw new Error(msg);
+    }
   };
 
-  const handleConfirmPayment = async () => {
-    if (!stripe || !cardElement) {
+  const handleAuthorize = async () => {
+    if (!stripe) {
       toast({
-        title: "Payment System Error",
-        description: "Payment system not ready. Please try again.",
-        variant: "destructive"
+        title: 'Stripe Not Ready',
+        description: 'Please wait a moment and try again.',
+        variant: 'destructive',
       });
       return;
     }
@@ -88,65 +113,62 @@ export const ReauthorizePaymentDialog = ({
     setProcessing(true);
 
     try {
-      // 1) Confirm the new PI client-side (handles 3DS popup if required).
-      const { error, paymentIntent } = await stripe.confirmCardPayment(client_secret, {
-        payment_method: {
-          card: cardElement,
-        },
-      });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      if (paymentIntent.status !== 'requires_capture') {
-        throw new Error(`Authorization failed (status: ${paymentIntent.status})`);
-      }
-
-      // 2) Hand off to payment-engine for the atomic swap. The engine:
-      //    - bumps payment_version
-      //    - swaps bookings.payment_intent_id from old → new
-      //    - updates authorized_amount
-      //    - cancels the old PI on Stripe
-      //    - writes the authorization transaction + audit log
-      // The frontend must NEVER write payment_intent_id directly.
-      // payment-engine.finalize-reauthorization expects { bookingId, new_payment_intent_id }
-      // and runs validateAuth() — Bearer token is required.
-      const { data: { session } } = await supabase.auth.getSession();
-
-      const { data: finalizeData, error: finalizeError } = await supabase.functions.invoke(
-        'payment-engine',
-        {
-          body: {
-            action: 'finalize-reauthorization',
-            bookingId: booking_id,
-            new_payment_intent_id: new_payment_intent,
-          },
-          headers: {
-            Authorization: `Bearer ${session?.access_token ?? ''}`,
-          },
-        }
+      // Inspect current PI status. The engine may have given us either:
+      //   a) requires_action  — off-session was created+confirmed and Stripe wants 3DS
+      //   b) requires_confirmation — engine created an unconfirmed PI as fallback
+      const { paymentIntent: currentPI, error: retrieveErr } = await stripe.retrievePaymentIntent(
+        client_secret,
       );
 
-      if (finalizeError || !finalizeData?.success) {
-        const msg = finalizeData?.error || finalizeError?.message || 'Failed to finalize re-authorization';
-        throw new Error(msg);
+      if (retrieveErr || !currentPI) {
+        throw new Error(retrieveErr?.message || 'Could not retrieve payment intent');
       }
 
+      let resultPI = currentPI;
+
+      if (currentPI.status === 'requires_action') {
+        // Open Stripe's hosted 3DS challenge for the saved card.
+        const { error, paymentIntent } = await stripe.handleNextAction({
+          clientSecret: client_secret,
+        });
+        if (error) throw new Error(error.message);
+        if (paymentIntent) resultPI = paymentIntent;
+      } else if (currentPI.status === 'requires_confirmation') {
+        // Confirm using the already-attached saved payment method.
+        // Passing no payment_method tells Stripe to use the one on the PI.
+        const { error, paymentIntent } = await stripe.confirmCardPayment(client_secret);
+        if (error) throw new Error(error.message);
+        if (paymentIntent) resultPI = paymentIntent;
+      } else if (currentPI.status === 'requires_capture') {
+        // Already authorized — just finalize.
+      } else {
+        throw new Error(`Unexpected payment status: ${currentPI.status}`);
+      }
+
+      if (resultPI.status !== 'requires_capture') {
+        throw new Error(
+          `Authorization not completed (status: ${resultPI.status}). Please try again.`,
+        );
+      }
+
+      // Hand off to engine for atomic PI swap + audit log.
+      await finalizeOnEngine();
+
       toast({
-        title: "Payment Re-authorized",
-        description: `Authorization updated to $${new_amount.toFixed(2)}. Complete the job to capture payment.`,
+        title: 'Payment Re-authorized',
+        description: `Authorization updated to $${new_amount.toFixed(
+          2,
+        )}. Complete the job to capture payment.`,
       });
 
       onSuccess?.();
       onClose();
-
     } catch (error: any) {
       console.error('[ReauthorizePaymentDialog] Re-authorization error:', error);
       toast({
-        title: "Re-authorization Failed",
-        description: error.message || 'Failed to re-authorize payment',
-        variant: "destructive"
+        title: 'Re-authorization Failed',
+        description: error?.message || 'Failed to re-authorize payment',
+        variant: 'destructive',
       });
     } finally {
       setProcessing(false);
@@ -159,10 +181,11 @@ export const ReauthorizePaymentDialog = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-yellow-600" />
-            Payment Re-authorization Required
+            Customer Authorization Required
           </DialogTitle>
           <DialogDescription>
-            Your card doesn't support authorization updates. Please re-enter your card details.
+            The customer's card requires 3D&nbsp;Secure verification for the new amount.
+            Click the button below to open Stripe's secure authorization window.
           </DialogDescription>
         </DialogHeader>
 
@@ -174,8 +197,10 @@ export const ReauthorizePaymentDialog = ({
                 <span className="font-medium">${original_amount.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Added Services:</span>
-                <span className="font-medium text-green-600">+${(new_amount - original_amount).toFixed(2)}</span>
+                <span className="text-muted-foreground">Difference:</span>
+                <span className="font-medium text-green-600">
+                  +${(new_amount - original_amount).toFixed(2)}
+                </span>
               </div>
               <div className="flex justify-between pt-2 border-t">
                 <span className="font-semibold">New Total:</span>
@@ -185,42 +210,40 @@ export const ReauthorizePaymentDialog = ({
           </AlertDescription>
         </Alert>
 
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Card Details
-            </label>
-            <div 
-              id="card-element-reauth" 
-              className="border rounded-md p-3 bg-white"
-            />
-          </div>
+        <Alert>
+          <DollarSign className="h-4 w-4" />
+          <AlertDescription className="text-xs">
+            This is an authorization only — the customer is not charged until the job is completed.
+            The customer's saved card will be used; no card details need to be re-entered.
+          </AlertDescription>
+        </Alert>
 
-          <Alert>
-            <DollarSign className="h-4 w-4" />
-            <AlertDescription className="text-xs">
-              You will not be charged until the work is completed. This is just an authorization.
-            </AlertDescription>
-          </Alert>
-
-          <div className="flex gap-3">
-            <Button
-              variant="outline"
-              onClick={onClose}
-              disabled={processing}
-              className="flex-1"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleConfirmPayment}
-              disabled={processing || !stripe || !cardElement}
-              className="flex-1"
-            >
-              <CreditCard className="mr-2 h-4 w-4" />
-              {processing ? 'Processing...' : `Authorize $${new_amount.toFixed(2)}`}
-            </Button>
-          </div>
+        <div className="flex gap-3">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            disabled={processing}
+            className="flex-1"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleAuthorize}
+            disabled={processing || !stripe || stripeLoading}
+            className="flex-1"
+          >
+            {processing ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Authorizing...
+              </>
+            ) : (
+              <>
+                <ShieldCheck className="mr-2 h-4 w-4" />
+                Open Stripe Authorization
+              </>
+            )}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
