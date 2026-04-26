@@ -76,7 +76,7 @@ export const StripeModeToggle: React.FC = () => {
             : "border-emerald-400/40"
         }
       >
-        <CardHeader>
+        <CardHeader className="bg-secondary text-primary">
           <div className="flex items-center justify-between gap-4">
             <div>
               <CardTitle className="flex items-center gap-2">
