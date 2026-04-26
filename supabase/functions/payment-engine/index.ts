@@ -335,13 +335,20 @@ Deno.serve(async (req) => {
       }
 
       if (currentPI.status === 'requires_capture') {
-        // PRE-CAPTURE: Create new PI FIRST, then cancel old (create-before-cancel)
+        // PRE-CAPTURE — higher amount required.
+        // Strategy: try off-session re-auth. If the card needs customer action,
+        // create a confirmable PI and hand the client_secret back to the frontend
+        // WITHOUT swapping PIs or cancelling the old PI. The frontend will open
+        // Stripe's modal; after the customer confirms, the frontend calls
+        // 'finalize-reauthorization' which atomically swaps PIs.
         const newVersion = booking.payment_version + 1;
         const idempotencyKey = `recalc_${bookingId}_v${newVersion}`;
         const oldPiId = booking.payment_intent_id;
 
-        // STEP 1: Create new PI first — if this fails, old PI remains safe
-        let newPI;
+        let newPI: any = null;
+        let needsCustomerAction = false;
+
+        // STEP 1: Try off-session confirmed creation
         try {
           newPI = await stripe.paymentIntents.create({
             amount: expectedCents,
@@ -357,16 +364,88 @@ Deno.serve(async (req) => {
               reason: modification_reason || 'recalculate',
             }
           }, { idempotencyKey });
+
+          if (newPI.status === 'requires_action') {
+            // Off-session succeeded creation but card wants 3DS.
+            needsCustomerAction = true;
+          }
         } catch (createErr: any) {
-          console.error('[PAYMENT-ENGINE] New PI creation failed (old PI preserved):', createErr.message);
-          await supabase.from('bookings').update({
-            requires_manual_payment: true,
-            pending_payment_amount: expectedTotal,
-          }).eq('id', bookingId);
-          throw new Error(`Payment reauthorization failed: ${createErr.message}. Manual payment required.`);
+          // Stripe surfaces 'authentication_required' here when off-session is denied.
+          const code = createErr?.code || createErr?.raw?.code;
+          const errPI = createErr?.payment_intent || createErr?.raw?.payment_intent;
+          console.warn('[PAYMENT-ENGINE] Off-session PI failed:', code, createErr?.message);
+
+          if (code === 'authentication_required' || code === 'card_declined' || errPI) {
+            // Recover by creating an on-session, unconfirmed PI so the customer can confirm in browser.
+            try {
+              newPI = await stripe.paymentIntents.create({
+                amount: expectedCents,
+                currency: 'usd',
+                customer: booking.stripe_customer_id,
+                payment_method: booking.stripe_payment_method_id,
+                capture_method: 'manual',
+                confirm: false,
+                metadata: {
+                  booking_id: bookingId,
+                  original_payment_intent: oldPiId,
+                  reason: modification_reason || 'recalculate',
+                  needs_customer_action: 'true',
+                }
+              }, { idempotencyKey: `recalc_pending_${bookingId}_v${newVersion}` });
+              needsCustomerAction = true;
+            } catch (createErr2: any) {
+              console.error('[PAYMENT-ENGINE] Pending PI creation also failed:', createErr2.message);
+              await supabase.from('bookings').update({
+                requires_manual_payment: true,
+                pending_payment_amount: expectedTotal,
+              }).eq('id', bookingId);
+              throw new Error(`Payment reauthorization failed: ${createErr2.message}`);
+            }
+          } else {
+            await supabase.from('bookings').update({
+              requires_manual_payment: true,
+              pending_payment_amount: expectedTotal,
+            }).eq('id', bookingId);
+            throw new Error(`Payment reauthorization failed: ${createErr.message}`);
+          }
         }
 
-        if (newPI.status !== 'requires_capture' && newPI.status !== 'requires_action') {
+        // === HANDOFF: customer must confirm in Stripe popup ===
+        if (needsCustomerAction) {
+          // DO NOT swap PIs. DO NOT cancel old PI. DO NOT mark new PI authorized.
+          // Track the pending PI on the booking so we can finalize it later.
+          await supabase.from('bookings').update({
+            pending_payment_amount: expectedTotal,
+            has_modifications: true,
+          }).eq('id', bookingId);
+
+          await supabase.from('booking_audit_log').insert({
+            booking_id: bookingId,
+            operation: 'payment_engine_reauth_pending',
+            status: 'pending_customer_action',
+            payment_intent_id: newPI.id,
+            details: {
+              old_pi: oldPiId,
+              new_pi: newPI.id,
+              old_amount: currentPI.amount / 100,
+              new_amount: expectedTotal,
+              modification_reason,
+            },
+          }).then(() => {}, (e: any) => console.error('[PAYMENT-ENGINE] audit log failed:', e));
+
+          return new Response(JSON.stringify({
+            success: true,
+            action: 'requires_customer_action',
+            client_secret: newPI.client_secret,
+            new_payment_intent_id: newPI.id,
+            old_payment_intent_id: oldPiId,
+            old_amount: currentPI.amount / 100,
+            new_amount: expectedTotal,
+          }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+
+        // === HAPPY PATH: off-session re-auth succeeded ===
+        if (newPI.status !== 'requires_capture') {
           await supabase.from('bookings').update({
             requires_manual_payment: true,
             pending_payment_amount: expectedTotal,
@@ -430,7 +509,7 @@ Deno.serve(async (req) => {
               status: 'success',
               payment_intent_id: newPI.id,
               details: {
-                old_pi: booking.payment_intent_id,
+                old_pi: oldPiId,
                 old_amount: currentPI.amount / 100,
                 new_amount: expectedTotal,
                 modification_reason,
@@ -445,7 +524,7 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({
           success: true,
           action: 'reauthorized',
-          old_payment_intent_id: booking.payment_intent_id,
+          old_payment_intent_id: oldPiId,
           new_payment_intent_id: newPI.id,
           old_amount: currentPI.amount / 100,
           new_amount: expectedTotal,
