@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { AdminServiceAreaManager } from '@/components/admin/AdminServiceAreaManager';
+import { StripeModeBadge } from '@/components/admin/StripeModeBadge';
 
 import { WorkerTipTracker } from '@/components/admin/WorkerTipTracker';
 import { 
@@ -24,10 +25,13 @@ export const AdminDashboard = () => {
             Manage system data, worker assignments, and service operations
           </p>
         </div>
-        <Badge variant="outline" className="flex items-center gap-2">
-          <Settings className="h-4 w-4" />
-          Administration
-        </Badge>
+        <div className="flex items-center gap-2">
+          <StripeModeBadge />
+          <Badge variant="outline" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            Administration
+          </Badge>
+        </div>
       </div>
 
       <Tabs defaultValue="spatial" className="w-full">
