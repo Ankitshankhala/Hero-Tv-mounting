@@ -186,6 +186,17 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
         return;
       }
 
+      // No saved payment method on file — cannot trigger Stripe UI; surface clear guidance.
+      if (data.action === 'requires_manual_payment') {
+        toast({
+          title: "Manual Payment Required",
+          description: "No saved card on file for this booking. Send the customer a payment link from the booking details to authorize the new amount.",
+          variant: "destructive",
+        });
+        setProcessing(false);
+        return;
+      }
+
       // Card requires 3DS / fresh confirmation — engine returned a new PI awaiting customer action.
       if (
         (data.action === 'requires_customer_action' || data.requires_new_payment) &&
