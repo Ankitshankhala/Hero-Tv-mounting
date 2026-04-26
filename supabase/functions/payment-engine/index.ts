@@ -977,7 +977,123 @@ Deno.serve(async (req) => {
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    throw new Error(`Unknown action: ${action}`);
+    // ========== ACTION: FINALIZE-REAUTHORIZATION ==========
+    // Called by frontend AFTER customer confirms the new PI in Stripe's modal.
+    // Atomically swaps the booking to the new PI and cancels the old one.
+    if (canonicalAction === 'finalize-reauthorization') {
+      const { bookingId, new_payment_intent_id } = payload;
+      if (!bookingId || !new_payment_intent_id) {
+        throw new Error('bookingId and new_payment_intent_id are required');
+      }
+
+      const userId = await validateAuth(req.headers.get('Authorization'));
+      await verifyWorkerOrAdmin(userId, bookingId);
+
+      // Lock booking
+      const { data: lockData, error: lockError } = await supabase.rpc('lock_booking_for_payment', {
+        p_booking_id: bookingId,
+      });
+      if (lockError) throw new Error(lockError.message);
+      const booking = lockData?.[0];
+      if (!booking) throw new Error('Booking not found');
+
+      const oldPiId = booking.payment_intent_id;
+      if (!oldPiId) throw new Error('Booking has no current payment intent to replace');
+      if (oldPiId === new_payment_intent_id) {
+        // Idempotent: already swapped
+        return new Response(JSON.stringify({ success: true, action: 'already_finalized' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      // Verify new PI is actually capturable
+      const newPI = await stripe.paymentIntents.retrieve(new_payment_intent_id);
+      if (newPI.status !== 'requires_capture') {
+        throw new Error(`New payment intent is not ready (status: ${newPI.status}). Customer must complete card confirmation.`);
+      }
+
+      // Re-validate amount against DB (defensive)
+      const servicesTotal = await getServicesTotal(bookingId);
+      const tipAmount = Number(booking.tip_amount) || 0;
+      const expectedTotal = servicesTotal + tipAmount;
+      const expectedCents = Math.round(expectedTotal * 100);
+      if (Math.abs((newPI.amount_capturable || newPI.amount) - expectedCents) > 1) {
+        throw new Error(
+          `New PI amount $${(newPI.amount / 100).toFixed(2)} no longer matches booking total $${expectedTotal.toFixed(2)}. Worker should retry.`
+        );
+      }
+
+      const newVersion = (booking.payment_version || 1) + 1;
+
+      // Atomic swap
+      const { error: updErr } = await supabase.from('bookings').update({
+        payment_intent_id: new_payment_intent_id,
+        last_payment_intent_id: oldPiId,
+        payment_version: newVersion,
+        authorized_amount: expectedTotal,
+        payment_status: 'authorized',
+        pending_payment_amount: null,
+        requires_manual_payment: false,
+        has_modifications: true,
+      }).eq('id', bookingId);
+      if (updErr) throw new Error(`Failed to swap payment intent: ${updErr.message}`);
+
+      // Cancel old PI (best-effort)
+      try {
+        await stripe.paymentIntents.cancel(oldPiId);
+      } catch (e: any) {
+        console.warn('[PAYMENT-ENGINE] Old PI cancel failed (non-fatal):', e?.message);
+      }
+
+      // Update transaction row
+      const { error: txUpdErr } = await supabase.from('transactions')
+        .update({
+          payment_intent_id: new_payment_intent_id,
+          amount: expectedTotal,
+          base_amount: servicesTotal,
+          tip_amount: tipAmount,
+          status: 'authorized',
+        })
+        .eq('booking_id', bookingId)
+        .eq('payment_intent_id', oldPiId)
+        .eq('status', 'authorized');
+      if (txUpdErr) {
+        await supabase.from('transactions').insert({
+          booking_id: bookingId,
+          amount: expectedTotal,
+          base_amount: servicesTotal,
+          tip_amount: tipAmount,
+          status: 'authorized',
+          payment_intent_id: new_payment_intent_id,
+          transaction_type: 'authorization',
+          payment_method: 'card',
+        });
+      }
+
+      EdgeRuntime.waitUntil(
+        Promise.all([
+          supabase.from('booking_audit_log').insert({
+            booking_id: bookingId,
+            operation: 'payment_engine_reauth_finalized',
+            status: 'success',
+            payment_intent_id: new_payment_intent_id,
+            details: { old_pi: oldPiId, new_amount: expectedTotal },
+          }),
+          supabase.functions.invoke('update-invoice', {
+            body: { booking_id: bookingId, send_email: false }
+          }).catch(e => console.error('[BG] Invoice update failed:', e)),
+        ]).catch(e => console.error('[BG] Error:', e))
+      );
+
+      return new Response(JSON.stringify({
+        success: true,
+        action: 'finalized',
+        payment_intent_id: new_payment_intent_id,
+        old_payment_intent_id: oldPiId,
+        amount: expectedTotal,
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    throw new Error(`Unknown action: ${canonicalAction}`);
 
   } catch (error: any) {
     console.error('[PAYMENT-ENGINE] Error:', error);
