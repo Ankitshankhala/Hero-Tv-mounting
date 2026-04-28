@@ -2234,6 +2234,33 @@ export type Database = {
           },
         ]
       }
+      zcta_import_state: {
+        Row: {
+          completed: boolean
+          feature_offset: number
+          last_error: string | null
+          state_abbr: string
+          total_features: number | null
+          updated_at: string
+        }
+        Insert: {
+          completed?: boolean
+          feature_offset?: number
+          last_error?: string | null
+          state_abbr: string
+          total_features?: number | null
+          updated_at?: string
+        }
+        Update: {
+          completed?: boolean
+          feature_offset?: number
+          last_error?: string | null
+          state_abbr?: string
+          total_features?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       geography_columns: {

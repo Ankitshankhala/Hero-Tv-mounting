@@ -133,9 +133,11 @@ serve(async (req) => {
     // Use database-only approach for ZIP code computation
     let zipcodes: string[] = [];
     let skippedCount = 0;
-    
+    let method: 'client' | 'zcta' | 'postgis' | 'bbox' | 'none' = 'none';
+
     if (actualZipCodes && Array.isArray(actualZipCodes) && actualZipCodes.length > 0) {
       zipcodes = actualZipCodes;
+      method = 'client';
       logStep('Using pre-computed ZIP codes from client', { count: zipcodes.length });
     } else if (polygon && polygon.length > 0) {
       logStep('Computing ZIP codes using database-only ZCTA spatial queries');
@@ -192,12 +194,13 @@ serve(async (req) => {
             
           if (!spatialError && spatialZips && spatialZips.length > 0) {
             zipcodes = spatialZips.map(z => z.zipcode);
+            method = 'postgis';
             logStep('Used PostGIS spatial intersection fallback', { count: zipcodes.length });
           } else {
             // Final fallback: Bounding box approach
             const bounds = calculateBounds(polygon);
             logStep('Using bounding box fallback as last resort', { bounds });
-            
+
             const { data: boundedZips, error: boundedError } = await supabase
               .from('us_zip_codes')
               .select('zipcode')
@@ -205,10 +208,11 @@ serve(async (req) => {
               .lte('latitude', bounds.north)
               .gte('longitude', bounds.west)
               .lte('longitude', bounds.east)
-              .limit(100); // Prevent excessive results
-                
+              .limit(500);
+
             if (!boundedError && boundedZips) {
               zipcodes = boundedZips.map(z => z.zipcode);
+              method = 'bbox';
               logStep('Used bounded query fallback', { count: zipcodes.length });
             } else {
               logStep('All spatial queries failed', { boundedError });
@@ -217,12 +221,31 @@ serve(async (req) => {
           }
         } else {
           zipcodes = zctaCodes;
+          method = 'zcta';
           logStep('ZCTA spatial intersection successful', { count: zipcodes.length });
         }
       } catch (computeError) {
         logStep('All ZIP computation methods failed', computeError);
         zipcodes = [];
       }
+    }
+
+    // Safety guard: never wipe existing ZIPs when a recompute returns 0
+    // results (likely a transient/data issue, not a real "no coverage" answer).
+    if (mode === 'replace_all' && zipcodes.length === 0 && method !== 'client') {
+      logStep('Refusing replace_all with 0 computed ZIPs to avoid wiping data', {
+        areaId: serviceAreaResult.id, method,
+      });
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'No ZIP codes could be computed for this polygon. Existing ZIPs were preserved. Ensure us_zip_codes / us_zcta_polygons reference data is loaded.',
+        data: {
+          area_id: serviceAreaResult.id,
+          zipcode_count: 0,
+          zipcodes: [],
+          method,
+        },
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
     }
 
     // Handle mode-specific logic for existing ZIP codes
@@ -337,6 +360,7 @@ serve(async (req) => {
         zipcodes: zipcodes,
         skipped_count: skippedCount,
         operation: operation,
+        method,
         execution_time_ms: Math.round(executionTime)
       }
     }), {
