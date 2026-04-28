@@ -617,7 +617,7 @@ const ServiceAreaMap = ({
       const {
         data,
         error
-      } = await supabase.from('us_zip_codes').select('zipcode, latitude, longitude, city').eq('zipcode', zipcode).single();
+      } = await supabase.from('us_zip_codes').select('zipcode, latitude, longitude, city').eq('zipcode', zipcode).maybeSingle();
       if (error || !data) return null;
       return data;
     } catch (error) {
