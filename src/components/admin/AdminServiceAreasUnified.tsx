@@ -288,6 +288,91 @@ export const AdminServiceAreasUnified = () => {
     }
   };
 
+  // Sync a single service area's polygon → ZIP codes via the edge function.
+  // Returns the new zipcode count or null on failure.
+  const syncSingleArea = async (
+    workerId: string,
+    area: { id: string; area_name: string; polygon_coordinates: any },
+  ): Promise<number | null> => {
+    try {
+      const polygon = typeof area.polygon_coordinates === 'string'
+        ? JSON.parse(area.polygon_coordinates)
+        : area.polygon_coordinates;
+      if (!Array.isArray(polygon) || polygon.length < 3) return null;
+
+      const { data, error } = await supabase.functions.invoke('service-area-upsert', {
+        body: {
+          workerId,
+          areaIdToUpdate: area.id,
+          areaName: area.area_name,
+          polygon,
+          mode: 'replace_all',
+        },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Sync failed');
+      return Number(data?.data?.zipcode_count ?? 0);
+    } catch (e: any) {
+      console.error('[syncSingleArea] failed', area.id, e);
+      return null;
+    }
+  };
+
+  const handleSyncAreaClick = async (workerId: string, area: any) => {
+    setSyncingAreaId(area.id);
+    const count = await syncSingleArea(workerId, area);
+    setSyncingAreaId(null);
+    if (count == null) {
+      toast({ title: 'Sync failed', description: `Could not sync "${area.area_name}". Check that ZIP/ZCTA reference data is loaded.`, variant: 'destructive' });
+    } else if (count === 0) {
+      toast({ title: 'No ZIPs computed', description: `Polygon resolved to 0 ZIP codes. Existing ZIPs were preserved.`, variant: 'destructive' });
+    } else {
+      toast({ title: 'Synced', description: `"${area.area_name}" → ${count} ZIP codes.` });
+      refreshData(true);
+    }
+  };
+
+  const handleSyncAllAreas = async () => {
+    const targets: { workerId: string; area: any }[] = [];
+    for (const w of workers || []) {
+      for (const a of w.service_areas || []) {
+        if (!a.is_active) continue;
+        if (!safeParsePolygonCoords(a.polygon_coordinates)) continue;
+        targets.push({ workerId: w.id, area: a });
+      }
+    }
+    if (targets.length === 0) {
+      toast({ title: 'Nothing to sync', description: 'No active areas with polygons found.' });
+      return;
+    }
+    if (!confirm(`Re-sync polygon → ZIP codes for ${targets.length} active service areas? Existing ZIPs are preserved if a recompute returns 0.`)) return;
+
+    setSyncingAll(true);
+    setSyncProgress({ done: 0, total: targets.length });
+    let successCount = 0;
+    let zeroCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < targets.length; i++) {
+      const { workerId, area } = targets[i];
+      setSyncProgress({ done: i, total: targets.length, current: area.area_name });
+      const count = await syncSingleArea(workerId, area);
+      if (count == null) failCount++;
+      else if (count === 0) zeroCount++;
+      else successCount++;
+    }
+
+    setSyncProgress({ done: targets.length, total: targets.length });
+    setSyncingAll(false);
+    toast({
+      title: 'Bulk sync complete',
+      description: `${successCount} synced • ${zeroCount} produced 0 ZIPs (preserved) • ${failCount} failed`,
+      variant: failCount > 0 ? 'destructive' : 'default',
+    });
+    refreshData(true);
+    setTimeout(() => setSyncProgress(null), 4000);
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Enhanced ZCTA Database Management */}
