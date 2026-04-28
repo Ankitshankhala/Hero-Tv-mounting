@@ -258,6 +258,7 @@ export const ZctaDataManager = () => {
 
   React.useEffect(() => {
     checkZctaDataStatus();
+    refreshZipCount();
   }, []);
 
   return (
