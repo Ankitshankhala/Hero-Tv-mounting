@@ -367,6 +367,20 @@ export const ZctaDataManager = () => {
               <RefreshCw className="h-4 w-4 mr-2" />
               Check Status
             </Button>
+
+            <Button
+              onClick={seedZipCentroids}
+              variant="outline"
+              size="sm"
+              disabled={isSeedingZips || isPopulating}
+              title="Download US ZIP centroids into us_zip_codes (required for polygon→ZIP fallbacks)"
+            >
+              {isSeedingZips ? (
+                <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Seeding ZIPs…</>
+              ) : (
+                <><Database className="h-4 w-4 mr-2" />Seed ZIP Centroids{zipCentroidCount != null ? ` (${zipCentroidCount.toLocaleString()})` : ''}</>
+              )}
+            </Button>
           </div>
 
           {stats && stats.recordsInserted > 0 && stats.recordsInserted < stats.totalRecords && (
