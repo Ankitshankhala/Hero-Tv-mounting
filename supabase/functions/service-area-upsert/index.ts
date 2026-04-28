@@ -360,6 +360,7 @@ serve(async (req) => {
         zipcodes: zipcodes,
         skipped_count: skippedCount,
         operation: operation,
+        method,
         execution_time_ms: Math.round(executionTime)
       }
     }), {
