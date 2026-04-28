@@ -49,6 +49,7 @@ const ServiceAreaMap = ({
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const drawnItemsRef = useRef<L.FeatureGroup | null>(null);
   const drawControlRef = useRef<L.Control.Draw | null>(null);
+  const renderingRef = useRef(false);
   const [serviceAreas, setServiceAreas] = useState<ServiceArea[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -616,7 +617,7 @@ const ServiceAreaMap = ({
       const {
         data,
         error
-      } = await supabase.from('us_zip_codes').select('zipcode, latitude, longitude, city').eq('zipcode', zipcode).single();
+      } = await supabase.from('us_zip_codes').select('zipcode, latitude, longitude, city').eq('zipcode', zipcode).maybeSingle();
       if (error || !data) return null;
       return data;
     } catch (error) {
@@ -627,111 +628,110 @@ const ServiceAreaMap = ({
   // Enhanced function to render ZIP markers with optional polygon generation
   const renderZipMarkersWithPolygon = async (zipcodes: string[], showPolygon = false) => {
     if (!mapRef.current || !zipcodes.length) return;
-    console.log(`Rendering ${zipcodes.length} ZIP markers`);
-    const coordinates = [];
+    if (renderingRef.current) return;
+    renderingRef.current = true;
+    try {
+      // Dedupe input
+      zipcodes = Array.from(new Set(zipcodes));
+      console.log(`Rendering ${zipcodes.length} ZIP markers`);
+      const coordinates: Array<{ zipcode: string; latitude: number; longitude: number; city?: string }> = [];
 
-    // Clear existing ZIP markers
-    zipMarkersRef.current.forEach(marker => mapRef.current?.removeLayer(marker));
-    zipMarkersRef.current.clear();
-    for (const zipcode of zipcodes) {
-      try {
-        let coords = await getZipCoordinates(zipcode);
-        if (!coords) {
-          // Fallback to geocoding API
-          coords = await geocodeZipcode(zipcode);
-          if (coords) {
-            console.log(`Geocoded ${zipcode}:`, coords);
+      // Clear existing ZIP markers
+      zipMarkersRef.current.forEach(marker => mapRef.current?.removeLayer(marker));
+      zipMarkersRef.current.clear();
+
+      for (const zipcode of zipcodes) {
+        try {
+          let coords = await getZipCoordinates(zipcode);
+          if (!coords) {
+            // Fallback to geocoding API
+            coords = await geocodeZipcode(zipcode);
+            if (coords) {
+              console.log(`Geocoded ${zipcode}:`, coords);
+            }
           }
-        }
-        if (coords?.latitude && coords?.longitude) {
-          coordinates.push(coords);
-          const currentZoom = mapRef.current!.getZoom();
+
+          // Re-check map after awaits — component may have unmounted
+          const map = mapRef.current;
+          if (!map) return;
+
+          if (!coords || coords.latitude == null || coords.longitude == null) continue;
+
+          coordinates.push(coords as any);
+          const currentZoom = map.getZoom();
           const baseRadius = currentZoom > 8 ? 12 : 8;
           const marker = L.circleMarker([coords.latitude, coords.longitude], {
             radius: baseRadius,
             fillColor: '#10b981',
             color: '#000000',
-            // Dark border for better contrast
             weight: 2,
             opacity: 1,
             fillOpacity: 0.9
           });
 
-          // Enhanced hover effects
           marker.on('mouseover', () => {
-            marker.setStyle({
-              radius: baseRadius + 3,
-              fillOpacity: 1,
-              weight: 3
-            });
+            marker.setStyle({ radius: baseRadius + 3, fillOpacity: 1, weight: 3 });
           });
           marker.on('mouseout', () => {
-            marker.setStyle({
-              radius: baseRadius,
-              fillOpacity: 0.9,
-              weight: 2
-            });
+            marker.setStyle({ radius: baseRadius, fillOpacity: 0.9, weight: 2 });
           });
 
-          // Enhanced tooltip with dynamic visibility
           const showPermanentLabel = currentZoom > 11;
-          marker.bindTooltip(`${zipcode}<br>${coords.city}`, {
+          marker.bindTooltip(`${zipcode}<br>${coords.city ?? ''}`, {
             permanent: showPermanentLabel,
             direction: 'top',
             className: 'zip-label-tooltip',
             offset: [0, -8]
           });
-          marker.addTo(mapRef.current!);
+          marker.addTo(map);
           zipMarkersRef.current.set(zipcode, marker);
+        } catch (error) {
+          console.error(`Error rendering ZIP ${zipcode}:`, error);
         }
-      } catch (error) {
-        console.error(`Error rendering ZIP ${zipcode}:`, error);
       }
-    }
 
-    // Generate and show polygon if requested
-    if (showPolygon && coordinates.length >= 3) {
-      try {
-        const points = coordinates.map(coord => [coord.longitude, coord.latitude]);
-        const concavity = points.length > 10 ? 2 : 1.5;
-        const hull = concaveman(points, concavity);
-        const polygonCoords = hull.map(point => [point[1], point[0]]);
-        const polygon = L.polygon(polygonCoords, {
-          color: '#10b981',
-          weight: 2,
-          opacity: 0.8,
-          fillColor: '#10b981',
-          fillOpacity: 0.2
-        });
-        polygon.bindTooltip(`Generated Area<br>ZIP Codes: ${coordinates.length}`, {
-          permanent: false,
-          direction: 'center'
-        });
-        polygon.addTo(mapRef.current!);
+      const map = mapRef.current;
+      if (!map) return;
 
-        // Store the generated polygon coordinates for potential saving
-        setDrawnPolygon(polygonCoords);
+      // Generate and show polygon if requested
+      if (showPolygon && coordinates.length >= 3) {
+        try {
+          const points = coordinates.map(coord => [coord.longitude, coord.latitude]);
+          const concavity = points.length > 10 ? 2 : 1.5;
+          const hull = concaveman(points, concavity);
+          const polygonCoords = hull.map(point => [point[1], point[0]]);
+          const polygon = L.polygon(polygonCoords as any, {
+            color: '#10b981',
+            weight: 2,
+            opacity: 0.8,
+            fillColor: '#10b981',
+            fillOpacity: 0.2
+          });
+          polygon.bindTooltip(`Generated Area<br>ZIP Codes: ${coordinates.length}`, {
+            permanent: false,
+            direction: 'center'
+          });
+          polygon.addTo(map);
 
-        // Fit map to show all markers and polygon
+          setDrawnPolygon(polygonCoords as any);
+
+          const bounds = L.latLngBounds(coordinates.map(c => [c.latitude, c.longitude]));
+          polygonCoords.forEach((coord: any) => bounds.extend(coord));
+          map.fitBounds(bounds, { padding: [20, 20] });
+        } catch (error) {
+          console.error('Error generating polygon:', error);
+          toast({
+            title: "Polygon generation failed",
+            description: "Failed to generate polygon visualization",
+            variant: "destructive"
+          });
+        }
+      } else if (coordinates.length > 0) {
         const bounds = L.latLngBounds(coordinates.map(c => [c.latitude, c.longitude]));
-        polygonCoords.forEach(coord => bounds.extend(coord));
-        mapRef.current.fitBounds(bounds, {
-          padding: [20, 20]
-        });
-      } catch (error) {
-        console.error('Error generating polygon:', error);
-        toast({
-          title: "Polygon generation failed",
-          description: "Failed to generate polygon visualization",
-          variant: "destructive"
-        });
+        map.fitBounds(bounds, { padding: [20, 20] });
       }
-    } else if (coordinates.length > 0) {
-      // Just fit to markers without polygon
-      const bounds = L.latLngBounds(coordinates.map(c => [c.latitude, c.longitude]));
-      mapRef.current.fitBounds(bounds, {
-        padding: [20, 20]
-      });
+    } finally {
+      renderingRef.current = false;
     }
   };
 
