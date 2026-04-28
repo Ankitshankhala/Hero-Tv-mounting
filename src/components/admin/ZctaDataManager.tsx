@@ -24,6 +24,30 @@ export const ZctaDataManager = () => {
     invalid: number;
     errors: number;
   } | null>(null);
+  const [isSeedingZips, setIsSeedingZips] = useState(false);
+  const [zipCentroidCount, setZipCentroidCount] = useState<number | null>(null);
+
+  const refreshZipCount = async () => {
+    const { count } = await supabase.from('us_zip_codes').select('*', { count: 'exact', head: true });
+    setZipCentroidCount(count || 0);
+  };
+
+  const seedZipCentroids = async () => {
+    if (!confirm('This will download and upsert ~42k US ZIP centroid rows into us_zip_codes. Continue?')) return;
+    setIsSeedingZips(true);
+    try {
+      toast.info('Seeding US ZIP centroids…');
+      const { data, error } = await supabase.functions.invoke('seed-us-zip-codes');
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Unknown error');
+      toast.success(`Seed complete: ${Number(data.tableTotal || 0).toLocaleString()} ZIP centroids in DB.`);
+      await refreshZipCount();
+    } catch (e: any) {
+      toast.error(`Seed failed: ${e?.message || e}`);
+    } finally {
+      setIsSeedingZips(false);
+    }
+  };
 
   const populateZctaData = async (autoResumeMode = false) => {
     if (!autoResumeMode && !confirm('This will import ~33,791 ZCTA polygon boundaries. Continue?')) {
