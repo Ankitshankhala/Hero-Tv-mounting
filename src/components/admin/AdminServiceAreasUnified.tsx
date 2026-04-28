@@ -83,6 +83,9 @@ export const AdminServiceAreasUnified = () => {
   const [editingArea, setEditingArea] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [initialLoaded, setInitialLoaded] = useState(false);
+  const [syncingAll, setSyncingAll] = useState(false);
+  const [syncProgress, setSyncProgress] = useState<{ done: number; total: number; current?: string } | null>(null);
+  const [syncingAreaId, setSyncingAreaId] = useState<string | null>(null);
 
   const {
     workers: adminWorkers,
