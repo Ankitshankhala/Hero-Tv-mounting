@@ -49,6 +49,7 @@ const ServiceAreaMap = ({
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const drawnItemsRef = useRef<L.FeatureGroup | null>(null);
   const drawControlRef = useRef<L.Control.Draw | null>(null);
+  const renderingRef = useRef(false);
   const [serviceAreas, setServiceAreas] = useState<ServiceArea[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
