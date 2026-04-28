@@ -133,9 +133,11 @@ serve(async (req) => {
     // Use database-only approach for ZIP code computation
     let zipcodes: string[] = [];
     let skippedCount = 0;
-    
+    let method: 'client' | 'zcta' | 'postgis' | 'bbox' | 'none' = 'none';
+
     if (actualZipCodes && Array.isArray(actualZipCodes) && actualZipCodes.length > 0) {
       zipcodes = actualZipCodes;
+      method = 'client';
       logStep('Using pre-computed ZIP codes from client', { count: zipcodes.length });
     } else if (polygon && polygon.length > 0) {
       logStep('Computing ZIP codes using database-only ZCTA spatial queries');
