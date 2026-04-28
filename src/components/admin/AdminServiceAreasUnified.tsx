@@ -445,12 +445,30 @@ export const AdminServiceAreasUnified = () => {
             </Button>
           )}
           <BulkZipcodeAssignment workers={filteredWorkers} onAssignZipcodes={addZipcodesToExistingArea} />
+          <Button
+            onClick={handleSyncAllAreas}
+            disabled={syncingAll || loading}
+            variant="default"
+            title="Re-run polygon → ZIP sync for every active service area"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${syncingAll ? 'animate-spin' : ''}`} />
+            {syncingAll
+              ? `Syncing ${syncProgress?.done ?? 0}/${syncProgress?.total ?? 0}…`
+              : 'Sync All Areas'}
+          </Button>
           <Button onClick={handleRefresh} disabled={loading} variant="outline">
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
         </div>
       </div>
+
+      {syncProgress && (
+        <div className="rounded-md border border-blue-500/30 bg-blue-500/10 px-4 py-2 text-sm text-blue-200">
+          Bulk sync: {syncProgress.done}/{syncProgress.total}
+          {syncProgress.current ? ` — currently "${syncProgress.current}"` : ''}
+        </div>
+      )}
 
       {/* SINGLE MAP CONTENT - Based on View Mode */}
       {viewMode === 'overview' ? (
