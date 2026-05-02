@@ -10,6 +10,35 @@ import { useSecurityHeaders } from '@/hooks/useSecurityHeaders';
 import { preloadZipIndex } from '@/utils/localZipIndex';
 import { HelmetProvider } from 'react-helmet-async';
 
+// Auto-recover from stale chunk errors after a new deploy.
+// When the browser holds an old index.html that references chunk filenames
+// that no longer exist, dynamic imports throw "Failed to fetch dynamically
+// imported module". Reload once to fetch the fresh index.html + chunks.
+const STALE_CHUNK_RELOAD_KEY = '__stale_chunk_reloaded__';
+const isStaleChunkError = (msg?: string) =>
+  !!msg &&
+  (msg.includes('Failed to fetch dynamically imported module') ||
+    msg.includes('Importing a module script failed') ||
+    msg.includes('error loading dynamically imported module'));
+
+const handleStaleChunk = () => {
+  try {
+    if (sessionStorage.getItem(STALE_CHUNK_RELOAD_KEY)) return;
+    sessionStorage.setItem(STALE_CHUNK_RELOAD_KEY, '1');
+  } catch {}
+  window.location.reload();
+};
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('error', (e) => {
+    if (isStaleChunkError(e?.message)) handleStaleChunk();
+  });
+  window.addEventListener('unhandledrejection', (e) => {
+    const msg = (e?.reason && (e.reason.message || String(e.reason))) || '';
+    if (isStaleChunkError(msg)) handleStaleChunk();
+  });
+}
+
 // Eager load only the main landing page for fastest initial render
 import Index from '@/pages/Index';
 
