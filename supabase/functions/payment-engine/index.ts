@@ -1117,6 +1117,31 @@ Deno.serve(async (req) => {
 
   } catch (error: any) {
     console.error('[PAYMENT-ENGINE] Error:', error);
+
+    // Detect Stripe card errors (bad number/CVC/expiry/declined etc.)
+    // and surface structured details so the UI can show a friendly message.
+    const stripeType = error?.type || error?.raw?.type;
+    const isStripeCardError =
+      stripeType === 'StripeCardError' ||
+      stripeType === 'StripeInvalidRequestError' ||
+      error?.code === 'card_declined';
+
+    if (isStripeCardError) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: error.message || 'Card error',
+          stripe_error: {
+            type: stripeType || 'StripeCardError',
+            code: error.code || error.raw?.code || '',
+            decline_code: error.decline_code || error.raw?.decline_code || '',
+            param: error.param || error.raw?.param || '',
+          },
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     return new Response(
       JSON.stringify({ success: false, error: error.message || 'Payment engine error' }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

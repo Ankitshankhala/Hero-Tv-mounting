@@ -1,81 +1,65 @@
-## Goal
+## Root cause
 
-Make Henry, Ayden, Warren, Chad, Michael, and Eric's drawn polygons resolve to ZIP codes correctly. Currently only ANKIT works (1163 ZIPs) because two of the three resolution methods are broken at the data layer.
+When a customer enters bad card details (wrong number, expired date, wrong CVC, declined card, etc.), Stripe throws a `StripeCardError` inside `payment-engine.authorize`. The current chain loses the useful information at three points:
 
-## Root Cause Recap
+1. **`payment-engine/index.ts`** — wraps everything in one `try/catch` that returns `{ success: false, error: error.message }` with HTTP **400**. The Stripe-specific fields (`code`, `decline_code`, `type`, `param`) are dropped, and only the raw English message survives.
 
-| Problem | Evidence |
-|---|---|
-| `worker_service_areas.geom` is NULL for all 17 polygons | PostGIS `ST_Within` fallback returns 0 |
-| `us_zip_codes` table has only 25 of ~42k rows | bbox/centroid fallback returns 0 |
-| Only ZCTA intersection works, and it misses smaller polygons | Henry/Warren/etc. get 0–few ZIPs |
+2. **`unified-payment-authorization/index.ts`** — re-throws on engine error and returns HTTP **400** as well.
 
-## Step 1 — Database Migration (this approval)
+3. **`SimplePaymentAuthorizationForm.tsx`** — calls `supabase.functions.invoke(...)`. The Supabase client treats any non-2xx as a `FunctionsHttpError`, sets `data = null`, and exposes only the generic `"Edge Function returned a non-2xx status code"` string. The body containing the real Stripe error is never read. The form's existing `getErrorMessage()` mapper (which already knows codes like `incorrect_cvc`, `expired_card`, `card_declined`) therefore only ever sees `'api_error'` with an empty code, and shows the generic fallback.
 
-Two safe additions, no destructive changes:
+That is why every bad-card scenario ends up as `"unknown 2xx"` in the UI.
 
-**A. Helper function `polygon_coords_to_geom(jsonb)`**
-Converts the existing `polygon_coordinates` jsonb (array of `{lat,lng}` points) into a PostGIS polygon (SRID 4326). Handles three input shapes (`{lat,lng}`, `{latitude,longitude}`, `[lng,lat]`). Returns NULL on bad input rather than failing.
+## Fix (minimal, no behavioral changes for happy path)
 
-**B. Trigger `trg_sync_service_area_geom`**
-Fires `BEFORE INSERT OR UPDATE OF polygon_coordinates`. Auto-fills `geom` from `polygon_coordinates`. Workers and admin keep saving polygons exactly the same way — `geom` is maintained silently.
+Three small, surgical changes — nothing else touched.
 
-**C. Backfill**
-One-shot UPDATE that fills `geom` for the 17 existing polygons.
+### 1. `supabase/functions/payment-engine/index.ts`
+- Detect Stripe errors in the outer `catch` (check `error.type === 'StripeCardError'` or `error.raw?.type`).
+- For Stripe **card errors**, return HTTP **200** with:
+  ```json
+  {
+    "success": false,
+    "error": "<stripe message>",
+    "stripe_error": {
+      "type": "StripeCardError",
+      "code": "incorrect_cvc",
+      "decline_code": "...",
+      "param": "cvc"
+    }
+  }
+  ```
+  Returning 200 (with `success:false`) is the standard Stripe-pattern so the Supabase client gives us the body. All existing callers already check `data?.success` first, so this does not change any happy-path or capture/refund logic.
+- All other (non-Stripe) errors keep the existing HTTP 400 behavior — unchanged.
 
-**D. Spatial index**
-`CREATE INDEX ... USING GIST (geom)` so PostGIS lookups stay fast as ZIP/polygon counts grow.
+### 2. `supabase/functions/unified-payment-authorization/index.ts`
+- When the engine response has `success:false` and `stripe_error`, forward the **same JSON shape** with HTTP **200** instead of throwing. Existing callers already gate on `data?.success`.
+- Non-Stripe failures continue to throw → HTTP 400 (unchanged).
 
-## Safety
+### 3. `src/components/payment/SimplePaymentAuthorizationForm.tsx`
+- After `supabase.functions.invoke(...)`, when `authData?.success === false`, pass `authData.stripe_error?.type`, `authData.stripe_error?.code`, and `authData.error` into the existing `getErrorMessage()` helper. That helper already maps every relevant code to a friendly message — we just feed it real values.
+- Keep the existing fallback path for true network/timeout errors untouched.
 
-- `polygon_coordinates` is read-only in this migration — never modified
-- `worker_service_zipcodes` is untouched — no ZIP loss
-- Bad polygons return NULL, never raise — backfill cannot fail mid-way
-- Trigger uses `BEFORE` so it can't deadlock with reads
-- Fully reversible: `DROP TRIGGER` + `DROP FUNCTION` + `geom` column already nullable
+### Result
 
-## Step 2 (after migration) — Verify
-
-I'll run a query showing `geom IS NOT NULL` count per worker. Expect 17/17 backfilled.
-
-## Step 3 (after migration) — Seed `us_zip_codes`
-
-You click **"Seed ZIP Centroids"** on the admin dashboard. This is the existing button that calls the `seed-us-zip-codes` edge function and populates ~42k centroids.
-
-## Step 4 (after migration) — Run "Sync All Areas"
-
-Click the existing button. Now all three resolution paths (zcta + postgis + bbox) are alive, so every worker's polygon resolves to its ZIPs.
-
-## Step 5 — Verify and report
-
-Compare before/after ZIP counts per worker. Expected outcome:
-
-| Worker | Before | After (estimated) |
+| User input | Old message | New message |
 |---|---|---|
-| ANKIT | 1163 | ~1163 (±small) |
-| Henry | 39 | hundreds |
-| Ayden | 1 | hundreds |
-| Warren | 83 | hundreds |
-| Chad | 94 | hundreds |
-| Michael | 136 | hundreds |
-| Eric | 13 | tens-hundreds |
+| Wrong CVC | "Edge Function returned a non-2xx status code" | "The security code is incorrect. Please check your card details." |
+| Expired card | same generic | "This card has expired. Please check the expiration date or use a different card." |
+| Card declined | same generic | "Your card was declined. Please try a different card or contact your bank." |
+| Insufficient funds | same generic | "This card has insufficient funds. Please use a different payment method." |
+| Network/timeout | "Payment is taking longer..." | unchanged |
 
-If any worker regresses below their current count, the upsert function's existing 0-result guard prevents the wipe and we investigate before retrying.
+## Safety / non-regression
 
-## What does NOT change
+- No DB schema changes, no RLS changes, no Stripe API changes.
+- Happy-path response shape is unchanged (`success:true, payment_intent_id, ...`).
+- Other actions in `payment-engine` (capture, refund, modify-authorization, complete-and-capture) are not modified — only the error-shaping in the shared outer `catch`.
+- All other edge functions calling `payment-engine` already check `data?.success` before using the result, so changing card-error responses from HTTP 400 → HTTP 200+`success:false` is backward compatible.
+- Only one edge function needs redeploy: `payment-engine` and `unified-payment-authorization`.
 
-- Worker polygon-drawing UI — identical
-- Admin service-areas UI — identical (already has Sync button wired)
-- Booking flow / coverage check API — identical
-- Any edge function contracts — identical
-- Existing ZIP assignments — preserved
+## Files touched
 
-## Files / objects touched
-
-- New SQL function: `public.polygon_coords_to_geom(jsonb)`
-- New SQL function: `public.sync_service_area_geom()`
-- New trigger: `trg_sync_service_area_geom` on `worker_service_areas`
-- New index: `idx_worker_service_areas_geom`
-- One UPDATE statement (backfill, ~17 rows)
-
-No code files changed in step 1. Steps 3 and 4 are button clicks you perform.
+1. `supabase/functions/payment-engine/index.ts` — outer catch only (~15 lines).
+2. `supabase/functions/unified-payment-authorization/index.ts` — forward Stripe error shape (~10 lines).
+3. `src/components/payment/SimplePaymentAuthorizationForm.tsx` — pass real codes into existing `getErrorMessage()` (~5 lines).

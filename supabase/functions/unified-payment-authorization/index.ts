@@ -49,6 +49,16 @@ serve(async (req) => {
       throw new Error(engineError.message || 'Payment engine error');
     }
 
+    // Forward structured Stripe card errors to the client (HTTP 200 +
+    // success:false) so the UI can map error.code to a friendly message
+    // instead of seeing a generic "non-2xx" failure.
+    if (engineResult && engineResult.success === false && engineResult.stripe_error) {
+      return new Response(
+        JSON.stringify(engineResult),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     if (!engineResult?.success) {
       throw new Error(engineResult?.error || 'Payment authorization failed');
     }
