@@ -218,15 +218,19 @@ export const SimplePaymentAuthorizationForm = ({
 
       if (authError || !authData?.success) {
         const errorDetails = authData?.error || authError?.message || 'Failed to authorize payment';
-        console.error('Payment authorization error:', errorDetails);
-        
-        // Try to extract Stripe error information if available
-        const errorMessage = getErrorMessage(
-          'api_error',
-          '',
-          errorDetails
-        );
-        
+        console.error('Payment authorization error:', errorDetails, authData?.stripe_error);
+
+        // If the engine returned structured Stripe card-error details,
+        // map them to a friendly message via the existing helper.
+        const stripeErr = authData?.stripe_error;
+        const errorMessage = stripeErr
+          ? getErrorMessage(
+              stripeErr.type === 'StripeCardError' ? 'card_error' : 'api_error',
+              stripeErr.code || '',
+              authData?.error || 'Card error'
+            )
+          : getErrorMessage('api_error', '', errorDetails);
+
         setFormError(errorMessage);
         onAuthorizationFailure(errorMessage);
         return;
