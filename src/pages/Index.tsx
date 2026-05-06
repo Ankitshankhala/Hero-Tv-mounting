@@ -1,5 +1,5 @@
 
-import React, { useState, lazy, Suspense, useEffect } from 'react';
+import React, { useState, lazy, Suspense, useEffect, useMemo } from 'react';
 import { Header } from '@/components/Header';
 import { useTestingMode, getEffectiveMinimumAmount } from '@/contexts/TestingModeContext';
 import { Footer } from '@/components/Footer';
