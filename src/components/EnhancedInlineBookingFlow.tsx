@@ -1,18 +1,24 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Button } from '@/components/ui/button';
 import { X, ArrowRight, Shield, AlertCircle, Tv, User, Calendar, Gift, CreditCard } from 'lucide-react';
 import { CalendarIcon } from 'lucide-react';
 import { useTestingMode, getEffectiveMinimumAmount } from '@/contexts/TestingModeContext';
-import { PaymentAuthorizationForm } from '@/components/payment/PaymentAuthorizationForm';
-import { TipStep } from '@/components/booking/TipStep';
+const PaymentAuthorizationForm = lazy(() =>
+  import('@/components/payment/PaymentAuthorizationForm').then(m => ({ default: m.PaymentAuthorizationForm }))
+);
+const TipStep = lazy(() =>
+  import('@/components/booking/TipStep').then(m => ({ default: m.TipStep }))
+);
 import { useBookingFlowState } from '@/hooks/booking/useBookingFlowState';
 import { useCompactLayout } from '@/hooks/use-compact-layout';
 import { BookingProgressSteps } from '@/components/booking/BookingProgressSteps';
 import { ServiceConfigurationStep } from '@/components/booking/ServiceConfigurationStep';
 import { ContactLocationStep } from '@/components/booking/ContactLocationStep';
 import { ScheduleStep } from '@/components/booking/ScheduleStep';
-import { BookingSuccessModal } from '@/components/booking/BookingSuccessModal';
+const BookingSuccessModal = lazy(() =>
+  import('@/components/booking/BookingSuccessModal').then(m => ({ default: m.BookingSuccessModal }))
+);
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { optimizedLog } from '@/utils/performanceOptimizer';
@@ -107,14 +113,15 @@ export const EnhancedInlineBookingFlow = ({
   };
   
   // Check for existing booking in session storage on component mount
-  useState(() => {
+  useEffect(() => {
     const pendingBookingId = sessionStorage.getItem('pendingBookingId');
+    if (!pendingBookingId) return;
     const pendingTimestamp = sessionStorage.getItem('pendingBookingTimestamp');
-    
-    if (pendingBookingId && pendingTimestamp) {
+
+    if (pendingTimestamp) {
       const bookingAge = Date.now() - parseInt(pendingTimestamp);
       const thirtyMinutes = 30 * 60 * 1000; // 30 minutes in milliseconds
-      
+
       // Only restore if booking is less than 30 minutes old
       if (bookingAge < thirtyMinutes) {
         // Verify booking is still in a valid state before restoring
@@ -141,7 +148,7 @@ export const EnhancedInlineBookingFlow = ({
         sessionStorage.removeItem('pendingBookingTimestamp');
       }
     }
-  });
+  }, []);
   
   // Compute once per render
   const totalPrice = getTotalPrice();
@@ -189,6 +196,9 @@ export const EnhancedInlineBookingFlow = ({
   };
 
   const handleScheduleToPayment = async () => {
+    // Prefetch payment bundle (Stripe) while user moves to tip step
+    import('@/components/payment/PaymentAuthorizationForm');
+
     if (!isMinimumCartMet) {
       toast({
         title: "Minimum Booking Amount Required",
@@ -377,15 +387,16 @@ export const EnhancedInlineBookingFlow = ({
 
   return (
     <>
-      <BookingSuccessModal
-        isOpen={showSuccess}
-        onClose={onClose}
-        successAnimation={successAnimation}
-        formData={formData}
-        getTotalPrice={() => totalPrice}
-        bookingId={bookingId}
-      />
-
+      <Suspense fallback={null}>
+        <BookingSuccessModal
+          isOpen={showSuccess}
+          onClose={onClose}
+          successAnimation={successAnimation}
+          formData={formData}
+          getTotalPrice={() => totalPrice}
+          bookingId={bookingId}
+        />
+      </Suspense>
       {!showSuccess && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-1 sm:p-2">
           <div className={`bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col border border-slate-700/50 backdrop-blur-xl ${isCompact ? 'max-h-[90dvh]' : 'max-h-[100dvh] sm:max-h-[98dvh]'}`}>
@@ -499,11 +510,13 @@ export const EnhancedInlineBookingFlow = ({
 
               {/* Step 4: Tip */}
               {currentStep === 4 && (
-                <TipStep
-                  formData={formData}
-                  setFormData={setFormData}
-                  serviceTotal={totalPrice}
-                />
+                <Suspense fallback={null}>
+                  <TipStep
+                    formData={formData}
+                    setFormData={setFormData}
+                    serviceTotal={totalPrice}
+                  />
+                </Suspense>
               )}
 
               {/* Step 5: Payment Authorization */}
@@ -556,14 +569,16 @@ export const EnhancedInlineBookingFlow = ({
                   )}
 
                   {isMinimumCartMet && bookingId ? (
-                    <PaymentAuthorizationForm
-                      amount={getTotalPrice() + formData.tipAmount}
-                      bookingId={bookingId}
-                      customerEmail={formData.customerEmail || user?.email || ''}
-                      customerName={formData.customerName}
-                      onAuthorizationSuccess={handlePaymentAuthorizationSuccess}
-                      onAuthorizationFailure={handlePaymentAuthorizationFailure}
-                    />
+                    <Suspense fallback={null}>
+                      <PaymentAuthorizationForm
+                        amount={getTotalPrice() + formData.tipAmount}
+                        bookingId={bookingId}
+                        customerEmail={formData.customerEmail || user?.email || ''}
+                        customerName={formData.customerName}
+                        onAuthorizationSuccess={handlePaymentAuthorizationSuccess}
+                        onAuthorizationFailure={handlePaymentAuthorizationFailure}
+                      />
+                    </Suspense>
                   ) : (
                     <div className="text-center py-8">
                       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
