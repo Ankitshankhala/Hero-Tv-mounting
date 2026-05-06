@@ -566,14 +566,16 @@ export const EnhancedInlineBookingFlow = ({
                   )}
 
                   {isMinimumCartMet && bookingId ? (
-                    <PaymentAuthorizationForm
-                      amount={getTotalPrice() + formData.tipAmount}
-                      bookingId={bookingId}
-                      customerEmail={formData.customerEmail || user?.email || ''}
-                      customerName={formData.customerName}
-                      onAuthorizationSuccess={handlePaymentAuthorizationSuccess}
-                      onAuthorizationFailure={handlePaymentAuthorizationFailure}
-                    />
+                    <Suspense fallback={null}>
+                      <PaymentAuthorizationForm
+                        amount={getTotalPrice() + formData.tipAmount}
+                        bookingId={bookingId}
+                        customerEmail={formData.customerEmail || user?.email || ''}
+                        customerName={formData.customerName}
+                        onAuthorizationSuccess={handlePaymentAuthorizationSuccess}
+                        onAuthorizationFailure={handlePaymentAuthorizationFailure}
+                      />
+                    </Suspense>
                   ) : (
                     <div className="text-center py-8">
                       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
