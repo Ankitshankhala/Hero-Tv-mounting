@@ -246,7 +246,7 @@ export class PricingEngine {
       serviceName: string;
     }>;
   }> {
-    const tvMountingService = services.find(s => s.name === 'Mount TV');
+    const tvMountingService = services.find(s => s.id === SERVICE_IDS.mountTv);
     const mismatches: Array<{
       addOnKey: string;
       configPrice: number;
