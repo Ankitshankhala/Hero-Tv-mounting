@@ -74,9 +74,11 @@ const clearCache = () => {
 
 export const ServicesCacheProvider = ({ children }: { children: ReactNode }) => {
   const [allServices, setAllServices] = useState<CachedService[]>(() => {
-    // Initialize with cache or fallback immediately
+    // One-time orphan cleanup of the legacy cache key
+    try { localStorage.removeItem('services_cache_v1'); } catch {}
+    // Initialize with cache (fresh OR stale) or fallback immediately
     const cached = readCache();
-    return cached?.services || getFallbackServicesArray();
+    return cached?.data || getFallbackServicesArray();
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isFromCache, setIsFromCache] = useState(true);
@@ -113,15 +115,17 @@ export const ServicesCacheProvider = ({ children }: { children: ReactNode }) => 
     fetchServices();
   }, [fetchServices]);
 
-  // Fetch on mount with background refresh
+  // Fetch on mount with background refresh — render stale cache while we refetch
   useEffect(() => {
-    // If we have cached data, mark as not loading immediately
     const cached = readCache();
-    if (cached?.services) {
+    if (cached?.data) {
       setIsLoading(false);
+      if (cached.isStale) {
+        console.log('[ServicesCacheContext] Stale cache, background refetching');
+      }
     }
-    
-    // Fetch fresh data in background
+
+    // Always background-refresh on mount (covers fresh, stale, and missing cases)
     fetchServices();
   }, [fetchServices]);
 
