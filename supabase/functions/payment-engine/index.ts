@@ -115,6 +115,10 @@ Deno.serve(async (req) => {
 
       // Calculate total from DB
       const servicesTotal = await getServicesTotal(bookingId);
+
+      // === Re-validate Mount TV add-on prices server-side against live pricing_config ===
+      await validateMountTvAddOns(bookingId);
+
       const tipAmount = Math.max(0, Math.min(Number(tip) || 0, servicesTotal));
       const totalAmount = servicesTotal + tipAmount;
       const totalCents = Math.round(totalAmount * 100);
