@@ -601,6 +601,10 @@ Deno.serve(async (req) => {
       if (!booking.payment_intent_id) throw new Error('No payment_intent_id on booking');
 
       const servicesTotal = await getServicesTotal(bookingId);
+
+      // === Re-validate Mount TV add-on prices server-side against live pricing_config ===
+      await validateMountTvAddOns(bookingId);
+
       const tipAmount = Number(booking.tip_amount) || 0;
       const expectedTotal = servicesTotal + tipAmount;
       const expectedCents = Math.round(expectedTotal * 100);
