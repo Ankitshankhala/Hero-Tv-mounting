@@ -59,6 +59,85 @@ Deno.serve(async (req) => {
       return data.reduce((sum, s) => sum + (Number(s.base_price) * s.quantity), 0);
     }
 
+    // === Helper: Re-validate Mount TV add-on amounts server-side ===
+    // Pulls live pricing_config.add_ons from the services table and re-computes
+    // the expected add-on total from the booking_services line item's
+    // configuration. Throws if the client-stored line price differs from the
+    // server-computed price by more than $0.01.
+    const MOUNT_TV_ID = 'a50013bc-ee03-4452-b3ec-1683094d787a';
+    const SPECIAL_WALL_TYPES = new Set(['steel', 'brick', 'concrete', 'stone', 'tile']);
+    async function validateMountTvAddOns(bookingId: string) {
+      const { data: lineItems, error: liErr } = await supabase
+        .from('booking_services')
+        .select('service_id, base_price, quantity, configuration')
+        .eq('booking_id', bookingId)
+        .eq('service_id', MOUNT_TV_ID);
+      if (liErr) throw new Error('Failed to fetch Mount TV line items: ' + liErr.message);
+      if (!lineItems || lineItems.length === 0) return; // No Mount TV → nothing to validate
+
+      const { data: svc, error: svcErr } = await supabase
+        .from('services')
+        .select('pricing_config, base_price')
+        .eq('id', MOUNT_TV_ID)
+        .single();
+      if (svcErr || !svc) throw new Error('Mount TV service not found in DB');
+      const addOns = (svc.pricing_config as any)?.add_ons || {};
+      const tiers = (svc.pricing_config as any)?.tiers;
+
+      for (const li of lineItems) {
+        const cfg = (li.configuration as any) || {};
+        const tvConfigs: any[] = Array.isArray(cfg.tvConfigurations) ? cfg.tvConfigurations : [];
+
+        // Server-side add-on total (sum across per-TV configurations)
+        let serverAddOnTotal = 0;
+        for (const tc of tvConfigs) {
+          if (tc?.over65)     serverAddOnTotal += Number(addOns.over65) || 0;
+          if (tc?.frameMount) serverAddOnTotal += Number(addOns.frameMount) || 0;
+          if (tc?.soundbar)   serverAddOnTotal += Number(addOns.soundbar) || 0;
+          if (tc?.wallType && SPECIAL_WALL_TYPES.has(String(tc.wallType))) {
+            serverAddOnTotal += Number(addOns.specialWall) || 0;
+          }
+        }
+        // Top-level fallback (older line items without per-TV array)
+        if (tvConfigs.length === 0) {
+          if (cfg.over65)     serverAddOnTotal += Number(addOns.over65) || 0;
+          if (cfg.frameMount) serverAddOnTotal += Number(addOns.frameMount) || 0;
+          if (cfg.soundbar)   serverAddOnTotal += Number(addOns.soundbar) || 0;
+          if (cfg.wallType && SPECIAL_WALL_TYPES.has(String(cfg.wallType))) {
+            serverAddOnTotal += Number(addOns.specialWall) || 0;
+          }
+        }
+
+        // Server-side base (tiered when configured)
+        const numTvs = Number(cfg.numberOfTvs) || tvConfigs.length || Number(li.quantity) || 1;
+        let serverBase = 0;
+        if (Array.isArray(tiers) && tiers.length > 0) {
+          for (let i = 1; i <= numTvs; i++) {
+            const tier = tiers.find((t: any) => Number(t.quantity) === i);
+            if (tier) serverBase += Number(tier.price) || 0;
+            else {
+              const def = tiers.find((t: any) => t.is_default_for_additional);
+              serverBase += Number(def?.price) || Number(tiers[tiers.length - 1]?.price) || 0;
+            }
+          }
+        } else {
+          serverBase = (Number(svc.base_price) || 0) * numTvs;
+        }
+
+        const serverLineTotal = serverBase + serverAddOnTotal;
+        const clientLineTotal = Number(li.base_price) * Number(li.quantity || 1);
+        if (Math.abs(serverLineTotal - clientLineTotal) > 0.01) {
+          console.error('[PAYMENT-ENGINE] Mount TV price mismatch:', {
+            bookingId, serverBase, serverAddOnTotal, serverLineTotal, clientLineTotal,
+          });
+          throw new Error(
+            `Pricing mismatch on Mount TV: client $${clientLineTotal.toFixed(2)} vs ` +
+            `server $${serverLineTotal.toFixed(2)}. Refresh and retry.`
+          );
+        }
+      }
+    }
+
     // === Helper: Validate JWT for protected actions ===
     async function validateAuth(authHeader: string | null) {
       if (!authHeader?.startsWith('Bearer ')) {
