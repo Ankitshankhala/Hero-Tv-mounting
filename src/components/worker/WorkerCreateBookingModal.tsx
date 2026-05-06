@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { usePublicServicesData } from '@/hooks/usePublicServicesData';
 import { useTestingMode, getEffectiveServicePrice } from '@/contexts/TestingModeContext';
+import { SERVICE_IDS } from '@/constants/serviceIds';
 import { TvMountingConfigModal } from '../admin/TvMountingConfigModal';
 import type { Database } from '@/integrations/supabase/types';
 
