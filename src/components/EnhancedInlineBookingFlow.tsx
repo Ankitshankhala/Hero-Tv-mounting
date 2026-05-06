@@ -384,15 +384,16 @@ export const EnhancedInlineBookingFlow = ({
 
   return (
     <>
-      <BookingSuccessModal
-        isOpen={showSuccess}
-        onClose={onClose}
-        successAnimation={successAnimation}
-        formData={formData}
-        getTotalPrice={() => totalPrice}
-        bookingId={bookingId}
-      />
-
+      <Suspense fallback={null}>
+        <BookingSuccessModal
+          isOpen={showSuccess}
+          onClose={onClose}
+          successAnimation={successAnimation}
+          formData={formData}
+          getTotalPrice={() => totalPrice}
+          bookingId={bookingId}
+        />
+      </Suspense>
       {!showSuccess && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-1 sm:p-2">
           <div className={`bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col border border-slate-700/50 backdrop-blur-xl ${isCompact ? 'max-h-[90dvh]' : 'max-h-[100dvh] sm:max-h-[98dvh]'}`}>
