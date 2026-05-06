@@ -67,7 +67,7 @@ export const CreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingM
   const { createAdminBooking } = useBookingOperations();
 
   // Find TV mounting service
-  const tvMountingService = services.find(s => s.name === 'TV Mounting');
+  const tvMountingService = services.find(s => s.id === SERVICE_IDS.mountTv);
   const isSelectedServiceTvMounting = formData.service === tvMountingService?.id;
 
   useEffect(() => {
