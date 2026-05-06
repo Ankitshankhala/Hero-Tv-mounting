@@ -114,7 +114,7 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
     }
 
     // Use centralized PricingEngine for accurate calculations
-    const soundbarService = effectiveServices.find(s => s.name === 'Mount Soundbar') || TV_MOUNTING_FALLBACK_SERVICES.soundbar;
+    const soundbarService = effectiveServices.find(s => s.id === SERVICE_IDS.soundbar) || TV_MOUNTING_FALLBACK_SERVICES.soundbar;
     const breakdown = PricingEngine.calculateTvMountingTotal(
       numberOfTvs,
       tvConfigurations,
@@ -208,7 +208,7 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
     const soundbarCount = tvConfigurations.filter(config => config.soundbar).length;
     if (soundbarCount > 0) {
       // Find the specific Mount Soundbar service - use fallback if not found
-      const soundbarService = effectiveServices.find(s => s.name === 'Mount Soundbar') || TV_MOUNTING_FALLBACK_SERVICES.soundbar;
+      const soundbarService = effectiveServices.find(s => s.id === SERVICE_IDS.soundbar) || TV_MOUNTING_FALLBACK_SERVICES.soundbar;
       if (soundbarService?.id) {
         const price = isTestingMode ? (serviceIndex + 1) : ((soundbarService.base_price || 40) * soundbarCount);
         selectedServices.push({
