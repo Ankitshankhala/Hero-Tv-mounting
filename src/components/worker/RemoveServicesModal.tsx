@@ -7,6 +7,7 @@ import { ServiceConfigurationTab } from './invoice/ServiceConfigurationTab';
 import { ModificationSummary } from './invoice/ModificationSummary';
 import { ReauthorizePaymentDialog } from './payment/ReauthorizePaymentDialog';
 import { calculateServiceLinePrice, calculateBookingTotal } from '@/utils/pricing';
+import { useServicesCache } from '@/contexts/ServicesCacheContext';
 import { Loader2 } from 'lucide-react';
 
 interface BookingService {
@@ -44,26 +45,28 @@ export const RemoveServicesModal = ({
     new_payment_intent: string;
   } | null>(null);
   const { toast } = useToast();
+  const { allServices } = useServicesCache();
 
-  // Calculate totals using the pricing utility
+  // Calculate totals using the pricing utility (with live admin-editable prices)
   const originalTotal = useMemo(() => {
-    return calculateBookingTotal(originalServices);
-  }, [originalServices]);
+    return calculateBookingTotal(originalServices, allServices as any);
+  }, [originalServices, allServices]);
 
   const newTotal = useMemo(() => {
-    return calculateBookingTotal(services);
-  }, [services]);
+    return calculateBookingTotal(services, allServices as any);
+  }, [services, allServices]);
 
   // Use shared pricing utility with defensive safeguards
   const calculateServicePrice = useCallback((service: BookingService) => {
     const price = calculateServiceLinePrice({
       service_name: service.service_name,
+      service_id: (service as any).service_id,
       base_price: Number(service.base_price) || 0,
       quantity: Number(service.quantity) || 1,
       configuration: service.configuration
-    });
+    }, allServices as any);
     return price;
-  }, []);
+  }, [allServices]);
 
   const fetchBookingServices = useCallback(async () => {
     if (!job?.id) return;

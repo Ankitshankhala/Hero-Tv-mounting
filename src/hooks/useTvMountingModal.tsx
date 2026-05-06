@@ -5,6 +5,7 @@ import { useTestingMode } from '@/contexts/TestingModeContext';
 import { PricingEngine } from '@/utils/pricingEngine';
 import { useServicesCache } from '@/contexts/ServicesCacheContext';
 import { TV_MOUNTING_FALLBACK_SERVICES, FallbackService } from '@/constants/fallbackServices';
+import { SERVICE_IDS } from '@/constants/serviceIds';
 
 interface TvConfiguration {
   id: string;
@@ -34,11 +35,11 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
     return Object.values(TV_MOUNTING_FALLBACK_SERVICES);
   }, [cachedServices, publicServices]);
 
-  // Find services - always available immediately via fallback
-  const tvMountingService: ServiceType = effectiveServices.find(s => s.name === 'Mount TV') || TV_MOUNTING_FALLBACK_SERVICES.mountTv;
-  const over65Service: ServiceType = effectiveServices.find(s => s.name === 'Over 65" TV Add-on') || TV_MOUNTING_FALLBACK_SERVICES.over65;
-  const frameMountService: ServiceType = effectiveServices.find(s => s.name === 'Frame Mount Add-on') || TV_MOUNTING_FALLBACK_SERVICES.frameMount;
-  const stoneWallService: ServiceType = effectiveServices.find(s => s.name === 'Brick/Steel/Concrete') || TV_MOUNTING_FALLBACK_SERVICES.specialWall;
+  // Find services by stable ID — admin renames don't break pricing
+  const tvMountingService: ServiceType = effectiveServices.find(s => s.id === SERVICE_IDS.mountTv) || TV_MOUNTING_FALLBACK_SERVICES.mountTv;
+  const over65Service: ServiceType = effectiveServices.find(s => s.id === SERVICE_IDS.over65) || TV_MOUNTING_FALLBACK_SERVICES.over65;
+  const frameMountService: ServiceType = effectiveServices.find(s => s.id === SERVICE_IDS.frameMount) || TV_MOUNTING_FALLBACK_SERVICES.frameMount;
+  const stoneWallService: ServiceType = effectiveServices.find(s => s.id === SERVICE_IDS.specialWall) || TV_MOUNTING_FALLBACK_SERVICES.specialWall;
   
   // Always ready immediately with fallback data
   const isReady = Boolean(tvMountingService?.id);
@@ -113,7 +114,7 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
     }
 
     // Use centralized PricingEngine for accurate calculations
-    const soundbarService = effectiveServices.find(s => s.name === 'Mount Soundbar') || TV_MOUNTING_FALLBACK_SERVICES.soundbar;
+    const soundbarService = effectiveServices.find(s => s.id === SERVICE_IDS.soundbar) || TV_MOUNTING_FALLBACK_SERVICES.soundbar;
     const breakdown = PricingEngine.calculateTvMountingTotal(
       numberOfTvs,
       tvConfigurations,
@@ -207,7 +208,7 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
     const soundbarCount = tvConfigurations.filter(config => config.soundbar).length;
     if (soundbarCount > 0) {
       // Find the specific Mount Soundbar service - use fallback if not found
-      const soundbarService = effectiveServices.find(s => s.name === 'Mount Soundbar') || TV_MOUNTING_FALLBACK_SERVICES.soundbar;
+      const soundbarService = effectiveServices.find(s => s.id === SERVICE_IDS.soundbar) || TV_MOUNTING_FALLBACK_SERVICES.soundbar;
       if (soundbarService?.id) {
         const price = isTestingMode ? (serviceIndex + 1) : ((soundbarService.base_price || 40) * soundbarCount);
         selectedServices.push({

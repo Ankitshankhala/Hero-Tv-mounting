@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { supabase } from '@/integrations/supabase/client';
 import { getFallbackServicesArray } from '@/constants/fallbackServices';
 
-const CACHE_KEY = 'services_cache_v1';
+const CACHE_KEY = 'services_cache_v2';
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 interface CachedService {
