@@ -41,7 +41,7 @@ export const TvMountingConfigurationModal: React.FC<TvMountingConfigurationModal
   } = useTvMountingModal(services);
 
   // Find soundbar service for IndividualTvConfig
-  const soundbarService = services.find(s => s.name === 'Mount Soundbar');
+  const soundbarService = services.find(s => s.id === SERVICE_IDS.soundbar);
 
   // Initialize with existing configuration
   useEffect(() => {
