@@ -113,14 +113,15 @@ export const EnhancedInlineBookingFlow = ({
   };
   
   // Check for existing booking in session storage on component mount
-  useState(() => {
+  useEffect(() => {
     const pendingBookingId = sessionStorage.getItem('pendingBookingId');
+    if (!pendingBookingId) return;
     const pendingTimestamp = sessionStorage.getItem('pendingBookingTimestamp');
-    
-    if (pendingBookingId && pendingTimestamp) {
+
+    if (pendingTimestamp) {
       const bookingAge = Date.now() - parseInt(pendingTimestamp);
       const thirtyMinutes = 30 * 60 * 1000; // 30 minutes in milliseconds
-      
+
       // Only restore if booking is less than 30 minutes old
       if (bookingAge < thirtyMinutes) {
         // Verify booking is still in a valid state before restoring
@@ -141,6 +142,13 @@ export const EnhancedInlineBookingFlow = ({
               sessionStorage.removeItem('pendingBookingTimestamp');
             }
           });
+      } else {
+        // Clear expired session data
+        sessionStorage.removeItem('pendingBookingId');
+        sessionStorage.removeItem('pendingBookingTimestamp');
+      }
+    }
+  }, []);
       } else {
         // Clear expired session data
         sessionStorage.removeItem('pendingBookingId');
