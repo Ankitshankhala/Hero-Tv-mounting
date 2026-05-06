@@ -2,6 +2,7 @@
  * Centralized Pricing Engine
  * Single source of truth for all TV mounting pricing calculations
  */
+import { SERVICE_IDS } from '@/constants/serviceIds';
 
 // Flexible service type that works with PublicService, CachedService, and FallbackService
 export interface ServiceLike {
