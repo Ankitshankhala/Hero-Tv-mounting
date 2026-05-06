@@ -3,7 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { getFallbackServicesArray } from '@/constants/fallbackServices';
 
 const CACHE_KEY = 'services_cache_v2';
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const MAX_AGE = 5 * 60 * 1000;
+const CACHE_TTL = MAX_AGE; // backwards-compat alias
 
 interface CachedService {
   id: string;
@@ -20,8 +21,8 @@ interface CachedService {
 }
 
 interface CacheData {
-  services: CachedService[];
-  timestamp: number;
+  data: CachedService[];
+  cached_at: number;
 }
 
 interface ServicesCacheContextValue {
@@ -36,30 +37,27 @@ interface ServicesCacheContextValue {
 
 const ServicesCacheContext = createContext<ServicesCacheContextValue | null>(null);
 
-// Read cache from localStorage
-const readCache = (): CacheData | null => {
+// Read cache from localStorage. Returns the parsed entry (with stale flag) or null.
+const readCache = (): { data: CachedService[]; cached_at: number; isStale: boolean } | null => {
   try {
     const cached = localStorage.getItem(CACHE_KEY);
     if (!cached) return null;
-    const data: CacheData = JSON.parse(cached);
-    // Check if cache is still valid
-    if (Date.now() - data.timestamp < CACHE_TTL) {
-      return data;
-    }
-    return null;
+    const parsed = JSON.parse(cached);
+    // Support both new ({ data, cached_at }) and legacy ({ services, timestamp }) shapes
+    const data: CachedService[] = parsed.data || parsed.services;
+    const cached_at: number = parsed.cached_at || parsed.timestamp || 0;
+    if (!Array.isArray(data)) return null;
+    return { data, cached_at, isStale: Date.now() - cached_at >= MAX_AGE };
   } catch {
     return null;
   }
 };
 
-// Write cache to localStorage
+// Write cache to localStorage in the new shape: { data, cached_at }
 const writeCache = (services: CachedService[]) => {
   try {
-    const data: CacheData = {
-      services,
-      timestamp: Date.now()
-    };
-    localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+    const payload: CacheData = { data: services, cached_at: Date.now() };
+    localStorage.setItem(CACHE_KEY, JSON.stringify(payload));
   } catch {
     // Ignore localStorage errors
   }
@@ -76,9 +74,11 @@ const clearCache = () => {
 
 export const ServicesCacheProvider = ({ children }: { children: ReactNode }) => {
   const [allServices, setAllServices] = useState<CachedService[]>(() => {
-    // Initialize with cache or fallback immediately
+    // One-time orphan cleanup of the legacy cache key
+    try { localStorage.removeItem('services_cache_v1'); } catch {}
+    // Initialize with cache (fresh OR stale) or fallback immediately
     const cached = readCache();
-    return cached?.services || getFallbackServicesArray();
+    return cached?.data || getFallbackServicesArray();
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isFromCache, setIsFromCache] = useState(true);
@@ -115,15 +115,17 @@ export const ServicesCacheProvider = ({ children }: { children: ReactNode }) => 
     fetchServices();
   }, [fetchServices]);
 
-  // Fetch on mount with background refresh
+  // Fetch on mount with background refresh — render stale cache while we refetch
   useEffect(() => {
-    // If we have cached data, mark as not loading immediately
     const cached = readCache();
-    if (cached?.services) {
+    if (cached?.data) {
       setIsLoading(false);
+      if (cached.isStale) {
+        console.log('[ServicesCacheContext] Stale cache, background refetching');
+      }
     }
-    
-    // Fetch fresh data in background
+
+    // Always background-refresh on mount (covers fresh, stale, and missing cases)
     fetchServices();
   }, [fetchServices]);
 

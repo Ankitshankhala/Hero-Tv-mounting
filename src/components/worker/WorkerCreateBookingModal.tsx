@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { usePublicServicesData } from '@/hooks/usePublicServicesData';
 import { useTestingMode, getEffectiveServicePrice } from '@/contexts/TestingModeContext';
+import { SERVICE_IDS } from '@/constants/serviceIds';
 import { TvMountingConfigModal } from '../admin/TvMountingConfigModal';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -72,7 +73,7 @@ const WorkerCreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingMo
   const { isTestingMode } = useTestingMode();
 
   // Find TV mounting service
-  const tvMountingService = services.find(s => s.name === 'TV Mounting');
+  const tvMountingService = services.find(s => s.id === SERVICE_IDS.mountTv);
   const hasTvMountingService = selectedServices.some(ss => ss.service.id === tvMountingService?.id);
 
   const addService = (serviceId: string) => {

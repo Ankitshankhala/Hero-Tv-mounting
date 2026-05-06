@@ -4,6 +4,7 @@ import { X, Monitor, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PublicService } from '@/hooks/usePublicServicesData';
 import { useTvMountingModal } from '@/hooks/useTvMountingModal';
+import { SERVICE_IDS } from '@/constants/serviceIds';
 
 interface TvMountingConfig {
   numberOfTvs: number;
@@ -56,7 +57,7 @@ export const TvMountingConfigModal: React.FC<TvMountingConfigModalProps> = ({
   } = useTvMountingModal(services);
 
   // Find soundbar service
-  const soundbarService = services.find(s => s.name === 'Mount Soundbar');
+  const soundbarService = services.find(s => s.id === SERVICE_IDS.soundbar);
 
   // Initialize with existing config if provided
   React.useEffect(() => {

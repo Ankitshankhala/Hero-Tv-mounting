@@ -40,7 +40,11 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
   const over65Service: ServiceType = effectiveServices.find(s => s.id === SERVICE_IDS.over65) || TV_MOUNTING_FALLBACK_SERVICES.over65;
   const frameMountService: ServiceType = effectiveServices.find(s => s.id === SERVICE_IDS.frameMount) || TV_MOUNTING_FALLBACK_SERVICES.frameMount;
   const stoneWallService: ServiceType = effectiveServices.find(s => s.id === SERVICE_IDS.specialWall) || TV_MOUNTING_FALLBACK_SERVICES.specialWall;
-  
+
+  // True when ANY of the resolved services is the hardcoded fallback (DB unreachable)
+  const usingFallback = [tvMountingService, over65Service, frameMountService, stoneWallService]
+    .some(s => (s as any)?._isFallback === true);
+
   // Always ready immediately with fallback data
   const isReady = Boolean(tvMountingService?.id);
 
@@ -259,6 +263,7 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
     buildServicesList,
     buildCartItemName,
     isReady,
-    servicesLoading
+    servicesLoading,
+    usingFallback
   };
 };

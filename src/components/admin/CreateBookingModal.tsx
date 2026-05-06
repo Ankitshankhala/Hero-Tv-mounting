@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { usePublicServicesData } from '@/hooks/usePublicServicesData';
 import { useBookingOperations } from '@/hooks/booking/useBookingOperations';
+import { SERVICE_IDS } from '@/constants/serviceIds';
 
 import { TvMountingConfigModal } from './TvMountingConfigModal';
 
@@ -66,7 +67,7 @@ export const CreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingM
   const { createAdminBooking } = useBookingOperations();
 
   // Find TV mounting service
-  const tvMountingService = services.find(s => s.name === 'TV Mounting');
+  const tvMountingService = services.find(s => s.id === SERVICE_IDS.mountTv);
   const isSelectedServiceTvMounting = formData.service === tvMountingService?.id;
 
   useEffect(() => {

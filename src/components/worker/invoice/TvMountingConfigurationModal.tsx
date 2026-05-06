@@ -6,6 +6,7 @@ import { TvQuantitySelector } from '@/components/tv-mounting/TvQuantitySelector'
 import { IndividualTvConfig } from '@/components/tv-mounting/IndividualTvConfig';
 import { useTvMountingModal } from '@/hooks/useTvMountingModal';
 import { usePublicServicesData } from '@/hooks/usePublicServicesData';
+import { SERVICE_IDS } from '@/constants/serviceIds';
 
 interface TvMountingConfigurationModalProps {
   isOpen: boolean;
@@ -40,7 +41,7 @@ export const TvMountingConfigurationModal: React.FC<TvMountingConfigurationModal
   } = useTvMountingModal(services);
 
   // Find soundbar service for IndividualTvConfig
-  const soundbarService = services.find(s => s.name === 'Mount Soundbar');
+  const soundbarService = services.find(s => s.id === SERVICE_IDS.soundbar);
 
   // Initialize with existing configuration
   useEffect(() => {
