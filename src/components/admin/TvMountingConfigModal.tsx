@@ -4,6 +4,7 @@ import { X, Monitor, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PublicService } from '@/hooks/usePublicServicesData';
 import { useTvMountingModal } from '@/hooks/useTvMountingModal';
+import { SERVICE_IDS } from '@/constants/serviceIds';
 
 interface TvMountingConfig {
   numberOfTvs: number;
