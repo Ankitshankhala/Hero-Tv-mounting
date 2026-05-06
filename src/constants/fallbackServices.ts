@@ -19,6 +19,7 @@ export interface FallbackService {
   sort_order: number;
   image_url: string | null;
   created_at: string | null;
+  _isFallback?: true;
 }
 
 export const TV_MOUNTING_FALLBACK_SERVICES: Record<string, FallbackService> = {
