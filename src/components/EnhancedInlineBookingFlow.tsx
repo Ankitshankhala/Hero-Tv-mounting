@@ -1,18 +1,24 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Button } from '@/components/ui/button';
 import { X, ArrowRight, Shield, AlertCircle, Tv, User, Calendar, Gift, CreditCard } from 'lucide-react';
 import { CalendarIcon } from 'lucide-react';
 import { useTestingMode, getEffectiveMinimumAmount } from '@/contexts/TestingModeContext';
-import { PaymentAuthorizationForm } from '@/components/payment/PaymentAuthorizationForm';
-import { TipStep } from '@/components/booking/TipStep';
+const PaymentAuthorizationForm = lazy(() =>
+  import('@/components/payment/PaymentAuthorizationForm').then(m => ({ default: m.PaymentAuthorizationForm }))
+);
+const TipStep = lazy(() =>
+  import('@/components/booking/TipStep').then(m => ({ default: m.TipStep }))
+);
 import { useBookingFlowState } from '@/hooks/booking/useBookingFlowState';
 import { useCompactLayout } from '@/hooks/use-compact-layout';
 import { BookingProgressSteps } from '@/components/booking/BookingProgressSteps';
 import { ServiceConfigurationStep } from '@/components/booking/ServiceConfigurationStep';
 import { ContactLocationStep } from '@/components/booking/ContactLocationStep';
 import { ScheduleStep } from '@/components/booking/ScheduleStep';
-import { BookingSuccessModal } from '@/components/booking/BookingSuccessModal';
+const BookingSuccessModal = lazy(() =>
+  import('@/components/booking/BookingSuccessModal').then(m => ({ default: m.BookingSuccessModal }))
+);
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { optimizedLog } from '@/utils/performanceOptimizer';
