@@ -196,6 +196,9 @@ export const EnhancedInlineBookingFlow = ({
   };
 
   const handleScheduleToPayment = async () => {
+    // Prefetch payment bundle (Stripe) while user moves to tip step
+    import('@/components/payment/PaymentAuthorizationForm');
+
     if (!isMinimumCartMet) {
       toast({
         title: "Minimum Booking Amount Required",
