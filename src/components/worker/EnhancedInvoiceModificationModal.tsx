@@ -11,6 +11,9 @@ import { ModificationSummary } from './invoice/ModificationSummary';
 import { RealTimePriceDisplay } from './invoice/RealTimePriceDisplay';
 import { InvoiceModificationPayment } from './invoice/InvoiceModificationPayment';
 import { Loader2 } from 'lucide-react';
+import { useServicesCache } from '@/contexts/ServicesCacheContext';
+import { resolveAddOnPrices } from '@/utils/pricing';
+import { SERVICE_IDS } from '@/constants/serviceIds';
 
 interface BookingService {
   id: string;
@@ -42,24 +45,25 @@ export const EnhancedInvoiceModificationModal = ({
   const [totalPrice, setTotalPrice] = useState(0);
   const [originalPrice, setOriginalPrice] = useState(0);
   const { toast } = useToast();
+  const { allServices } = useServicesCache();
 
-  // Define calculateServicePrice function with useCallback
+  // Define calculateServicePrice function with useCallback — uses live admin prices
   const calculateServicePrice = useCallback((service: BookingService) => {
     let price = service.base_price;
     const config = service.configuration || {};
 
-    // Mount TV specific pricing
-    if (service.service_name === 'Mount TV') {
-      if (config.over65) price += 50;
-      if (config.frameMount) price += 75;
-      if (config.wallType === 'stone' || config.wallType === 'brick' || config.wallType === 'tile') {
-        price += 100;
+    if (service.service_name === 'Mount TV' || (service as any).service_id === SERVICE_IDS.mountTv) {
+      const addOns = resolveAddOnPrices(allServices as any);
+      if (config.over65)     price += addOns.over65;
+      if (config.frameMount) price += addOns.frameMount;
+      if (config.wallType === 'steel' || config.wallType === 'brick' || config.wallType === 'concrete' || config.wallType === 'stone' || config.wallType === 'tile') {
+        price += addOns.specialWall;
       }
-      if (config.soundbar) price += 30;
+      if (config.soundbar)   price += addOns.soundbar;
     }
 
     return price;
-  }, []);
+  }, [allServices]);
 
   const migrateLegacyService = useCallback(async () => {
     if (!job?.service_id) return;
