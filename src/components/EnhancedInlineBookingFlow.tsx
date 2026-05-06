@@ -507,11 +507,13 @@ export const EnhancedInlineBookingFlow = ({
 
               {/* Step 4: Tip */}
               {currentStep === 4 && (
-                <TipStep
-                  formData={formData}
-                  setFormData={setFormData}
-                  serviceTotal={totalPrice}
-                />
+                <Suspense fallback={null}>
+                  <TipStep
+                    formData={formData}
+                    setFormData={setFormData}
+                    serviceTotal={totalPrice}
+                  />
+                </Suspense>
               )}
 
               {/* Step 5: Payment Authorization */}
