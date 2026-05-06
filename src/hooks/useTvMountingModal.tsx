@@ -263,6 +263,7 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
     buildServicesList,
     buildCartItemName,
     isReady,
-    servicesLoading
+    servicesLoading,
+    usingFallback
   };
 };
