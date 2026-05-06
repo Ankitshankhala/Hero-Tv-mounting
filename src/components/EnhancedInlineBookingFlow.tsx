@@ -149,13 +149,6 @@ export const EnhancedInlineBookingFlow = ({
       }
     }
   }, []);
-      } else {
-        // Clear expired session data
-        sessionStorage.removeItem('pendingBookingId');
-        sessionStorage.removeItem('pendingBookingTimestamp');
-      }
-    }
-  });
   
   // Compute once per render
   const totalPrice = getTotalPrice();
