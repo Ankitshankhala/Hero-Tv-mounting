@@ -3,7 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { getFallbackServicesArray } from '@/constants/fallbackServices';
 
 const CACHE_KEY = 'services_cache_v2';
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const MAX_AGE = 5 * 60 * 1000;
+const CACHE_TTL = MAX_AGE; // backwards-compat alias
 
 interface CachedService {
   id: string;
