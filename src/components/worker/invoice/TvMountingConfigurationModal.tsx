@@ -6,6 +6,7 @@ import { TvQuantitySelector } from '@/components/tv-mounting/TvQuantitySelector'
 import { IndividualTvConfig } from '@/components/tv-mounting/IndividualTvConfig';
 import { useTvMountingModal } from '@/hooks/useTvMountingModal';
 import { usePublicServicesData } from '@/hooks/usePublicServicesData';
+import { SERVICE_IDS } from '@/constants/serviceIds';
 
 interface TvMountingConfigurationModalProps {
   isOpen: boolean;
