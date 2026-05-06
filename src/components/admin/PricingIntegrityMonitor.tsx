@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CheckCircle2, XCircle, RefreshCw, AlertTriangle, DollarSign } from 'lucide-react';
 import { usePublicServicesData } from '@/hooks/usePublicServicesData';
 import { PricingEngine } from '@/utils/pricingEngine';
+import { SERVICE_IDS } from '@/constants/serviceIds';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
