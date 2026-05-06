@@ -73,7 +73,7 @@ const WorkerCreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingMo
   const { isTestingMode } = useTestingMode();
 
   // Find TV mounting service
-  const tvMountingService = services.find(s => s.name === 'TV Mounting');
+  const tvMountingService = services.find(s => s.id === SERVICE_IDS.mountTv);
   const hasTvMountingService = selectedServices.some(ss => ss.service.id === tvMountingService?.id);
 
   const addService = (serviceId: string) => {
