@@ -40,15 +40,15 @@ export const PricingIntegrityMonitor = () => {
   const handleAutoSync = async () => {
     setSyncing(true);
     try {
-      const tvMountingService = services.find(s => s.name === 'Mount TV');
+      const tvMountingService = services.find(s => s.id === SERVICE_IDS.mountTv);
       if (!tvMountingService) {
         throw new Error('Mount TV service not found');
       }
 
       // Get all add-on services
-      const over65Service = services.find(s => s.name === 'Over 65" TV Add-on');
-      const frameMountService = services.find(s => s.name === 'Frame Mount Add-on');
-      const soundbarService = services.find(s => s.name === 'Mount Soundbar');
+      const over65Service = services.find(s => s.id === SERVICE_IDS.over65);
+      const frameMountService = services.find(s => s.id === SERVICE_IDS.frameMount);
+      const soundbarService = services.find(s => s.id === SERVICE_IDS.soundbar);
 
       // Build updated pricing_config with correct prices from base_price
       const updatedPricingConfig = {
