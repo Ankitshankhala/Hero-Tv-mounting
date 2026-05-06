@@ -30,7 +30,8 @@ export const TvMountingModal = ({ open, onClose, onAddToCart, services }: TvMoun
     frameMountService,
     calculateTvMountingPrice,
     isReady,
-    servicesLoading
+    servicesLoading,
+    usingFallback
   } = useTvMountingModal(services);
 
   const handleAddToCart = () => {
