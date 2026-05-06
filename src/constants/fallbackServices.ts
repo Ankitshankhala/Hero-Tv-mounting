@@ -24,6 +24,7 @@ export interface FallbackService {
 export const TV_MOUNTING_FALLBACK_SERVICES: Record<string, FallbackService> = {
   mountTv: {
     id: 'a50013bc-ee03-4452-b3ec-1683094d787a',
+    _isFallback: true,
     name: 'Mount TV',
     base_price: 90,
     description: null,
@@ -50,6 +51,7 @@ export const TV_MOUNTING_FALLBACK_SERVICES: Record<string, FallbackService> = {
   },
   over65: {
     id: '81194c48-77a8-496e-9d87-f048fe501df0',
+    _isFallback: true,
     name: 'Over 65" TV Add-on',
     base_price: 25,
     description: null,
@@ -63,6 +65,7 @@ export const TV_MOUNTING_FALLBACK_SERVICES: Record<string, FallbackService> = {
   },
   frameMount: {
     id: '1b47852d-4cbf-439a-89dc-41bac8bcc20e',
+    _isFallback: true,
     name: 'Frame Mount Add-on',
     base_price: 40,
     description: null,
@@ -76,6 +79,7 @@ export const TV_MOUNTING_FALLBACK_SERVICES: Record<string, FallbackService> = {
   },
   soundbar: {
     id: '41ec18d4-516b-4af6-9b05-e38b534923dd',
+    _isFallback: true,
     name: 'Mount Soundbar',
     base_price: 40,
     description: null,
@@ -89,6 +93,7 @@ export const TV_MOUNTING_FALLBACK_SERVICES: Record<string, FallbackService> = {
   },
   specialWall: {
     id: 'b86fda8c-a667-4dee-b180-3c83d6329c3f',
+    _isFallback: true,
     name: 'Brick/Steel/Concrete',
     base_price: 40,
     description: null,
