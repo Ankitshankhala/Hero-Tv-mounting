@@ -98,12 +98,15 @@ const Index = () => {
   };
 
   // Convert cart items to the format expected by EnhancedInlineBookingFlow
-  const selectedServices = cart.map(item => ({
-    id: item.id,
-    name: item.name,
-    price: item.price,
-    quantity: item.quantity
-  }));
+  const selectedServices = useMemo(
+    () => cart.map(item => ({
+      id: item.id,
+      name: item.name,
+      price: item.price,
+      quantity: item.quantity
+    })),
+    [cart]
+  );
 
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
