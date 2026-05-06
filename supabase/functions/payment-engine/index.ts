@@ -343,6 +343,7 @@ Deno.serve(async (req) => {
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
+      await validateMountTvAddOns(bookingId);
       const servicesTotal = await getServicesTotal(bookingId);
       const tipAmount = Number(booking.tip_amount) || 0;
       const expectedTotal = servicesTotal + tipAmount;
@@ -829,6 +830,7 @@ Deno.serve(async (req) => {
         throw new Error('This booking requires manual payment handling');
       }
 
+      await validateMountTvAddOns(bookingId);
       const servicesTotal = await getServicesTotal(bookingId);
       const tipAmount = Number(booking.tip_amount) || 0;
       const expectedTotal = servicesTotal + tipAmount;
@@ -965,6 +967,7 @@ Deno.serve(async (req) => {
         .single();
       if (bErr || !booking) throw new Error('Booking not found');
 
+      await validateMountTvAddOns(bookingId);
       const servicesTotal = await getServicesTotal(bookingId);
       const tipAmount = Number(booking.tip_amount) || 0;
       const expectedTotal = servicesTotal + tipAmount;
@@ -1113,6 +1116,7 @@ Deno.serve(async (req) => {
       }
 
       // Verify new PI is actually capturable
+      await validateMountTvAddOns(bookingId);
       const newPI = await stripe.paymentIntents.retrieve(new_payment_intent_id);
       if (newPI.status !== 'requires_capture') {
         throw new Error(`New payment intent is not ready (status: ${newPI.status}). Customer must complete card confirmation.`);
