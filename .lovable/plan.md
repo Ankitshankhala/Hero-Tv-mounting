@@ -1,65 +1,116 @@
-## Root cause
 
-When a customer enters bad card details (wrong number, expired date, wrong CVC, declined card, etc.), Stripe throws a `StripeCardError` inside `payment-engine.authorize`. The current chain loses the useful information at three points:
+## What works today
 
-1. **`payment-engine/index.ts`** — wraps everything in one `try/catch` that returns `{ success: false, error: error.message }` with HTTP **400**. The Stripe-specific fields (`code`, `decline_code`, `type`, `param`) are dropped, and only the raw English message survives.
+Admin edits go through `ServiceModal` → `useServicesData.updateService` → `services` table (`base_price` + `pricing_config`). The frontend listens to a realtime subscription in `ServicesCacheContext`, so any UPDATE on `services`:
 
-2. **`unified-payment-authorization/index.ts`** — re-throws on engine error and returns HTTP **400** as well.
+- clears the localStorage cache (`services_cache_v1`)
+- refetches and re-renders the homepage, the TV Mounting modal (`useTvMountingModal`), and the Worker "Add Services" modal — all of which read from `useServicesCache()`
 
-3. **`SimplePaymentAuthorizationForm.tsx`** — calls `supabase.functions.invoke(...)`. The Supabase client treats any non-2xx as a `FunctionsHttpError`, sets `data = null`, and exposes only the generic `"Edge Function returned a non-2xx status code"` string. The body containing the real Stripe error is never read. The form's existing `getErrorMessage()` mapper (which already knows codes like `incorrect_cvc`, `expired_card`, `card_declined`) therefore only ever sees `'api_error'` with an empty code, and shows the generic fallback.
+Server-side, `payment-engine` re-reads official `base_price` and `pricing_config.tiers` from the DB before authorizing/capturing, so a stale frontend price is rejected and replaced with the official price.
 
-That is why every bad-card scenario ends up as `"unknown 2xx"` in the UI.
+So the **happy path is safe**: admin changes a price → realtime push → all open browsers refresh → next booking uses the new price → server validates again.
 
-## Fix (minimal, no behavioral changes for happy path)
+## What is broken or risky
 
-Three small, surgical changes — nothing else touched.
+Three concrete places where admin edits are silently ignored or only partially applied:
 
-### 1. `supabase/functions/payment-engine/index.ts`
-- Detect Stripe errors in the outer `catch` (check `error.type === 'StripeCardError'` or `error.raw?.type`).
-- For Stripe **card errors**, return HTTP **200** with:
-  ```json
-  {
-    "success": false,
-    "error": "<stripe message>",
-    "stripe_error": {
-      "type": "StripeCardError",
-      "code": "incorrect_cvc",
-      "decline_code": "...",
-      "param": "cvc"
-    }
-  }
-  ```
-  Returning 200 (with `success:false`) is the standard Stripe-pattern so the Supabase client gives us the body. All existing callers already check `data?.success` first, so this does not change any happy-path or capture/refund logic.
-- All other (non-Stripe) errors keep the existing HTTP 400 behavior — unchanged.
+### 1. `src/utils/pricing.ts` — hardcoded add-on prices
 
-### 2. `supabase/functions/unified-payment-authorization/index.ts`
-- When the engine response has `success:false` and `stripe_error`, forward the **same JSON shape** with HTTP **200** instead of throwing. Existing callers already gate on `data?.success`.
-- Non-Stripe failures continue to throw → HTTP 400 (unchanged).
+```
+if (config.over65)    price += 25;   // hardcoded
+if (config.frameMount) price += 40;  // hardcoded
+if (special wall)      price += 40;  // hardcoded
+if (config.soundbar)   price += 40;  // hardcoded
+```
 
-### 3. `src/components/payment/SimplePaymentAuthorizationForm.tsx`
-- After `supabase.functions.invoke(...)`, when `authData?.success === false`, pass `authData.stripe_error?.type`, `authData.stripe_error?.code`, and `authData.error` into the existing `getErrorMessage()` helper. That helper already maps every relevant code to a friendly message — we just feed it real values.
-- Keep the existing fallback path for true network/timeout errors untouched.
+This is used by `RemoveServicesModal` and `calculateBookingTotal`. If admin raises "Over 65" to $30, removals/recalcs still subtract $25 — the captured amount drifts from the authorized amount and breaks the payment-integrity rule.
 
-### Result
+### 2. `src/components/worker/EnhancedInvoiceModificationModal.tsx` lines 53–58
 
-| User input | Old message | New message |
-|---|---|---|
-| Wrong CVC | "Edge Function returned a non-2xx status code" | "The security code is incorrect. Please check your card details." |
-| Expired card | same generic | "This card has expired. Please check the expiration date or use a different card." |
-| Card declined | same generic | "Your card was declined. Please try a different card or contact your bank." |
-| Insufficient funds | same generic | "This card has insufficient funds. Please use a different payment method." |
-| Network/timeout | "Payment is taking longer..." | unchanged |
+```
+if (config.over65) price += 50;     // never matched DB ($25)
+if (config.frameMount) price += 75; // never matched DB ($40)
+if (config.soundbar) price += 30;   // never matched DB ($40)
+```
 
-## Safety / non-regression
+These have always been wrong and become more wrong every time admin edits.
 
-- No DB schema changes, no RLS changes, no Stripe API changes.
-- Happy-path response shape is unchanged (`success:true, payment_intent_id, ...`).
-- Other actions in `payment-engine` (capture, refund, modify-authorization, complete-and-capture) are not modified — only the error-shaping in the shared outer `catch`.
-- All other edge functions calling `payment-engine` already check `data?.success` before using the result, so changing card-error responses from HTTP 400 → HTTP 200+`success:false` is backward compatible.
-- Only one edge function needs redeploy: `payment-engine` and `unified-payment-authorization`.
+### 3. `src/constants/fallbackServices.ts` — frozen snapshot
+
+Hardcoded `base_price: 90`, `add_ons: { over65: 25, frameMount: 40, ... }` and hardcoded UUIDs. Used when the network is slow on first paint. After an admin price change, a brand-new visitor with cold cache and slow network briefly sees the old price; if they click through fast, the cart price disagrees with what the server later authorizes → confusing UX.
+
+### 4. Two sources of truth for add-on prices
+
+The same add-on price lives in **two rows**:
+- `services."Mount TV".pricing_config.add_ons.over65 = 25`
+- `services."Over 65\" TV Add-on".base_price = 25`
+
+Admin has to remember to edit both. `PricingEngine.getAddOnPrice` already detects and logs the mismatch but does not fix it. If admin only edits one, frontend uses one number and the worker add-services flow uses the other.
+
+### 5. Name-based service lookup
+
+Many call sites do `services.find(s => s.name === 'Mount TV')` / `'Over 65" TV Add-on'` / `'Brick/Steel/Concrete'` / `'Mount Soundbar'`. If admin renames a service in the UI, every lookup silently returns `undefined` and we fall back to hardcoded prices.
+
+## Proposed fix (surgical, no breaking changes)
+
+### A. Remove hardcoded prices, derive everything from `useServicesCache()`
+
+1. Refactor `src/utils/pricing.ts` into a function that takes the live services list (or a price map) and computes line totals from it. Update `RemoveServicesModal` to pass the cached services in. No more literal `25 / 40 / 40 / 40`.
+2. Fix `EnhancedInvoiceModificationModal.tsx` the same way — replace the `+= 50/75/30` block with `PricingEngine.getAddOnPrice(...)` calls already used by the booking flow.
+
+### B. Single source of truth for add-on prices
+
+Add a DB trigger (`services_sync_addon_prices`) that runs on UPDATE of `services`:
+- when the `Mount TV` row's `pricing_config.add_ons.{key}` changes, it updates the matching standalone add-on service's `base_price`
+- and vice versa
+This keeps both rows in lockstep no matter which one the admin edits, and removes the mismatch warnings the engine currently logs.
+
+### C. Lookup by stable key, not by display name
+
+Introduce a `slug` (or reuse `id`) constant map in `src/constants/serviceIds.ts`:
+
+```
+export const SERVICE_IDS = {
+  mountTv:      'a50013bc-…',
+  over65:       '81194c48-…',
+  frameMount:   '1b47852d-…',
+  specialWall:  'b86fda8c-…',
+  soundbar:     '41ec18d4-…',
+};
+```
+
+Replace every `find(s => s.name === '…')` in `useTvMountingModal`, `TvAddOns`, `WallTypeSelector`, `RemoveServicesModal`, `EnhancedInvoiceModificationModal` with `find(s => s.id === SERVICE_IDS.x)`. Renaming in admin can no longer break pricing.
+
+### D. Cache-version bump on price change
+
+Bump `CACHE_KEY` in `ServicesCacheContext` to `services_cache_v2` and add a `version` field. The realtime subscription already invalidates open tabs; the version bump ensures any returning visitor with a stale localStorage entry from before this fix discards it once.
+
+### E. Admin guardrails (small UI additions)
+
+- In `ServiceModal`, show a yellow banner "Renaming this service may affect booking flow" when `name` is changed for one of the known SERVICE_IDS.
+- In the existing pricing-mismatch monitor (already wired via `PricingEngine.validateAllPricing`), surface mismatches in the Admin dashboard instead of console-only.
+
+### F. Server-side defense already in place — keep it
+
+`payment-engine` already re-reads `pricing_config.tiers` and `base_price` from DB at authorization time. We will add the same official lookup for add-ons (currently it only re-validates the base/tier price). This guarantees that even if an old browser cached old add-on prices, the captured charge always reflects the current admin price.
 
 ## Files touched
 
-1. `supabase/functions/payment-engine/index.ts` — outer catch only (~15 lines).
-2. `supabase/functions/unified-payment-authorization/index.ts` — forward Stripe error shape (~10 lines).
-3. `src/components/payment/SimplePaymentAuthorizationForm.tsx` — pass real codes into existing `getErrorMessage()` (~5 lines).
+- `src/utils/pricing.ts` — remove hardcoded add-ons; accept services list
+- `src/components/worker/RemoveServicesModal.tsx` — pass services list
+- `src/components/worker/EnhancedInvoiceModificationModal.tsx` — use PricingEngine
+- `src/hooks/useTvMountingModal.tsx`, `TvAddOns.tsx`, `WallTypeSelector.tsx` — id-based lookup
+- `src/constants/serviceIds.ts` — new
+- `src/constants/fallbackServices.ts` — keep but mark as last-resort only
+- `src/contexts/ServicesCacheContext.tsx` — bump cache key
+- `src/components/admin/ServiceModal.tsx` — rename warning banner
+- `supabase/functions/payment-engine/index.ts` — re-read add-on prices from DB
+- New migration: trigger to sync `Mount TV.pricing_config.add_ons` ↔ standalone add-on `base_price`
+
+## Result
+
+- Admin changes any price (base, tier, or add-on) in one place → trigger syncs the partner row → realtime push refreshes every open browser → TV mounting modal, worker Add/Remove/Modify, and server capture all use the new price within a second.
+- Renaming a service no longer breaks lookups.
+- Hardcoded fallbacks remain only as a last-resort offline shim and are guaranteed to be re-validated by the server before any money moves.
+
+Approve and I'll implement.
