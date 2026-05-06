@@ -21,8 +21,8 @@ interface CachedService {
 }
 
 interface CacheData {
-  services: CachedService[];
-  timestamp: number;
+  data: CachedService[];
+  cached_at: number;
 }
 
 interface ServicesCacheContextValue {
@@ -37,30 +37,27 @@ interface ServicesCacheContextValue {
 
 const ServicesCacheContext = createContext<ServicesCacheContextValue | null>(null);
 
-// Read cache from localStorage
-const readCache = (): CacheData | null => {
+// Read cache from localStorage. Returns the parsed entry (with stale flag) or null.
+const readCache = (): { data: CachedService[]; cached_at: number; isStale: boolean } | null => {
   try {
     const cached = localStorage.getItem(CACHE_KEY);
     if (!cached) return null;
-    const data: CacheData = JSON.parse(cached);
-    // Check if cache is still valid
-    if (Date.now() - data.timestamp < CACHE_TTL) {
-      return data;
-    }
-    return null;
+    const parsed = JSON.parse(cached);
+    // Support both new ({ data, cached_at }) and legacy ({ services, timestamp }) shapes
+    const data: CachedService[] = parsed.data || parsed.services;
+    const cached_at: number = parsed.cached_at || parsed.timestamp || 0;
+    if (!Array.isArray(data)) return null;
+    return { data, cached_at, isStale: Date.now() - cached_at >= MAX_AGE };
   } catch {
     return null;
   }
 };
 
-// Write cache to localStorage
+// Write cache to localStorage in the new shape: { data, cached_at }
 const writeCache = (services: CachedService[]) => {
   try {
-    const data: CacheData = {
-      services,
-      timestamp: Date.now()
-    };
-    localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+    const payload: CacheData = { data: services, cached_at: Date.now() };
+    localStorage.setItem(CACHE_KEY, JSON.stringify(payload));
   } catch {
     // Ignore localStorage errors
   }
