@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CreditCard, Lock, Shield } from 'lucide-react';
 import { StripeCardElement } from '@/components/StripeCardElement';
+import { AcceptedCardsRow } from '@/components/payment/AcceptedCardsRow';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -152,7 +153,8 @@ export const InlineStripePaymentForm = ({
             <span>Card Information</span>
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
+          <AcceptedCardsRow />
           <StripeCardElement onReady={handleStripeReady} onError={setCardError} />
           {cardError && (
             <Alert variant="destructive" className="mt-3">
