@@ -9,6 +9,8 @@ import { Toaster } from '@/components/ui/toaster';
 import { useSecurityHeaders } from '@/hooks/useSecurityHeaders';
 import { preloadZipIndex } from '@/utils/localZipIndex';
 import { HelmetProvider } from 'react-helmet-async';
+import PromoBanner from '@/components/promo/PromoBanner';
+import MobilePromoBar from '@/components/promo/MobilePromoBar';
 
 // Auto-recover from stale chunk errors after a new deploy.
 // When the browser holds an old index.html that references chunk filenames
@@ -97,6 +99,7 @@ function AppWithSecurity() {
 
   return (
     <Router>
+      <PromoBanner />
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={<Index />} />
@@ -120,6 +123,7 @@ function AppWithSecurity() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
+      <MobilePromoBar />
     </Router>
   );
 }

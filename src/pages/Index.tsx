@@ -12,6 +12,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { CartItem } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { SEO } from '@/components/SEO';
+import HeroPromoStrip from '@/components/promo/HeroPromoStrip';
 
 // Lazy load heavy components that are not needed for initial render
 const EnhancedInlineBookingFlow = lazy(() => import('@/components/EnhancedInlineBookingFlow'));
@@ -141,6 +142,8 @@ const Index = () => {
       <div className="container mx-auto px-6 pt-4">
         <TestingModeIndicator />
       </div>
+
+      <HeroPromoStrip />
 
         <ErrorBoundary
           fallback={

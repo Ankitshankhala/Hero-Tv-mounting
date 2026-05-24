@@ -14,6 +14,7 @@ import { ScheduleSection } from './checkout/ScheduleSection';
 import { SpecialInstructionsSection } from './checkout/SpecialInstructionsSection';
 import { CheckoutActions } from './checkout/CheckoutActions';
 import { CouponSection } from './checkout/CouponSection';
+import { CheckoutPromoReminder } from './promo/CheckoutPromoReminder';
 
 interface EmbeddedCheckoutProps {
   cart: CartItem[];
@@ -293,6 +294,16 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
         <div className="overflow-y-auto max-h-[calc(95vh-120px)]">
           <form onSubmit={handleSubmit} className="p-8 space-y-8">
             <ServiceSummary cart={cart} total={total} />
+
+            <CheckoutPromoReminder
+              cartTotal={total}
+              customerEmail={formData.email}
+              zipcode={formData.zipcode}
+              city={cityState}
+              serviceIds={cart.map(item => item.id)}
+              isApplied={!!appliedCoupon}
+              onCouponApplied={(code, discount, id) => setAppliedCoupon({ code, discountAmount: discount, couponId: id })}
+            />
 
             <CouponSection
               cartTotal={total}
