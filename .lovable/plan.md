@@ -1,50 +1,65 @@
-## Problem
+# Public Coupon Promotion System
 
-Admin cannot reassign a job to a different worker. Today:
-- `AssignWorkerModal` only queries `bookings` where `worker_id IS NULL`, so already-assigned jobs are invisible.
-- `EditBookingModal` displays "✓ Worker Assigned · Worker ID: …" as a read-only block with no change/reassign action.
+Surface active coupons from the existing `coupons` table across the public site with copy-to-clipboard, dismiss memory, and seamless auto-apply into the existing checkout `CouponSection`.
 
-Result: once a worker is assigned (or auto-assigned), the admin is locked out of moving the job — they can only edit date/time/notes.
+## Scope
 
-## Fix
+In: Public-facing display only. Reuses existing `coupons` table, `useCoupons` hook, and `CouponSection` checkout logic.
+Out: New tables, admin changes, exit-intent popup (skipping to stay non-intrusive — can add later), email/SMS, real-time websocket sync (uses 5-min React Query stale time already configured).
 
-Add a Reassign Worker control inside `EditBookingModal` that lets admin swap the worker on any assigned booking, with availability validation and notifications. Also expose the same action as a row-level button in `BookingTable`.
+## Components to build
 
-### Changes
+1. **`src/hooks/usePublicCoupons.ts`**
+   - Anon-friendly query against `coupons` (RLS already allows public read of active/valid).
+   - Filters: `is_active=true`, `valid_from<=now()`, `valid_until>=now()`, and `usage_limit_total IS NULL OR usage_count < usage_limit_total`.
+   - Sort: highest `discount_value` first (percentage weighted), then nearest expiry.
+   - Returns `{ coupons, primary, loading }`.
 
-1. **`src/components/admin/EditBookingModal.tsx`** — replace the read-only "✓ Worker Assigned" block with an editable section:
-   - Show current worker (name, email, phone) instead of raw UUID.
-   - Add a "Change Worker" button that swaps the block into a worker `Select` populated with active workers.
-   - Run `supabase.rpc('validate_worker_booking_assignment', { p_worker_id, p_booking_date, p_booking_time, p_duration_minutes: 60 })` against the booking's (possibly newly edited) date/time before saving; disable Save and show inline error if invalid.
-   - On Save (when worker changed):
-     - `UPDATE bookings SET worker_id = newWorkerId, status = 'confirmed' WHERE id = booking.id`
-     - Upsert into `worker_bookings` for the new worker; mark old `worker_bookings` row as `reassigned`/delete (match existing patterns in `AssignWorkerModal`).
-     - Fire `unified-email-dispatcher` for new worker (`worker_assignment`), previous worker (`worker_unassignment` if template exists, otherwise skip with console warning), and customer (`customer_booking_confirmation`).
-     - Insert a row into `booking_audit_log` with `operation='worker_reassigned'`, details: `{ from_worker_id, to_worker_id, reason }`.
-   - Add an optional "Reason" text field shown only when changing worker.
+2. **`src/components/promo/PromoBanner.tsx`** — sticky top announcement bar
+   - Rendered once in `App.tsx` above `<Router>` content, outside `<Header>`'s sticky offset (or inside layout above header so it pushes content).
+   - Displays primary coupon: emoji + "Save {X}% OFF with code **HERO20**" + "Max ${max}" pill + expiry countdown if <7 days.
+   - Buttons: **Copy code** (clipboard + toast), **Apply Now** (navigates to `/#services` with `?coupon=HERO20` query param), **X** dismiss.
+   - Dismiss persists per-coupon-id in `localStorage` key `promo_dismissed_v1` (array of IDs); re-shows when admin publishes a new coupon.
+   - Slide-down framer-motion entrance, gradient bg using existing primary tokens, rounded-none full-width.
 
-2. **`src/components/admin/BookingTable.tsx`** — add a "Reassign" icon button (UserCog) in the actions cell for any booking that has a `worker_id` and is not archived/completed. Clicking it opens `EditBookingModal` pre-scrolled / pre-expanded to the Worker section. (Implementation: pass `initialFocus="worker"` prop to the modal which auto-opens the change-worker selector.)
+3. **`src/components/promo/HeroPromoStrip.tsx`** — inline card under the hero section on homepage
+   - Larger card variant with subtle glow/gradient, lists up to 2 active coupons.
+   - "Copy" + "Book Now" CTAs.
 
-3. **`src/components/admin/AssignWorkerModal.tsx`** — small relaxation: keep current filter for the "Assign" entry point, but accept a `mode: 'assign' | 'reassign'` prop. When `reassign`, fetch the single booking by id even if `worker_id IS NOT NULL`. This lets the existing modal be reused if preferred over inline editing in step 1. (Optional — only ship if reviewer prefers a dedicated modal over inline.)
+4. **`src/components/promo/MobilePromoBar.tsx`** — fixed bottom strip on mobile only (`md:hidden`)
+   - Compact one-line: "HERO20 — 20% OFF" + Copy icon + dismiss.
+   - Hidden when the booking flow modal is open (check existing modal context or use route awareness).
 
-### Reuses existing infra
+5. **`src/components/promo/CheckoutPromoReminder.tsx`** — small card inside checkout, shown only when no coupon applied yet
+   - Lists available codes; clicking one calls into existing `CouponSection` apply handler (pass via prop / lift state).
 
-- `validate_worker_booking_assignment` RPC for conflict detection.
-- `unified-email-dispatcher` edge function for notifications.
-- `booking_audit_log` table for audit trail (admin RLS already allows SELECT; service role inserts).
-- Admin RLS on `bookings` (`Admin full access to bookings`) permits the update.
+## Auto-apply wire-up
 
-### Out of scope
+- `PromoBanner` "Apply Now" sets `?coupon=CODE` in URL.
+- In booking flow entry (`EnhancedInlineBookingFlow` or `useBookingFormState`), read `searchParams.get('coupon')` on mount and prefill the coupon input, triggering existing validation.
 
-- No backend/RLS changes.
-- No changes to auto-assignment logic.
-- No changes to customer-facing rescheduling flows.
-- No SMS rewrite — emails only (SMS already triggers from existing booking-update side effects).
+## Visual direction
 
-### Verification
+Reuse semantic tokens from `index.css`: primary blue accent on slate background, white text, gradient `from-primary to-primary/80`, subtle ring. No new colors. Inter/Inter Tight per design memory. Smooth framer-motion fade/slide; no flashy popups.
 
-1. Admin opens any booking with an assigned worker → EditBookingModal now shows worker name + "Change Worker" button.
-2. Click Change Worker → dropdown of active workers; selecting an unavailable one (conflicting schedule) shows the validation error and disables Save.
-3. Selecting a valid worker + Save → booking.worker_id updates; new worker receives assignment email; customer receives confirmation with updated worker; audit log row created.
-4. Date/time can be changed in the same submit — validation re-runs against the new slot.
-5. Reassign button in BookingTable opens the same modal already focused on worker change.
+## File changes
+
+```text
+NEW  src/hooks/usePublicCoupons.ts
+NEW  src/components/promo/PromoBanner.tsx
+NEW  src/components/promo/HeroPromoStrip.tsx
+NEW  src/components/promo/MobilePromoBar.tsx
+NEW  src/components/promo/CheckoutPromoReminder.tsx
+EDIT src/App.tsx                          → mount PromoBanner + MobilePromoBar globally
+EDIT src/pages/Index.tsx                  → insert HeroPromoStrip below hero
+EDIT src/components/EmbeddedCheckout.tsx  → render CheckoutPromoReminder above CouponSection
+EDIT src/hooks/booking/useBookingFormState.ts → read `?coupon=` and prefill
+```
+
+## Technical notes
+
+- Public read of `coupons` already allowed by RLS policy `Public can view active valid coupons`.
+- No backend or DB changes.
+- Dismissal stored only in `localStorage` (per-device); resets when coupon ID changes.
+- Countdown only renders when `valid_until - now < 7 days` to avoid noise.
+- All four surfaces share the same `usePublicCoupons` query (React Query dedupes).
