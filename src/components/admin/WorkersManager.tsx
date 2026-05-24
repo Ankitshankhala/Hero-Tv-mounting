@@ -137,6 +137,9 @@ export const WorkersManager = () => {
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}
                 onAddWorker={() => setShowAddWorker(true)}
+                showInactive={showInactive}
+                onShowInactiveChange={setShowInactive}
+                inactiveCount={inactiveCount}
               />
 
               <WorkerTable 
