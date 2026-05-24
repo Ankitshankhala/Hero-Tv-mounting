@@ -381,7 +381,7 @@ export const WorkerApplicationsManager = () => {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="align-top">{getStatusBadge(application.status)}</TableCell>
+                      <TableCell className="align-middle text-center"><div className="flex justify-center">{getStatusBadge(application.status)}</div></TableCell>
                       <TableCell className="align-top">
                         <div className="text-sm text-gray-600 whitespace-nowrap">
                           {application.created_at ? new Date(application.created_at).toLocaleDateString() : 'N/A'}
