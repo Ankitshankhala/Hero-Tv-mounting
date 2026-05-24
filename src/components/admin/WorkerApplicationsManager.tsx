@@ -384,8 +384,8 @@ export const WorkerApplicationsManager = () => {
                           {application.created_at ? new Date(application.created_at).toLocaleDateString() : 'N/A'}
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <div className="flex space-x-2">
+                      <TableCell className="align-top">
+                        <div className="flex flex-wrap gap-2">
                           {application.status === 'pending' && (
                             <>
                               <Button
