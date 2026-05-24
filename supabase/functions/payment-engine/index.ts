@@ -251,24 +251,67 @@ Deno.serve(async (req) => {
 
       // Create PI
       const idempotencyKey = `authorize_${bookingId}_v${booking.payment_version}`;
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: totalCents,
-        currency: 'usd',
-        customer: stripeCustomerId,
-        capture_method: 'manual',
-        payment_method: paymentMethodId,
-        confirm: true,
-        return_url: `${Deno.env.get('FRONTEND_URL') || 'https://hero-tv-mounting.lovable.app'}/booking/payment-complete`,
-        metadata: {
-          booking_id: bookingId,
-          customer_email: customerEmail,
-          amount_breakdown: JSON.stringify({
-            services_total: servicesTotal,
-            tip_amount: tipAmount,
-            total: totalAmount,
-          }),
-        },
-      }, { idempotencyKey });
+      let paymentIntent: any;
+      try {
+        paymentIntent = await stripe.paymentIntents.create({
+          amount: totalCents,
+          currency: 'usd',
+          customer: stripeCustomerId,
+          capture_method: 'manual',
+          payment_method: paymentMethodId,
+          confirm: true,
+          return_url: `${Deno.env.get('FRONTEND_URL') || 'https://hero-tv-mounting.lovable.app'}/booking/payment-complete`,
+          metadata: {
+            booking_id: bookingId,
+            customer_email: customerEmail,
+            amount_breakdown: JSON.stringify({
+              services_total: servicesTotal,
+              tip_amount: tipAmount,
+              total: totalAmount,
+            }),
+          },
+        }, { idempotencyKey });
+      } catch (e: any) {
+        // Surface structured Stripe card errors to the client so the UI can
+        // map error.code / decline_code to a friendly message.
+        if (e?.type === 'StripeCardError' || e?.raw?.type === 'card_error') {
+          const stripeError = {
+            type: e.type || 'StripeCardError',
+            code: e.code || e.raw?.code,
+            decline_code: e.decline_code || e.raw?.decline_code,
+            message: e.message,
+            payment_intent_status: e.payment_intent?.status,
+          };
+          console.warn('[PAYMENT-ENGINE] Stripe card error during authorize:', stripeError);
+          return new Response(JSON.stringify({
+            success: false,
+            error: e.message || 'Card error',
+            stripe_error: stripeError,
+          }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        throw e;
+      }
+
+      // ===== 3D Secure / SCA branch =====
+      // Card needs cardholder authentication. Return client_secret so the
+      // client can launch Stripe's 3DS modal, then call back with the
+      // `finalize_3ds` action to mark the booking authorized.
+      if (paymentIntent.status === 'requires_action' || paymentIntent.status === 'requires_source_action') {
+        console.log('[PAYMENT-ENGINE] PI requires 3DS action:', paymentIntent.id);
+        // Persist the PI id so finalize_3ds can locate it idempotently.
+        await supabase.from('bookings').update({
+          payment_intent_id: paymentIntent.id,
+          stripe_customer_id: stripeCustomerId,
+          stripe_payment_method_id: paymentMethodId,
+        }).eq('id', bookingId);
+        return new Response(JSON.stringify({
+          success: false,
+          requires_action: true,
+          client_secret: paymentIntent.client_secret,
+          payment_intent_id: paymentIntent.id,
+          status: paymentIntent.status,
+        }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
 
       const isAuthorized = paymentIntent.status === 'requires_capture' || paymentIntent.status === 'succeeded';
       if (!isAuthorized) {
@@ -318,6 +361,78 @@ Deno.serve(async (req) => {
         success: true,
         payment_intent_id: paymentIntent.id,
         status: paymentIntent.status,
+        amount: totalAmount,
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // ========== ACTION: FINALIZE_3DS ==========
+    // Called by the client after a 3DS challenge is completed via
+    // stripe.confirmCardPayment. Verifies the PI is now in requires_capture
+    // and writes the booking row + background records, mirroring the tail of
+    // the authorize action.
+    if (action === 'finalize_3ds') {
+      const { bookingId, paymentIntentId, customerEmail } = payload;
+      if (!bookingId || !paymentIntentId) {
+        throw new Error('bookingId and paymentIntentId required for finalize_3ds');
+      }
+
+      const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+      if (pi.status !== 'requires_capture' && pi.status !== 'succeeded') {
+        return new Response(JSON.stringify({
+          success: false,
+          error: `Cannot finalize: payment intent status is ${pi.status}`,
+          status: pi.status,
+        }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      // Re-derive totals from booking_services to keep server-authoritative pricing.
+      const servicesTotal = await getServicesTotal(bookingId);
+      const { data: bookingRow } = await supabase
+        .from('bookings')
+        .select('tip_amount, stripe_customer_id, stripe_payment_method_id')
+        .eq('id', bookingId)
+        .single();
+      const tipAmount = Number(bookingRow?.tip_amount) || 0;
+      const totalAmount = servicesTotal + tipAmount;
+
+      await supabase.from('bookings').update({
+        payment_intent_id: pi.id,
+        authorized_amount: totalAmount,
+        payment_status: 'authorized',
+        status: 'confirmed',
+      }).eq('id', bookingId);
+
+      EdgeRuntime.waitUntil(
+        Promise.all([
+          supabase.from('transactions').insert({
+            booking_id: bookingId,
+            payment_intent_id: pi.id,
+            amount: totalAmount,
+            base_amount: servicesTotal,
+            tip_amount: tipAmount,
+            status: 'authorized',
+            transaction_type: 'authorization',
+            currency: 'usd',
+            payment_method: 'card',
+            guest_customer_email: customerEmail || null,
+          }),
+          supabase.from('booking_audit_log').insert({
+            booking_id: bookingId,
+            operation: 'payment_engine_finalize_3ds',
+            status: 'success',
+            payment_intent_id: pi.id,
+            details: { amount: totalAmount, tip: tipAmount, services: servicesTotal },
+          }),
+          supabase.functions.invoke('generate-invoice', {
+            body: { booking_id: bookingId, send_email: false }
+          }).catch(e => console.error('[BG] Invoice gen failed:', e)),
+        ]).catch(e => console.error('[BG] Error:', e))
+      );
+
+      return new Response(JSON.stringify({
+        success: true,
+        payment_intent_id: pi.id,
+        status: pi.status,
         amount: totalAmount,
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
