@@ -14,6 +14,7 @@ export const WorkersManager = () => {
   const [workers, setWorkers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddWorker, setShowAddWorker] = useState(false);
+  const [showInactive, setShowInactive] = useState(false);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -98,10 +99,13 @@ export const WorkersManager = () => {
     }
   };
 
-  const filteredWorkers = workers.filter(worker => {
+  const inactiveCount = workers.filter((w: any) => !w.is_active).length;
+
+  const filteredWorkers = workers.filter((worker: any) => {
     const matchesSearch = worker.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          worker.email.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
+    const matchesActive = showInactive ? true : worker.is_active;
+    return matchesSearch && matchesActive;
   });
 
   if (loading) {
@@ -133,6 +137,9 @@ export const WorkersManager = () => {
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}
                 onAddWorker={() => setShowAddWorker(true)}
+                showInactive={showInactive}
+                onShowInactiveChange={setShowInactive}
+                inactiveCount={inactiveCount}
               />
 
               <WorkerTable 
