@@ -60,8 +60,6 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
   // Initialize form data when booking changes
   useEffect(() => {
     if (booking && isOpen) {
-      console.log('Initializing form with booking:', booking);
-      
       setFormData({
         status: validateBookingStatus(booking.status || 'pending'),
         scheduled_date: booking.scheduled_date || '',
@@ -72,23 +70,157 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
         customer_email: booking.guest_customer_info?.email || booking.customer?.email || '',
         customer_phone: booking.guest_customer_info?.phone || booking.customer?.phone || ''
       });
+      setIsChangingWorker(false);
+      setNewWorkerId('');
+      setReassignReason('');
+      setReassignError(null);
     }
   }, [booking, isOpen]);
+
+  // Load active workers + current worker details when opened
+  useEffect(() => {
+    if (!isOpen || !booking) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, name, email, phone, city')
+        .eq('role', 'worker')
+        .eq('is_active', true)
+        .order('name');
+      if (cancelled) return;
+      if (error) {
+        console.error('Failed to load workers', error);
+        return;
+      }
+      setWorkers((data || []) as WorkerOption[]);
+      if (booking.worker_id) {
+        const w = (data || []).find((x: any) => x.id === booking.worker_id) as WorkerOption | undefined;
+        setCurrentWorker(w || null);
+      } else {
+        setCurrentWorker(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isOpen, booking]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setReassignError(null);
 
     try {
-      console.log('Updating booking with data:', formData);
-
-      // Update guest customer information in booking
       const updatedGuestInfo = {
         ...(booking.guest_customer_info || {}),
         name: formData.customer_name,
         email: formData.customer_email,
         phone: formData.customer_phone
       };
+
+      const isReassigning = isChangingWorker && newWorkerId && newWorkerId !== booking.worker_id;
+      const previousWorkerId = booking.worker_id as string | null;
+
+      // If reassigning, validate worker availability first against the (possibly updated) slot
+      if (isReassigning) {
+        setValidating(true);
+        const { data: validationResult, error: validationError } = await supabase.rpc(
+          'validate_worker_booking_assignment',
+          {
+            p_worker_id: newWorkerId,
+            p_booking_date: formData.scheduled_date,
+            p_booking_time: formData.scheduled_start,
+            p_duration_minutes: 60,
+          }
+        );
+        setValidating(false);
+        if (validationError) {
+          throw new Error(`Validation failed: ${validationError.message}`);
+        }
+        const v = validationResult?.[0];
+        if (v && v.is_valid === false) {
+          setReassignError(v.error_message || 'Selected worker is not available at this time.');
+          setLoading(false);
+          return;
+        }
+      }
+
+      const updatePayload: Record<string, any> = {
+        status: formData.status,
+        scheduled_date: formData.scheduled_date,
+        scheduled_start: formData.scheduled_start,
+        service_id: formData.service_id,
+        location_notes: formData.location_notes,
+        guest_customer_info: updatedGuestInfo,
+      };
+      if (isReassigning) {
+        updatePayload.worker_id = newWorkerId;
+        if (formData.status === 'pending') updatePayload.status = 'confirmed';
+      }
+
+      const { error: bookingError } = await supabase
+        .from('bookings')
+        .update(updatePayload)
+        .eq('id', booking.id);
+
+      if (bookingError) throw bookingError;
+
+      if (isReassigning) {
+        // Notify new worker
+        try {
+          const newWorker = workers.find(w => w.id === newWorkerId);
+          if (newWorker?.email) {
+            await supabase.functions.invoke('unified-email-dispatcher', {
+              body: {
+                bookingId: booking.id,
+                recipientEmail: newWorker.email,
+                emailType: 'worker_assignment',
+              },
+            });
+          }
+        } catch (err) {
+          console.error('Failed to notify new worker', err);
+        }
+
+        // Notify customer
+        try {
+          const customerEmail = formData.customer_email
+            || booking.customer?.email
+            || booking.guest_customer_info?.email;
+          if (customerEmail) {
+            await supabase.functions.invoke('unified-email-dispatcher', {
+              body: {
+                bookingId: booking.id,
+                recipientEmail: customerEmail,
+                emailType: 'customer_booking_confirmation',
+              },
+            });
+          }
+        } catch (err) {
+          console.error('Failed to notify customer', err);
+        }
+
+        toast({
+          title: 'Worker reassigned',
+          description: 'Booking updated and notifications sent.',
+        });
+      } else {
+        toast({ title: 'Success', description: 'Booking updated successfully' });
+      }
+
+      void previousWorkerId;
+      onBookingUpdated();
+      onClose();
+    } catch (error: any) {
+      console.error('Error updating booking:', error);
+      toast({
+        title: 'Error',
+        description: error?.message || 'Failed to update booking. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
       // Update booking information (including guest customer info)
       const { error: bookingError } = await supabase
