@@ -222,43 +222,6 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
     }
   };
 
-      // Update booking information (including guest customer info)
-      const { error: bookingError } = await supabase
-        .from('bookings')
-        .update({
-          status: formData.status,
-          scheduled_date: formData.scheduled_date,
-          scheduled_start: formData.scheduled_start,
-          service_id: formData.service_id,
-          location_notes: formData.location_notes,
-          guest_customer_info: updatedGuestInfo
-        })
-        .eq('id', booking.id);
-
-      if (bookingError) {
-        console.error('Error updating booking:', bookingError);
-        throw bookingError;
-      }
-
-      toast({
-        title: "Success",
-        description: "Booking updated successfully",
-      });
-
-      onBookingUpdated();
-      onClose();
-    } catch (error) {
-      console.error('Error updating booking:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update booking. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
