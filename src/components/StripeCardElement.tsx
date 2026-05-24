@@ -134,14 +134,7 @@ export const StripeCardElement = forwardRef<StripeCardElementRef, StripeCardElem
               color: '#ef4444',
             },
           },
-          // Collect postal code so Stripe can run AVS — significantly reduces
-          // false declines on both US (ZIP) and international (postcode) cards.
-          // Stripe auto-localizes the field label based on the detected card
-          // brand / issuing country.
-          hidePostalCode: false,
-          // Solid-color brand icons render the detected card brand inline,
-          // confirming to the user that their card type is supported.
-          iconStyle: 'solid',
+          hidePostalCode: true,
         });
 
         // Store reference for reset functionality

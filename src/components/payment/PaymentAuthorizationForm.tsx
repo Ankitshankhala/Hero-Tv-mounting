@@ -6,43 +6,9 @@ import { Shield, Lock, CreditCard, Info } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { StripeCardElement } from '@/components/StripeCardElement';
-import { AcceptedCardsRow } from '@/components/payment/AcceptedCardsRow';
-import { PaymentTrustBar } from '@/components/payment/PaymentTrustBar';
 import { supabase } from '@/integrations/supabase/client';
 import { useTestingMode } from '@/contexts/TestingModeContext';
 import { withTimeout, PAYMENT_INTENT_TIMEOUT, CARD_CONFIRMATION_TIMEOUT } from '@/utils/paymentTimeout';
-
-// Map Stripe error codes / decline_code values to user-friendly messages.
-// See https://stripe.com/docs/declines/codes
-const mapStripeError = (
-  errorType: string | undefined,
-  errorCode: string | undefined,
-  declineCode: string | undefined,
-  fallback: string,
-): string => {
-  if (errorType === 'card_error' || errorType === 'StripeCardError') {
-    if (errorCode === 'card_declined') {
-      switch (declineCode) {
-        case 'insufficient_funds': return 'Your card has insufficient funds. Please try a different card.';
-        case 'lost_card':
-        case 'stolen_card':
-        case 'pickup_card': return 'This card cannot be used. Please try a different card.';
-        case 'do_not_honor': return 'Your bank declined the payment. Please contact your card issuer or try a different card.';
-        default: return 'Your card was declined by the issuing bank. Please try a different card or contact your bank.';
-      }
-    }
-    if (errorCode === 'insufficient_funds') return 'Your card has insufficient funds. Please try a different card.';
-    if (errorCode === 'expired_card') return 'Your card has expired. Please use a different card.';
-    if (errorCode === 'incorrect_cvc') return 'The security code is incorrect. Please check your card details.';
-    if (errorCode === 'incorrect_number' || errorCode === 'invalid_number') return 'Your card number is incorrect. Please double-check and try again.';
-    if (errorCode === 'card_not_supported') return "This type of card isn't supported. Please use a Visa, Mastercard, Amex, Discover, Diners, or JCB card.";
-    if (errorCode === 'currency_not_supported') return "Your card doesn't support USD payments. Please try a different card.";
-    if (errorCode === 'processing_error') return 'A processing error occurred. Please try again in a moment.';
-    if (errorCode === 'card_velocity_exceeded') return 'Too many payment attempts. Please wait a few minutes and try again.';
-    if (errorCode === 'authentication_required') return 'Your bank requires extra authentication for this card. Please complete the verification prompt and try again.';
-  }
-  return fallback;
-};
 
 interface PaymentAuthorizationFormProps {
   amount: number;
@@ -227,14 +193,7 @@ export const PaymentAuthorizationForm = ({
 
       if (pmError || !paymentMethod) {
         console.error('[PAYMENT-AUTH] ❌ Failed to create PaymentMethod:', pmError);
-        throw new Error(
-          mapStripeError(
-            pmError?.type,
-            pmError?.code,
-            (pmError as any)?.decline_code,
-            pmError?.message || 'Failed to create payment method',
-          ),
-        );
+        throw new Error(pmError?.message || 'Failed to create payment method');
       }
 
       console.log('[PAYMENT-AUTH] ✅ PaymentMethod created:', paymentMethod.id);
@@ -275,57 +234,9 @@ export const PaymentAuthorizationForm = ({
         error: authError || authData?.error
       });
 
-      // ===== 3D Secure / SCA branch =====
-      if (authData && authData.success === false && authData.requires_action && authData.client_secret) {
-        console.log('[PAYMENT-AUTH] 🔐 3D Secure challenge required, launching Stripe modal');
-        const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(authData.client_secret);
-
-        if (confirmError) {
-          throw new Error(
-            mapStripeError(
-              confirmError.type,
-              confirmError.code,
-              (confirmError as any).decline_code,
-              confirmError.message || 'Card authentication failed',
-            ),
-          );
-        }
-
-        if (paymentIntent && (paymentIntent.status === 'requires_capture' || paymentIntent.status === 'succeeded')) {
-          const { data: finalizeData, error: finalizeError } = await supabase.functions.invoke(
-            'unified-payment-authorization',
-            {
-              body: {
-                bookingId,
-                customerEmail,
-                customerName,
-                paymentIntentId: paymentIntent.id,
-                action: 'finalize_3ds',
-              },
-            }
-          );
-          if (finalizeError || !finalizeData?.success) {
-            throw new Error(finalizeData?.error || finalizeError?.message || 'Failed to finalize payment');
-          }
-          toast({ title: 'Payment Authorized ✓', description: `Successfully authorized $${amount.toFixed(2)}` });
-          onAuthorizationSuccess(paymentIntent.id);
-          return;
-        }
-        throw new Error(`Authentication did not complete (status: ${paymentIntent?.status || 'unknown'}).`);
-      }
-
       if (authError || !authData?.success) {
         console.error('[PAYMENT-AUTH] ❌ Authorization failed:', authError?.message || authData?.error);
-        const stripeErr = authData?.stripe_error;
-        const friendly = stripeErr
-          ? mapStripeError(
-              stripeErr.type === 'StripeCardError' ? 'card_error' : stripeErr.type,
-              stripeErr.code,
-              stripeErr.decline_code,
-              authData?.error || 'Card error',
-            )
-          : (authError?.message || authData?.error || 'Failed to authorize payment');
-        throw new Error(friendly);
+        throw new Error(authError?.message || authData?.error || 'Failed to authorize payment');
       }
 
       console.log('[PAYMENT-AUTH] ✅ Payment authorized successfully:', {
@@ -390,7 +301,6 @@ export const PaymentAuthorizationForm = ({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <AcceptedCardsRow />
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               <CreditCard className="inline h-4 w-4 mr-1" />
@@ -403,7 +313,6 @@ export const PaymentAuthorizationForm = ({
               onChange={handleStripeChange}
             />
           </div>
-          <PaymentTrustBar />
 
           <div className="space-y-2 text-sm text-gray-600">
             <p>• Your card will be authorized for ${amount.toFixed(2)}</p>

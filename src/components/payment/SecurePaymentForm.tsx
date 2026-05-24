@@ -4,8 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Shield, Lock, CreditCard, Info } from 'lucide-react';
 import { StripeCardElement } from '@/components/StripeCardElement';
-import { AcceptedCardsRow } from '@/components/payment/AcceptedCardsRow';
-import { PaymentTrustBar } from '@/components/payment/PaymentTrustBar';
 import { PaymentMethodSelector } from './PaymentMethodSelector';
 import { usePaymentProcessing } from '@/hooks/usePaymentProcessing';
 import { usePaymentMethodCollection } from '@/hooks/usePaymentMethodCollection';
@@ -182,8 +180,7 @@ export const SecurePaymentForm = ({
               <span>Card Information</span>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <AcceptedCardsRow />
+          <CardContent>
             <StripeCardElement 
               onReady={handleStripeReady}
               onError={setCardError}
@@ -193,7 +190,6 @@ export const SecurePaymentForm = ({
                 <AlertDescription>{cardError}</AlertDescription>
               </Alert>
             )}
-            <PaymentTrustBar />
           </CardContent>
         </Card>
       )}

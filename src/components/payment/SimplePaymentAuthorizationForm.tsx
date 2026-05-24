@@ -5,8 +5,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Shield, Lock, CreditCard, Info, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { StripeCardElement, StripeCardElementRef } from '@/components/StripeCardElement';
-import { AcceptedCardsRow } from '@/components/payment/AcceptedCardsRow';
-import { PaymentTrustBar } from '@/components/payment/PaymentTrustBar';
 import { supabase } from '@/integrations/supabase/client';
 import { withTimeout, PAYMENT_INTENT_TIMEOUT, CARD_CONFIRMATION_TIMEOUT } from '@/utils/paymentTimeout';
 
@@ -88,60 +86,32 @@ export const SimplePaymentAuthorizationForm = ({
     }
   };
 
-  const getErrorMessage = (errorType: string, errorCode: string, errorMessage: string, declineCode?: string): string => {
-    // Map Stripe error codes (and Stripe `decline_code`) to user-friendly messages.
-    // See https://stripe.com/docs/declines/codes
+  const getErrorMessage = (errorType: string, errorCode: string, errorMessage: string): string => {
+    // Map Stripe error codes to user-friendly messages
     if (errorType === 'card_error') {
       if (errorCode === 'card_declined') {
-        switch (declineCode) {
-          case 'insufficient_funds':
-            return 'Your card has insufficient funds. Please try a different card.';
-          case 'lost_card':
-          case 'stolen_card':
-          case 'pickup_card':
-            return 'This card cannot be used. Please try a different card.';
-          case 'do_not_honor':
-            return 'Your bank declined the payment. Please contact your card issuer or try a different card.';
-          case 'generic_decline':
-          default:
-            return 'Your card was declined by the issuing bank. Please try a different card or contact your bank.';
-        }
+        return 'Your card was declined. Please try a different card or contact your bank.';
       }
       if (errorCode === 'insufficient_funds') {
-        return 'Your card has insufficient funds. Please try a different card.';
+        return 'This card has insufficient funds. Please use a different payment method.';
       }
       if (errorCode === 'expired_card') {
-        return 'Your card has expired. Please use a different card.';
+        return 'This card has expired. Please check the expiration date or use a different card.';
       }
       if (errorCode === 'incorrect_cvc') {
         return 'The security code is incorrect. Please check your card details.';
       }
-      if (errorCode === 'incorrect_number' || errorCode === 'invalid_number') {
-        return 'Your card number is incorrect. Please double-check and try again.';
-      }
-      if (errorCode === 'card_not_supported') {
-        return "This type of card isn't supported. Please use a Visa, Mastercard, Amex, Discover, Diners, or JCB card.";
-      }
-      if (errorCode === 'currency_not_supported') {
-        return "Your card doesn't support USD payments. Please try a different card.";
-      }
-      if (errorCode === 'processing_error') {
-        return 'A processing error occurred. Please try again in a moment.';
-      }
-      if (errorCode === 'card_velocity_exceeded') {
-        return 'Too many payment attempts. Please wait a few minutes and try again.';
-      }
       if (errorCode === 'authentication_required' || errorCode === 'payment_intent_authentication_failure') {
-        return 'Your bank requires extra authentication for this card. Please complete the verification prompt and try again.';
+        return 'Card authentication failed. Please verify your card details and try again.';
       }
     }
-
+    
     if (errorType === 'validation_error') {
       if (errorCode === 'invalid_expiry_year_past') {
-        return "Your card's expiration year is in the past. Please check your card details.";
+        return 'Your card\'s expiration year is in the past. Please check your card details.';
       }
       if (errorCode === 'invalid_expiry_month_past') {
-        return "Your card's expiration month is in the past. Please check your card details.";
+        return 'Your card\'s expiration month is in the past. Please check your card details.';
       }
       if (errorCode === 'incomplete_expiry') {
         return 'Please enter a valid expiry date (MM/YY format).';
@@ -154,11 +124,11 @@ export const SimplePaymentAuthorizationForm = ({
       }
       return 'Please check your card details and try again.';
     }
-
+    
     if (errorType === 'api_error') {
       return 'Payment service temporarily unavailable. Please try again.';
     }
-
+    
     return errorMessage || 'Payment authorization failed. Please try again.';
   };
 
@@ -219,8 +189,7 @@ export const SimplePaymentAuthorizationForm = ({
         const errorMessage = getErrorMessage(
           pmError?.type || 'unknown',
           pmError?.code || '',
-          pmError?.message || 'Failed to create payment method',
-          (pmError as any)?.decline_code
+          pmError?.message || 'Failed to create payment method'
         );
         setFormError(errorMessage);
         onAuthorizationFailure(errorMessage);
@@ -247,59 +216,6 @@ export const SimplePaymentAuthorizationForm = ({
         'unified-payment-authorization'
       );
 
-      // ===== 3D Secure / SCA branch =====
-      // The engine returns success:false + requires_action:true + client_secret
-      // when the card issuer requires a 3DS challenge. We launch the modal
-      // client-side, then ask the engine to finalize the authorization.
-      if (authData && authData.success === false && authData.requires_action && authData.client_secret) {
-        console.log('🔐 3D Secure challenge required, launching Stripe modal');
-        const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(authData.client_secret);
-
-        if (confirmError) {
-          const errorMessage = getErrorMessage(
-            confirmError.type === 'card_error' ? 'card_error' : 'api_error',
-            confirmError.code || '',
-            confirmError.message || 'Card authentication failed',
-            (confirmError as any).decline_code
-          );
-          setFormError(errorMessage);
-          onAuthorizationFailure(errorMessage);
-          return;
-        }
-
-        if (paymentIntent && (paymentIntent.status === 'requires_capture' || paymentIntent.status === 'succeeded')) {
-          // Tell the engine to finalize the booking row now that 3DS passed.
-          const { data: finalizeData, error: finalizeError } = await supabase.functions.invoke(
-            'unified-payment-authorization',
-            {
-              body: {
-                bookingId,
-                customerEmail,
-                customerName,
-                paymentIntentId: paymentIntent.id,
-                action: 'finalize_3ds',
-              },
-            }
-          );
-
-          if (finalizeError || !finalizeData?.success) {
-            const errorMessage = finalizeData?.error || finalizeError?.message || 'Failed to finalize payment';
-            setFormError(errorMessage);
-            onAuthorizationFailure(errorMessage);
-            return;
-          }
-
-          console.log('✅ Payment authorized after 3DS!', paymentIntent.id);
-          onAuthorizationSuccess(paymentIntent.id);
-          return;
-        }
-
-        const errorMessage = `Authentication did not complete (status: ${paymentIntent?.status || 'unknown'}). Please try again.`;
-        setFormError(errorMessage);
-        onAuthorizationFailure(errorMessage);
-        return;
-      }
-
       if (authError || !authData?.success) {
         const errorDetails = authData?.error || authError?.message || 'Failed to authorize payment';
         console.error('Payment authorization error:', errorDetails, authData?.stripe_error);
@@ -311,8 +227,7 @@ export const SimplePaymentAuthorizationForm = ({
           ? getErrorMessage(
               stripeErr.type === 'StripeCardError' ? 'card_error' : 'api_error',
               stripeErr.code || '',
-              authData?.error || 'Card error',
-              stripeErr.decline_code
+              authData?.error || 'Card error'
             )
           : getErrorMessage('api_error', '', errorDetails);
 
@@ -417,13 +332,12 @@ export const SimplePaymentAuthorizationForm = ({
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <AcceptedCardsRow />
             <div className="space-y-2">
               <label className="text-sm font-medium">
                 Card Information
               </label>
               <p className="text-xs text-muted-foreground mb-2">
-                Enter your card number, expiry date (MM/YY), security code (CVC), and postal code.
+                Enter your card number, expiry date (MM/YY), and security code (CVC)
               </p>
               <StripeCardElement
                 ref={cardElementRef}
@@ -440,7 +354,6 @@ export const SimplePaymentAuthorizationForm = ({
                 </div>
               )}
             </div>
-            <PaymentTrustBar />
 
             <Button
               type="submit"
