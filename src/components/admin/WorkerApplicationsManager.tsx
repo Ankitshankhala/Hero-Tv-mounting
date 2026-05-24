@@ -386,9 +386,7 @@ export const WorkerApplicationsManager = () => {
                         </div>
                       </TableCell>
                       <TableCell className="align-top">
-                        <div className="text-sm break-words">
-                          {formatAvailability(application.availability)}
-                        </div>
+                        {renderAvailability(application.availability)}
                       </TableCell>
                       <TableCell className="align-top">
                         <div className="space-y-1">
