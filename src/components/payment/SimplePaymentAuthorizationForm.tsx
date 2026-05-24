@@ -5,6 +5,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Shield, Lock, CreditCard, Info, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { StripeCardElement, StripeCardElementRef } from '@/components/StripeCardElement';
+import { AcceptedCardsRow } from '@/components/payment/AcceptedCardsRow';
+import { PaymentTrustBar } from '@/components/payment/PaymentTrustBar';
 import { supabase } from '@/integrations/supabase/client';
 import { withTimeout, PAYMENT_INTENT_TIMEOUT, CARD_CONFIRMATION_TIMEOUT } from '@/utils/paymentTimeout';
 
@@ -415,12 +417,13 @@ export const SimplePaymentAuthorizationForm = ({
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            <AcceptedCardsRow />
             <div className="space-y-2">
               <label className="text-sm font-medium">
                 Card Information
               </label>
               <p className="text-xs text-muted-foreground mb-2">
-                Enter your card number, expiry date (MM/YY), and security code (CVC)
+                Enter your card number, expiry date (MM/YY), security code (CVC), and postal code.
               </p>
               <StripeCardElement
                 ref={cardElementRef}
@@ -437,6 +440,7 @@ export const SimplePaymentAuthorizationForm = ({
                 </div>
               )}
             </div>
+            <PaymentTrustBar />
 
             <Button
               type="submit"
