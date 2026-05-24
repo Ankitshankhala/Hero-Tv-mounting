@@ -294,8 +294,19 @@ export const WorkerApplicationsManager = () => {
               </p>
             </div>
           ) : (
-            <div className="rounded-md border">
-              <Table>
+            <div className="rounded-md border w-full overflow-x-auto">
+              <Table className="w-full min-w-[1100px] table-fixed">
+                <colgroup>
+                  <col className="w-[12%] min-w-[140px]" />
+                  <col className="w-[14%] min-w-[180px]" />
+                  <col className="w-[10%] min-w-[120px]" />
+                  <col className="w-[18%] min-w-[200px]" />
+                  <col className="w-[12%] min-w-[140px]" />
+                  <col className="w-[8%] min-w-[90px]" />
+                  <col className="w-[8%] min-w-[100px]" />
+                  <col className="w-[8%] min-w-[90px]" />
+                  <col className="w-[10%] min-w-[140px]" />
+                </colgroup>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Applicant</TableHead>
@@ -311,62 +322,65 @@ export const WorkerApplicationsManager = () => {
                 </TableHeader>
                 <TableBody>
                   {applications.map((application) => (
-                    <TableRow key={application.id}>
-                      <TableCell>
-                        <div>
+                    <TableRow key={application.id} className="align-top">
+                      <TableCell className="align-top">
+                        <div className="min-w-0">
                           <div className="font-medium flex items-center space-x-2">
-                            <User className="h-4 w-4 text-gray-400" />
-                            <span>{application.name}</span>
+                            <User className="h-4 w-4 text-gray-400 shrink-0" />
+                            <span className="break-words">{application.name}</span>
                           </div>
-                          <div className="text-sm text-gray-600">{application.skills}</div>
+                          <div className="text-sm text-gray-600 break-words">{application.skills}</div>
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
+                      <TableCell className="align-top">
+                        <div className="space-y-1 min-w-0">
+                          <div className="flex items-center space-x-2 text-sm min-w-0">
+                            <Mail className="h-4 w-4 text-gray-400 shrink-0" />
+                            <span className="truncate" title={application.email}>{application.email}</span>
+                          </div>
                           <div className="flex items-center space-x-2 text-sm">
-                            <Mail className="h-4 w-4 text-gray-400" />
-                            <span>{application.email}</span>
-                          </div>
-                          <div className="flex items-center space-x-2 text-sm">
-                            <Phone className="h-4 w-4 text-gray-400" />
-                            <span>{application.phone}</span>
+                            <Phone className="h-4 w-4 text-gray-400 shrink-0" />
+                            <span className="break-words">{application.phone}</span>
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <MapPin className="h-4 w-4 text-gray-400" />
-                          <div>
-                            <div className="font-medium">{application.city}</div>
-                            <div className="text-sm text-gray-600">{application.region}</div>
+                      <TableCell className="align-top">
+                        <div className="flex items-start space-x-2">
+                          <MapPin className="h-4 w-4 text-gray-400 shrink-0 mt-0.5" />
+                          <div className="min-w-0">
+                            <div className="font-medium break-words">{application.city}</div>
+                            <div className="text-sm text-gray-600 break-words">{application.region}</div>
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <div className="text-sm max-w-xs truncate" title={application.experience}>
+                      <TableCell className="align-top">
+                        <div
+                          className="text-sm whitespace-pre-wrap break-words leading-relaxed"
+                          title={application.experience}
+                        >
                           {application.experience}
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <div className="text-sm">
+                      <TableCell className="align-top">
+                        <div className="text-sm break-words">
                           {formatAvailability(application.availability)}
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="align-top">
                         <div className="space-y-1">
                           <div className="flex items-center space-x-2">
-                            <span className={`w-2 h-2 rounded-full ${application.has_vehicle ? 'bg-green-500' : 'bg-gray-300'}`}></span>
+                            <span className={`w-2 h-2 rounded-full shrink-0 ${application.has_vehicle ? 'bg-green-500' : 'bg-gray-300'}`}></span>
                             <span className="text-xs">Vehicle</span>
                           </div>
                           <div className="flex items-center space-x-2">
-                            <span className={`w-2 h-2 rounded-full ${application.has_tools ? 'bg-green-500' : 'bg-gray-300'}`}></span>
+                            <span className={`w-2 h-2 rounded-full shrink-0 ${application.has_tools ? 'bg-green-500' : 'bg-gray-300'}`}></span>
                             <span className="text-xs">Tools</span>
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell>{getStatusBadge(application.status)}</TableCell>
-                      <TableCell>
-                        <div className="text-sm text-gray-600">
+                      <TableCell className="align-top">{getStatusBadge(application.status)}</TableCell>
+                      <TableCell className="align-top">
+                        <div className="text-sm text-gray-600 whitespace-nowrap">
                           {application.created_at ? new Date(application.created_at).toLocaleDateString() : 'N/A'}
                         </div>
                       </TableCell>
