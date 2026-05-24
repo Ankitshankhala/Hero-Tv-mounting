@@ -249,9 +249,12 @@ export const WorkerApplicationsManager = () => {
     const Icon = config.icon;
     
     return (
-      <Badge variant={config.variant} className="flex items-center space-x-1">
-        <Icon className="h-3 w-3" />
-        <span>{config.label}</span>
+      <Badge
+        variant={config.variant}
+        className="inline-flex items-center justify-center gap-1 h-6 min-w-[88px] px-2.5 py-0 rounded-full text-xs font-medium leading-none whitespace-nowrap align-middle"
+      >
+        <Icon className="h-3 w-3 shrink-0" />
+        <span className="leading-none">{config.label}</span>
       </Badge>
     );
   };
