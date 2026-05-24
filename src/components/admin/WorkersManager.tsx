@@ -14,6 +14,7 @@ export const WorkersManager = () => {
   const [workers, setWorkers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddWorker, setShowAddWorker] = useState(false);
+  const [showInactive, setShowInactive] = useState(false);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
