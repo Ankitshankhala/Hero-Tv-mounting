@@ -363,15 +363,87 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
           )}
 
           {booking.worker_id && (
-            <div className="bg-green-50 p-4 rounded-lg">
-              <div className="flex items-center gap-2">
-                <div className="text-green-600 font-medium text-sm">
-                  ✓ Worker Assigned
+            <div className="bg-muted/50 p-4 rounded-lg space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h4 className="font-medium text-sm">Assigned Worker</h4>
+                  {currentWorker ? (
+                    <div className="text-sm text-muted-foreground">
+                      <div className="font-medium text-foreground">{currentWorker.name || 'Unnamed worker'}</div>
+                      <div className="truncate">{currentWorker.email}</div>
+                      {currentWorker.phone && <div>{currentWorker.phone}</div>}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground truncate">Worker ID: {booking.worker_id}</p>
+                  )}
                 </div>
-                <span className="text-sm text-muted-foreground">
-                  Worker ID: {booking.worker_id}
-                </span>
+                {!isChangingWorker && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setIsChangingWorker(true);
+                      setNewWorkerId('');
+                      setReassignError(null);
+                    }}
+                  >
+                    Reassign / Reschedule
+                  </Button>
+                )}
               </div>
+
+              {isChangingWorker && (
+                <div className="space-y-3 border-t pt-3">
+                  <div>
+                    <Label htmlFor="new_worker">New Worker</Label>
+                    <Select value={newWorkerId} onValueChange={(v) => { setNewWorkerId(v); setReassignError(null); }}>
+                      <SelectTrigger id="new_worker">
+                        <SelectValue placeholder="Select a worker..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {workers
+                          .filter(w => w.id !== booking.worker_id)
+                          .map(w => (
+                            <SelectItem key={w.id} value={w.id}>
+                              {w.name || w.email}{w.city ? ` — ${w.city}` : ''}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Availability is validated against the scheduled date and time above.
+                    </p>
+                  </div>
+                  <div>
+                    <Label htmlFor="reassign_reason">Reason (optional)</Label>
+                    <Textarea
+                      id="reassign_reason"
+                      rows={2}
+                      value={reassignReason}
+                      onChange={(e) => setReassignReason(e.target.value)}
+                      placeholder="e.g. Original worker unavailable"
+                    />
+                  </div>
+                  {reassignError && (
+                    <p className="text-sm text-destructive">{reassignError}</p>
+                  )}
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setIsChangingWorker(false);
+                        setNewWorkerId('');
+                        setReassignError(null);
+                      }}
+                    >
+                      Cancel reassignment
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
