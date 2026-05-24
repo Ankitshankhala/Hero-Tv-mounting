@@ -259,17 +259,38 @@ export const WorkerApplicationsManager = () => {
     );
   };
 
-  const formatAvailability = (availability: any) => {
-    if (!availability || typeof availability !== 'object') {
-      return 'Not specified';
-    }
-    
-    const days = Object.entries(availability as Record<string, boolean>)
-      .filter(([_, available]) => available)
-      .map(([day, _]) => day.charAt(0).toUpperCase() + day.slice(1))
-      .join(', ');
-    return days || 'Not specified';
+  const DAY_ORDER = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+  const DAY_ABBR: Record<string, string> = {
+    monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu',
+    friday: 'Fri', saturday: 'Sat', sunday: 'Sun',
   };
+
+  const getAvailableDays = (availability: any): string[] => {
+    if (!availability || typeof availability !== 'object') return [];
+    const entries = availability as Record<string, boolean>;
+    return DAY_ORDER.filter((d) => entries[d]);
+  };
+
+  const renderAvailability = (availability: any) => {
+    const days = getAvailableDays(availability);
+    if (days.length === 0) {
+      return <span className="text-xs text-gray-500">Not specified</span>;
+    }
+    return (
+      <div className="flex flex-wrap gap-1">
+        {days.map((d) => (
+          <span
+            key={d}
+            className="inline-flex items-center justify-center px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-100 text-[11px] font-medium leading-none whitespace-nowrap"
+            title={d.charAt(0).toUpperCase() + d.slice(1)}
+          >
+            {DAY_ABBR[d]}
+          </span>
+        ))}
+      </div>
+    );
+  };
+
 
   if (loading) {
     return (
