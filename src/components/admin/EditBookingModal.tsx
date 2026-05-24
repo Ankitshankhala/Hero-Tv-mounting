@@ -19,6 +19,14 @@ interface EditBookingModalProps {
 
 type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
 
+interface WorkerOption {
+  id: string;
+  name: string | null;
+  email: string;
+  phone: string | null;
+  city: string | null;
+}
+
 export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }: EditBookingModalProps) => {
   const [formData, setFormData] = useState({
     status: '' as BookingStatus,
@@ -33,6 +41,15 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const { services } = usePublicServicesData();
+
+  // Reassign worker state
+  const [workers, setWorkers] = useState<WorkerOption[]>([]);
+  const [currentWorker, setCurrentWorker] = useState<WorkerOption | null>(null);
+  const [isChangingWorker, setIsChangingWorker] = useState(false);
+  const [newWorkerId, setNewWorkerId] = useState<string>('');
+  const [reassignReason, setReassignReason] = useState('');
+  const [reassignError, setReassignError] = useState<string | null>(null);
+  const [validating, setValidating] = useState(false);
 
   // Helper function to validate booking status
   const validateBookingStatus = (status: string): BookingStatus => {
