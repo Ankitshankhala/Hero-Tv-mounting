@@ -451,8 +451,8 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Updating...' : 'Update Booking'}
+            <Button type="submit" disabled={loading || validating}>
+              {loading ? (isChangingWorker && newWorkerId ? 'Reassigning...' : 'Updating...') : (isChangingWorker && newWorkerId ? 'Save & Reassign' : 'Update Booking')}
             </Button>
           </div>
         </form>
