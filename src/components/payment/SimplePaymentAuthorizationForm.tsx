@@ -86,32 +86,60 @@ export const SimplePaymentAuthorizationForm = ({
     }
   };
 
-  const getErrorMessage = (errorType: string, errorCode: string, errorMessage: string): string => {
-    // Map Stripe error codes to user-friendly messages
+  const getErrorMessage = (errorType: string, errorCode: string, errorMessage: string, declineCode?: string): string => {
+    // Map Stripe error codes (and Stripe `decline_code`) to user-friendly messages.
+    // See https://stripe.com/docs/declines/codes
     if (errorType === 'card_error') {
       if (errorCode === 'card_declined') {
-        return 'Your card was declined. Please try a different card or contact your bank.';
+        switch (declineCode) {
+          case 'insufficient_funds':
+            return 'Your card has insufficient funds. Please try a different card.';
+          case 'lost_card':
+          case 'stolen_card':
+          case 'pickup_card':
+            return 'This card cannot be used. Please try a different card.';
+          case 'do_not_honor':
+            return 'Your bank declined the payment. Please contact your card issuer or try a different card.';
+          case 'generic_decline':
+          default:
+            return 'Your card was declined by the issuing bank. Please try a different card or contact your bank.';
+        }
       }
       if (errorCode === 'insufficient_funds') {
-        return 'This card has insufficient funds. Please use a different payment method.';
+        return 'Your card has insufficient funds. Please try a different card.';
       }
       if (errorCode === 'expired_card') {
-        return 'This card has expired. Please check the expiration date or use a different card.';
+        return 'Your card has expired. Please use a different card.';
       }
       if (errorCode === 'incorrect_cvc') {
         return 'The security code is incorrect. Please check your card details.';
       }
+      if (errorCode === 'incorrect_number' || errorCode === 'invalid_number') {
+        return 'Your card number is incorrect. Please double-check and try again.';
+      }
+      if (errorCode === 'card_not_supported') {
+        return "This type of card isn't supported. Please use a Visa, Mastercard, Amex, Discover, Diners, or JCB card.";
+      }
+      if (errorCode === 'currency_not_supported') {
+        return "Your card doesn't support USD payments. Please try a different card.";
+      }
+      if (errorCode === 'processing_error') {
+        return 'A processing error occurred. Please try again in a moment.';
+      }
+      if (errorCode === 'card_velocity_exceeded') {
+        return 'Too many payment attempts. Please wait a few minutes and try again.';
+      }
       if (errorCode === 'authentication_required' || errorCode === 'payment_intent_authentication_failure') {
-        return 'Card authentication failed. Please verify your card details and try again.';
+        return 'Your bank requires extra authentication for this card. Please complete the verification prompt and try again.';
       }
     }
-    
+
     if (errorType === 'validation_error') {
       if (errorCode === 'invalid_expiry_year_past') {
-        return 'Your card\'s expiration year is in the past. Please check your card details.';
+        return "Your card's expiration year is in the past. Please check your card details.";
       }
       if (errorCode === 'invalid_expiry_month_past') {
-        return 'Your card\'s expiration month is in the past. Please check your card details.';
+        return "Your card's expiration month is in the past. Please check your card details.";
       }
       if (errorCode === 'incomplete_expiry') {
         return 'Please enter a valid expiry date (MM/YY format).';
@@ -124,11 +152,11 @@ export const SimplePaymentAuthorizationForm = ({
       }
       return 'Please check your card details and try again.';
     }
-    
+
     if (errorType === 'api_error') {
       return 'Payment service temporarily unavailable. Please try again.';
     }
-    
+
     return errorMessage || 'Payment authorization failed. Please try again.';
   };
 
