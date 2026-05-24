@@ -217,7 +217,8 @@ export const SimplePaymentAuthorizationForm = ({
         const errorMessage = getErrorMessage(
           pmError?.type || 'unknown',
           pmError?.code || '',
-          pmError?.message || 'Failed to create payment method'
+          pmError?.message || 'Failed to create payment method',
+          (pmError as any)?.decline_code
         );
         setFormError(errorMessage);
         onAuthorizationFailure(errorMessage);
@@ -244,6 +245,59 @@ export const SimplePaymentAuthorizationForm = ({
         'unified-payment-authorization'
       );
 
+      // ===== 3D Secure / SCA branch =====
+      // The engine returns success:false + requires_action:true + client_secret
+      // when the card issuer requires a 3DS challenge. We launch the modal
+      // client-side, then ask the engine to finalize the authorization.
+      if (authData && authData.success === false && authData.requires_action && authData.client_secret) {
+        console.log('🔐 3D Secure challenge required, launching Stripe modal');
+        const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(authData.client_secret);
+
+        if (confirmError) {
+          const errorMessage = getErrorMessage(
+            confirmError.type === 'card_error' ? 'card_error' : 'api_error',
+            confirmError.code || '',
+            confirmError.message || 'Card authentication failed',
+            (confirmError as any).decline_code
+          );
+          setFormError(errorMessage);
+          onAuthorizationFailure(errorMessage);
+          return;
+        }
+
+        if (paymentIntent && (paymentIntent.status === 'requires_capture' || paymentIntent.status === 'succeeded')) {
+          // Tell the engine to finalize the booking row now that 3DS passed.
+          const { data: finalizeData, error: finalizeError } = await supabase.functions.invoke(
+            'unified-payment-authorization',
+            {
+              body: {
+                bookingId,
+                customerEmail,
+                customerName,
+                paymentIntentId: paymentIntent.id,
+                action: 'finalize_3ds',
+              },
+            }
+          );
+
+          if (finalizeError || !finalizeData?.success) {
+            const errorMessage = finalizeData?.error || finalizeError?.message || 'Failed to finalize payment';
+            setFormError(errorMessage);
+            onAuthorizationFailure(errorMessage);
+            return;
+          }
+
+          console.log('✅ Payment authorized after 3DS!', paymentIntent.id);
+          onAuthorizationSuccess(paymentIntent.id);
+          return;
+        }
+
+        const errorMessage = `Authentication did not complete (status: ${paymentIntent?.status || 'unknown'}). Please try again.`;
+        setFormError(errorMessage);
+        onAuthorizationFailure(errorMessage);
+        return;
+      }
+
       if (authError || !authData?.success) {
         const errorDetails = authData?.error || authError?.message || 'Failed to authorize payment';
         console.error('Payment authorization error:', errorDetails, authData?.stripe_error);
@@ -255,7 +309,8 @@ export const SimplePaymentAuthorizationForm = ({
           ? getErrorMessage(
               stripeErr.type === 'StripeCardError' ? 'card_error' : 'api_error',
               stripeErr.code || '',
-              authData?.error || 'Card error'
+              authData?.error || 'Card error',
+              stripeErr.decline_code
             )
           : getErrorMessage('api_error', '', errorDetails);
 
