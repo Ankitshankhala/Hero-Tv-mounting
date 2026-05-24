@@ -249,9 +249,12 @@ export const WorkerApplicationsManager = () => {
     const Icon = config.icon;
     
     return (
-      <Badge variant={config.variant} className="flex items-center space-x-1">
-        <Icon className="h-3 w-3" />
-        <span>{config.label}</span>
+      <Badge
+        variant={config.variant}
+        className="inline-flex items-center justify-center gap-1 h-6 min-w-[88px] px-2.5 py-0 rounded-full text-xs font-medium leading-none whitespace-nowrap align-middle"
+      >
+        <Icon className="h-3 w-3 shrink-0" />
+        <span className="leading-none">{config.label}</span>
       </Badge>
     );
   };
@@ -378,7 +381,7 @@ export const WorkerApplicationsManager = () => {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="align-top">{getStatusBadge(application.status)}</TableCell>
+                      <TableCell className="align-middle text-center"><div className="flex justify-center">{getStatusBadge(application.status)}</div></TableCell>
                       <TableCell className="align-top">
                         <div className="text-sm text-gray-600 whitespace-nowrap">
                           {application.created_at ? new Date(application.created_at).toLocaleDateString() : 'N/A'}
