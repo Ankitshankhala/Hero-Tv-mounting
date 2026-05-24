@@ -19,6 +19,14 @@ interface EditBookingModalProps {
 
 type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
 
+interface WorkerOption {
+  id: string;
+  name: string | null;
+  email: string;
+  phone: string | null;
+  city: string | null;
+}
+
 export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }: EditBookingModalProps) => {
   const [formData, setFormData] = useState({
     status: '' as BookingStatus,
@@ -34,6 +42,15 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
   const { toast } = useToast();
   const { services } = usePublicServicesData();
 
+  // Reassign worker state
+  const [workers, setWorkers] = useState<WorkerOption[]>([]);
+  const [currentWorker, setCurrentWorker] = useState<WorkerOption | null>(null);
+  const [isChangingWorker, setIsChangingWorker] = useState(false);
+  const [newWorkerId, setNewWorkerId] = useState<string>('');
+  const [reassignReason, setReassignReason] = useState('');
+  const [reassignError, setReassignError] = useState<string | null>(null);
+  const [validating, setValidating] = useState(false);
+
   // Helper function to validate booking status
   const validateBookingStatus = (status: string): BookingStatus => {
     const validStatuses: BookingStatus[] = ['pending', 'confirmed', 'completed', 'cancelled'];
@@ -43,8 +60,6 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
   // Initialize form data when booking changes
   useEffect(() => {
     if (booking && isOpen) {
-      console.log('Initializing form with booking:', booking);
-      
       setFormData({
         status: validateBookingStatus(booking.status || 'pending'),
         scheduled_date: booking.scheduled_date || '',
@@ -55,17 +70,46 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
         customer_email: booking.guest_customer_info?.email || booking.customer?.email || '',
         customer_phone: booking.guest_customer_info?.phone || booking.customer?.phone || ''
       });
+      setIsChangingWorker(false);
+      setNewWorkerId('');
+      setReassignReason('');
+      setReassignError(null);
     }
   }, [booking, isOpen]);
+
+  // Load active workers + current worker details when opened
+  useEffect(() => {
+    if (!isOpen || !booking) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, name, email, phone, city')
+        .eq('role', 'worker')
+        .eq('is_active', true)
+        .order('name');
+      if (cancelled) return;
+      if (error) {
+        console.error('Failed to load workers', error);
+        return;
+      }
+      setWorkers((data || []) as WorkerOption[]);
+      if (booking.worker_id) {
+        const w = (data || []).find((x: any) => x.id === booking.worker_id) as WorkerOption | undefined;
+        setCurrentWorker(w || null);
+      } else {
+        setCurrentWorker(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isOpen, booking]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setReassignError(null);
 
     try {
-      console.log('Updating booking with data:', formData);
-
-      // Update guest customer information in booking
       const updatedGuestInfo = {
         ...(booking.guest_customer_info || {}),
         name: formData.customer_name,
@@ -73,37 +117,105 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
         phone: formData.customer_phone
       };
 
-      // Update booking information (including guest customer info)
-      const { error: bookingError } = await supabase
-        .from('bookings')
-        .update({
-          status: formData.status,
-          scheduled_date: formData.scheduled_date,
-          scheduled_start: formData.scheduled_start,
-          service_id: formData.service_id,
-          location_notes: formData.location_notes,
-          guest_customer_info: updatedGuestInfo
-        })
-        .eq('id', booking.id);
+      const isReassigning = isChangingWorker && newWorkerId && newWorkerId !== booking.worker_id;
+      const previousWorkerId = booking.worker_id as string | null;
 
-      if (bookingError) {
-        console.error('Error updating booking:', bookingError);
-        throw bookingError;
+      // If reassigning, validate worker availability first against the (possibly updated) slot
+      if (isReassigning) {
+        setValidating(true);
+        const { data: validationResult, error: validationError } = await supabase.rpc(
+          'validate_worker_booking_assignment',
+          {
+            p_worker_id: newWorkerId,
+            p_booking_date: formData.scheduled_date,
+            p_booking_time: formData.scheduled_start,
+            p_duration_minutes: 60,
+          }
+        );
+        setValidating(false);
+        if (validationError) {
+          throw new Error(`Validation failed: ${validationError.message}`);
+        }
+        const v = validationResult?.[0];
+        if (v && v.is_valid === false) {
+          setReassignError(v.error_message || 'Selected worker is not available at this time.');
+          setLoading(false);
+          return;
+        }
       }
 
-      toast({
-        title: "Success",
-        description: "Booking updated successfully",
-      });
+      const updatePayload: Record<string, any> = {
+        status: formData.status,
+        scheduled_date: formData.scheduled_date,
+        scheduled_start: formData.scheduled_start,
+        service_id: formData.service_id,
+        location_notes: formData.location_notes,
+        guest_customer_info: updatedGuestInfo,
+      };
+      if (isReassigning) {
+        updatePayload.worker_id = newWorkerId;
+        if (formData.status === 'pending') updatePayload.status = 'confirmed';
+      }
 
+      const { error: bookingError } = await supabase
+        .from('bookings')
+        .update(updatePayload)
+        .eq('id', booking.id);
+
+      if (bookingError) throw bookingError;
+
+      if (isReassigning) {
+        // Notify new worker
+        try {
+          const newWorker = workers.find(w => w.id === newWorkerId);
+          if (newWorker?.email) {
+            await supabase.functions.invoke('unified-email-dispatcher', {
+              body: {
+                bookingId: booking.id,
+                recipientEmail: newWorker.email,
+                emailType: 'worker_assignment',
+              },
+            });
+          }
+        } catch (err) {
+          console.error('Failed to notify new worker', err);
+        }
+
+        // Notify customer
+        try {
+          const customerEmail = formData.customer_email
+            || booking.customer?.email
+            || booking.guest_customer_info?.email;
+          if (customerEmail) {
+            await supabase.functions.invoke('unified-email-dispatcher', {
+              body: {
+                bookingId: booking.id,
+                recipientEmail: customerEmail,
+                emailType: 'customer_booking_confirmation',
+              },
+            });
+          }
+        } catch (err) {
+          console.error('Failed to notify customer', err);
+        }
+
+        toast({
+          title: 'Worker reassigned',
+          description: 'Booking updated and notifications sent.',
+        });
+      } else {
+        toast({ title: 'Success', description: 'Booking updated successfully' });
+      }
+
+      void previousWorkerId;
       onBookingUpdated();
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating booking:', error);
       toast({
-        title: "Error",
-        description: "Failed to update booking. Please try again.",
-        variant: "destructive",
+        title: 'Error',
+        description: error?.message || 'Failed to update booking. Please try again.',
+        variant: 'destructive',
       });
     } finally {
       setLoading(false);
@@ -251,15 +363,87 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
           )}
 
           {booking.worker_id && (
-            <div className="bg-green-50 p-4 rounded-lg">
-              <div className="flex items-center gap-2">
-                <div className="text-green-600 font-medium text-sm">
-                  ✓ Worker Assigned
+            <div className="bg-muted/50 p-4 rounded-lg space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h4 className="font-medium text-sm">Assigned Worker</h4>
+                  {currentWorker ? (
+                    <div className="text-sm text-muted-foreground">
+                      <div className="font-medium text-foreground">{currentWorker.name || 'Unnamed worker'}</div>
+                      <div className="truncate">{currentWorker.email}</div>
+                      {currentWorker.phone && <div>{currentWorker.phone}</div>}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground truncate">Worker ID: {booking.worker_id}</p>
+                  )}
                 </div>
-                <span className="text-sm text-muted-foreground">
-                  Worker ID: {booking.worker_id}
-                </span>
+                {!isChangingWorker && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setIsChangingWorker(true);
+                      setNewWorkerId('');
+                      setReassignError(null);
+                    }}
+                  >
+                    Reassign / Reschedule
+                  </Button>
+                )}
               </div>
+
+              {isChangingWorker && (
+                <div className="space-y-3 border-t pt-3">
+                  <div>
+                    <Label htmlFor="new_worker">New Worker</Label>
+                    <Select value={newWorkerId} onValueChange={(v) => { setNewWorkerId(v); setReassignError(null); }}>
+                      <SelectTrigger id="new_worker">
+                        <SelectValue placeholder="Select a worker..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {workers
+                          .filter(w => w.id !== booking.worker_id)
+                          .map(w => (
+                            <SelectItem key={w.id} value={w.id}>
+                              {w.name || w.email}{w.city ? ` — ${w.city}` : ''}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Availability is validated against the scheduled date and time above.
+                    </p>
+                  </div>
+                  <div>
+                    <Label htmlFor="reassign_reason">Reason (optional)</Label>
+                    <Textarea
+                      id="reassign_reason"
+                      rows={2}
+                      value={reassignReason}
+                      onChange={(e) => setReassignReason(e.target.value)}
+                      placeholder="e.g. Original worker unavailable"
+                    />
+                  </div>
+                  {reassignError && (
+                    <p className="text-sm text-destructive">{reassignError}</p>
+                  )}
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setIsChangingWorker(false);
+                        setNewWorkerId('');
+                        setReassignError(null);
+                      }}
+                    >
+                      Cancel reassignment
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -267,8 +451,8 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Updating...' : 'Update Booking'}
+            <Button type="submit" disabled={loading || validating}>
+              {loading ? (isChangingWorker && newWorkerId ? 'Reassigning...' : 'Updating...') : (isChangingWorker && newWorkerId ? 'Save & Reassign' : 'Update Booking')}
             </Button>
           </div>
         </form>
