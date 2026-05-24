@@ -99,10 +99,13 @@ export const WorkersManager = () => {
     }
   };
 
-  const filteredWorkers = workers.filter(worker => {
+  const inactiveCount = workers.filter((w: any) => !w.is_active).length;
+
+  const filteredWorkers = workers.filter((worker: any) => {
     const matchesSearch = worker.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          worker.email.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
+    const matchesActive = showInactive ? true : worker.is_active;
+    return matchesSearch && matchesActive;
   });
 
   if (loading) {
