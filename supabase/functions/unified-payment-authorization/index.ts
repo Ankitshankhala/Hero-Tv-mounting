@@ -17,14 +17,30 @@ serve(async (req) => {
   try {
     const supabase = getSupabaseClient();
     const payload = await req.json();
-    
+
     const {
       bookingId,
       customerEmail,
       customerName,
       paymentMethodId,
+      paymentIntentId,
       tip = 0,
+      action: clientAction,
     } = payload;
+
+    // Route: finalize_3ds — used after the client completes a 3DS challenge.
+    if (clientAction === 'finalize_3ds') {
+      if (!bookingId || !paymentIntentId) {
+        throw new Error('bookingId and paymentIntentId required for finalize_3ds');
+      }
+      const { data: engineResult, error: engineError } = await supabase.functions.invoke('payment-engine', {
+        body: { action: 'finalize_3ds', bookingId, paymentIntentId, customerEmail },
+      });
+      if (engineError) throw new Error(engineError.message || 'Payment engine error');
+      return new Response(JSON.stringify(engineResult), {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     console.log('[UNIFIED-AUTH] Delegating to payment-engine authorize:', { bookingId, hasPaymentMethod: !!paymentMethodId });
 
@@ -32,7 +48,6 @@ serve(async (req) => {
       throw new Error('Missing required fields');
     }
 
-    // Delegate to payment-engine
     const { data: engineResult, error: engineError } = await supabase.functions.invoke('payment-engine', {
       body: {
         action: 'authorize',
@@ -49,24 +64,21 @@ serve(async (req) => {
       throw new Error(engineError.message || 'Payment engine error');
     }
 
-    // Forward structured Stripe card errors to the client (HTTP 200 +
-    // success:false) so the UI can map error.code to a friendly message
-    // instead of seeing a generic "non-2xx" failure.
-    if (engineResult && engineResult.success === false && engineResult.stripe_error) {
-      return new Response(
-        JSON.stringify(engineResult),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // Forward structured Stripe card errors AND 3DS challenges (success:false)
+    // to the client with HTTP 200 so the UI can act on them.
+    if (engineResult && engineResult.success === false && (engineResult.stripe_error || engineResult.requires_action)) {
+      return new Response(JSON.stringify(engineResult), {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     if (!engineResult?.success) {
       throw new Error(engineResult?.error || 'Payment authorization failed');
     }
 
-    return new Response(
-      JSON.stringify(engineResult),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify(engineResult), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
 
   } catch (error: any) {
     console.error('[UNIFIED-AUTH] Error:', error);
