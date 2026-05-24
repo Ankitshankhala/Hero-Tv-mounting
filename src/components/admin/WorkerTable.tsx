@@ -68,7 +68,7 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
   const handleRemoveWorker = async (workerId: string) => {
     try {
       setRemovingWorkerId(workerId);
-      
+
       const { error } = await supabase
         .from('users')
         .update({ is_active: false })
@@ -80,8 +80,8 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
       }
 
       toast({
-        title: "Success",
-        description: "Worker has been removed successfully",
+        title: "Worker removed",
+        description: "Toggle 'Show removed' to restore.",
       });
 
       if (onWorkerUpdate) {
