@@ -1,46 +1,40 @@
-# payment-engine: add validateMountTvAddOns to 4 unguarded handlers
+## Problem
 
-## Confirmation of your checks
-- **complete-and-capture**: verified `getServicesTotal(bookingId)` is called only once in that handler (L832). No duplicate round-trip — single insertion above it is correct.
-- **recalculate without Mount TV**: `validateMountTvAddOns` exits early when no Mount TV line items are found, so calling it unconditionally is safe.
-- **refund-difference**: skipped — already validates per-line against `services` table (L1018–1054).
+Clicking **Remove Worker** in the admin panel works at the database level (soft-sets `is_active=false`), but the worker keeps appearing in the technicians table. The list never filters by `is_active`, so admins perceive the action as broken.
 
-## Edits (all in `supabase/functions/payment-engine/index.ts`, single line inserted before each existing line)
+This is confirmed by the data: two soft-removed workers (`Joseph Dickson`, `ANKIT SHANKHALA`) already have `is_active=false` in the DB but still render in the Current Technicians tab.
 
-### 1. `recalculate` handler — insert before L346
-```ts
-await validateMountTvAddOns(bookingId);
-const servicesTotal = await getServicesTotal(bookingId);
-```
-Variable: `bookingId` (destructured L327). Guards `paymentIntents.create` (L442/470), `cancel` (L559), `refunds.create` (L633).
+## Fix
 
-### 2. `complete-and-capture` handler — insert before L832
-```ts
-await validateMountTvAddOns(bookingId);
-const servicesTotal = await getServicesTotal(bookingId);
-```
-Variable: `bookingId` (destructured L770). Guards `paymentIntents.capture` (L857).
+Make the Current Technicians tab show only active workers by default, with an opt-in toggle to reveal removed ones (so admins can still Reactivate or Permanently Delete them).
 
-### 3. `charge-difference` handler — insert before L968
-```ts
-await validateMountTvAddOns(bookingId);
-const servicesTotal = await getServicesTotal(bookingId);
-```
-Variable: `bookingId` (destructured L955). Guards `handleChargeDifference` → `paymentIntents.create` (L1257).
+### Changes
 
-### 4. `finalize-reauthorization` handler — insert before L1116
-```ts
-await validateMountTvAddOns(bookingId);
-const newPI = await stripe.paymentIntents.retrieve(new_payment_intent_id);
-```
-Variable: `bookingId` (destructured L1091). Guards acceptance of the swapped-in PI before it becomes the capture authority.
+1. **`src/components/admin/WorkersManager.tsx`**
+   - Add `showInactive` state (default `false`).
+   - Extend `filteredWorkers` to also filter by `showInactive ? true : worker.is_active`.
+   - Pass `showInactive` + setter to `WorkerFilters`.
 
-## Constraints honored
-- Only `payment-engine/index.ts` modified.
-- `validateMountTvAddOns` itself untouched.
-- No other handler logic changed; each edit is one new line.
-- All insertions reuse the existing `bookingId` local — no renames.
-- `authorize` (L199) and `capture` (L685) already guarded — not duplicated.
+2. **`src/components/admin/WorkerFilters.tsx`**
+   - Add a small toggle/switch labelled "Show removed workers" next to the search box.
+   - Show a count of inactive workers when toggled off (e.g. "2 removed hidden").
 
-## Post-deploy
-Edge function will redeploy automatically. Suggest a quick smoke test of the `recalculate` path on a booking that contains Mount TV add-ons to confirm the guard fires correctly when prices match and rejects when manipulated.
+3. **`src/components/admin/WorkerTable.tsx` — optimistic update**
+   - After `handleRemoveWorker` succeeds, immediately update local state so the row leaves the visible list without waiting for the parent refetch round-trip (parent `fetchWorkers` still runs as source of truth).
+   - Same for `handleReactivateWorker` and `handlePermanentlyDeleteWorker`.
+
+4. **Toast copy** — change "Worker has been removed successfully" to "Worker removed. Toggle 'Show removed workers' to restore." so the behavior is discoverable.
+
+### Out of scope
+
+- No RLS changes (admin update policy is working correctly).
+- No change to the actual delete semantics — soft-remove stays soft-remove; permanent delete stays permanent.
+- No pagination/server-side filtering rework.
+
+### Verification
+
+- Log in as admin → /admin → Technicians tab.
+- Default view shows only `is_active=true` workers; the 2 already-inactive workers are hidden.
+- Toggle "Show removed workers" → inactive workers appear with Inactive badge and Reactivate / Permanently Delete actions.
+- Click Remove on an active worker → row disappears immediately; toggling Show removed reveals it.
+- Click Reactivate → row leaves the inactive view and reappears in default view.
