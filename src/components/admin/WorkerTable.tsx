@@ -134,38 +134,85 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
   };
 
   const handlePermanentlyDeleteWorker = async (workerId: string) => {
-    if (!confirm("Are you sure you want to permanently delete this worker? This action cannot be undone and will remove all associated data.")) {
+    if (!workerId) {
+      toast({ title: "Error", description: "Invalid worker ID", variant: "destructive" });
       return;
     }
 
+    // Check for related bookings that would block a hard delete
+    const { count: bookingsCount, error: bookingsCountError } = await supabase
+      .from('bookings')
+      .select('id', { count: 'exact', head: true })
+      .or(`worker_id.eq.${workerId},reserved_worker_id.eq.${workerId},preferred_worker_id.eq.${workerId}`);
+
+    if (bookingsCountError) {
+      console.error('Error checking worker bookings:', bookingsCountError);
+    }
+
+    const hasHistory = (bookingsCount ?? 0) > 0;
+
+    const confirmMsg = hasHistory
+      ? `This worker has ${bookingsCount} related booking(s) and cannot be permanently removed without breaking historical records. They will be archived (deactivated) instead. Continue?`
+      : "Are you sure you want to permanently delete this worker? This action cannot be undone.";
+
+    if (!confirm(confirmMsg)) return;
+
     try {
       setDeletingWorkerId(workerId);
-      
-      const { error } = await supabase
-        .from('users')
-        .delete()
-        .eq('id', workerId);
 
-      if (error) {
-        console.error('Error permanently deleting worker:', error);
-        throw error;
+      if (hasHistory) {
+        // Safe soft-delete to preserve FK integrity (bookings, payroll, invoices)
+        const { error } = await supabase
+          .from('users')
+          .update({ is_active: false })
+          .eq('id', workerId);
+
+        if (error) throw error;
+
+        toast({
+          title: "Worker Archived",
+          description: `Worker has been deactivated. ${bookingsCount} related record(s) preserved.`,
+        });
+      } else {
+        const { error } = await supabase
+          .from('users')
+          .delete()
+          .eq('id', workerId);
+
+        if (error) {
+          // Foreign key violation → fall back to soft delete
+          if ((error as any).code === '23503') {
+            const { error: softErr } = await supabase
+              .from('users')
+              .update({ is_active: false })
+              .eq('id', workerId);
+            if (softErr) throw softErr;
+            toast({
+              title: "Worker Archived",
+              description: "Worker is referenced by existing records and was deactivated instead of deleted.",
+            });
+          } else {
+            throw error;
+          }
+        } else {
+          toast({
+            title: "Success",
+            description: "Worker has been permanently deleted",
+          });
+        }
       }
 
-      toast({
-        title: "Success",
-        description: "Worker has been permanently deleted",
-      });
-
-      if (onWorkerUpdate) {
-        onWorkerUpdate();
+      if (onWorkerUpdate) onWorkerUpdate();
+    } catch (error: any) {
+      console.error('Error deleting worker:', error, { workerId });
+      const code = error?.code;
+      let description = error?.message || "Failed to delete worker";
+      if (code === '23503') {
+        description = "Worker is referenced by bookings or other records and cannot be deleted.";
+      } else if (code === '42501' || /permission|rls/i.test(description)) {
+        description = "You don't have permission to delete this worker.";
       }
-    } catch (error) {
-      console.error('Error permanently deleting worker:', error);
-      toast({
-        title: "Error",
-        description: "Failed to permanently delete worker",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description, variant: "destructive" });
     } finally {
       setDeletingWorkerId(null);
     }
