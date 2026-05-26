@@ -1,33 +1,37 @@
-## Remove workers: Michael Davison & Connor
+## Surface exact failure reasons in the Admin panel
 
-Found the two workers in the database matching "Michel" and "Conner":
+Right now when an admin action fails (delete worker, update booking, etc.) the toast just says `"Failed to ..."` and the real Postgres / RLS / FK / trigger error is only visible in the browser console. I'll make the admin panel show the **exact** reason in the UI.
 
-| Name | Email | Booking history |
-|---|---|---|
-| michael davison | mikedbeckwith@gmail.com | 0 bookings — safe to hard delete |
-| Connor | connorhperrin@yahoo.com | 43 bookings — must soft-delete to preserve history |
+### What I'll change
 
-## Plan
+1. **Shared admin error formatter** — new `src/utils/adminErrorMessage.ts` that takes any Supabase error and returns a precise human message, using the actual `code`, `message`, `details`, and `hint`:
+   - `23503` → "Cannot delete: still referenced by N row(s) in `<table>` (FK `<constraint>`). Archive instead."
+   - `23505` → "Duplicate value for `<column>`."
+   - `42501` / RLS → "Blocked by Row Level Security: your admin role can't `<op>` this row. Policy: `<policy if available>`."
+   - `P0001` (RAISE EXCEPTION from triggers) → show the trigger's own message verbatim (e.g. `validate_booking_has_coverage: Invalid or missing ZIP code`).
+   - `PGRST301` / JWT errors → "Session expired, please sign in again."
+   - Network / 5xx → "Supabase request failed: `<status> <statusText>`."
+   - Unknown → fall back to `error.message` + `error.details` (never a generic string).
 
-Run a single safe migration that:
+2. **Wire it into admin actions** — replace the generic toasts in:
+   - `src/components/admin/WorkerTable.tsx` (`handleRemoveWorker`, `handleReactivateWorker`, `handlePermanentlyDeleteWorker`)
+   - `src/components/admin/WorkersManager.tsx` (fetch errors)
+   - `src/components/admin/worker-table/WorkerActionsDropdown.tsx` (SMS / actions)
+   - other admin mutation surfaces that today say `"Failed to …"` (WorkerApplicationsManager, AdminWorkerCoverageModal, coupon manager, services manager, invoice/booking admin actions) — covered with a single grep pass and the same helper
 
-1. **Connor (`3e2e7780-6abd-40f5-a5a2-70286b7496de`)** — has 43 historical bookings. Hard delete would break booking/payroll/invoice FK integrity, so:
-   - Set `is_active = false`
-   - Set `role = 'customer'` so he no longer appears in technician lists, assignments, or availability lookups
-   - Clear `worker_availability`, `worker_schedule`, and any worker coverage/zip rows for him
-   - Null out `reserved_worker_id` / `preferred_worker_id` on any future (non-completed) bookings so he isn't reassigned; leave `worker_id` on historical bookings intact for reporting
+3. **Persistent details, not just a toast** — toasts auto-dismiss. For destructive failures the message will also be:
+   - logged to `console.error` with the full error object (already done), and
+   - shown in an inline `<Alert variant="destructive">` under the table row / modal so the admin can read and copy it.
 
-2. **Michael Davison (`187dd38f-42e9-49aa-96e2-f87c46d4168c`)** — 0 bookings. Safe to:
-   - Clear `worker_availability`, `worker_schedule`, coverage rows
-   - Hard-delete the `users` row
-   - (Auth user row in `auth.users` is left to admin to remove via dashboard if desired — deleting via SQL requires service-role and isn't done in migrations to avoid breaking auth state)
+4. **Verify in preview** — trigger an intentional failure (e.g. try to hard-delete a worker that still has bookings) and confirm the toast now reads e.g. `FK violation: bookings.worker_id still references this user (43 rows). Archive instead of deleting.`
 
-3. **Rollback safety** — Connor's data is fully recoverable (just flip `is_active` back and `role` back to `worker`). Michael's deletion is permanent but he has no dependent records.
+### What I won't touch
 
-No changes to FK constraints, RLS, payment, or worker-assignment code.
+- No RLS / policy / trigger changes.
+- No schema or FK changes.
+- No business logic in booking / payment / payroll flows.
+- Frontend / presentation only.
 
-## Confirm
+### Out of scope (ask if you want this too)
 
-Please confirm these are the correct two people before I run the migration:
-- **michael davison** — mikedbeckwith@gmail.com
-- **Connor** — connorhperrin@yahoo.com
+- Building a project-wide "Admin error log" page that records every failed admin action to a new table. Let me know if you want that — it requires a new table + RLS + a hook.
