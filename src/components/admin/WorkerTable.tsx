@@ -10,6 +10,23 @@ import { WorkerPasswordManager } from './WorkerPasswordManager';
 import { WorkerWeeklyAvailabilityModal } from './WorkerWeeklyAvailabilityModal';
 import { AdminWorkerCoverageModal } from './AdminWorkerCoverageModal';
 import { ViewAsWorkerButton } from './ViewAsWorkerButton';
+import { formatAdminError } from '@/utils/adminErrorMessage';
+
+const showAdminError = (
+  toast: ReturnType<typeof useToast>['toast'],
+  error: unknown,
+  op: string,
+  context?: Record<string, unknown>,
+) => {
+  const info = formatAdminError(error, op);
+  console.error(`[ADMIN ERROR] ${op}`, { error, ...context, parsed: info });
+  toast({
+    title: info.title,
+    description: info.description,
+    variant: 'destructive',
+    duration: 12000,
+  });
+};
 
 interface Worker {
   id: string;
