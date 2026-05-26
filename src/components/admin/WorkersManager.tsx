@@ -9,6 +9,7 @@ import { WorkerFilters } from './WorkerFilters';
 import { WorkerTable } from './WorkerTable';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { formatAdminError } from '@/utils/adminErrorMessage';
 
 export const WorkersManager = () => {
   const [workers, setWorkers] = useState([]);
