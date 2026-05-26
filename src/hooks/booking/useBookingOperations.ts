@@ -443,6 +443,19 @@ export const useBookingOperations = () => {
         }
 
         newBooking = authBooking;
+
+        // Fire-and-forget: backfill profile ZIP/city if empty so future
+        // bookings work even without populating guest_customer_info.
+        if (user?.id) {
+          supabase
+            .from('users')
+            .update({ zip_code: cleanZipcode, city: effectiveCity })
+            .eq('id', user.id)
+            .is('zip_code', null)
+            .then(({ error }) => {
+              if (error) console.warn('Profile ZIP backfill skipped:', error.message);
+            });
+        }
         
         // Insert booking services for authenticated users using normalized services
         if (normalizedServices && normalizedServices.length > 0) {
