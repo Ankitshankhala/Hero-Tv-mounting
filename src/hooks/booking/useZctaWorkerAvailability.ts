@@ -39,7 +39,7 @@ export const useZctaWorkerAvailability = () => {
       try {
         // Try ZCTA-based availability check first
         const zctaWorkers = await findZctaAvailableWorkers(
-          zipcode, 
+          zip, 
           dateStr, 
           '09:00', // Check a standard time
           60
@@ -51,7 +51,7 @@ export const useZctaWorkerAvailability = () => {
 
         // Fallback to database check
         const { data: availableSlots, error } = await supabase.rpc('get_available_time_slots', {
-          p_zipcode: zipcode,
+          p_zipcode: zip,
           p_date: dateStr,
           p_service_duration_minutes: 60
         });
@@ -68,7 +68,14 @@ export const useZctaWorkerAvailability = () => {
   };
 
   const fetchWorkerAvailability = async (date: Date, zipcode: string, preferredWorkerId?: string) => {
-    if (!zipcode || !date) return;
+    const zip = cleanZip(zipcode);
+    if (!isValidZip(zip) || !date) {
+      setAvailableSlots([]);
+      setBlockedSlots([]);
+      setWorkerCount(0);
+      setAvailabilitySource('none');
+      return;
+    }
     
     setLoading(true);
     try {
@@ -86,7 +93,7 @@ export const useZctaWorkerAvailability = () => {
       // PHASE 1: ZCTA Validation (optional - for location data enrichment)
       // This doesn't affect booking logic but enriches UX with city/state info
       try {
-        const validation = await zctaOnlyService.validateZctaCode(zipcode);
+        const validation = await zctaOnlyService.validateZctaCode(zip);
         if (validation.is_valid) {
           console.log(`[Hybrid Availability] ✓ ZCTA validated: ${validation.city}, ${validation.state_abbr}`);
         }
@@ -97,7 +104,7 @@ export const useZctaWorkerAvailability = () => {
       // PHASE 2: Database Lookup (STRICT ZIP MATCHING - source of truth for workers)
       console.log('[Hybrid Availability] Fetching workers via database (strict ZIP match)');
       const { data: availableSlots, error } = await supabase.rpc('get_available_time_slots', {
-        p_zipcode: zipcode,
+        p_zipcode: zip,
         p_date: dateStr,
         p_service_duration_minutes: 60
       });
