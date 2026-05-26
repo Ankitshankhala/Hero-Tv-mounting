@@ -91,10 +91,7 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
         .update({ is_active: false })
         .eq('id', workerId);
 
-      if (error) {
-        console.error('Error removing worker:', error);
-        throw error;
-      }
+      if (error) throw error;
 
       toast({
         title: "Worker removed",
@@ -105,12 +102,7 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
         onWorkerUpdate();
       }
     } catch (error) {
-      console.error('Error removing worker:', error);
-      toast({
-        title: "Error",
-        description: "Failed to remove worker",
-        variant: "destructive",
-      });
+      showAdminError(toast, error, 'remove worker', { workerId });
     } finally {
       setRemovingWorkerId(null);
     }
