@@ -204,16 +204,8 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
       }
 
       if (onWorkerUpdate) onWorkerUpdate();
-    } catch (error: any) {
-      console.error('Error deleting worker:', error, { workerId });
-      const code = error?.code;
-      let description = error?.message || "Failed to delete worker";
-      if (code === '23503') {
-        description = "Worker is referenced by bookings or other records and cannot be deleted.";
-      } else if (code === '42501' || /permission|rls/i.test(description)) {
-        description = "You don't have permission to delete this worker.";
-      }
-      toast({ title: "Error", description, variant: "destructive" });
+    } catch (error) {
+      showAdminError(toast, error, 'permanently delete worker', { workerId });
     } finally {
       setDeletingWorkerId(null);
     }
