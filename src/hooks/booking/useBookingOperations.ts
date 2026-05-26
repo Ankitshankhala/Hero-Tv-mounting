@@ -349,6 +349,23 @@ export const useBookingOperations = () => {
       const reservedWorker = availableWorkers[0]; // Best match (first in list from RPC)
       const reservationExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes from now
 
+      // Build customer info payload — populated for BOTH guest and authenticated users.
+      // The DB trigger `validate_booking_has_coverage` reads ZIP from either
+      // `users.zip_code` (auth) OR `guest_customer_info->>'zipcode'`. Auth users
+      // may have NULL profile zip, so we always include this fallback.
+      const customerInfo = {
+        email: formData.customerEmail,
+        name: formData.customerName,
+        phone: formData.customerPhone,
+        address: formData.address,
+        unit: formData.houseNumber,
+        apartment_name: formData.apartmentName,
+        city: effectiveCity,
+        zipcode: cleanZipcode,
+        tip_amount: formData.tipAmount || 0,
+        preferred_worker_id: (formData as any).preferredWorkerId || null,
+      };
+
       // Create booking with payment_pending status + worker reservation
       const bookingData = {
         customer_id: customerId,
@@ -367,18 +384,9 @@ export const useBookingOperations = () => {
         coupon_discount: couponData?.discountAmount || null,
         coupon_id: couponData?.couponId || null,
         subtotal_before_discount: couponData ? subtotalBeforeDiscount : null,
-        guest_customer_info: !user ? {
-          email: formData.customerEmail,
-          name: formData.customerName,
-          phone: formData.customerPhone,
-          address: formData.address,
-          unit: formData.houseNumber,
-          apartment_name: formData.apartmentName,
-          city: effectiveCity,
-          zipcode: cleanZipcode,
-          tip_amount: formData.tipAmount || 0,
-          preferred_worker_id: (formData as any).preferredWorkerId || null,
-        } : null
+        // Always populate guest_customer_info so the coverage trigger has a ZIP
+        // even when an authenticated user's profile zip_code is NULL.
+        guest_customer_info: customerInfo,
       };
 
       console.log('Creating booking with status:', bookingData.status, 'payment_status:', bookingData.payment_status);
