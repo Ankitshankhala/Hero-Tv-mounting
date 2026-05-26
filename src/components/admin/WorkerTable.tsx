@@ -117,10 +117,7 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
         .update({ is_active: true })
         .eq('id', workerId);
 
-      if (error) {
-        console.error('Error reactivating worker:', error);
-        throw error;
-      }
+      if (error) throw error;
 
       toast({
         title: "Success",
@@ -131,12 +128,7 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
         onWorkerUpdate();
       }
     } catch (error) {
-      console.error('Error reactivating worker:', error);
-      toast({
-        title: "Error",
-        description: "Failed to reactivate worker",
-        variant: "destructive",
-      });
+      showAdminError(toast, error, 'reactivate worker', { workerId });
     } finally {
       setReactivatingWorkerId(null);
     }
