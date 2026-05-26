@@ -8,6 +8,7 @@ import { ServiceItem, FormData } from './types';
 
 import { useTestingMode, getEffectiveMinimumAmount, getEffectiveServicePrice } from '@/contexts/TestingModeContext';
 import { validateUSZipcode } from '@/utils/zipcodeValidation';
+import { assertValidZip, cleanZip, isValidZip } from '@/utils/zip';
 import { optimizedLog, optimizedError, measurePerformance } from '@/utils/performanceOptimizer';
 
 // Service normalization function to ensure valid service data
@@ -187,16 +188,20 @@ export const useBookingOperations = () => {
         throw new Error('Customer name is required (minimum 2 characters)');
       }
 
-      // Validate location information
-      if (!formData.zipcode || formData.zipcode.length < 5) {
-        throw new Error('Valid zipcode is required for service location');
-      }
+      // Validate & normalize ZIP code — single source of truth for the rest of this flow
+      const cleanZipcode = assertValidZip(formData.zipcode, 'booking');
+      console.debug('[ZIP DEBUG]', {
+        original: formData.zipcode,
+        cleaned: cleanZipcode,
+        length: cleanZipcode.length,
+        type: typeof cleanZipcode,
+      });
 
       // CRITICAL: BLOCKING coverage check - prevent bookings without workers
       console.debug('🔍 Checking ZIP coverage (BLOCKING - will fail if no coverage)...');
       const { data: coverageData, error: coverageError } = await supabase.rpc(
         'zip_has_active_coverage',
-        { p_zipcode: formData.zipcode }
+        { p_zipcode: cleanZipcode }
       );
 
       if (coverageError) {
@@ -205,18 +210,18 @@ export const useBookingOperations = () => {
       }
 
       if (!coverageData) {
-        console.warn('No coverage found for ZIP:', formData.zipcode);
-        throw new Error(`Sorry, we don't currently service ZIP code ${formData.zipcode}. Please contact us to request coverage in your area.`);
+        console.warn('No coverage found for ZIP:', cleanZipcode);
+        throw new Error(`Sorry, we don't currently service ZIP code ${cleanZipcode}. Please contact us to request coverage in your area.`);
       }
 
-      console.debug('✅ Coverage confirmed for ZIP:', formData.zipcode);
+      console.debug('✅ Coverage confirmed for ZIP:', cleanZipcode);
 
       // PHASE 1: CRITICAL BLOCKING CHECK - Verify actual worker availability
       console.debug('🔍 Checking worker availability for selected time slot (BLOCKING)...');
       const { data: availableWorkers, error: availError } = await supabase.rpc(
         'find_available_workers_by_zip',
         {
-          p_zipcode: formData.zipcode,
+          p_zipcode: cleanZipcode,
           p_date: format(formData.selectedDate!, 'yyyy-MM-dd'),
           p_time: formData.selectedTime,
           p_duration_minutes: 60
@@ -230,12 +235,12 @@ export const useBookingOperations = () => {
 
       if (!availableWorkers || availableWorkers.length === 0) {
         console.warn('⚠️ No workers available:', {
-          zipcode: formData.zipcode,
+          zipcode: cleanZipcode,
           date: format(formData.selectedDate!, 'yyyy-MM-dd'),
           time: formData.selectedTime
         });
         throw new Error(
-          `Sorry, no workers are available in ZIP ${formData.zipcode} ` +
+          `Sorry, no workers are available in ZIP ${cleanZipcode} ` +
           `on ${format(formData.selectedDate!, 'EEEE, MMM d, yyyy')} at ${formData.selectedTime}. ` +
           `Please select a different date or time slot.`
         );
@@ -266,7 +271,7 @@ export const useBookingOperations = () => {
       if (!effectiveCity || effectiveCity.trim().length < 2) {
         console.debug('City missing, attempting to derive from ZIP...');
         try {
-          const zipData = await validateUSZipcode(formData.zipcode);
+          const zipData = await validateUSZipcode(cleanZipcode);
           if (zipData?.city) {
             effectiveCity = zipData.city;
             console.debug('Derived city from ZIP:', effectiveCity);
@@ -350,7 +355,7 @@ export const useBookingOperations = () => {
         service_id: primaryServiceId,
         scheduled_date: format(formData.selectedDate!, 'yyyy-MM-dd'),
         scheduled_start: formData.selectedTime,
-        location_notes: `${formData.address}${formData.houseNumber ? `\nUnit: ${formData.houseNumber}` : ''}${formData.apartmentName ? `\nApartment: ${formData.apartmentName}` : ''}\nContact: ${formData.customerName}\nPhone: ${formData.customerPhone}\nEmail: ${formData.customerEmail}\nZIP: ${formData.zipcode}${formData.tipAmount > 0 ? `\nTip: $${formData.tipAmount.toFixed(2)}` : ''}\nSpecial Instructions: ${formData.specialInstructions}`,
+        location_notes: `${formData.address}${formData.houseNumber ? `\nUnit: ${formData.houseNumber}` : ''}${formData.apartmentName ? `\nApartment: ${formData.apartmentName}` : ''}\nContact: ${formData.customerName}\nPhone: ${formData.customerPhone}\nEmail: ${formData.customerEmail}\nZIP: ${cleanZipcode}${formData.tipAmount > 0 ? `\nTip: $${formData.tipAmount.toFixed(2)}` : ''}\nSpecial Instructions: ${formData.specialInstructions}`,
         status: 'payment_pending' as const,
         payment_status: 'pending',
         requires_manual_payment: false,
@@ -370,7 +375,7 @@ export const useBookingOperations = () => {
           unit: formData.houseNumber,
           apartment_name: formData.apartmentName,
           city: effectiveCity,
-          zipcode: formData.zipcode,
+          zipcode: cleanZipcode,
           tip_amount: formData.tipAmount || 0,
           preferred_worker_id: (formData as any).preferredWorkerId || null,
         } : null
@@ -590,7 +595,8 @@ export const useBookingOperations = () => {
 
       // Step 3: Show user feedback
       const guestInfo = updatedBooking.guest_customer_info as any;
-      const hasZipcode = updatedBooking.customer?.zip_code || guestInfo?.zipcode;
+      const rawZip = updatedBooking.customer?.zip_code || guestInfo?.zipcode;
+      const hasZipcode = isValidZip(rawZip) ? cleanZip(rawZip) : null;
       
       if (hasZipcode) {
         try {
@@ -700,8 +706,18 @@ export const useBookingOperations = () => {
     try {
       optimizedLog('Creating unauthenticated booking with data:', bookingData);
 
-      // Validate zipcode first
-      const zipcodeValidation = await validateUSZipcode(bookingData.customer_zipcode);
+      // Validate & normalize zipcode first
+      if (!isValidZip(bookingData.customer_zipcode)) {
+        return {
+          booking_id: '',
+          assigned_workers: [],
+          status: 'error',
+          message: `Invalid zipcode. Please enter a valid 5-digit US zipcode (received: "${bookingData.customer_zipcode ?? ''}").`
+        };
+      }
+      const cleanCustomerZip = cleanZip(bookingData.customer_zipcode);
+      bookingData = { ...bookingData, customer_zipcode: cleanCustomerZip };
+      const zipcodeValidation = await validateUSZipcode(cleanCustomerZip);
       if (!zipcodeValidation) {
         return {
           booking_id: '',
