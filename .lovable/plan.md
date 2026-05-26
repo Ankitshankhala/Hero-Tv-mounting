@@ -1,37 +1,31 @@
-## Surface exact failure reasons in the Admin panel
+# Verify Guest Checkout End-to-End
 
-Right now when an admin action fails (delete worker, update booking, etc.) the toast just says `"Failed to ..."` and the real Postgres / RLS / FK / trigger error is only visible in the browser console. I'll make the admin panel show the **exact** reason in the UI.
+Drive the live preview as a guest and confirm every stage of the booking + payment flow works, then report findings.
 
-### What I'll change
+## Steps
 
-1. **Shared admin error formatter** — new `src/utils/adminErrorMessage.ts` that takes any Supabase error and returns a precise human message, using the actual `code`, `message`, `details`, and `hint`:
-   - `23503` → "Cannot delete: still referenced by N row(s) in `<table>` (FK `<constraint>`). Archive instead."
-   - `23505` → "Duplicate value for `<column>`."
-   - `42501` / RLS → "Blocked by Row Level Security: your admin role can't `<op>` this row. Policy: `<policy if available>`."
-   - `P0001` (RAISE EXCEPTION from triggers) → show the trigger's own message verbatim (e.g. `validate_booking_has_coverage: Invalid or missing ZIP code`).
-   - `PGRST301` / JWT errors → "Session expired, please sign in again."
-   - Network / 5xx → "Supabase request failed: `<status> <statusText>`."
-   - Unknown → fall back to `error.message` + `error.details` (never a generic string).
+1. **Enable testing mode** (so all services are $1 and we don't authorize a real customer amount). Confirmed admin-only via existing memory rule.
+2. **Open preview as guest** (signed out, fresh session) at `/`.
+3. **Walk the booking flow:**
+   - Add a TV mounting service to cart
+   - Enter a known-good ZIP (one present in `service_zipcodes`, e.g. one used by booking `e8dc1296`)
+   - Pick a date/time slot
+   - Enter guest contact info (name, email, phone with SMS consent checkbox)
+   - Reach the payment step
+4. **Authorize with Stripe test card** `4242 4242 4242 4242`.
+5. **Capture signals at each step:**
+   - Console errors
+   - Network: `POST /unified-payment-authorization` status + latency
+   - Final booking row in DB: `payment_status`, `payment_intent_id`, `guest_customer_info`, `status`
+   - `confirm-payment` invocation + invoice generation
+   - Email dispatch logs (customer + worker)
+6. **Report:** pass/fail per stage, with any console/network/DB anomaly highlighted. If anything fails, isolate to one of: ZIP gate, session/cart state, Stripe Elements mount, `createPaymentMethod`, edge function, or post-auth side effects.
 
-2. **Wire it into admin actions** — replace the generic toasts in:
-   - `src/components/admin/WorkerTable.tsx` (`handleRemoveWorker`, `handleReactivateWorker`, `handlePermanentlyDeleteWorker`)
-   - `src/components/admin/WorkersManager.tsx` (fetch errors)
-   - `src/components/admin/worker-table/WorkerActionsDropdown.tsx` (SMS / actions)
-   - other admin mutation surfaces that today say `"Failed to …"` (WorkerApplicationsManager, AdminWorkerCoverageModal, coupon manager, services manager, invoice/booking admin actions) — covered with a single grep pass and the same helper
+## What this does NOT change
+- No code edits
+- No DB migrations
+- No secret changes
+- Testing mode flag is toggled back off at the end
 
-3. **Persistent details, not just a toast** — toasts auto-dismiss. For destructive failures the message will also be:
-   - logged to `console.error` with the full error object (already done), and
-   - shown in an inline `<Alert variant="destructive">` under the table row / modal so the admin can read and copy it.
-
-4. **Verify in preview** — trigger an intentional failure (e.g. try to hard-delete a worker that still has bookings) and confirm the toast now reads e.g. `FK violation: bookings.worker_id still references this user (43 rows). Archive instead of deleting.`
-
-### What I won't touch
-
-- No RLS / policy / trigger changes.
-- No schema or FK changes.
-- No business logic in booking / payment / payroll flows.
-- Frontend / presentation only.
-
-### Out of scope (ask if you want this too)
-
-- Building a project-wide "Admin error log" page that records every failed admin action to a new table. Let me know if you want that — it requires a new table + RLS + a hook.
+## Expected outcome
+Either a clean green run (matching `e8dc1296`) confirming guest checkout is healthy, or a precise failure signature that points to the exact file/function to fix in a follow-up build.
