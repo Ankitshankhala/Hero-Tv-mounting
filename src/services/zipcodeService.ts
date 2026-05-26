@@ -1,5 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import { findLocalZip } from "@/utils/localZipIndex";
+import { cleanZip, isValidZip } from "@/utils/zip";
 
 interface ZipcodeData {
   city: string;
@@ -9,15 +11,27 @@ interface ZipcodeData {
 
 export const lookupZipcode = async (zipcode: string): Promise<ZipcodeData | null> => {
   try {
-    // Clean zipcode
-    const cleanZipcode = zipcode.replace(/[^\d]/g, '').substring(0, 5);
-    
-    // Basic format validation
-    if (!/^\d{5}$/.test(cleanZipcode)) {
+    const cleanZipcode = cleanZip(zipcode);
+    if (!isValidZip(cleanZipcode)) {
       return null;
     }
-    
-    // Try standard US ZIP codes table
+
+    // 1) Local in-memory ZIP index (instant, no network, authoritative for
+    // common ZIPs — avoids Zippopotam 404 noise for known ZIPs like 78701/10001/90210).
+    try {
+      const local = await findLocalZip(cleanZipcode);
+      if (local) {
+        return {
+          city: local.city,
+          state: local.state,
+          stateAbbr: local.stateAbbr,
+        };
+      }
+    } catch (e) {
+      console.warn('Local ZIP index lookup failed:', e);
+    }
+
+    // 2) us_zip_codes DB table
     const { data: dbData, error: dbError } = await supabase
       .from('us_zip_codes')
       .select('city, state, state_abbr')
@@ -25,95 +39,61 @@ export const lookupZipcode = async (zipcode: string): Promise<ZipcodeData | null
       .single();
 
     if (!dbError && dbData) {
-      console.log('Successfully retrieved zipcode data from database:', dbData);
       return {
         city: dbData.city,
         state: dbData.state,
-        stateAbbr: dbData.state_abbr
+        stateAbbr: dbData.state_abbr,
       };
     }
 
-    console.log('Database lookup failed, trying zippopotam.us with longer timeout');
-    
-    // Try zippopotam.us with timeout
+    // 3) Zippopotam (ZIP-keyed endpoint, accurate)
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 4000);
-      
       const response = await fetch(`https://api.zippopotam.us/us/${cleanZipcode}`, {
-        signal: controller.signal
+        signal: controller.signal,
       });
-      
       clearTimeout(timeoutId);
-      
+
       if (response.ok) {
         const fallbackData = await response.json();
         if (fallbackData.places && fallbackData.places.length > 0) {
           const place = fallbackData.places[0];
-          console.log('Successfully retrieved zipcode data from zippopotam.us:', place);
           return {
             city: place['place name'],
             state: place['state'],
-            stateAbbr: place['state abbreviation']
+            stateAbbr: place['state abbreviation'],
           };
         }
       }
     } catch (fallbackError) {
-      console.error('Zippopotam.us fallback error:', fallbackError);
+      console.warn('Zippopotam.us lookup failed:', fallbackError);
     }
 
-    // Try OpenDataSoft as final fallback
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2500);
-      
-      const response = await fetch(
-        `https://public.opendatasoft.com/api/records/1.0/search/?dataset=us-zip-code-latitude-and-longitude&q=${cleanZipcode}&rows=1`,
-        { signal: controller.signal }
-      );
-      
-      clearTimeout(timeoutId);
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.records && data.records.length > 0) {
-          const record = data.records[0].fields;
-          console.log('Successfully retrieved zipcode data from OpenDataSoft:', record);
-          return {
-            city: record.city,
-            state: record.state,
-            stateAbbr: record.state
-          };
-        }
-      }
-    } catch (openDataError) {
-      console.error('OpenDataSoft fallback error:', openDataError);
-    }
-    
-    // Final fallback for valid ZIP codes not found anywhere
+    // NOTE: OpenDataSoft fallback removed — it used q=<zip> (full-text
+    // search), which returned wrong city/state pairs (e.g. "Austin, SC"
+    // for ZIP 78701).
+
+    // Neutral final fallback
     return {
       city: 'Service Area',
       state: 'US',
-      stateAbbr: 'US'
+      stateAbbr: 'US',
     };
-    
   } catch (error) {
     console.error('Error looking up zipcode:', error);
-    
-    // Final fallback
     return {
       city: 'Service Area',
       state: 'US',
-      stateAbbr: 'US'
+      stateAbbr: 'US',
     };
   }
 };
 
 // Map city/state combinations to our regions
 export const mapToRegion = (city: string, state: string): string => {
-  // This is a simple mapping - you can expand this based on your service area
   const cityLower = city.toLowerCase();
-  
+
   if (cityLower.includes('downtown') || cityLower.includes('center')) {
     return 'downtown';
   } else if (cityLower.includes('north')) {
@@ -125,8 +105,7 @@ export const mapToRegion = (city: string, state: string): string => {
   } else if (cityLower.includes('south')) {
     return 'south-side';
   }
-  
-  // Default to downtown if no pattern matches
+
   return 'downtown';
 };
 
@@ -148,34 +127,31 @@ const pendingRequests = new Map<string, Promise<ServiceAreaAssignment | null>>()
 
 // Function to get service area assignment for a ZIP code
 export const getZipServiceAreaAssignment = async (zipcode: string): Promise<ServiceAreaAssignment | null> => {
-  const cleanZip = zipcode.replace(/\D/g, '').slice(0, 5);
-  
-  if (cleanZip.length !== 5) {
+  const cleanZipcode = cleanZip(zipcode);
+
+  if (!isValidZip(cleanZipcode)) {
     return null;
   }
 
-  // Check cache first with TTL
-  const cached = serviceAreaCache.get(cleanZip);
+  const cached = serviceAreaCache.get(cleanZipcode);
   if (cached && cached.expires > Date.now()) {
     return cached.data;
   }
 
-  // Check if request is already in flight
-  if (pendingRequests.has(cleanZip)) {
-    return pendingRequests.get(cleanZip)!;
+  if (pendingRequests.has(cleanZipcode)) {
+    return pendingRequests.get(cleanZipcode)!;
   }
 
-  // Create new request
   const request = (async (): Promise<ServiceAreaAssignment | null> => {
     try {
       const { data, error } = await supabase.rpc('get_zip_service_assignment', {
-        p_zip: cleanZip
+        p_zip: cleanZipcode
       });
 
       if (error) {
         console.error('Error fetching service area assignment:', error);
         const result = null;
-        serviceAreaCache.set(cleanZip, { data: result, expires: Date.now() + CACHE_TTL });
+        serviceAreaCache.set(cleanZipcode, { data: result, expires: Date.now() + CACHE_TTL });
         return result;
       }
 
@@ -187,26 +163,24 @@ export const getZipServiceAreaAssignment = async (zipcode: string): Promise<Serv
           workerName: data[0].worker_name,
           isActive: data[0].is_active
         };
-        serviceAreaCache.set(cleanZip, { data: assignment, expires: Date.now() + CACHE_TTL });
+        serviceAreaCache.set(cleanZipcode, { data: assignment, expires: Date.now() + CACHE_TTL });
         return assignment;
       }
 
       const result = null;
-      serviceAreaCache.set(cleanZip, { data: result, expires: Date.now() + CACHE_TTL });
+      serviceAreaCache.set(cleanZipcode, { data: result, expires: Date.now() + CACHE_TTL });
       return result;
     } catch (error) {
       console.error('Error fetching service area assignment:', error);
       const result = null;
-      serviceAreaCache.set(cleanZip, { data: result, expires: Date.now() + CACHE_TTL });
+      serviceAreaCache.set(cleanZipcode, { data: result, expires: Date.now() + CACHE_TTL });
       return result;
     } finally {
-      // Remove from pending requests
-      pendingRequests.delete(cleanZip);
+      pendingRequests.delete(cleanZipcode);
     }
   })();
 
-  // Store pending request
-  pendingRequests.set(cleanZip, request);
-  
+  pendingRequests.set(cleanZipcode, request);
+
   return request;
 };

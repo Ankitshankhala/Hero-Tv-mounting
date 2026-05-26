@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { zctaOnlyService } from '@/services/zctaOnlyService';
 import { getServiceCoverageInfo } from './zipcodeValidation';
+import { cleanZip, isValidZip } from './zip';
 
 export interface ZctaServiceCoverageData {
   hasServiceCoverage: boolean;
@@ -23,11 +24,9 @@ const zctaServiceCoverageCache = new Map<string, ZctaServiceCoverageData>();
  */
 export const getZctaServiceCoverage = async (customerZipcode: string): Promise<ZctaServiceCoverageData> => {
   try {
-    // Clean zipcode
-    const cleanZipcode = customerZipcode.replace(/[^\d]/g, '').substring(0, 5);
-    
-    // Validate zipcode format
-    if (!cleanZipcode || cleanZipcode.length !== 5) {
+    // Clean & validate zipcode
+    const cleanZipcode = cleanZip(customerZipcode);
+    if (!isValidZip(cleanZipcode)) {
       return {
         hasServiceCoverage: false,
         workerCount: 0,
@@ -129,7 +128,7 @@ export const getZctaServiceCoverage = async (customerZipcode: string): Promise<Z
         coverageSource: dbCoverage.hasServiceCoverage ? 'database' : 'none'
       };
       
-      zctaServiceCoverageCache.set(customerZipcode.replace(/[^\d]/g, '').substring(0, 5), fallbackResult);
+      zctaServiceCoverageCache.set(cleanZip(customerZipcode), fallbackResult);
       return fallbackResult;
     } catch (fallbackError) {
       console.error('Database fallback also failed:', fallbackError);
@@ -155,10 +154,10 @@ export const findZctaAvailableWorkers = async (
   const maxRetries = 2;
   
   try {
-    // Clean and validate zipcode
-    const cleanZipcode = zipcode.replace(/[^\d]/g, '').substring(0, 5);
-    if (!cleanZipcode || cleanZipcode.length !== 5) {
-      throw new Error('Invalid ZIP code format');
+    // Clean & validate zipcode
+    const cleanZipcode = cleanZip(zipcode);
+    if (!isValidZip(cleanZipcode)) {
+      throw new Error(`Invalid ZIP code format: "${zipcode ?? ''}"`);
     }
 
     // ✅ NEW: Skip ZCTA worker lookup, go directly to database for strict ZIP matching
@@ -211,6 +210,6 @@ export const clearZctaServiceCoverageCache = () => {
 };
 
 export const clearZctaServiceCoverageFromCache = (zipcode: string) => {
-  const cleanZipcode = zipcode.replace(/[^\d]/g, '').substring(0, 5);
+  const cleanZipcode = cleanZip(zipcode);
   zctaServiceCoverageCache.delete(cleanZipcode);
 };

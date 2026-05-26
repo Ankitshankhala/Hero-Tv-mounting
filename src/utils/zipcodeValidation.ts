@@ -98,38 +98,9 @@ const fetchZipcodeFromZippopotam = async (zipcode: string): Promise<ZipcodeData 
   }
 };
 
-// OpenDataSoft API fallback
-const fetchZipcodeFromOpenData = async (zipcode: string): Promise<ZipcodeData | null> => {
-  try {
-    const response = await fetchWithTimeout(
-      `https://public.opendatasoft.com/api/records/1.0/search/?dataset=us-zip-code-latitude-and-longitude&q=${zipcode}&rows=1`,
-      2500
-    );
-    
-    if (!response.ok) {
-      return null;
-    }
-    
-    const data = await response.json();
-    if (data.records && data.records.length > 0) {
-      const record = data.records[0].fields;
-        return {
-          zipcode: zipcode,
-          city: record.city,
-          state: record.state,
-          stateAbbr: record.state,
-          lat: record.latitude,
-          lng: record.longitude,
-          latitude: record.latitude,
-          longitude: record.longitude
-        };
-    }
-    return null;
-  } catch (error) {
-    console.warn('OpenDataSoft API failed:', error);
-    return null;
-  }
-};
+// NOTE: OpenDataSoft fallback removed — its q=<zip> endpoint is a fuzzy
+// full-text search, not a ZIP-keyed lookup, and was returning wrong
+// city/state pairs (e.g. "Austin, SC" for ZIP 78701).
 
 interface ServiceCoverageData {
   hasServiceCoverage: boolean;
@@ -141,9 +112,9 @@ const zipcodeCache = new Map<string, ZipcodeData | null>();
 const serviceCoverageCache = new Map<string, ServiceCoverageData>();
 
 export const validateUSZipcode = async (zipcode: string): Promise<ZipcodeData | null> => {
-  // Clean zipcode (remove spaces and hyphens, keep only digits)
-  const cleanZipcode = zipcode.replace(/[^\d]/g, '');
-  
+  // Clean zipcode (remove non-digits)
+  const cleanZipcode = String(zipcode ?? '').replace(/[^\d]/g, '');
+
   // Basic format validation - support both 5-digit and 9-digit (ZIP+4) format
   if (!/^\d{5}(\d{4})?$/.test(cleanZipcode)) {
     return null;
@@ -169,12 +140,13 @@ export const validateUSZipcode = async (zipcode: string): Promise<ZipcodeData | 
   }
 
   try {
-    // Use multiple data sources in parallel for better reliability (database preferred)
+    // Use database + Zippopotam in parallel (database preferred).
+    // OpenDataSoft was removed because its q=<zip> is a fuzzy full-text
+    // search, not a ZIP filter, which produced wrong city/state pairs
+    // (e.g. "Austin, SC" for ZIP 78701).
     const dbPromise = fetchZipcodeFromDatabase(baseZipcode);
     const zippopotamPromise = fetchZipcodeFromZippopotam(baseZipcode);
-    // Removed OpenDataSoft as it was returning 404s
 
-    // Use raceWithFallback to get the first successful result, preferring database
     const result = await raceWithFallback([
       dbPromise,
       zippopotamPromise
@@ -184,11 +156,10 @@ export const validateUSZipcode = async (zipcode: string): Promise<ZipcodeData | 
       zipcodeCache.set(baseZipcode, result);
       return result;
     }
-    
-    // If no data found anywhere, return null
+
     zipcodeCache.set(baseZipcode, null);
     return null;
-    
+
   } catch (error) {
     console.error('Zipcode validation error:', error);
     zipcodeCache.set(baseZipcode, null);

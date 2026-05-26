@@ -1,90 +1,76 @@
-# Stripe Card Acceptance — Fix Plan
+# ZIP Code Validation & Booking Flow Hardening
 
-## Root cause (most important)
+## Goal
+Eliminate "Invalid or missing ZIP code", "Invalid ZIP code format", Zippopotam 404s, and the wrong "Austin, SC" mapping by (a) normalizing ZIP codes through a single helper, (b) validating strictly before any RPC/insert, and (c) fixing the buggy external-API fallbacks that return wrong cities/states.
 
-After auditing the code, the gateway integration itself is **correctly built**:
+Important: I searched the codebase exhaustively — there is **no** `slice(0,4)` / `substring(0,4)` / `maxLength={4}` / `parseInt(zip)` truncation bug. Every input and service already caps at 5. The true root causes are listed below.
 
-- `StripeCardElement` uses Stripe's official `card` Element, which automatically accepts every card brand enabled on your Stripe account (Visa, Mastercard, Amex, Discover, Diners, JCB, UnionPay, international debit/credit).
-- PaymentIntents are created with the customer's attached payment method via `payment-engine` / `unified-payment-authorization` and use `capture_method: 'manual'` (auth-only, captured later). No `payment_method_types` restriction is hardcoded, so Stripe falls back to its account-level defaults.
-- The publishable key in `.env` is a `pk_live_…` key and the mode toggle (`VITE_STRIPE_MODE` / `STRIPE_MODE`) is wired correctly.
+## Root Causes Identified
 
-**This means card rejections you're seeing are almost certainly Stripe Dashboard configuration**, not a bug in this codebase. The Dashboard items below are not something I can change from code — you'll need to confirm them in your Stripe account. Then I'll ship a set of code-side improvements that reduce the *remaining* rejections (better AVS, clearer errors, visible card-brand support, 3DS handling).
+1. **`src/hooks/booking/useBookingOperations.ts`** — uses `formData.zipcode` raw. The only guard is `length < 5`, which allows `"78701 "`, `"78701-1234"`, `" 7870"`, mixed characters, etc. RPCs (`zip_has_active_coverage`, `find_available_workers_by_zip`) and the booking insert all receive whatever the form had.
+2. **`src/services/zipcodeService.ts` — OpenDataSoft fallback** queries `?q=${zip}` (fuzzy full-text search, not a ZIP filter) and assigns `record.state` to BOTH `state` and `stateAbbr`. That's why `78701` can return **Austin, SC** when the fuzzy search matches an unrelated record.
+3. No central `cleanZip()` helper — every call site re-implements cleaning, so future regressions are easy.
 
-## Part A — Stripe Dashboard checklist (you do this)
+## Changes
 
-In https://dashboard.stripe.com:
+### 1. New helper: `src/utils/zip.ts`
+- `cleanZip(input: unknown): string` → `String(input ?? '').replace(/\D/g, '').slice(0, 5)`
+- `isValidZip(input: unknown): boolean` → `/^\d{5}$/.test(cleanZip(input))`
+- `assertValidZip(input: unknown, context?: string): string` → returns the cleaned 5-digit ZIP or throws `Invalid ZIP code format: "<raw>"`.
 
-1. **Settings → Payment methods → Cards** — confirm each brand is toggled ON for the live account:
-   - Visa, Mastercard, American Express, Discover, Diners Club, JCB, UnionPay.
-   - Amex/Discover/Diners/JCB are sometimes off by default on new accounts.
-2. **Settings → Payments → Radar rules** — review any custom rules blocking international BINs, prepaid cards, or specific countries. The default rule set will block obvious fraud but should not reject normal foreign cards.
-3. **Settings → Payments → Card processing → International payments** — make sure "Accept international cards" is enabled.
-4. **Settings → Business → Public details → Country** — confirm account country is US (matches the `currency: 'usd'` we send).
-5. **Webhooks** — confirm `charge.failed`, `payment_intent.payment_failed`, `payment_intent.requires_action` are subscribed if you want to track declines.
+### 2. `src/hooks/booking/useBookingOperations.ts`
+- Replace the `if (!formData.zipcode || formData.zipcode.length < 5)` guard with `const cleanZipcode = assertValidZip(formData.zipcode, 'booking');`.
+- Use `cleanZipcode` for:
+  - `zip_has_active_coverage` RPC
+  - `find_available_workers_by_zip` RPC
+  - `validateUSZipcode(cleanZipcode)` city derivation
+  - `location_notes` string
+  - The booking insert payload `zipcode: cleanZipcode`
+  - Guest/auto-assign branch (`hasZipcode`) — re-validate before `auto_assign_workers_with_strict_zip_coverage`.
+- Add the requested `console.debug('[ZIP DEBUG]', { original, cleaned, length, type })` log immediately before the insert.
 
-Send me a screenshot of Settings → Payment methods if you'd like me to verify. Once these are confirmed, the code changes below will handle the rest.
+### 3. `src/hooks/booking/useBookingFormState.ts` and form inputs
+- In `handleZipcodeChange`, store `cleanZip(zipcode)` so internal state can never hold a partial/dirty value (typing UX preserved — input components already strip non-digits and cap at 5).
 
-## Part B — Code-side improvements (I'll implement)
+### 4. `src/services/zipcodeService.ts` — fix the "Austin, SC" bug
+- **Remove the OpenDataSoft fuzzy fallback entirely** (it's the source of wrong city/state pairs because `q=` is full-text, not ZIP-keyed).
+- Keep the order: local DB (`us_zip_codes`) → Zippopotam (ZIP-keyed) → final neutral fallback.
+- For Zippopotam, also map `state abbreviation` correctly (already correct) and add a single retry on network error before falling back.
+- Prefer the local in-memory ZIP index (`getLocalZipFast`) as the very first step to avoid Zippopotam 404s for valid ZIPs we already know about (e.g. 78701, 10001, 90210 are all in `zip-index-compact.json`).
 
-### 1. Better AVS / international acceptance in `StripeCardElement`
+### 5. `src/utils/zipcodeValidation.ts` (`validateUSZipcode`)
+- Run input through `cleanZip()` at the top. If invalid → return `null` immediately (no external call, no 404 noise).
+- Try local index first, then DB, then Zippopotam. Drop OpenDataSoft.
 
-- Remove `hidePostalCode: true`. Postal code → AVS check → fewer false declines for both US and international cards. The Card Element auto-localizes the label ("ZIP" in US, "Postcode" in UK, etc.).
-- Add `disableLink: false` (already default) but pass account-level Stripe config for Link autofill — improves checkout completion.
+### 6. `src/utils/zctaServiceCoverage.ts` and `src/hooks/booking/useZctaWorkerAvailability.ts`
+- Replace inline cleaning with `cleanZip()` / `isValidZip()` for consistency. Short-circuit with a clear error when invalid instead of calling RPCs with garbage.
 
-### 2. Visible card-brand support row
+### 7. (Optional polish) `src/services/zipcodeService.ts::mapToRegion`
+- Leave behavior unchanged (out of scope). Just note it always returns `'downtown'` when no substring matches — not a bug for this fix but worth a follow-up.
 
-- New small component `AcceptedCardsRow` rendered above the card field in `SimplePaymentAuthorizationForm`, `PaymentAuthorizationForm`, `SecurePaymentForm`, and `InlineStripePaymentForm`. Uses inline SVG/emoji-free brand marks (Visa, Mastercard, Amex, Discover, Diners, JCB) + a small "Secured by Stripe · 256-bit SSL" trust line with a lock icon. Pure presentational, no logic.
+## Files Touched
 
-### 3. Expand decline error mapping in `getErrorMessage`
+- **New:** `src/utils/zip.ts`
+- **Edited:** `src/hooks/booking/useBookingOperations.ts`
+- **Edited:** `src/hooks/booking/useBookingFormState.ts`
+- **Edited:** `src/services/zipcodeService.ts` (remove OpenDataSoft, prefer local index)
+- **Edited:** `src/utils/zipcodeValidation.ts` (use `cleanZip`, drop OpenDataSoft path)
+- **Edited:** `src/utils/zctaServiceCoverage.ts`
+- **Edited:** `src/hooks/booking/useZctaWorkerAvailability.ts`
 
-In `SimplePaymentAuthorizationForm.tsx` (and the equivalent helper used by `PaymentAuthorizationForm`/`SecurePaymentForm`), add explicit user-friendly messages for the most common Stripe decline codes that are currently falling through:
+## Out of Scope (no change)
 
-| Code | Message |
-|---|---|
-| `card_declined` + `generic_decline` | "Your card was declined by the issuing bank. Please try a different card or contact your bank." |
-| `card_declined` + `insufficient_funds` | "Your card has insufficient funds. Please try a different card." |
-| `card_declined` + `lost_card` / `stolen_card` | "This card cannot be used. Please try a different card." (generic to avoid tipping off fraud) |
-| `card_declined` + `do_not_honor` | "Your bank declined the payment. Please contact your card issuer or try a different card." |
-| `card_declined` + `pickup_card` | "This card cannot be used. Please try a different card." |
-| `card_not_supported` | "This type of card isn't supported. Please use a Visa, Mastercard, Amex, Discover, Diners, or JCB card." |
-| `currency_not_supported` | "Your card doesn't support USD payments. Please try a different card." |
-| `expired_card` | "Your card has expired. Please use a different card." |
-| `processing_error` | "A processing error occurred. Please try again in a moment." |
-| `authentication_required` | Trigger 3DS handler (see #4) — not a hard error. |
-| `card_velocity_exceeded` | "Too many payment attempts. Please wait a few minutes and try again." |
+- DB schema / RLS — `zip_code` columns are already `text`.
+- Worker assignment SQL functions (`find_available_workers_by_zip`, `auto_assign_workers_with_strict_zip_coverage`) — they already take text ZIPs.
+- Stripe / payment flow — it doesn't touch ZIP processing logic.
+- Admin ZIP manager UI — already correct.
+- Input UI components (`ZipcodeInput`, `EnhancedZipcodeInput`, `ZctaLocationInput`, `ZipcodeLocationInput`) — already strip non-digits and cap at 5.
 
-### 4. 3D Secure (SCA) handling on server response
+## Verification
 
-`unified-payment-authorization` already returns Stripe error info, but when a PI comes back as `requires_action` (3DS challenge), the client currently treats it as a failure. Fix:
-
-- In `SimplePaymentAuthorizationForm.handleSubmit`, after the edge function call, if the response includes `requires_action: true` with a `client_secret`, call `stripe.confirmCardPayment(client_secret)` to launch the 3DS modal, then re-check status. The `payment-engine` already supports passing back `client_secret` on `requires_action`; I'll add the client branch.
-- Same branch added in `PaymentAuthorizationForm` and `SecurePaymentForm`.
-
-### 5. Trust indicators in checkout
-
-- Add a small `PaymentTrustBar` under the form: lock icon + "Payments are encrypted and processed by Stripe. Your card details never touch our servers." Renders once at the bottom of the card field.
-
-### 6. Mobile checkout polish
-
-- `StripeCardElement` style: increase `fontSize` to `16px` (already set — good, prevents iOS zoom). Add `iconStyle: 'solid'` and ensure the wrapper has `min-h-[52px]` on mobile (already set). Add `inputMode` handled by Stripe automatically.
-
-## Files I'll touch
-
-- `src/components/StripeCardElement.tsx` — remove `hidePostalCode`, add `iconStyle: 'solid'`.
-- `src/components/payment/AcceptedCardsRow.tsx` *(new)* — brand marks + trust line.
-- `src/components/payment/PaymentTrustBar.tsx` *(new)* — encryption notice.
-- `src/components/payment/SimplePaymentAuthorizationForm.tsx` — expand `getErrorMessage`, add 3DS branch, render `AcceptedCardsRow` + `PaymentTrustBar`.
-- `src/components/payment/PaymentAuthorizationForm.tsx` — same error/3DS additions, render trust UI.
-- `src/components/payment/SecurePaymentForm.tsx` — same.
-- `src/components/worker/payment/InlineStripePaymentForm.tsx` — render `AcceptedCardsRow`.
-
-## What I will NOT change
-
-- `payment-engine` PaymentIntent creation logic — it's already correctly configured for manual capture with attached payment methods. Adding `automatic_payment_methods` would conflict with the existing `payment_method` + `confirm: true` flow.
-- API version / Stripe SDK version — already on `2024-12-18.acacia`, current.
-- Currency — USD is correct for a US merchant; Stripe auto-FXes foreign cards.
-- Webhook handlers — unchanged.
-
-## Out of scope (mention only)
-
-Wallets (Apple Pay / Google Pay) would require switching to the `PaymentElement` and adding domain verification. Happy to do that in a follow-up if you want — it's a separate ~half-day change.
+After the edit:
+- Type `78701`, `10001`, `90210` in the checkout form → coverage RPC and worker lookup both fire with exactly that 5-digit string; `[ZIP DEBUG]` log shows `length: 5, type: 'string'`.
+- Confirm city/state resolves to `Austin, TX` (from the local index), not `Austin, SC`.
+- Authenticated booking, guest booking, and the payment-pending path all reuse `cleanZipcode` (the same variable) into the Supabase insert, eliminating the 400.
+- Submitting `"78701-1234"` or `" 78701 "` no longer throws — gets normalized to `78701`.
+- Submitting `"abcd"` or `""` throws the new explicit `Invalid ZIP code format: "..."` error before any Supabase call.

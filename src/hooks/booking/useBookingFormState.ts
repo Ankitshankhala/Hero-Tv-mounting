@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { ServiceItem, FormData } from './types';
 import { useTestingMode, getEffectiveMinimumAmount, getEffectiveServicePrice } from '@/contexts/TestingModeContext';
+import { cleanZip } from '@/utils/zip';
 
 export const useBookingFormState = (selectedServices: ServiceItem[] = []) => {
   const { isTestingMode } = useTestingMode();
@@ -78,7 +79,7 @@ export const useBookingFormState = (selectedServices: ServiceItem[] = []) => {
   }, [MINIMUM_BOOKING_AMOUNT, serviceTotal]);
 
   const handleZipcodeChange = (zipcode: string) => {
-    setFormData(prev => ({ ...prev, zipcode }));
+    setFormData(prev => ({ ...prev, zipcode: cleanZip(zipcode) }));
   };
 
   const isStep1Valid = services.length > 0 && isMinimumCartMet;
