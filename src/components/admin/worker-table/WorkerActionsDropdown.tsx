@@ -88,11 +88,13 @@ export const WorkerActionsDropdown = ({
         });
       }
     } catch (error) {
-      console.error('Error sending test SMS:', error);
+      const info = formatAdminError(error, 'send test SMS');
+      console.error('[ADMIN ERROR] send test SMS', error, info);
       toast({
-        title: "SMS Error",
-        description: "Failed to send test SMS",
-        variant: "destructive",
+        title: info.title,
+        description: info.description,
+        variant: 'destructive',
+        duration: 12000,
       });
     } finally {
       setSendingSms(false);
