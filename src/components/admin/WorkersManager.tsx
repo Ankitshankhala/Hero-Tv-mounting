@@ -89,11 +89,13 @@ export const WorkersManager = () => {
       }
       setWorkers(data || []);
     } catch (error) {
-      console.error('Error fetching workers:', error);
+      const info = formatAdminError(error, 'load technicians');
+      console.error('[ADMIN ERROR] fetchWorkers', error, info);
       toast({
-        title: "Error",
-        description: "Failed to load technicians",
-        variant: "destructive",
+        title: info.title,
+        description: info.description,
+        variant: 'destructive',
+        duration: 12000,
       });
     } finally {
       setLoading(false);
