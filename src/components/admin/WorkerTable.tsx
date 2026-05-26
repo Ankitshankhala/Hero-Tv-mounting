@@ -10,6 +10,23 @@ import { WorkerPasswordManager } from './WorkerPasswordManager';
 import { WorkerWeeklyAvailabilityModal } from './WorkerWeeklyAvailabilityModal';
 import { AdminWorkerCoverageModal } from './AdminWorkerCoverageModal';
 import { ViewAsWorkerButton } from './ViewAsWorkerButton';
+import { formatAdminError } from '@/utils/adminErrorMessage';
+
+const showAdminError = (
+  toast: ReturnType<typeof useToast>['toast'],
+  error: unknown,
+  op: string,
+  context?: Record<string, unknown>,
+) => {
+  const info = formatAdminError(error, op);
+  console.error(`[ADMIN ERROR] ${op}`, { error, ...context, parsed: info });
+  toast({
+    title: info.title,
+    description: info.description,
+    variant: 'destructive',
+    duration: 12000,
+  });
+};
 
 interface Worker {
   id: string;
@@ -74,10 +91,7 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
         .update({ is_active: false })
         .eq('id', workerId);
 
-      if (error) {
-        console.error('Error removing worker:', error);
-        throw error;
-      }
+      if (error) throw error;
 
       toast({
         title: "Worker removed",
@@ -88,12 +102,7 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
         onWorkerUpdate();
       }
     } catch (error) {
-      console.error('Error removing worker:', error);
-      toast({
-        title: "Error",
-        description: "Failed to remove worker",
-        variant: "destructive",
-      });
+      showAdminError(toast, error, 'remove worker', { workerId });
     } finally {
       setRemovingWorkerId(null);
     }
@@ -108,10 +117,7 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
         .update({ is_active: true })
         .eq('id', workerId);
 
-      if (error) {
-        console.error('Error reactivating worker:', error);
-        throw error;
-      }
+      if (error) throw error;
 
       toast({
         title: "Success",
@@ -122,12 +128,7 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
         onWorkerUpdate();
       }
     } catch (error) {
-      console.error('Error reactivating worker:', error);
-      toast({
-        title: "Error",
-        description: "Failed to reactivate worker",
-        variant: "destructive",
-      });
+      showAdminError(toast, error, 'reactivate worker', { workerId });
     } finally {
       setReactivatingWorkerId(null);
     }
@@ -203,16 +204,8 @@ export const WorkerTable = ({ workers, onWorkerUpdate }: WorkerTableProps) => {
       }
 
       if (onWorkerUpdate) onWorkerUpdate();
-    } catch (error: any) {
-      console.error('Error deleting worker:', error, { workerId });
-      const code = error?.code;
-      let description = error?.message || "Failed to delete worker";
-      if (code === '23503') {
-        description = "Worker is referenced by bookings or other records and cannot be deleted.";
-      } else if (code === '42501' || /permission|rls/i.test(description)) {
-        description = "You don't have permission to delete this worker.";
-      }
-      toast({ title: "Error", description, variant: "destructive" });
+    } catch (error) {
+      showAdminError(toast, error, 'permanently delete worker', { workerId });
     } finally {
       setDeletingWorkerId(null);
     }
