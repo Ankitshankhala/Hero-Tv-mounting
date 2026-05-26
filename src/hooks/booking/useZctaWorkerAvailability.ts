@@ -233,7 +233,7 @@ export const useZctaWorkerAvailability = () => {
       
       // If no workers or no available slots, find next available date
       if (totalWorkerIds.size === 0 || availableTimeSlots.length === 0) {
-        const nextDate = await findNextAvailableDate(date, zipcode);
+        const nextDate = await findNextAvailableDate(date, zip);
         setNextAvailableDate(nextDate);
       } else {
         setNextAvailableDate(null);
