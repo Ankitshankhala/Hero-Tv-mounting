@@ -4,6 +4,7 @@ import { formatInTimeZone, toZonedTime } from 'date-fns-tz';
 import { supabase } from '@/integrations/supabase/client';
 import { findZctaAvailableWorkers } from '@/utils/zctaServiceCoverage';
 import { zctaOnlyService } from '@/services/zctaOnlyService';
+import { cleanZip, isValidZip } from '@/utils/zip';
 
 /**
  * Enhanced worker availability hook that uses ZCTA data for improved accuracy
@@ -25,7 +26,8 @@ export const useZctaWorkerAvailability = () => {
   ];
 
   const findNextAvailableDate = async (startDate: Date, zipcode: string) => {
-    if (!zipcode) return null;
+    const zip = cleanZip(zipcode);
+    if (!isValidZip(zip)) return null;
     
     // Check next 30 days for availability
     for (let i = 1; i <= 30; i++) {
