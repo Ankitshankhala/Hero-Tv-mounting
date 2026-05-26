@@ -1,49 +1,33 @@
-## Root cause
+## Remove workers: Michael Davison & Connor
 
-Booking creation fails for authenticated users with:
+Found the two workers in the database matching "Michel" and "Conner":
 
-```
-P0001  Cannot create booking: Invalid or missing ZIP code
-hint:  Customer ZIP code is required for service coverage validation
-```
+| Name | Email | Booking history |
+|---|---|---|
+| michael davison | mikedbeckwith@gmail.com | 0 bookings — safe to hard delete |
+| Connor | connorhperrin@yahoo.com | 43 bookings — must soft-delete to preserve history |
 
-The DB trigger `validate_booking_has_coverage` resolves the customer ZIP as:
+## Plan
 
-```sql
-customer_zip := COALESCE(
-  (SELECT zip_code FROM public.users WHERE id = NEW.customer_id),
-  NEW.guest_customer_info->>'zipcode'
-);
-```
+Run a single safe migration that:
 
-In `src/hooks/booking/useBookingOperations.ts` the authenticated branch sets `guest_customer_info = null` and never writes the ZIP onto the `bookings` row. The trigger therefore falls back to `public.users.zip_code`, which for many accounts (including `admin@herotvmounting.com`) is `NULL` → trigger raises.
+1. **Connor (`3e2e7780-6abd-40f5-a5a2-70286b7496de`)** — has 43 historical bookings. Hard delete would break booking/payroll/invoice FK integrity, so:
+   - Set `is_active = false`
+   - Set `role = 'customer'` so he no longer appears in technician lists, assignments, or availability lookups
+   - Clear `worker_availability`, `worker_schedule`, and any worker coverage/zip rows for him
+   - Null out `reserved_worker_id` / `preferred_worker_id` on any future (non-completed) bookings so he isn't reassigned; leave `worker_id` on historical bookings intact for reporting
 
-Guest bookings work because `guest_customer_info.zipcode` is populated. The ZIP validation, coverage RPC, and worker-availability RPC in client code all succeed with the cleaned ZIP — only the final insert is missing the ZIP visible to the trigger.
+2. **Michael Davison (`187dd38f-42e9-49aa-96e2-f87c46d4168c`)** — 0 bookings. Safe to:
+   - Clear `worker_availability`, `worker_schedule`, coverage rows
+   - Hard-delete the `users` row
+   - (Auth user row in `auth.users` is left to admin to remove via dashboard if desired — deleting via SQL requires service-role and isn't done in migrations to avoid breaking auth state)
 
-## Fix (minimal, frontend only)
+3. **Rollback safety** — Connor's data is fully recoverable (just flip `is_active` back and `role` back to `worker`). Michael's deletion is permanent but he has no dependent records.
 
-Always pass a small `guest_customer_info` payload containing at least `{ zipcode, email, name, phone, city }` on the booking insert, for both authenticated and guest users. This gives the trigger a reliable ZIP source without changing DB triggers, RLS, or schema, and without touching the payment/Stripe/worker-assignment paths.
+No changes to FK constraints, RLS, payment, or worker-assignment code.
 
-Additionally, as a non-blocking convenience, backfill `public.users.zip_code` for the signed-in user when it's empty so future bookings work even if the field is missing.
+## Confirm
 
-### Files to change
-
-1. `src/hooks/booking/useBookingOperations.ts`
-   - In `createInitialBooking`, build a shared `customerInfo` object (with the already-validated `cleanZipcode`) and set `guest_customer_info: customerInfo` for BOTH the guest and authenticated branches (not `null` for auth users).
-   - After a successful authenticated booking insert, if `user` exists and their profile `zip_code` is empty, fire-and-forget `supabase.from('users').update({ zip_code: cleanZipcode, city: effectiveCity }).eq('id', user.id)`. Failure is logged but does not block.
-
-No other files need changes. Edge function `create-guest-booking` already handles `guest_customer_info` correctly.
-
-## Why this is safe
-
-- Trigger logic is unchanged; we just feed it the data it already expects.
-- `guest_customer_info` is a JSONB column already populated for guests, so writing it for authenticated users is structurally identical.
-- Downstream consumers that read `guest_customer_info` typically gate on `customer_id IS NULL`; populating it for auth users does not change their behavior because they already branch on `customer_id`.
-- No RLS, FK, payment, worker assignment, payroll, schedule, or admin code is touched.
-- Rollback: revert the single hook change.
-
-## Verification
-
-- Authenticated booking with a valid ZIP (e.g. 10001) reaches payment step without the P0001 error.
-- Guest booking still works (unchanged path).
-- Console shows `[ZIP DEBUG]` with cleaned 5-digit ZIP and trigger now passes.
+Please confirm these are the correct two people before I run the migration:
+- **michael davison** — mikedbeckwith@gmail.com
+- **Connor** — connorhperrin@yahoo.com
