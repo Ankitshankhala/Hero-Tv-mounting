@@ -3,6 +3,7 @@ import { ServiceCard } from './ServiceCard';
 import { TvMountingModal } from './TvMountingModal';
 import { CartItem } from '@/types';
 import { useServicesCache } from '@/contexts/ServicesCacheContext';
+import { SERVICE_IDS } from '@/constants/serviceIds';
 
 interface ServicesSectionProps {
   onAddToCart: (item: CartItem) => void;

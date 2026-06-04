@@ -1,26 +1,40 @@
-## Discount Applied Banner
+## Problem
 
-Create a dismissible promotional banner that communicates "20% off is already applied in price" to customers browsing the homepage.
+Clicking the "Mount TV" service card adds the service straight to cart instead of opening the add-on configuration modal (Over 65", Frame Mount, Wall type, Soundbar).
 
-### What to Build
+## Root cause
 
-1. **New Component**: `src/components/promo/DiscountAppliedBanner.tsx`
-   - Fixed message: "20% off is already applied in price" 
-   - Dismissible with localStorage persistence (so it stays hidden after user closes it)
-   - Styled using the existing dark theme design system (slate/blue gradient)
-   - Responsive: full-width on desktop, compact on mobile
-   - Uses semantic design tokens (no hardcoded colors)
+`src/components/ServicesSection.tsx` decides whether to open `TvMountingModal` by comparing the service **name** to the literal string `'Mount TV'`:
 
-2. **Placement**: Add the banner to `src/pages/Index.tsx` — positioned between the Header and the ServicesSection so it's visible when customers view service prices.
+```ts
+if (serviceName === 'Mount TV') {
+  setShowTvModal(true);
+}
+```
 
-### Design Details
-- Gradient background matching the existing promo banner style (blue-600 to indigo-600)
-- White text with a badge/tag icon
-- Dismiss button (X) on the right
-- Smooth mount animation (same pattern as PromoBanner)
-- No database or backend changes required — this is a pure frontend UI component
+If the service in the database was renamed (e.g. "TV Mounting", "Mount TV Service", trailing space, different casing), the name comparison fails and the code falls through to the "just add to cart" branch — exactly what the user is seeing.
 
-### Out of Scope
-- No actual price reduction logic (database prices remain unchanged)
-- No coupon code or checkout integration
-- No changes to existing PromoBanner or MobilePromoBar
+The project already maintains stable UUIDs in `src/constants/serviceIds.ts` (`SERVICE_IDS.mountTv`) specifically so admin renames don't break lookups. The TV mounting hook uses it; the service card click handler doesn't.
+
+## Fix
+
+Switch the gate in `ServicesSection.handleServiceClick` from name match to stable ID match.
+
+```ts
+import { SERVICE_IDS } from '@/constants/serviceIds';
+
+const handleServiceClick = (serviceId: string, serviceName: string) => {
+  if (serviceId === SERVICE_IDS.mountTv) {
+    setShowTvModal(true);
+    return;
+  }
+  // ...existing add-to-cart branch
+};
+```
+
+No other files need changes. The modal itself (`TvMountingModal` + `useTvMountingModal`) already works and is wired to `onAddToCart`.
+
+## Scope
+
+- Edit only `src/components/ServicesSection.tsx`
+- No changes to pricing, cart, checkout, modal UI, or backend
