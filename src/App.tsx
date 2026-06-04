@@ -9,7 +9,6 @@ import { Toaster } from '@/components/ui/toaster';
 import { useSecurityHeaders } from '@/hooks/useSecurityHeaders';
 import { preloadZipIndex } from '@/utils/localZipIndex';
 import { HelmetProvider } from 'react-helmet-async';
-import PromoBanner from '@/components/promo/PromoBanner';
 import MobilePromoBar from '@/components/promo/MobilePromoBar';
 
 // Auto-recover from stale chunk errors after a new deploy.
