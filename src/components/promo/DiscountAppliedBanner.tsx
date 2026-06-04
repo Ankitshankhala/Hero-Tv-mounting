@@ -7,7 +7,7 @@ export const DiscountAppliedBanner: React.FC = () => {
       role="region"
       aria-label="Discount already applied"
       style={{ minHeight: '60px' }}
-      className="w-full bg-yellow-400 text-slate-900 shadow-md flex items-center justify-center px-4"
+      className="w-full bg-[#4171F1] text-white shadow-md flex items-center justify-center px-4"
     >
       <div className="container mx-auto flex items-center justify-center gap-3 text-center">
         <BadgePercent className="h-6 w-6 shrink-0" />
