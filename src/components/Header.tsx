@@ -55,9 +55,9 @@ export const Header = () => {
             </a>
           </div>
           <div className="flex justify-center">
-            <span className="inline-flex items-center gap-2 bg-[#4171F1] text-white font-extrabold uppercase tracking-wide px-4 py-2 rounded-full shadow-lg text-sm md:text-base">
-              <span className="bg-white text-[#4171F1] rounded-full px-2 py-0.5 text-xs md:text-sm">20% OFF</span>
-              Already Applied – No Code Needed
+            <span className="inline-flex flex-col items-center bg-[#4171F1] text-white font-extrabold uppercase tracking-wide px-6 py-3 rounded-2xl shadow-lg text-sm md:text-base text-center leading-tight">
+              <span className="bg-white text-[#4171F1] rounded-full px-3 py-1 mb-1 text-base md:text-lg">20% OFF</span>
+              <span>ALREADY APPLIED</span>
             </span>
           </div>
         </div>
