@@ -48,14 +48,18 @@ export const Header = () => {
           </h1>
         </div>
         
-        <div className="text-center space-y-2">
+        <div className="text-center space-y-3">
           <div>
             <a href="tel:+17372729971" className="text-2xl md:text-3xl text-white hover:text-gray-200 transition-colors duration-200 font-semibold">
               737-272-9971
             </a>
-            
           </div>
-          
+          <div className="flex justify-center">
+            <span className="inline-flex items-center gap-2 bg-yellow-400 text-slate-900 font-extrabold uppercase tracking-wide px-4 py-2 rounded-full shadow-lg text-sm md:text-base">
+              <span className="bg-slate-900 text-yellow-400 rounded-full px-2 py-0.5 text-xs md:text-sm">20% OFF</span>
+              Already Applied – No Code Needed
+            </span>
+          </div>
         </div>
       </div>
     </header>;
