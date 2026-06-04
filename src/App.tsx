@@ -121,7 +121,7 @@ function AppWithSecurity() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
-      <MobilePromoBar />
+      
     </Router>
   );
 }
