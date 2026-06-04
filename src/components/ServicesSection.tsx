@@ -3,6 +3,7 @@ import { ServiceCard } from './ServiceCard';
 import { TvMountingModal } from './TvMountingModal';
 import { CartItem } from '@/types';
 import { useServicesCache } from '@/contexts/ServicesCacheContext';
+import { SERVICE_IDS } from '@/constants/serviceIds';
 
 interface ServicesSectionProps {
   onAddToCart: (item: CartItem) => void;
@@ -29,19 +30,19 @@ export const ServicesSection = ({ onAddToCart }: ServicesSectionProps) => {
   const { publicServices, isLoading, refetch } = useServicesCache();
 
   const handleServiceClick = (serviceId: string, serviceName: string) => {
-    if (serviceName === 'Mount TV') {
+    if (serviceId === SERVICE_IDS.mountTv || serviceName === 'Mount TV') {
       setShowTvModal(true);
-    } else {
-      const service = publicServices.find(s => s.id === serviceId);
-      if (service) {
-        const serviceItem = {
-          id: serviceId,
-          name: serviceName,
-          price: service.base_price ?? 0,
-          quantity: 1
-        };
-        onAddToCart(serviceItem);
-      }
+      return;
+    }
+    const service = publicServices.find(s => s.id === serviceId);
+    if (service) {
+      const serviceItem = {
+        id: serviceId,
+        name: serviceName,
+        price: service.base_price ?? 0,
+        quantity: 1
+      };
+      onAddToCart(serviceItem);
     }
   };
 
