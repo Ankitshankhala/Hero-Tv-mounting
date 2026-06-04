@@ -12,7 +12,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { CartItem } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { SEO } from '@/components/SEO';
-import DiscountAppliedBanner from '@/components/promo/DiscountAppliedBanner';
+
 
 // Lazy load heavy components that are not needed for initial render
 const EnhancedInlineBookingFlow = lazy(() => import('@/components/EnhancedInlineBookingFlow'));
@@ -133,7 +133,7 @@ const Index = () => {
         ]}
       />
 
-      <DiscountAppliedBanner />
+      
       <Header />
 
       {/* Primary SEO H1 (visually hidden to preserve single-H1 for SEO) */}
