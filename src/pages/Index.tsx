@@ -142,7 +142,6 @@ const Index = () => {
         <TestingModeIndicator />
       </div>
 
-      <HeroPromoStrip />
 
         <ErrorBoundary
           fallback={
