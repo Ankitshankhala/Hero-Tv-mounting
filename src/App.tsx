@@ -99,7 +99,6 @@ function AppWithSecurity() {
 
   return (
     <Router>
-      <PromoBanner />
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={<Index />} />
