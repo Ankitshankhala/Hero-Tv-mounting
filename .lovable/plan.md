@@ -1,40 +1,48 @@
-## Problem
+# Restore Mount TV Tiered Pricing
 
-Clicking the "Mount TV" service card adds the service straight to cart instead of opening the add-on configuration modal (Over 65", Frame Mount, Wall type, Soundbar).
+The Mount TV service's `pricing_config` in the `services` table currently only contains `{ "pricing_type": "tiered" }` — the `tiers` array was wiped, causing every TV to fall back to a flat `$90 base_price`.
 
-## Root cause
+## Change
 
-`src/components/ServicesSection.tsx` decides whether to open `TvMountingModal` by comparing the service **name** to the literal string `'Mount TV'`:
+Update the `pricing_config` on the Mount TV service row (`id = a50013bc-ee03-4452-b3ec-1683094d787a`) to restore the tiers:
 
-```ts
-if (serviceName === 'Mount TV') {
-  setShowTvModal(true);
-}
+- 1st TV: **$90**
+- 2nd TV: **$80**
+- Additional TVs: **$70 each** (default for any quantity beyond tier 2)
+
+Existing `add_ons` (over65, frameMount, soundbar, specialWall) will be preserved from the current stored config if present; otherwise left as-is. No other services touched.
+
+## SQL (data update, not a schema migration)
+
+```sql
+UPDATE public.services
+SET pricing_config = jsonb_set(
+  COALESCE(pricing_config, '{}'::jsonb),
+  '{tiers}',
+  '[
+    {"quantity": 1, "price": 90},
+    {"quantity": 2, "price": 80},
+    {"quantity": 3, "price": 70, "is_default_for_additional": true}
+  ]'::jsonb,
+  true
+) || '{"pricing_type":"tiered"}'::jsonb
+WHERE id = 'a50013bc-ee03-4452-b3ec-1683094d787a';
 ```
 
-If the service in the database was renamed (e.g. "TV Mounting", "Mount TV Service", trailing space, different casing), the name comparison fails and the code falls through to the "just add to cart" branch — exactly what the user is seeing.
+## Why this is enough (no code changes)
 
-The project already maintains stable UUIDs in `src/constants/serviceIds.ts` (`SERVICE_IDS.mountTv`) specifically so admin renames don't break lookups. The TV mounting hook uses it; the service card click handler doesn't.
+- `PricingEngine.getTierPrice` and `useTvMountingModal.calculateTvMountingPrice` already read `pricing_config.tiers` and use `is_default_for_additional` for 3+ TVs.
+- `formatTieredPricing` in `src/utils/pricingDisplay.ts` already renders exactly: `1st TV: $90, 2nd TV: $80, Additional TVs: $70 each`.
+- All totals, cart summaries, and checkout amounts recompute from this config automatically.
+- No component, styling, layout, or logic changes required.
 
-## Fix
+## Verification
 
-Switch the gate in `ServicesSection.handleServiceClick` from name match to stable ID match.
+After applying:
+1. Re-query the row to confirm the tiers array.
+2. Open the Mount TV modal in the preview: 1 TV → $90, 2 TVs → $170, 3 TVs → $240, 4 TVs → $310.
 
-```ts
-import { SERVICE_IDS } from '@/constants/serviceIds';
+## Out of scope
 
-const handleServiceClick = (serviceId: string, serviceName: string) => {
-  if (serviceId === SERVICE_IDS.mountTv) {
-    setShowTvModal(true);
-    return;
-  }
-  // ...existing add-to-cart branch
-};
-```
-
-No other files need changes. The modal itself (`TvMountingModal` + `useTvMountingModal`) already works and is wired to `onAddToCart`.
-
-## Scope
-
-- Edit only `src/components/ServicesSection.tsx`
-- No changes to pricing, cart, checkout, modal UI, or backend
+- Add-on prices, other services, UI text/styles, and pricing engine code — all untouched.
+- Audit/history table for `services` edits (previously discussed) is deferred.
