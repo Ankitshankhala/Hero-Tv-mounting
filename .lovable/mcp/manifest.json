@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "sdk_version": "0.20.0",
+  "path": "/functions/v1/mcp",
+  "auth": {
+    "type": "none"
+  },
+  "mcp": {
+    "server": {
+      "name": "hero-tv-mounting-mcp",
+      "version": "0.1.0",
+      "title": "Hero TV Mounting MCP"
+    },
+    "tools": [
+      {
+        "name": "list_services",
+        "title": "List services",
+        "description": "List all active public services offered by Hero TV Mounting, including base price and pricing configuration.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "check_service_area",
+        "title": "Check service area",
+        "description": "Check whether Hero TV Mounting services a given US ZIP code.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "zip_code": {
+              "type": "string",
+              "pattern": "^\\d{5}$"
+            }
+          },
+          "required": [
+            "zip_code"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
