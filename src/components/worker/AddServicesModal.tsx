@@ -136,7 +136,7 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
   };
 
   const getTotalPrice = () => {
-    return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+    return cart.reduce((total, item) => total + getCartLineTotal(item), 0);
   };
 
   const handleTvMountingComplete = (cartItems: CartItem[]) => {
@@ -338,7 +338,7 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
                     key={service.id}
                     id={service.id}
                     name={service.name}
-                    price={getEffectiveServicePrice(service.base_price, isTestingMode, cart.length)}
+                    price={getNextUnitPrice(service, cart.find(c => c.id === service.id)?.quantity ?? 0)}
                     image={service.image_url || getServiceImage(service.name)}
                     description={service.description || `Professional ${service.name.toLowerCase()} service`}
                     onAddToCart={() => handleServiceClick(service.id, service.name)}
