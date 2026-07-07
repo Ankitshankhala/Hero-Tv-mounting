@@ -10,7 +10,8 @@ import { CartItem } from '@/types';
 import { usePublicServicesData } from '@/hooks/usePublicServicesData';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useTestingMode, getEffectiveServicePrice } from '@/contexts/TestingModeContext';
+import { useTestingMode } from '@/contexts/TestingModeContext';
+import { getEffectiveServicePrice, getServiceLineTotal } from '@/lib/pricing/getEffectiveServicePrice';
 import { ShoppingCart, Plus, X } from 'lucide-react';
 
 interface AddServicesModalProps {
@@ -52,6 +53,31 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
   const { toast } = useToast();
   const { isTestingMode } = useTestingMode();
 
+  // Existing qty for a service already on the booking (drives tier offset).
+  const getExistingBookingQty = (serviceId: string): number => {
+    const bs = job?.booking_services;
+    if (!Array.isArray(bs)) return 0;
+    return bs
+      .filter((row: any) => row.service_id === serviceId)
+      .reduce((sum: number, row: any) => sum + (Number(row.quantity) || 0), 0);
+  };
+
+  // Per-unit price for the NEXT unit of this service (tier-aware, respects testing mode).
+  const getNextUnitPrice = (service: any, cartQtyForService: number): number => {
+    if (isTestingMode) return 1;
+    const config = { base_price: Number(service.base_price), tiers: service.pricing_config?.tiers };
+    return getEffectiveServicePrice(config, getExistingBookingQty(service.id) + cartQtyForService);
+  };
+
+  // Tier-aware line total for a cart item, honoring existing booking qty and testing mode.
+  const getCartLineTotal = (item: CartItem): number => {
+    if (isTestingMode) return 1 * item.quantity;
+    const service = services.find(s => s.id === item.id);
+    const basePrice = Number(service?.base_price ?? item.price);
+    const config = { base_price: basePrice, tiers: service?.pricing_config?.tiers };
+    return getServiceLineTotal(config, getExistingBookingQty(item.id), item.quantity);
+  };
+
   const handleServiceClick = (serviceId: string, serviceName: string) => {
     if (serviceName === 'Mount TV') {
       setShowTvModal(true);
@@ -59,7 +85,8 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
       // For other services, just add to cart
       const service = services.find(s => s.id === serviceId);
       if (service) {
-        const effectivePrice = getEffectiveServicePrice(service.base_price, isTestingMode, cart.length);
+        const cartQty = cart.find(c => c.id === serviceId)?.quantity ?? 0;
+        const effectivePrice = getNextUnitPrice(service, cartQty);
         const serviceItem = {
           id: serviceId,
           name: serviceName,
@@ -70,6 +97,7 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
       }
     }
   };
+
 
   const addToCart = (item: CartItem) => {
     setCart(prevCart => {
@@ -108,7 +136,7 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
   };
 
   const getTotalPrice = () => {
-    return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+    return cart.reduce((total, item) => total + getCartLineTotal(item), 0);
   };
 
   const handleTvMountingComplete = (cartItems: CartItem[]) => {
@@ -310,7 +338,7 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
                     key={service.id}
                     id={service.id}
                     name={service.name}
-                    price={getEffectiveServicePrice(service.base_price, isTestingMode, cart.length)}
+                    price={getNextUnitPrice(service, cart.find(c => c.id === service.id)?.quantity ?? 0)}
                     image={service.image_url || getServiceImage(service.name)}
                     description={service.description || `Professional ${service.name.toLowerCase()} service`}
                     onAddToCart={() => handleServiceClick(service.id, service.name)}
@@ -354,7 +382,7 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <span className="text-emerald-400 font-bold">${(item.price * item.quantity).toFixed(2)}</span>
+                        <span className="text-emerald-400 font-bold">${getCartLineTotal(item).toFixed(2)}</span>
                         <Button
                           size="sm"
                           variant="outline"

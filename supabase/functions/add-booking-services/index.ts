@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getSupabaseClient } from '../_shared/supabaseClient.ts';
 import { corsHeaders, refreshStripeMode } from '../_shared/stripe.ts';
+import { getServiceLineTotal } from '../_shared/pricing.ts';
 
 declare const EdgeRuntime: { waitUntil: (promise: Promise<unknown>) => void };
 
@@ -39,29 +40,47 @@ serve(async (req) => {
       throw new Error('Booking has no payment intent');
     }
 
-    // Fetch real prices from services table (FIX PRICING LEAK)
+    // Fetch real prices + pricing_config from services table (FIX PRICING LEAK + honor tiers)
     const serviceIds = services.map((s: any) => s.id);
     const { data: officialServices, error: svcErr } = await supabase
       .from('services')
-      .select('id, base_price, name')
+      .select('id, base_price, name, pricing_config')
       .in('id', serviceIds);
 
     if (svcErr) throw new Error('Failed to fetch service prices');
 
-    const priceMap = new Map(officialServices?.map(s => [s.id, Number(s.base_price)]) || []);
+    const serviceMap = new Map(
+      officialServices?.map((s: any) => [s.id, s]) || []
+    );
 
-    // Build service data with official prices
+    // Count existing quantities on this booking per service to offset tier index correctly.
+    const existingQtyByService: Record<string, number> = {};
+    for (const bs of (booking.booking_services || [])) {
+      existingQtyByService[bs.service_id] = (existingQtyByService[bs.service_id] || 0) + Number(bs.quantity || 0);
+    }
+
+    // Build service data with tier-aware unit prices.
+    // We store the first-unit tier price on the row's base_price for display consistency;
+    // the authoritative total is recomputed below via getServiceLineTotal.
     const servicesData = services.map((s: any) => {
-      const officialPrice = priceMap.get(s.id);
-      if (officialPrice === undefined) {
+      const official: any = serviceMap.get(s.id);
+      if (!official) {
         throw new Error(`Service ${s.id} not found. Cannot add unknown service.`);
       }
+      const qty = Number(s.quantity) || 1;
+      const existingQty = existingQtyByService[s.id] || 0;
+      const config = {
+        base_price: Number(official.base_price),
+        tiers: official.pricing_config?.tiers,
+      };
+      const lineTotal = getServiceLineTotal(config, existingQty, qty);
+      const unitPrice = qty > 0 ? lineTotal / qty : Number(official.base_price);
       return {
         booking_id,
         service_id: s.id,
         service_name: s.name,
-        base_price: officialPrice,
-        quantity: s.quantity || 1,
+        base_price: unitPrice,
+        quantity: qty,
         configuration: s.configuration || {},
       };
     });
