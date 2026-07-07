@@ -382,7 +382,7 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <span className="text-emerald-400 font-bold">${(item.price * item.quantity).toFixed(2)}</span>
+                        <span className="text-emerald-400 font-bold">${getCartLineTotal(item).toFixed(2)}</span>
                         <Button
                           size="sm"
                           variant="outline"
