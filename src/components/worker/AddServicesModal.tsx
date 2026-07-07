@@ -10,7 +10,8 @@ import { CartItem } from '@/types';
 import { usePublicServicesData } from '@/hooks/usePublicServicesData';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useTestingMode, getEffectiveServicePrice } from '@/contexts/TestingModeContext';
+import { useTestingMode } from '@/contexts/TestingModeContext';
+import { getEffectiveServicePrice, getServiceLineTotal } from '@/lib/pricing/getEffectiveServicePrice';
 import { ShoppingCart, Plus, X } from 'lucide-react';
 
 interface AddServicesModalProps {
