@@ -53,6 +53,31 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
   const { toast } = useToast();
   const { isTestingMode } = useTestingMode();
 
+  // Existing qty for a service already on the booking (drives tier offset).
+  const getExistingBookingQty = (serviceId: string): number => {
+    const bs = job?.booking_services;
+    if (!Array.isArray(bs)) return 0;
+    return bs
+      .filter((row: any) => row.service_id === serviceId)
+      .reduce((sum: number, row: any) => sum + (Number(row.quantity) || 0), 0);
+  };
+
+  // Per-unit price for the NEXT unit of this service (tier-aware, respects testing mode).
+  const getNextUnitPrice = (service: any, cartQtyForService: number): number => {
+    if (isTestingMode) return 1;
+    const config = { base_price: Number(service.base_price), tiers: service.pricing_config?.tiers };
+    return getEffectiveServicePrice(config, getExistingBookingQty(service.id) + cartQtyForService);
+  };
+
+  // Tier-aware line total for a cart item, honoring existing booking qty and testing mode.
+  const getCartLineTotal = (item: CartItem): number => {
+    if (isTestingMode) return 1 * item.quantity;
+    const service = services.find(s => s.id === item.id);
+    const basePrice = Number(service?.base_price ?? item.price);
+    const config = { base_price: basePrice, tiers: service?.pricing_config?.tiers };
+    return getServiceLineTotal(config, getExistingBookingQty(item.id), item.quantity);
+  };
+
   const handleServiceClick = (serviceId: string, serviceName: string) => {
     if (serviceName === 'Mount TV') {
       setShowTvModal(true);
@@ -60,7 +85,8 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
       // For other services, just add to cart
       const service = services.find(s => s.id === serviceId);
       if (service) {
-        const effectivePrice = getEffectiveServicePrice(service.base_price, isTestingMode, cart.length);
+        const cartQty = cart.find(c => c.id === serviceId)?.quantity ?? 0;
+        const effectivePrice = getNextUnitPrice(service, cartQty);
         const serviceItem = {
           id: serviceId,
           name: serviceName,
@@ -71,6 +97,7 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
       }
     }
   };
+
 
   const addToCart = (item: CartItem) => {
     setCart(prevCart => {
