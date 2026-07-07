@@ -1,4 +1,4 @@
-interface PricingTier { qty: number; price: number }
+interface PricingTier { quantity: number; price: number }
 interface PricingConfig { tiers?: PricingTier[]; base_price: number }
 
 export function getEffectiveServicePrice(config: PricingConfig, quantityIndex: number): number {
