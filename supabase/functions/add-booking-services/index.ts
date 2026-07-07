@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getSupabaseClient } from '../_shared/supabaseClient.ts';
 import { corsHeaders, refreshStripeMode } from '../_shared/stripe.ts';
-import { getEffectiveServicePrice, getServiceLineTotal } from '../_shared/pricing.ts';
+import { getEffectiveServicePrice } from '../_shared/pricing.ts';
 
 declare const EdgeRuntime: { waitUntil: (promise: Promise<unknown>) => void };
 
