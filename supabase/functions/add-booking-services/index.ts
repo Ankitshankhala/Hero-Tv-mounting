@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getSupabaseClient } from '../_shared/supabaseClient.ts';
 import { corsHeaders, refreshStripeMode } from '../_shared/stripe.ts';
-import { getServiceLineTotal } from '../_shared/pricing.ts';
+import { getEffectiveServicePrice } from '../_shared/pricing.ts';
 
 declare const EdgeRuntime: { waitUntil: (promise: Promise<unknown>) => void };
 
@@ -59,10 +59,19 @@ serve(async (req) => {
       existingQtyByService[bs.service_id] = (existingQtyByService[bs.service_id] || 0) + Number(bs.quantity || 0);
     }
 
-    // Build service data with tier-aware unit prices.
-    // We store the first-unit tier price on the row's base_price for display consistency;
-    // the authoritative total is recomputed below via getServiceLineTotal.
-    const servicesData = services.map((s: any) => {
+    // Build service rows. For tiered services with qty > 1, expand into N rows (one per unit)
+    // each priced at its own tier so no row carries an averaged/synthetic base_price. Flat
+    // (non-tiered) services keep the single-row shape to avoid row bloat.
+    const servicesData: Array<{
+      booking_id: string;
+      service_id: string;
+      service_name: string;
+      base_price: number;
+      quantity: number;
+      configuration: any;
+    }> = [];
+
+    for (const s of services as any[]) {
       const official: any = serviceMap.get(s.id);
       if (!official) {
         throw new Error(`Service ${s.id} not found. Cannot add unknown service.`);
@@ -73,17 +82,34 @@ serve(async (req) => {
         base_price: Number(official.base_price),
         tiers: official.pricing_config?.tiers,
       };
-      const lineTotal = getServiceLineTotal(config, existingQty, qty);
-      const unitPrice = qty > 0 ? lineTotal / qty : Number(official.base_price);
-      return {
-        booking_id,
-        service_id: s.id,
-        service_name: s.name,
-        base_price: unitPrice,
-        quantity: qty,
-        configuration: s.configuration || {},
-      };
-    });
+      const hasTiers = Array.isArray(config.tiers) && config.tiers.length > 0;
+
+      if (hasTiers && qty > 1) {
+        for (let i = 0; i < qty; i++) {
+          servicesData.push({
+            booking_id,
+            service_id: s.id,
+            service_name: s.name,
+            base_price: getEffectiveServicePrice(config, existingQty + i),
+            quantity: 1,
+            configuration: s.configuration || {},
+          });
+        }
+      } else {
+        // Flat pricing, or tiered with qty=1: single row.
+        const unitPrice = hasTiers
+          ? getEffectiveServicePrice(config, existingQty)
+          : Number(official.base_price);
+        servicesData.push({
+          booking_id,
+          service_id: s.id,
+          service_name: s.name,
+          base_price: unitPrice,
+          quantity: qty,
+          configuration: s.configuration || {},
+        });
+      }
+    }
 
     // Insert services
     const { data: insertedServices, error: insertError } = await supabase
