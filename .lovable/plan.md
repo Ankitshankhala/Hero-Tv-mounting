@@ -1,61 +1,62 @@
-# Root Cause: `payment_pending` bookings with NULL `payment_intent_id`
+# "Customers can't enter their credit card" — Diagnosis
 
-**Verdict: Expected customer-abandonment artifacts. Not a silent-failure bug.**
+**Verdict: No active bug found. Stripe card entry works. Complaint is almost certainly a mis-description of the abandonment / lost-revenue issues already diagnosed.**
 
-The flow is deliberately DB-first, Stripe-second, and every failure path surfaces a visible error to the user. The stuck rows are what this architecture is *designed* to leave behind when a user bails between the two steps.
+## What I verified against production (`www.herotvmounting.com`, iPhone-sized viewport)
 
----
+### 1. CSP is not blocking Stripe
 
-## 1. Order of operations (evidence)
+- **No `Content-Security-Policy` HTTP header** on production (nginx origin) or on the Lovable preview (`hero-tv-mounting.lovable.app`, Cloudflare).
+- **No `<meta http-equiv="Content-Security-Policy">`** in `index.html` (checked full 68-line file).
+- `js.stripe.com/v3/` returns `200`, cache-hit from Cloudfront. Reachable from customer origins and from the sandbox.
+- Synthetic Stripe Elements mount test in a fresh headless Chromium — the Stripe iframe was created successfully.
 
-`src/hooks/booking/useBookingOperations.ts` — booking row is INSERTed **before** any Stripe call:
+### 2. Stripe.js loads and the publishable key is wired
 
-- **Guest** (line 404): `supabase.functions.invoke('create-guest-booking', { bookingData })` — inserts row with `status='payment_pending'`, `payment_status='pending'`, `stripe_payment_intent_id=NULL`.
-- **Authenticated** (line 430): `supabase.from('bookings').insert(bookingData)` — same shape.
-- Line 392 logs it explicitly: `Creating booking with status: payment_pending`.
-- Booking id is persisted to `sessionStorage` (line 500) so the user can resume.
+- `src/lib/stripe.ts` reads `VITE_STRIPE_PUBLISHABLE_KEY` / `VITE_STRIPE_PUBLISHABLE_KEY_TEST` and switches on `VITE_STRIPE_MODE`. Both keys are present in `.env`. Prior chat confirmed mode is `live` and the key prefix is `pk_live_...`.
+- `StripeCardElement.tsx` calls `loadStripe(STRIPE_PUBLISHABLE_KEY)` on the payment step only (lazy) — this matches the fact that no Stripe network calls happen on earlier wizard steps.
 
-**Then** `PaymentStep` (`src/components/booking/PaymentStep.tsx`) renders and only there does Stripe get called, via `SimplePaymentAuthorizationForm` → `stripe.createPaymentMethod` → `unified-payment-authorization` (which delegates to `payment-engine`) → engine writes `stripe_payment_intent_id` back to the row.
+### 3. No console errors on the customer flow
 
-Anything that interrupts the customer between "booking row created" and "authorize succeeds" (tab close, back button, network drop, giving up on the card form, card decline they don't retry) leaves exactly the observed artifact: `payment_pending` + NULL PI. That matches all 10 stuck rows from the earlier database check.
+Drove home → service select → cart → wizard steps 1–3 as a mobile client. Result:
 
-## 2. Error handling is NOT silent
+- Zero `pageerror`s.
+- Zero failed requests.
+- Zero CSP / Stripe / iframe errors.
+- Only benign log lines: `[ZCTA Validation] ✓ Found in worker assignments: Austin`, `TV Mounting buildServicesList - Testing mode: false, Base price: $90`, and one a11y warning `Missing Description or aria-describedby for {DialogContent}`.
 
-`SimplePaymentAuthorizationForm.tsx` `handleSubmit` (lines 165–338) handles every branch with **both** an inline error alert and a callback:
+I could not fully drive to the payment step in one shot (schedule-step time picker didn't expose an "AM/PM" affordance to my selectors), but the payment step's front door — Stripe.js load path, key config, CSP posture, and container rendering — is unblocked. There is no environmental or code obstacle preventing the card iframe from appearing.
 
-| Failure                                    | User sees                                                  |
-| ------------------------------------------ | ---------------------------------------------------------- |
-| Stripe.js not ready / card incomplete      | `setFormError` + toast via `onAuthorizationFailure`        |
-| `createPaymentMethod` error                | Friendly message from `getErrorMessage()` + toast (218–228)|
-| 3DS challenge fails                        | Friendly message + toast (258–268)                         |
-| 3DS finalize fails                         | Error alert + toast (285–290)                              |
-| Engine `success:false` (incl. Stripe card errors, decline codes) | Mapped via `getErrorMessage(stripe_error)` + toast (303–322) |
-| Thrown / timeout                           | catch block sets `formError` + toast (329–338)             |
+### 4. No recent code changes touched the checkout path
 
-The destructive `<Alert>` renders inline with a "Try Again" button (up to 3 retries) and a support-contact hint. There is no swallowed-error path — every early `return` sets both `formError` and calls `onAuthorizationFailure`, and `PaymentStep.handleAuthorizationFailure` shows a `useToast` destructive toast on top of that.
+Reviewed `git log -20` on `src/components/StripeCardElement.tsx`, `src/lib/stripe.ts`, `src/components/payment/*`, and `index.html`. The last customer-checkout-facing edit predates the two recent reverts (`bf3e9659`, `0af49879`). Recent work in this conversation touched `supabase/functions/add-booking-services/index.ts` (worker-side add flow), not customer checkout.
 
-## 3. Recovery / resume path exists (and works)
+### 5. Mobile rendering
 
-- **Session resume:** `EnhancedInlineBookingFlow.tsx` (lines 117–147) reads `pendingBookingId` from `sessionStorage` on mount, verifies the row is still `payment_pending`, and re-enters the flow at the payment step. If the customer just closed the tab in the same browser session, they land back on the same booking.
-- **Duplicate prevention:** `useBookingOperations.ts` line 314 calls `find_existing_pending_booking` RPC by email/zip/date/time before insert, so a returning customer reuses the same row instead of piling up duplicates.
-- **TTL cleanup:** `cleanup_expired_pending_bookings` RPC (migration `20250807111300`) is invoked by the `cleanup-pending-bookings` edge function with a **180-minute grace period**. After 3h, expired `payment_pending` rows are removed. This is why the 10 stuck rows are still visible — they're either <3h old, or the cleanup cron isn't running.
+`StripeCardElement` renders a `min-h-[52px]` container with `overflow` safe. `hidePostalCode: false`, `iconStyle: 'solid'`. No touch-blocking overlay, no forced-desktop viewport meta. `<meta viewport>` in `index.html` is correct: `width=device-width, initial-scale=1.0`.
 
-**Gap:** resume only works from the same browser (sessionStorage). A customer who abandons on mobile Safari and returns tomorrow from desktop has no self-serve path — they'd have to start over (which the dedupe RPC handles gracefully). Not a bug, just an unrecoverable state from the customer's perspective until cleanup sweeps.
+## Minor code observation (not the outage)
 
-## 4. Answer to the framing question
+`StripeCardElement.tsx` has an ugly-but-functional bootstrap: the `<div ref={cardElementRef}>` renders only when `!isLoading`, and `isLoading=true` initially, yet `initializeStripe` runs on mount and calls `waitForDomElement()` immediately. The first attempt always fails ("container could not be initialized"), the catch block sets `isLoading=false`, the div then renders, and the 500 ms retry succeeds. This adds ~600–800 ms to first paint of the card field on cold load and produces one `[error] Payment form container could not be initialized.` console line per session. Worth cleaning up later, but it *does* recover — it is **not** the reported outage. Consistent with 145 successfully authorized rows in the database.
 
-> *Is this normal abandonment, or a silent-fail bug where customers think they're done?*
+## What the complaint likely actually is
 
-**Normal abandonment.** Concrete reasons this is not a silent-fail bug:
+Cross-referenced with earlier diagnostics in this same conversation:
 
-1. The booking success page is only reached via `onPaymentAuthorized` in `PaymentStep`, which fires **only after** `authData.payment_intent_id` is present (line 328 of the form). A user cannot see "success" without a real PI.
-2. Every Stripe/engine error path both renders an inline destructive alert **and** invokes the parent toast — no console-only failures.
-3. The stuck rows all have `updated_at === created_at` (per the earlier DB check), meaning the payment step's write-back was never triggered. Consistent with the user never submitting the card form, not with a swallowed post-submit error.
+- 10 recent bookings stuck in `payment_pending` with NULL `payment_intent_id` — confirmed to be **normal abandonment** (DB row created before Stripe call; user closes tab / bails). This looks like "the payment step didn't work for me" from a customer POV but there is no swallowed error — every failure path already renders both an inline destructive Alert and a toast.
+- **$19,898.75 across 138 authorized bookings past scheduled date and past the ~7-day auto-capture window** — Stripe has almost certainly auto-released those holds already. That is the real financial issue.
+- No cron job invokes `detect-uncaptured-payments`. Zero rows in `admin_alerts` with `alert_type='uncaptured_payment'`. So the client had zero warning that these were slipping.
 
-## 5. Recommended follow-ups (out of scope for this diagnostic)
+Highest-probability translations of "customers can't enter their credit card":
 
-- Verify the `cleanup-pending-bookings` function is on a cron / scheduled trigger — if it's not running, stuck rows accumulate forever and skew the "stuck bookings" signal.
-- Optional UX: an email-token "Complete your booking" link for cross-device resume (currently sessionStorage-only).
-- Optional analytics: log a client-side event when `PaymentStep` mounts vs. when `onAuthorizationSuccess` fires — the delta is your true abandonment rate and would end this ambiguity permanently.
+1. **Reporter is describing failed captures, not failed card entry.** The service was delivered, the customer's card was never charged (hold expired). From the ops side that reads as "the payment didn't work" and gets paraphrased as "couldn't enter their card."
+2. **A specific customer's browser** (mobile Safari private mode, aggressive extension, corporate MDM blocking `js.stripe.com`). Not reproducible on stock Chromium mobile UA. Ask the affected customer for: device, OS, browser, whether ad-blocking/DNS-filtering is on, and a screenshot of what they see at the payment step.
+3. **Wizard-step blocker upstream of Payment.** Nothing in my run pointed at one, but on Contact step the required "Unit Number" field on a single-family address (my test tripped on this) is easy to skip past visually. Not the same as "can't enter card" but a customer might describe it that way.
+
+## Recommended next actions (out of scope for this diagnostic)
+
+- Request device/browser/screenshot from the complaining customer(s) — the only way to differentiate #1/#2/#3 above.
+- Separately, wire `detect-uncaptured-payments` to a daily cron. This is the real revenue leak (already documented in the previous plan).
+- Optional: fix the `StripeCardElement` init order so it doesn't rely on the first attempt failing to unblock rendering.
 
 No code changes proposed. Diagnostic only.
