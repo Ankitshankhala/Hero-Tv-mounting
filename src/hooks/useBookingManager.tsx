@@ -163,9 +163,9 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
         ...booking,
         customer: booking.guest_customer_info ? {
           id: null,
-          name: (booking.guest_customer_info as any)?.customerName || 'Loading...',
-          email: (booking.guest_customer_info as any)?.customerEmail || '',
-          phone: (booking.guest_customer_info as any)?.customerPhone || ''
+          name: (booking.guest_customer_info as any)?.customerName || (booking.guest_customer_info as any)?.name || 'Loading...',
+          email: (booking.guest_customer_info as any)?.customerEmail || (booking.guest_customer_info as any)?.email || '',
+          phone: (booking.guest_customer_info as any)?.customerPhone || (booking.guest_customer_info as any)?.phone || ''
         } : null,
         worker: null, // Will be enriched in Phase 2
         service: null, // Will be enriched in Phase 2
