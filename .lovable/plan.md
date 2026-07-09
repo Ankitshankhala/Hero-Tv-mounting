@@ -1,62 +1,51 @@
-# "Customers can't enter their credit card" — Diagnosis
+# Diagnosis: "Customers can't enter credit card"
 
-**Verdict: No active bug found. Stripe card entry works. Complaint is almost certainly a mis-description of the abandonment / lost-revenue issues already diagnosed.**
+**Verdict: no evidence of a broken Stripe Elements / CSP / publishable-key bug in the current codebase. The reported symptom most likely maps to the abandonment + uncaptured-authorization issues already diagnosed in previous turns, not a live-blocking rendering failure.**
 
-## What I verified against production (`www.herotvmounting.com`, iPhone-sized viewport)
+## Evidence gathered (read-only)
 
 ### 1. CSP is not blocking Stripe
+- `index.html` contains **no** `<meta http-equiv="Content-Security-Policy">` tag.
+- No `_headers`, `netlify.toml`, `vercel.json`, or server-side CSP config exists in the repo.
+- `rg "Content-Security-Policy"` across the entire project returns zero matches.
+- Conclusion: no CSP directive can be blocking `js.stripe.com`, `api.stripe.com`, or Stripe iframes. The classic "field never becomes interactive because CSP blocks the iframe" root cause does **not** apply here.
 
-- **No `Content-Security-Policy` HTTP header** on production (nginx origin) or on the Lovable preview (`hero-tv-mounting.lovable.app`, Cloudflare).
-- **No `<meta http-equiv="Content-Security-Policy">`** in `index.html` (checked full 68-line file).
-- `js.stripe.com/v3/` returns `200`, cache-hit from Cloudfront. Reachable from customer origins and from the sandbox.
-- Synthetic Stripe Elements mount test in a fresh headless Chromium — the Stripe iframe was created successfully.
+### 2. Stripe publishable-key wiring looks correct
+- `src/lib/stripe.ts` reads `VITE_STRIPE_PUBLISHABLE_KEY` / `VITE_STRIPE_PUBLISHABLE_KEY_TEST` and validates the `pk_live_` / `pk_test_` prefix against `VITE_STRIPE_MODE`.
+- `useStripePayment.tsx`, `StripeCardElement.tsx`, and `ReauthorizePaymentDialog.tsx` all call `loadStripe(STRIPE_PUBLISHABLE_KEY)` — the standard pattern.
+- Admin diagnostics (`LivePaymentValidator`, `StripeConfigTest`, `StripeConfigStatus`) already exist to surface a missing/mismatched key in the admin UI.
+- If the key were missing, `stripe.ts` throws a loud console error at load — none was observed in the preview session.
 
-### 2. Stripe.js loads and the publishable key is wired
+### 3. Live preview console is clean
+Loaded `http://localhost:8080/` in headless Chromium (viewport 1280×1800). Console output:
+- `[vite] connected`
+- React Router future-flag warnings (harmless)
+- `Auth state change: INITIAL_SESSION undefined`
+- `ZIP index loaded: 444 entries`
+- **Zero** page errors, zero failed requests, zero CSP violations.
 
-- `src/lib/stripe.ts` reads `VITE_STRIPE_PUBLISHABLE_KEY` / `VITE_STRIPE_PUBLISHABLE_KEY_TEST` and switches on `VITE_STRIPE_MODE`. Both keys are present in `.env`. Prior chat confirmed mode is `live` and the key prefix is `pk_live_...`.
-- `StripeCardElement.tsx` calls `loadStripe(STRIPE_PUBLISHABLE_KEY)` on the payment step only (lazy) — this matches the fact that no Stripe network calls happen on earlier wizard steps.
+Note: the booking flow is `EnhancedInlineBookingFlow` (in-page, not a `/checkout` route — direct navigation to `/book`, `/checkout`, `/booking` returns a React 404, which is expected). Reproducing the payment step end-to-end from Playwright requires selecting a service → filling the multi-step form → reaching `PaymentStep` — not attempted here to keep this diagnostic read-only and short. Signal so far is sufficient to rule out a global loader/CSP break.
 
-### 3. No console errors on the customer flow
+### 4. No recent regression in payment loader/CSP surface
+No git-visible edits to `index.html`, `src/lib/stripe.ts`, `SimplePaymentAuthorizationForm.tsx`, or `PaymentStep.tsx` that would touch Stripe.js loading or CSP. Recent activity has been around capture logic, worker reassignment, and admin monitoring — none of which mount the card Element.
 
-Drove home → service select → cart → wizard steps 1–3 as a mobile client. Result:
+### 5. Mobile-specific rendering
+- Stripe Elements iframe sizing is Stripe-managed; the wrapping components don't set `overflow: hidden`, `pointer-events: none`, or fixed heights that would clip the iframe.
+- No custom touch-event handlers on the payment-step container that could swallow taps.
+- Without a specific customer device/browser + repro, a "mobile-only" bug cannot be confirmed or ruled out from static inspection alone.
 
-- Zero `pageerror`s.
-- Zero failed requests.
-- Zero CSP / Stripe / iframe errors.
-- Only benign log lines: `[ZCTA Validation] ✓ Found in worker assignments: Austin`, `TV Mounting buildServicesList - Testing mode: false, Base price: $90`, and one a11y warning `Missing Description or aria-describedby for {DialogContent}`.
+## Most likely real cause of the customer complaint
 
-I could not fully drive to the payment step in one shot (schedule-step time picker didn't expose an "AM/PM" affordance to my selectors), but the payment step's front door — Stripe.js load path, key config, CSP posture, and container rendering — is unblocked. There is no environmental or code obstacle preventing the card iframe from appearing.
+Given: (a) no loader/CSP defect exists, (b) previous diagnosis found 10 stuck `payment_pending` rows are consistent with users abandoning before submitting card, and (c) the admin `bookings` tab currently shows "Loading…"/"$0.00/Updating…" indefinitely (separate bug already flagged) — the "can't enter credit card" report is most plausibly:
 
-### 4. No recent code changes touched the checkout path
+1. **Customer completed the pre-payment steps, hit the payment screen, then left** (phone rang, distraction, price shock, form friction). They read the resulting stuck `payment_pending` state as "the site wouldn't let me pay." This matches the 10-row evidence.
+2. **Or** a customer-side environment issue on one device (aggressive ad-blocker / privacy extension blocking `js.stripe.com`, corporate network, very old iOS Safari). Nothing to fix in the codebase; needs a specific repro.
 
-Reviewed `git log -20` on `src/components/StripeCardElement.tsx`, `src/lib/stripe.ts`, `src/components/payment/*`, and `index.html`. The last customer-checkout-facing edit predates the two recent reverts (`bf3e9659`, `0af49879`). Recent work in this conversation touched `supabase/functions/add-booking-services/index.ts` (worker-side add flow), not customer checkout.
+## Recommended next steps (choose one — no changes made yet)
 
-### 5. Mobile rendering
+1. **Get one concrete repro.** Ask the escalated customer for: device, browser + version, the exact step where the field failed, and a screenshot. Without a repro, further chasing is speculation.
+2. **Instrument the payment step** (small, low-risk): log `stripe === null` and `elements.getElement(CardElement) === null` to an edge function so we can see, per session, whether the iframe ever mounted. This would definitively separate "loader failed" from "user never typed."
+3. **Add a client-side timeout + visible fallback** on `PaymentStep`: if `stripe` / `elements` haven't resolved in ~8s, show "Payment form failed to load — please refresh or contact support" instead of a silent spinner. This converts any future silent-load failure into a visible, reportable event.
+4. **Test on real mobile.** Load the live site on iOS Safari and Android Chrome, walk the full booking → payment flow, confirm the card field mounts and is tappable, capture console over remote debugging.
 
-`StripeCardElement` renders a `min-h-[52px]` container with `overflow` safe. `hidePostalCode: false`, `iconStyle: 'solid'`. No touch-blocking overlay, no forced-desktop viewport meta. `<meta viewport>` in `index.html` is correct: `width=device-width, initial-scale=1.0`.
-
-## Minor code observation (not the outage)
-
-`StripeCardElement.tsx` has an ugly-but-functional bootstrap: the `<div ref={cardElementRef}>` renders only when `!isLoading`, and `isLoading=true` initially, yet `initializeStripe` runs on mount and calls `waitForDomElement()` immediately. The first attempt always fails ("container could not be initialized"), the catch block sets `isLoading=false`, the div then renders, and the 500 ms retry succeeds. This adds ~600–800 ms to first paint of the card field on cold load and produces one `[error] Payment form container could not be initialized.` console line per session. Worth cleaning up later, but it *does* recover — it is **not** the reported outage. Consistent with 145 successfully authorized rows in the database.
-
-## What the complaint likely actually is
-
-Cross-referenced with earlier diagnostics in this same conversation:
-
-- 10 recent bookings stuck in `payment_pending` with NULL `payment_intent_id` — confirmed to be **normal abandonment** (DB row created before Stripe call; user closes tab / bails). This looks like "the payment step didn't work for me" from a customer POV but there is no swallowed error — every failure path already renders both an inline destructive Alert and a toast.
-- **$19,898.75 across 138 authorized bookings past scheduled date and past the ~7-day auto-capture window** — Stripe has almost certainly auto-released those holds already. That is the real financial issue.
-- No cron job invokes `detect-uncaptured-payments`. Zero rows in `admin_alerts` with `alert_type='uncaptured_payment'`. So the client had zero warning that these were slipping.
-
-Highest-probability translations of "customers can't enter their credit card":
-
-1. **Reporter is describing failed captures, not failed card entry.** The service was delivered, the customer's card was never charged (hold expired). From the ops side that reads as "the payment didn't work" and gets paraphrased as "couldn't enter their card."
-2. **A specific customer's browser** (mobile Safari private mode, aggressive extension, corporate MDM blocking `js.stripe.com`). Not reproducible on stock Chromium mobile UA. Ask the affected customer for: device, OS, browser, whether ad-blocking/DNS-filtering is on, and a screenshot of what they see at the payment step.
-3. **Wizard-step blocker upstream of Payment.** Nothing in my run pointed at one, but on Contact step the required "Unit Number" field on a single-family address (my test tripped on this) is easy to skip past visually. Not the same as "can't enter card" but a customer might describe it that way.
-
-## Recommended next actions (out of scope for this diagnostic)
-
-- Request device/browser/screenshot from the complaining customer(s) — the only way to differentiate #1/#2/#3 above.
-- Separately, wire `detect-uncaptured-payments` to a daily cron. This is the real revenue leak (already documented in the previous plan).
-- Optional: fix the `StripeCardElement` init order so it doesn't rely on the first attempt failing to unblock rendering.
-
-No code changes proposed. Diagnostic only.
+Tell me which of (1)–(4) you want next and I'll do it as a scoped change. Or, if you have a specific customer session/device to reproduce against, share it and I'll run a targeted Playwright repro against that browser profile.
