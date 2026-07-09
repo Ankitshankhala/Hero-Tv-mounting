@@ -134,7 +134,8 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
                   guest_customer_info, location_notes, is_archived
                 `)
                 .order('created_at', { ascending: false })
-                .order('start_time_utc', { ascending: false, nullsFirst: false });
+                .order('start_time_utc', { ascending: false, nullsFirst: false })
+                .limit(200);
               return response;
             },
             !bypassCache,
@@ -163,9 +164,9 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
         ...booking,
         customer: booking.guest_customer_info ? {
           id: null,
-          name: (booking.guest_customer_info as any)?.customerName || 'Loading...',
-          email: (booking.guest_customer_info as any)?.customerEmail || '',
-          phone: (booking.guest_customer_info as any)?.customerPhone || ''
+          name: (booking.guest_customer_info as any)?.customerName || (booking.guest_customer_info as any)?.name || 'Loading...',
+          email: (booking.guest_customer_info as any)?.customerEmail || (booking.guest_customer_info as any)?.email || '',
+          phone: (booking.guest_customer_info as any)?.customerPhone || (booking.guest_customer_info as any)?.phone || ''
         } : null,
         worker: null, // Will be enriched in Phase 2
         service: null, // Will be enriched in Phase 2
@@ -189,6 +190,13 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
 
       console.log('Phase 2 starting - batching related data...');
 
+      // Timeout wrapper to prevent a single stalled query from blocking enrichment
+      const withTimeout = <T,>(p: Promise<T>, ms = 8000): Promise<T> =>
+        Promise.race([
+          p,
+          new Promise<T>((_, rej) => setTimeout(() => rej(new Error('query timeout')), ms))
+        ]);
+
       // Batch all enrichment queries in parallel
       const [
         bookingServicesResult,
@@ -197,7 +205,7 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
         servicesResult
       ] = await Promise.allSettled([
         // Booking services
-        optimizedSupabaseCall(
+        withTimeout(optimizedSupabaseCall(
           `booking-services-${bookingIds.length}`,
           async () => {
             const response = await supabase
@@ -208,10 +216,10 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
           },
           true,
           30000
-        ),
+        )),
         
         // Latest transactions
-        optimizedSupabaseCall(
+        withTimeout(optimizedSupabaseCall(
           `transactions-${bookingIds.length}`,
           async () => {
             const response = await supabase
@@ -224,10 +232,10 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
           },
           true,
           30000
-        ),
+        )),
 
         // Workers
-        workerIds.length > 0 ? optimizedSupabaseCall(
+        workerIds.length > 0 ? withTimeout(optimizedSupabaseCall(
           `workers-${workerIds.length}`,
           async () => {
             const response = await supabase
@@ -238,10 +246,10 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
           },
           true,
           300000 // 5min cache for worker data
-        ) : Promise.resolve({ data: [], error: null }),
+        )) : Promise.resolve({ data: [], error: null }),
 
         // Services
-        optimizedSupabaseCall(
+        withTimeout(optimizedSupabaseCall(
           `services-${serviceIds.length}`,
           async () => {
             const response = await supabase
@@ -252,7 +260,7 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
           },
           true,
           300000 // 5min cache for service data
-        )
+        ))
       ]);
 
       console.log('Phase 2 batch queries complete');
