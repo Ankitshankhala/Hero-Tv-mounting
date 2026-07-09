@@ -1,81 +1,61 @@
-# Admin Bookings Table Stuck-Loading — Diagnosis (no code changes)
+# Root Cause: `payment_pending` bookings with NULL `payment_intent_id`
 
-## TL;DR
-Two overlapping bugs in `src/hooks/useBookingManager.tsx`. Not a regression from today's work — long-standing.
+**Verdict: Expected customer-abandonment artifacts. Not a silent-failure bug.**
 
-1. **Wrong JSON key names in Phase 1 minimal-paint** cause `customer.name = 'Loading...'` and `email/phone = ''` for every guest booking on first render.
-2. **Phase 2 enrichment isn't reaching `setBookings`/`setEnriching(false)`**, so the Phase 1 placeholder state persists — worker column stays on `"Loading worker..."`, price stays on `"Updating..."`, name stays on `"Loading..."`.
+The flow is deliberately DB-first, Stripe-second, and every failure path surfaces a visible error to the user. The stuck rows are what this architecture is *designed* to leave behind when a user bails between the two steps.
 
-## Evidence
+---
 
-### Where the "Loading..." string comes from
-Only one place in the codebase emits `'Loading...'` as a customer name: `src/hooks/useBookingManager.tsx` line 166 (Phase-1 fast paint):
+## 1. Order of operations (evidence)
 
-```ts
-customer: booking.guest_customer_info ? {
-  id: null,
-  name:  (booking.guest_customer_info as any)?.customerName  || 'Loading...',
-  email: (booking.guest_customer_info as any)?.customerEmail || '',
-  phone: (booking.guest_customer_info as any)?.customerPhone || ''
-} : null,
-```
+`src/hooks/booking/useBookingOperations.ts` — booking row is INSERTed **before** any Stripe call:
 
-`BookingTable.tsx` line 85-95 then renders:
-```ts
-const getCustomerName  = (b) => b.customer?.name  || 'Guest Customer';
-const getCustomerEmail = (b) => b.customer?.email || 'No email provided';
-const getCustomerPhone = (b) => b.customer?.phone || 'No phone provided';
-```
+- **Guest** (line 404): `supabase.functions.invoke('create-guest-booking', { bookingData })` — inserts row with `status='payment_pending'`, `payment_status='pending'`, `stripe_payment_intent_id=NULL`.
+- **Authenticated** (line 430): `supabase.from('bookings').insert(bookingData)` — same shape.
+- Line 392 logs it explicitly: `Creating booking with status: payment_pending`.
+- Booking id is persisted to `sessionStorage` (line 500) so the user can resume.
 
-### DB check — the JSON keys actually stored
-```sql
-SELECT
-  guest_customer_info->>'name'          AS name_key,
-  guest_customer_info->>'customerName'  AS customerName_key,
-  guest_customer_info->>'email'         AS email_key,
-  guest_customer_info->>'customerEmail' AS customerEmail_key
-FROM bookings WHERE guest_customer_info IS NOT NULL
-ORDER BY created_at DESC LIMIT 5;
-```
-Result for every recent booking, including authorized `dff309fe`:
-```
-name_key           = 'John Drummond'         customerName_key  = NULL
-email_key          = 'jdrumm9015@aol.com'    customerEmail_key = NULL
-```
-Every guest booking stores `name`, `email`, `phone` — never `customerName`, `customerEmail`, `customerPhone`. So Phase 1's lookup always misses and falls through to `'Loading...'` / `''`.
+**Then** `PaymentStep` (`src/components/booking/PaymentStep.tsx`) renders and only there does Stripe get called, via `SimplePaymentAuthorizationForm` → `stripe.createPaymentMethod` → `unified-payment-authorization` (which delegates to `payment-engine`) → engine writes `stripe_payment_intent_id` back to the row.
 
-The empty-string email/phone explains the "inconsistency" you noticed: `''` is falsy so `getCustomerEmail` returns `'No email provided'`, while `'Loading...'` is truthy so `getCustomerName` returns `'Loading...'`. Same DB row, different fallback branches, all in Phase 1.
+Anything that interrupts the customer between "booking row created" and "authorize succeeds" (tab close, back button, network drop, giving up on the card form, card decline they don't retry) leaves exactly the observed artifact: `payment_pending` + NULL PI. That matches all 10 stuck rows from the earlier database check.
 
-### Phase 2 uses the correct keys — but never runs to completion
-Phase 2 (same file, lines 310-353) rebuilds `customer` with the correct dual-key fallback:
-```ts
-name:  (guest_customer_info)?.customerName || (guest_customer_info)?.name || 'Unknown',
-email: (guest_customer_info)?.customerEmail || (guest_customer_info)?.email || 'Unknown',
-```
-If Phase 2 ever reached `setBookings(enrichedBookings)` (line 352) and `setEnriching(false)` (line 353), name would resolve to `"John Drummond"`, worker would render (or fall back to "Assign"), price would populate. **Neither happens** in the screenshot — worker still shows "Loading worker...", price still shows "Updating...". Both those texts are gated on `enriching === true` (BookingTable lines 325, 357). So `enriching` never flips false.
+## 2. Error handling is NOT silent
 
-### Why Phase 2 doesn't complete
-Phase 2 fires `Promise.allSettled([...4 optimizedSupabaseCall queries...])` with **no per-query timeout**. `optimizedSupabaseCall` → `canonicalDedup` wraps the Supabase call but does not enforce a timeout on the underlying network request. If any of the four queries stalls (network hiccup, PostgREST latency, or a cached-forever entry from `SimpleCache`/`canonicalDedup`), `Promise.allSettled` waits indefinitely, so:
-- `setBookings(enrichedBookings)` never runs → customer name stays `"Loading..."`.
-- `setEnriching(false)` never runs → `enriching` stays true → worker cell keeps `"Loading worker..."`, price keeps `"Updating..."`.
+`SimplePaymentAuthorizationForm.tsx` `handleSubmit` (lines 165–338) handles every branch with **both** an inline error alert and a callback:
 
-The outer `try/catch` (line 355-364) also sets `enriching=false`, but a hanging promise never throws — so the catch never fires either.
+| Failure                                    | User sees                                                  |
+| ------------------------------------------ | ---------------------------------------------------------- |
+| Stripe.js not ready / card incomplete      | `setFormError` + toast via `onAuthorizationFailure`        |
+| `createPaymentMethod` error                | Friendly message from `getErrorMessage()` + toast (218–228)|
+| 3DS challenge fails                        | Friendly message + toast (258–268)                         |
+| 3DS finalize fails                         | Error alert + toast (285–290)                              |
+| Engine `success:false` (incl. Stripe card errors, decline codes) | Mapped via `getErrorMessage(stripe_error)` + toast (303–322) |
+| Thrown / timeout                           | catch block sets `formError` + toast (329–338)             |
 
-Contributing factor: the Phase 1 bookings query at line 127-137 has **no `.limit()`** despite the cache key being `bookings-recent-100`. The bookings table currently holds **150 rows**, so all 150 IDs go into the `.in('booking_id', bookingIds)` clauses in Phase 2. Still under PostgREST URL limits, but every additional booking increases the chance of one query stalling.
+The destructive `<Alert>` renders inline with a "Try Again" button (up to 3 retries) and a support-contact hint. There is no swallowed-error path — every early `return` sets both `formError` and calls `onAuthorizationFailure`, and `PaymentStep.handleAuthorizationFailure` shows a `useToast` destructive toast on top of that.
 
-### Regression check
-- The camelCase key mismatch in Phase 1 (`useBookingManager.tsx` line 166-168) exists in the version currently on disk. `git log` on this file isn't available in this session, but the file structure (Phase 1 fast-paint / Phase 2 enrichment pattern) is unrelated to today's `a7abd4cb` add-booking-services fix. This behavior is **long-standing**, not a fresh regression — every guest booking would have shown "Loading..." on first paint since `guest_customer_info` was standardized on lowercase keys.
-- The reason it wasn't obvious before is that Phase 2 usually completes fast enough to hide Phase 1. It's now failing to complete, which unmasks the Phase 1 bug.
+## 3. Recovery / resume path exists (and works)
 
-## Root cause (two-layer)
+- **Session resume:** `EnhancedInlineBookingFlow.tsx` (lines 117–147) reads `pendingBookingId` from `sessionStorage` on mount, verifies the row is still `payment_pending`, and re-enters the flow at the payment step. If the customer just closed the tab in the same browser session, they land back on the same booking.
+- **Duplicate prevention:** `useBookingOperations.ts` line 314 calls `find_existing_pending_booking` RPC by email/zip/date/time before insert, so a returning customer reuses the same row instead of piling up duplicates.
+- **TTL cleanup:** `cleanup_expired_pending_bookings` RPC (migration `20250807111300`) is invoked by the `cleanup-pending-bookings` edge function with a **180-minute grace period**. After 3h, expired `payment_pending` rows are removed. This is why the 10 stuck rows are still visible — they're either <3h old, or the cleanup cron isn't running.
 
-**Bug A — Phase 1 uses non-existent JSON keys.** `useBookingManager.tsx` lines 166-168 read `customerName / customerEmail / customerPhone` from `guest_customer_info`, but the stored keys are `name / email / phone`. Placeholder `'Loading...'` and empty strings are what render on first paint for every guest booking. Fix is trivial: mirror the dual-key fallback already used in Phase 2 (lines 327-329).
+**Gap:** resume only works from the same browser (sessionStorage). A customer who abandons on mobile Safari and returns tomorrow from desktop has no self-serve path — they'd have to start over (which the dedupe RPC handles gracefully). Not a bug, just an unrecoverable state from the customer's perspective until cleanup sweeps.
 
-**Bug B — Phase 2 hangs, unmasking Bug A.** `Promise.allSettled` in Phase 2 has no timeout. When one of the four `optimizedSupabaseCall` queries stalls (or returns a broken cached promise from `canonicalDedup` / `SimpleCache`), Phase 2 never resolves → `setBookings`/`setEnriching(false)` never run → the UI is frozen on the Phase 1 placeholder forever. Fix requires either wrapping each sub-query with an explicit timeout (e.g. 8-10s) or bypassing the cache/dedup layer for these enrichment reads.
+## 4. Answer to the framing question
 
-## Recommended fix scope (not applied yet — plan-mode only)
-- **Minimum-risk fix (targets Bug A only):** change `useBookingManager.tsx` lines 166-168 to fall back through both key styles, matching Phase 2. This alone makes name/email/phone correct on first paint, even if Phase 2 later hangs.
-- **Full fix (Bug A + Bug B):** additionally wrap each Phase 2 sub-query in a `Promise.race` with an ~8s timeout, so if any query stalls, the enrichment finishes with whatever data resolved and `enriching` reliably flips to false. Also add a `.limit(200)` to the Phase 1 bookings query to match the cache key intent.
-- **Scope boundary:** all changes live in `src/hooks/useBookingManager.tsx` (plus optionally `src/utils/optimizedApi.ts` if we want the timeout centrally). `BookingTable.tsx` needs no changes — its fallbacks are already sensible once the data actually arrives.
+> *Is this normal abandonment, or a silent-fail bug where customers think they're done?*
 
-Approve which scope you want and I'll implement it in a follow-up turn.
+**Normal abandonment.** Concrete reasons this is not a silent-fail bug:
+
+1. The booking success page is only reached via `onPaymentAuthorized` in `PaymentStep`, which fires **only after** `authData.payment_intent_id` is present (line 328 of the form). A user cannot see "success" without a real PI.
+2. Every Stripe/engine error path both renders an inline destructive alert **and** invokes the parent toast — no console-only failures.
+3. The stuck rows all have `updated_at === created_at` (per the earlier DB check), meaning the payment step's write-back was never triggered. Consistent with the user never submitting the card form, not with a swallowed post-submit error.
+
+## 5. Recommended follow-ups (out of scope for this diagnostic)
+
+- Verify the `cleanup-pending-bookings` function is on a cron / scheduled trigger — if it's not running, stuck rows accumulate forever and skew the "stuck bookings" signal.
+- Optional UX: an email-token "Complete your booking" link for cross-device resume (currently sessionStorage-only).
+- Optional analytics: log a client-side event when `PaymentStep` mounts vs. when `onAuthorizationSuccess` fires — the delta is your true abandonment rate and would end this ambiguity permanently.
+
+No code changes proposed. Diagnostic only.
