@@ -1,66 +1,52 @@
-# Production Payment Issue — Diagnosis (no code changes)
+# Stripe PI Cross-Check — Findings & Next Step
 
-## TL;DR
-The broken flow is **customer-side authorization at checkout**, not worker-side capture. It has been dropping bookings for **at least 9+ days** (well before today's `a7abd4cb` add-booking-services fix), so that commit is **not** the trigger. Captures that do run are still succeeding.
+## Direct answers
 
-## Evidence
+### 1. Stripe Dashboard PI cross-check per booking
+**I cannot query the Stripe Dashboard directly from this environment** — there is no Stripe-API tool available to me, and the `test-stripe-config` edge function is gone (returns 404). To hit Stripe's API for the 10 timestamps I need to either (a) deploy a small read-only diagnostic edge function that lists PIs by created-timestamp using `STRIPE_SECRET_KEY`, or (b) have you paste the results from Stripe Dashboard yourself. Both require your approval — the first needs build mode; the second needs you.
 
-### 1. Edge function logs — payment functions
-Queried `payment-engine`, `capture-payment-intent`, `worker-complete-and-capture`, `unified-payment-authorization` for the retained window:
-- **Zero log entries returned for all four.** The analytics query for edge URLs matching `payment-engine|capture|authorize` also returned `[]`.
-- The only 5xx errors in the recent edge-log window are from `unified-email-dispatcher` (500, "bookingId, recipientEmail, and emailType are required") — a separate email-payload bug, not payment.
-- No Stripe 4xx/5xx surfaced; nothing was logged because these functions weren't hit (or hits fall outside the retained window).
+### 2. Edge function logs Jul 7 → now
+Queried `function_edge_logs` with `timestamp > '2026-07-07'` for URLs matching `payment-engine | unified-payment-authorization | create-payment-intent | authorize`:
+- **0 rows returned.** Retention window for `function_edge_logs` in this project is ~last ~24h — anything from Jul 7–8 is already outside the retained window, so we have no server-side trace of what happened at those exact 10 timestamps.
+- Logs that DO exist today show payment functions are simply not being invoked at the same rate as `booking-notification-watchdog` — consistent with clients bailing before reaching them.
 
-### 2. Bookings state — the smoking gun
-Recent rows with `payment_status IN ('authorized','pending')`:
+### 3. What the booking rows themselves prove
+For all 10 stuck bookings I confirmed:
+- `payment_intent_id = NULL`
+- `stripe_customer_id = NULL`
+- `stripe_payment_method_id = NULL`
+- `updated_at == created_at` (row inserted, never touched again)
+- All are guest checkouts (`customer_id` mostly NULL; one guest under a shared demo user)
 
-Stuck in `status='payment_pending' / payment_status='pending' / payment_intent_id=NULL` (authorization never completed):
-```
-2026-07-09 12:54  3ab310d4-81e5-…-3aff74ba88a6
-2026-07-09 06:13  c85f7401-…-3e030e1595f8
-2026-07-09 02:48  471cc882-…-5cbf96390c9b
-2026-07-08 22:59  bf0638e6-…-9abf4d259643
-2026-07-08 08:40  02e967d0-…-60758f68cd07
-2026-07-08 04:23  6c1394fe-…-eefc0bb36924
-2026-07-08 00:46  5be19738-…-4433a8366b25
-2026-07-08 00:08  a0727395-…-4b9c42098ed7
-2026-07-07 22:56  1ff3a266-…-b678b291d524
-2026-07-07 19:07  65ae6d20-…-e0b45a995a32
-```
-None ever got a `payment_intent_id`. The Stripe authorization call either never fired or errored before creating a PI. Pattern started **~Jul 7** — days before commit `a7abd4cb`.
+**This is decisive**: our authorization flow attaches `stripe_payment_method_id` to the booking as part of the same round-trip that creates the PaymentIntent. If a Stripe PI had ever been created for these attempts, we would still see `stripe_payment_method_id` populated (or at least the client-side Stripe.js tokenization to have completed). None of the 10 have any Stripe artifacts.
 
-Successful authorizations still occur alongside the failures (`dff309fe` today 13:17, `46cf7c4c` Jul 8, `ace8bd2b` Jul 8, `eccd4d83` Jul 8) → the flow is intermittent, not fully down.
+Additionally, several customers appear twice within hours (Holden Maples ×2, Sammy Mark ×2, Dante Villalba ×2) — they kept retrying and kept hitting the same failure.
 
-### 3. Worker-side capture — actually working
-Recent `transactions.transaction_type='capture'` rows all show `status='completed'` with a `captured_at`:
-- `a51ca8b0` captured 2026-07-09 01:43
-- `2954af91` captured 2026-07-08 00:04
-- `b52d9552` captured 2026-07-07 15:01
-- Several more prior — no failed captures observed in the last 20 transactions.
+### 4. Tally
+Without Stripe API access I cannot give a strict 3-way split, but the DB evidence pins the failure well before Stripe:
 
-Bookings sitting in `payment_status='authorized'` (`dff309fe`, `46cf7c4c`, `ace8bd2b`, `eccd4d83`, `e5306fb5`) are all scheduled Jul 9–11 — not overdue, not stuck. No captured→failed regression.
+- **"Never reached Stripe" (frontend / pre-Stripe.js): 10/10 — high confidence.**
+- "Reached Stripe and got declined": 0/10 likely — no PaymentMethod token was ever stored.
+- "Reached Stripe successfully but we failed to save PI back": ruled out — the same code path saves both PI and PaymentMethod atomically; if one landed, the other would too.
 
-### 4. Correlation with today's commit `a7abd4cb`
-Not correlated. The `payment_pending`/no-PI pile predates the commit by ~2 days and continues at the same cadence. Today's commit only affects `add-booking-services` (post-authorization service additions) and cannot influence initial checkout authorization.
+## What this means
+The break is on the **client** side (or in the booking-creation → Stripe.js handoff), not on Stripe or in the edge function's authorization logic:
 
-## Root-cause hypotheses (need confirmation before fixing)
-The **authorization** path drops before a PaymentIntent is created:
+- Row is created with `status='payment_pending'` when checkout starts.
+- Something between "row inserted" and "Stripe.js `createPaymentMethod`/`confirmCardSetup`" call is failing silently or the user abandons — no PM token ever comes back, so `unified-payment-authorization` is either never called or called without valid inputs.
 
-- **A. Frontend never invokes `unified-payment-authorization`** — checkout error (Stripe.js, card element, form validation, network) leaves the just-created booking in `payment_pending` and bails. Most likely given zero edge-function invocations in retained logs.
-- **B. `unified-payment-authorization` is invoked but errors before Stripe** (auth/JWT missing, mode-mismatch between `STRIPE_MODE` / `VITE_STRIPE_MODE`, or 3DS challenge abandoned). Would still show in edge logs if within retention.
-- **C. Booking-creation flow writes the row first, and the follow-up authorize call never completes** — a client crash, tab close, or aborted 3DS. `dff309fe` completing today shows the path itself is functional.
+Most likely culprits (need to confirm which, no code changes yet):
+- Stripe.js card element failing to load / initialize in production (CSP, script blocked, wrong publishable key at build time).
+- A caught client-side error swallowing the failure without telling the user.
+- Form validation preventing submit while creating the booking row anyway (order-of-operations bug: row created before card confirm).
+- Cart/session restore issue leaving checkout in a state where the submit handler no-ops.
 
-## What I need before I can fix
-Please confirm which of these to check next (I will not edit anything until you say so):
+## Recommended next step (pick one — plan mode, no changes yet)
 
-1. **Reproduce checkout in the preview** with card `4242…` while capturing browser console + network. This will show whether `unified-payment-authorization` is called and what it returns (Hypothesis A vs B).
-2. **Query Stripe dashboard directly** for PaymentIntents in the last 48h — do failed/incomplete PIs exist that didn't make it back to our DB? (Hypothesis C.)
-3. **Verify secret sync**: `STRIPE_MODE` vs `VITE_STRIPE_MODE`, and `STRIPE_SECRET_KEY` prefix (`sk_live_` vs `sk_test_`). Per memory, these must match and functions need redeployment after secret changes.
-4. **Cross-check `unified-email-dispatcher` 500s** — separate defect (`bookingId/recipientEmail/emailType required`) but may be dropping confirmation emails on the few authorizations that succeed; unrelated to the "can't accept payment" report.
+**Option A (fastest, definitive):** Approve build mode so I can deploy a small read-only `stripe-diagnostics` edge function that lists Stripe PIs and Customers created within a ±10-minute window around each of the 10 timestamps, matched by email from `guest_customer_info`. This confirms the "never reached Stripe" conclusion vs. any orphaned PIs, in one round-trip. I will delete the diagnostic function afterwards.
 
-## What is NOT broken
-- Worker-side capture (`PaymentCaptureButton` → `capture-payment-intent` → `payment-engine`): recent captures completed cleanly.
-- Today's `add-booking-services` row-expansion change: no evidence it broke anything; unrelated code path.
+**Option B (no code, needs you):** Open Stripe Dashboard → Payments → filter by these 10 emails (holdenkmaples@gmail.com, marksammy85@gmail.com, dhamizg@gmail.com, doug.shald@gmail.com, katemabarbra8@gmail.com, rodrigopradobrandao@gmail.com, abc@gmail.com) between Jul 7 19:00 UTC and Jul 9 13:00 UTC. Paste back any PI IDs/statuses/error codes you see. Zero results = confirms frontend failure.
 
-## Recommendation
-Approve step 1 (live reproduce checkout with network capture) and step 3 (verify Stripe secret/mode sync) first — those will localize the failure to frontend vs. edge function vs. Stripe config within one round-trip.
+**Option C (proactive instrumentation):** Approve build mode to add structured client logging around the checkout submit path (before/after Stripe.js `createPaymentMethod`, before/after `functions.invoke('unified-payment-authorization')`), so the next real customer's failure is fully traced. Nothing else changes.
+
+My recommendation: **A** — it's the smallest change that turns "high confidence" into "certainty" before we start touching the checkout code.
