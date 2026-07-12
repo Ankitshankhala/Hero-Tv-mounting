@@ -1,157 +1,115 @@
 
-# Phase 1 — Schema + RLS Audit (read-only)
+# Flowchart vs. Codebase Cross-Check (read-only)
 
-Scope: `public` schema. 42 tables. All findings below are observations from `pg_policies`, `pg_constraint`, and `information_schema` — no edits performed.
-
----
-
-## 1. RLS enablement
-
-RLS is ON for every user-data table. Two exceptions:
-
-| Table | RLS | Notes |
-|---|---|---|
-| `spatial_ref_sys` | OFF | PostGIS system table — expected, ignore |
-| `invoice_sequences` | **OFF** | 2 rows, holds invoice-number counters. Not PII, but Data API can read/increment. **Medium** |
+Each item marked **MATCHES / PARTIALLY MATCHES / DOES NOT EXIST YET** with file evidence.
 
 ---
 
-## 2. Table inventory (approx row counts + purpose)
-
-| Table | Rows | Purpose |
-|---|---|---|
-| bookings | 616 | Core booking records (guest + customer) |
-| booking_services | 1144 | Line items per booking |
-| booking_audit_log | 2364 | Booking change history |
-| transactions | 515 | Stripe charges/authorizations |
-| invoices / invoice_items / invoice_audit_log / invoice_service_modifications | 320/762/649/48 | Billing |
-| invoice_sequences | 2 | Invoice numbering (RLS OFF) |
-| users | 11 | Customers, workers, admins |
-| stripe_customers | 96 | Stripe customer + default PM tokens |
-| coupons / coupon_services / coupon_usage / coupon_audit_log | — | Discount system |
-| services | 45 | Service catalog |
-| worker_applications | 6 | Job applicants |
-| worker_availability / worker_schedule | 56/18 | Worker calendar |
-| worker_bookings | 462 | Worker↔booking assignment |
-| worker_service_areas / worker_service_zipcodes | 7/2204 | Worker coverage geo |
-| worker_coverage_overlays / worker_coverage_notifications / worker_notifications | — | Coverage & notif workflow |
-| service_area_audit_logs | 1533 | Coverage change history |
-| service_operation_logs | — | Service ops trace |
-| sms_logs | 132833 | Twilio message log |
-| email_logs | 1372 | Outbound email log |
-| admin_alerts / admin_impersonation_sessions | — | Admin tooling |
-| app_settings / app_settings_audit | — | Runtime config (incl. `stripe_mode`) |
-| notification_settings | — | Admin config |
-| idempotency_records | 4 | Dedupe |
-| rls_debug_logs | — | Debug |
-| tip_sync_log | — | Tip reconciliation |
-| state_tax_rates | 51 | Tax config |
-| us_zcta_polygons / us_zip_codes | 33k/5 | Public geo |
-| zcta_import_state | — | Import bookkeeping |
+### 1. Entry / Auth — **PARTIALLY MATCHES**
+- `src/components/auth/AuthModal.tsx` has both **login** and **signup** tabs (single modal used from `Header.tsx` for customers).
+- Workers have a **separate** login surface: `src/pages/WorkerLogin.tsx` + `src/components/worker/WorkerLoginForm.tsx`. Worker signup is `src/pages/WorkerSignup.tsx` (via worker applications).
+- Admin has its own gate: `src/components/admin/AdminLogin.tsx` inside `src/pages/Admin.tsx` (no signup — role must be pre-set).
+- Role-based redirect: **not implemented in a single place**. `AuthModal` just closes; role-appropriate dashboard link then appears in `Header.tsx` based on `profile.role`. Only `WorkerLogin.tsx` has an explicit `navigate('/worker-dashboard')` on auth. `Admin.tsx` gates by `profile.role !== 'admin'` in-page.
+- Mismatch to document: there is **no unified post-login role router** — behavior is per-page.
 
 ---
 
-## 3. Findings by severity
+### 2. Booking flow step order — **DOES NOT MATCH DOCUMENTED ORDER**
+Actual order in `src/components/EnhancedInlineBookingFlow.tsx` (lines 440–570), 5 steps:
+1. **Service Configuration** (`ServiceConfigurationStep`)
+2. **Contact & Location** — name/email/phone **and** zipcode (`ContactLocationStep`) + coupon section
+3. **Schedule** (`ScheduleStep`)
+4. **Tip** (`TipStep`)
+5. **Payment Authorization** (`PaymentAuthorizationForm`)
 
-### CRITICAL — data-leak / security hole
+Documented order was `zip → services → schedule → details → payment`. Real order is `services → contact+zip → schedule → tip → payment`. Zip is captured **inside** the contact step, not first; there is a dedicated **Tip** step before payment that the flowchart omits.
 
-**C1. Anon can read every guest booking (`bookings`)**
-Policy `"Enable guest booking viewing during checkout"` (role `public`) has qual:
+---
+
+### 3. Zip / Geo assignment — **MATCHES (both tables live-wired)**
+Live assignment path: `supabase/functions/assign-authorized-booking-worker/index.ts` calls RPC `find_available_workers_by_zip`. Function body (verified via `pg_get_functiondef`) does:
 ```
-(customer_id IS NULL AND status='payment_pending')
- OR (customer_id IS NULL AND payment_intent_id IS NOT NULL)
+INNER JOIN worker_service_zipcodes wsz ON u.id = wsz.worker_id
+INNER JOIN worker_service_areas   wsa ON wsz.service_area_id = wsa.id
+WHERE wsa.is_active = true AND wsz.zipcode = p_zipcode
 ```
-No session/token/email match. Once `payment_intent_id` is set (which happens on essentially every guest checkout), the row is world-readable **forever** — including `guest_customer_info` (name, email, phone, address), `tip_amount`, `authorized_amount`, `captured_amount`, `payment_intent_id`, `stripe_customer_id`, `stripe_payment_method_id`, `coupon_code`, `scheduled_date`. Guest orders are a majority of your data. **This is a full customer-PII + payment-metadata leak to anon.**
-
-**C2. Anon can read every guest booking's line items (`booking_services`)**
-Policy `"Enable guest booking services viewing"` mirrors C1 — anon reads every service/price row for any guest booking with a payment_intent_id.
-
-**C3. Anon can read all worker PII (`users`)**
-Policy `"Public can view active worker info"` (role `public`, `role='worker' AND is_active=true`) grants SELECT on the whole row. `users` includes `email`, `phone`, `city`, `zipcode`, `latitude`, `longitude`. Any unauthenticated visitor can enumerate every active worker with contact info + home coords via the Data API.
+So both tables are required at match time: `worker_service_areas` gates activation of an area, `worker_service_zipcodes` provides the flat zip lookup. Neither is dead. `service-area-upsert` writes both on save.
 
 ---
 
-### HIGH — meaningful privilege / integrity gap
+### 4. Worker dashboard tabs/actions — **PARTIALLY MATCHES**
+Tabs (`src/pages/WorkerDashboard.tsx` lines 371–374):
+- My Jobs, Calendar, Set Schedule, Service Area. (4 tabs, no separate "Earnings" tab at the top level — earnings surface inside job cards.)
 
-**H1. Customers can UPDATE payment fields on their own bookings**
-Policy `"Customers can update own bookings"`: `USING (customer_id=auth.uid())` and `WITH CHECK (customer_id=auth.uid())` — no column list. A signed-in customer can PATCH `payment_status`, `authorized_amount`, `captured_amount`, `tip_amount`, `worker_id`, `coupon_discount`, `payment_intent_id`, etc. directly via PostgREST. Any financial invariant enforced only in edge functions is bypassable.
-
-**H2. All active coupon codes are anon-readable (`coupons`)**
-`"Public can view active valid coupons"` returns every row where `is_active AND now() BETWEEN valid_from AND valid_until`. Codes intended as targeted/private (staff, retention, VIP) are enumerable. Combined with `coupon_services` also being public-readable, the entire promo matrix is exposed.
-
-**H3. `app_settings` is world-readable**
-`"Anyone can read app settings"` qual `true`, role `public`. Whatever is stored here (Stripe mode toggle at minimum; check for any secrets or feature flags that shouldn't be exposed) leaks to anon. Not a leak if contents are truly non-sensitive, but the blanket-true policy means every future key added is public by default — **latent risk**.
+Per-job actions in `src/components/worker/JobActions.tsx`:
+- ✅ **Call customer**
+- ✅ **Complete Job & Accept Payment** (single button = mark complete + capture)
+- ✅ **Charge / OnSiteChargeModal** (`onChargeClick`)
+- ✅ **Add Services** (`AddServicesModal`)
+- ✅ **Modify / Remove Services** (`RemoveServicesModal`)
+- ✅ **Reassign** (`ReassignJobModal`), **Reschedule** (`RescheduleJobModal`)
+- ✅ **Archive**
+- ❌ "Capture payment" as a *separate* action from completion does **not** exist — it is fused into "Complete Job & Accept Payment".
+- Service-area editing is a **top-level tab**, not a per-job action (correct).
 
 ---
 
-### MEDIUM — best-practice / hardening
+### 5. Worker Map / propose-approve staging — **PARTIALLY MATCHES**
+- A worker-facing map editor **does exist**: `src/components/worker/service-area/ServiceAreaMap.tsx` using **Leaflet + leaflet-draw + concaveman** (not Mapbox — `rg mapbox` returns nothing anywhere). Also `ServiceAreaSettings.tsx`, `ZipCodeTester.tsx` in the same folder.
+- **No propose/approve staging workflow exists.** No `propose`/`approval` strings in the worker service-area code or `useWorkerServiceAreas.ts`; saves go directly through `service-area-upsert` edge fn which writes to `worker_service_areas` + `worker_service_zipcodes` live. Your flag that staging is "not yet built" is correct; the map itself IS built.
 
-**M1. `invoice_sequences` has RLS disabled** — 2-row counter table; Data API can read and (with grants) mutate it. Even if grants are limited, RLS should be ON with a service-role-only policy.
+---
 
-**M2. Worker geo mapping is anon-readable**
-`worker_service_zipcodes` `"System can view zip codes for assignment"` = `true`, `worker_service_areas` `"System can view service areas for assignment"` = `is_active=true`. Combined with C3, an attacker can build a full map of which worker covers which ZIPs. Likely intentional for the coverage map — confirm whether `worker_id` needs to be exposed or if it should be aggregated.
+### 6. Admin tabs — **PARTIALLY MATCHES**
+Actual tabs in `src/pages/Admin.tsx` switch (lines 121–170):
+`dashboard, bookings, customers, workers, services, reviews, payments, invoices, coupons, sms, email, blog, coverage/service-areas, tips, payroll, settings` (+ hidden: `invoice-monitoring`, `email-notifications` redirect to dashboard).
 
-**M3. `stripe_customers` email fallback**
-`"Users can view their own stripe customer record"` qual `(user_id=auth.uid() OR email=auth.email())`. Safe as long as `email` is NOT NULL and `auth.email()` returns null for anon. Worth pinning down (add `email IS NOT NULL AND auth.email() IS NOT NULL`).
+Vs. your assumed list (Bookings/Services/Workers/Customers/Coupons/Payments/Monitoring):
+- ✅ Bookings, Services, Workers, Customers, Coupons, Payments — all real.
+- ❌ **Monitoring** — no tab by that name. Nearest equivalents live inside other tabs (`BookingIntegrityMonitor`, `PaymentPerformanceMonitor`, `ServiceOperationsMonitor`, `SpatialHealthDashboard`) but are not top-level.
+- ➕ Not in your doc: **Reviews, Invoices, SMS logs, Email logs, Blog, Service Areas/Coverage, Tips, Payroll, Settings, Dashboard (stats home)**.
 
-**M4. Missing FKs / ON DELETE gaps**
+There is a second, apparently unused surface `src/pages/AdminDashboard.tsx` with only 4 tabs (spatial/tips/areas/analytics) — the real entry route `/admin` uses `Admin.tsx`.
 
-| Column | Current | Risk |
+---
+
+### 7. Coupon system UI — **MATCHES**
+Full admin UI exists: `src/components/admin/CouponsManager.tsx`, `CreateCouponModal.tsx`, `EditCouponModal.tsx`, `CouponUsageModal.tsx`; wired to the `coupons` tab in `Admin.tsx`. Validation on checkout via `supabase/functions/validate-coupon` and `CouponSection` inside the booking flow.
+
+---
+
+### 8. Tips / Stripe Connect — **DOES NOT EXIST YET (for Connect)**
+`rg 'stripe.accounts|stripe.transfers|transfer_data|application_fee|connected_account|acct_' src supabase/functions` returns **zero hits**. `rg -i mapbox|connect` shows no Stripe Connect code anywhere.
+Tips are handled entirely internally: `tip_amount` column on bookings, `tip_sync_log` table, `WorkerTipTracker.tsx`, `TipAnalyticsDashboard.tsx`, `WorkerTipsHistory.tsx`, `repair-tip-calculations` fn, plus `WorkerWeeklyPayments` payroll view. No connected accounts; payouts are ledger-only.
+
+---
+
+### 9. Notification dispatcher — **MATCHES**
+Confirmed the two mechanisms and their triggers:
+- **Email**: `supabase/functions/unified-email-dispatcher` (called with `emailType` discriminator).
+- **SMS**: `supabase/functions/send-sms-notification` (worker) and `send-customer-sms-notification` (customer). Also `send-increment-notification`.
+
+Actual invocation sites (grep of `functions.invoke('unified-email-dispatcher'|'send-*sms-notification')`):
+- `assign-authorized-booking-worker` → worker_assignment email + worker SMS + customer SMS + booking_confirmation email (post-assignment).
+- `worker-reschedule-booking`, `worker-reassign-booking`, `worker-cancel-booking` → email dispatcher.
+- `generate-invoice` → email dispatcher.
+- `admin-process-refund` → email dispatcher.
+- `AssignWorkerModal.tsx` (admin manual assign) → email dispatcher (×2 for worker + customer).
+- Standalone: `send-customer-booking-confirmation-email`, `send-invoice-email`, `send-worker-assignment-notification` also exist; the codebase has migrated most call-sites to the unified dispatcher but these older direct functions remain deployed.
+
+---
+
+## Overall verdicts
+| # | Module | Verdict |
 |---|---|---|
-| `email_logs.booking_id` | **no FK** | orphans on booking delete |
-| `booking_audit_log.booking_id` | **no FK** | orphans (may be intentional for audit persistence) |
-| `idempotency_records.user_id` | **no FK** | orphans |
-| `worker_service_areas.worker_id` | **no FK** | orphans / integrity |
-| `worker_coverage_overlays.worker_id` | **no FK** | orphans |
-| `service_area_audit_logs.worker_id` | **no FK** | orphans |
-| `sms_logs.booking_id` | FK, **no ON DELETE** | blocks booking delete |
-| `tip_sync_log.booking_id`, `transaction_id` | FK, **no ON DELETE** | blocks delete |
-| `worker_coverage_notifications.booking_id`, `worker_id` | FK, **no ON DELETE** | blocks delete |
-| `transactions.cancelled_by`, `captured_by` | FK, **no ON DELETE** | blocks user delete |
+| 1 | Entry/Auth | Partial — three separate login surfaces, no unified role router |
+| 2 | Booking step order | **Wrong** — real order includes a Tip step, zip is in contact step |
+| 3 | Zip/Geo (both tables) | Matches — both tables required by `find_available_workers_by_zip` |
+| 4 | Worker dashboard | Partial — 4 tabs; complete+capture is one fused button |
+| 5 | Worker map / staging | Partial — Leaflet map exists; propose/approve staging does **not** |
+| 6 | Admin tabs | Partial — 6 of your 7 exist, no "Monitoring" tab, 9 extra tabs undocumented |
+| 7 | Coupons UI | Matches — full CRUD + usage modal |
+| 8 | Stripe Connect for tips | Does not exist — tips are internal ledger only |
+| 9 | Notification dispatcher | Matches — unified-email-dispatcher + SMS fns, triggered by assignment/reschedule/reassign/cancel/refund/invoice |
 
-`booking_services.booking_id` **is** properly `FK … ON DELETE CASCADE` — confirmed, no orphan risk there.
-
-**M5. Duplicate / redundant policies** — `users` has 3 near-identical SELECT-own policies and 2 UPDATE-own policies; `worker_availability`, `worker_bookings`, `worker_schedule` each have overlapping admin/worker ALL policies. Not a leak, but any future tightening has multiple stacked permissive rules to prune.
-
-**M6. Hardcoded email admin escape hatch on `users`**
-`"Direct admin access"` policy: `(auth.jwt() ->> 'email') = 'captain@herotvmounting.com'`. Works, but couples auth to a mutable identity claim; use role-based `has_role()` instead.
-
-**M7. `worker_applications` INSERT is `WITH CHECK true` for anon** — expected (public form), but no rate limiting → spam risk. Non-security, operational.
-
----
-
-### PCI / payment-data storage — clean ✅
-
-Scanned columns matching `card`, `cvv`, `pan`, `secret`, `api_key`, `password`, `ssn`. Only match: `users.has_saved_card` (boolean flag). Payment persistence uses Stripe tokens only (`stripe_customer_id`, `stripe_payment_method_id`, `payment_intent_id`) — no raw card data, no Stripe secret keys in DB. Nothing to remediate here.
-
----
-
-## 4. Cross-role escalation summary
-
-| Attempt | Result |
-|---|---|
-| Anon → read another customer's booking | **YES if guest booking (C1)**; blocked for authed customer bookings |
-| Anon → read another guest's line items | **YES (C2)** |
-| Anon → read worker PII | **YES (C3)** |
-| Anon → read active coupon codes | **YES (H2)** |
-| Customer → read another customer's data | Blocked (auth.uid scoping OK) |
-| Customer → modify own booking payment fields | **YES (H1)** |
-| Customer → read admin tables (admin_alerts, sms_logs, email_logs, invoice_audit_log, transactions insert) | Blocked ✅ |
-| Worker → read/modify another worker's bookings/availability/service areas | Blocked (worker_id=auth.uid scoping) ✅ |
-| Worker → read another worker's coverage or notifications | Blocked ✅ |
-| Worker → read admin tables | Blocked ✅ |
-
----
-
-## Recommended Phase 2 scope (for your approval before any edits)
-
-Ranked by blast radius:
-
-1. **Fix C1 + C2** — replace the "any guest booking with a payment_intent_id" rule with a token-scoped model (e.g. require the client to pass a signed booking-lookup token, or move guest reads behind an edge function that validates email + last-4-digits or a session-bound token).
-2. **Fix C3** — replace the full-row worker SELECT policy with a view/policy exposing only public columns (name, city, profile photo) — never email/phone/lat/lng to anon.
-3. **Fix H1** — restrict `bookings` UPDATE for customers to a whitelist of columns (via revoking column privileges or moving all payment-affecting updates to edge functions with `service_role`).
-4. **Fix H2** — remove public SELECT on `coupons`; validate codes via edge function.
-5. **Fix H3 + M1** — either add an `is_public` gate on `app_settings` or list only whitelisted keys; enable RLS on `invoice_sequences`.
-6. **M2 / M4 / M5 / M6** — cleanup pass: tighten anon-readable worker mapping, add missing FKs / ON DELETE clauses, dedupe redundant policies, replace hardcoded-email admin policy.
-
-I'll wait for your go-ahead (and any scope changes) before drafting Phase 2 migrations.
+No files changed. Approve to proceed with any follow-up (e.g., updating your flowchart doc) or ask for deeper drill-down on any row.
