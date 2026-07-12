@@ -1,48 +1,157 @@
-# Diagnosis: "Customers can't enter credit card"
 
-**Verdict: no evidence of a broken Stripe Elements / CSP / publishable-key bug in the current codebase. The reported symptom most likely maps to the abandonment + uncaptured-authorization issues already diagnosed in previous turns, not a live-blocking rendering failure.**
+# Phase 1 — Schema + RLS Audit (read-only)
 
-## Evidence gathered (read-only)
+Scope: `public` schema. 42 tables. All findings below are observations from `pg_policies`, `pg_constraint`, and `information_schema` — no edits performed.
 
-### 1. CSP is not blocking Stripe
-- `index.html` contains **no** `<meta http-equiv="Content-Security-Policy">` tag.
-- No `_headers`, `netlify.toml`, `vercel.json`, or server-side CSP config exists in the repo.
-- `rg "Content-Security-Policy"` across the entire project returns zero matches.
-- Conclusion: no CSP directive can be blocking `js.stripe.com`, `api.stripe.com`, or Stripe iframes.
+---
 
-### 2. Stripe publishable-key wiring looks correct
-- `src/lib/stripe.ts` reads `VITE_STRIPE_PUBLISHABLE_KEY` / `VITE_STRIPE_PUBLISHABLE_KEY_TEST` and validates `pk_live_` / `pk_test_` prefix against `VITE_STRIPE_MODE`.
-- `useStripePayment.tsx`, `StripeCardElement.tsx`, `ReauthorizePaymentDialog.tsx` all call `loadStripe(STRIPE_PUBLISHABLE_KEY)` — standard pattern.
-- Admin diagnostics (`LivePaymentValidator`, `StripeConfigTest`, `StripeConfigStatus`) surface a missing/mismatched key.
-- If the key were missing, `stripe.ts` throws a loud console error at load — none observed in the preview session.
+## 1. RLS enablement
 
-### 3. Live preview console is clean
-Loaded `http://localhost:8080/` in headless Chromium. Console output: `[vite] connected`, React Router future-flag warnings (harmless), `Auth state change: INITIAL_SESSION undefined`, `ZIP index loaded: 444 entries`. **Zero** page errors, zero failed requests, zero CSP violations.
+RLS is ON for every user-data table. Two exceptions:
 
-Note: the booking flow is `EnhancedInlineBookingFlow` (in-page, not a `/checkout` route — direct navigation to `/book`, `/checkout`, `/booking` returns a React 404, as expected). Full end-to-end payment-step repro requires selecting a service and filling the multi-step form; signal so far is sufficient to rule out a global loader/CSP break.
+| Table | RLS | Notes |
+|---|---|---|
+| `spatial_ref_sys` | OFF | PostGIS system table — expected, ignore |
+| `invoice_sequences` | **OFF** | 2 rows, holds invoice-number counters. Not PII, but Data API can read/increment. **Medium** |
 
-### 4. No recent regression in payment loader/CSP surface
-No visible edits to `index.html`, `src/lib/stripe.ts`, `SimplePaymentAuthorizationForm.tsx`, or `PaymentStep.tsx` that would touch Stripe.js loading. Recent activity has been around capture logic, worker reassignment, and admin monitoring — none of which mount the card Element.
+---
 
-### 5. Preview-environment caveat (important)
-The Lovable **Preview** environment injects a fetch proxy (`lovable.js`) that intercepts network requests and is known to break certain Supabase auth POSTs. That can present as "the payment page never becomes usable" for staff testing on the preview URL, while the **Published** URL (`https://hero-tv-mounting.lovable.app`) works normally. If the complaint originated from someone testing the preview URL, this is the likely culprit — verify by walking checkout on the published URL. If real customers on the published site are affected, this caveat does not apply.
+## 2. Table inventory (approx row counts + purpose)
 
-### 6. Mobile-specific rendering
-- Stripe Elements iframe sizing is Stripe-managed; wrapping components don't set `overflow: hidden`, `pointer-events: none`, or fixed heights that would clip the iframe.
-- No custom touch-event handlers on the payment-step container that could swallow taps.
-- Without a specific customer device/browser + repro, a "mobile-only" bug cannot be confirmed or ruled out from static inspection alone.
+| Table | Rows | Purpose |
+|---|---|---|
+| bookings | 616 | Core booking records (guest + customer) |
+| booking_services | 1144 | Line items per booking |
+| booking_audit_log | 2364 | Booking change history |
+| transactions | 515 | Stripe charges/authorizations |
+| invoices / invoice_items / invoice_audit_log / invoice_service_modifications | 320/762/649/48 | Billing |
+| invoice_sequences | 2 | Invoice numbering (RLS OFF) |
+| users | 11 | Customers, workers, admins |
+| stripe_customers | 96 | Stripe customer + default PM tokens |
+| coupons / coupon_services / coupon_usage / coupon_audit_log | — | Discount system |
+| services | 45 | Service catalog |
+| worker_applications | 6 | Job applicants |
+| worker_availability / worker_schedule | 56/18 | Worker calendar |
+| worker_bookings | 462 | Worker↔booking assignment |
+| worker_service_areas / worker_service_zipcodes | 7/2204 | Worker coverage geo |
+| worker_coverage_overlays / worker_coverage_notifications / worker_notifications | — | Coverage & notif workflow |
+| service_area_audit_logs | 1533 | Coverage change history |
+| service_operation_logs | — | Service ops trace |
+| sms_logs | 132833 | Twilio message log |
+| email_logs | 1372 | Outbound email log |
+| admin_alerts / admin_impersonation_sessions | — | Admin tooling |
+| app_settings / app_settings_audit | — | Runtime config (incl. `stripe_mode`) |
+| notification_settings | — | Admin config |
+| idempotency_records | 4 | Dedupe |
+| rls_debug_logs | — | Debug |
+| tip_sync_log | — | Tip reconciliation |
+| state_tax_rates | 51 | Tax config |
+| us_zcta_polygons / us_zip_codes | 33k/5 | Public geo |
+| zcta_import_state | — | Import bookkeeping |
 
-## Most likely real cause
+---
 
-1. **Preview-URL testing:** anyone reproducing on the `id-preview--…lovable.app` URL is hitting the preview fetch proxy, not a real bug. Retest on the **published** URL.
-2. **Customer abandonment** (already diagnosed): 10 stuck `payment_pending` rows match users abandoning before submitting the card. Customers phrasing this as "the site wouldn't let me enter my card" is common.
-3. **Customer environment** (ad-blocker / privacy extension / corporate network blocking `js.stripe.com`, old iOS Safari). Needs a specific repro.
+## 3. Findings by severity
 
-## Recommended next steps (choose one — nothing changed yet)
+### CRITICAL — data-leak / security hole
 
-1. **Verify on the published URL** end-to-end (`https://hero-tv-mounting.lovable.app`) via Playwright: complete a booking to the payment step, confirm the Stripe iframe mounts and accepts input.
-2. **Get one concrete repro** from the escalated customer: device, browser + version, screenshot, and which step failed.
-3. **Instrument `PaymentStep`** (small, low-risk edit): log to an edge function whether `stripe`/`elements` ever resolved, so future incidents produce a clear signal instead of ambiguity.
-4. **Add a visible loader-failure fallback** on `PaymentStep`: if `stripe`/`elements` haven't resolved in ~8s, show "Payment form failed to load — please refresh or contact support" instead of a silent spinner. Converts any future silent-load failure into a visible, reportable event.
+**C1. Anon can read every guest booking (`bookings`)**
+Policy `"Enable guest booking viewing during checkout"` (role `public`) has qual:
+```
+(customer_id IS NULL AND status='payment_pending')
+ OR (customer_id IS NULL AND payment_intent_id IS NOT NULL)
+```
+No session/token/email match. Once `payment_intent_id` is set (which happens on essentially every guest checkout), the row is world-readable **forever** — including `guest_customer_info` (name, email, phone, address), `tip_amount`, `authorized_amount`, `captured_amount`, `payment_intent_id`, `stripe_customer_id`, `stripe_payment_method_id`, `coupon_code`, `scheduled_date`. Guest orders are a majority of your data. **This is a full customer-PII + payment-metadata leak to anon.**
 
-Tell me which of (1)–(4) to run next.
+**C2. Anon can read every guest booking's line items (`booking_services`)**
+Policy `"Enable guest booking services viewing"` mirrors C1 — anon reads every service/price row for any guest booking with a payment_intent_id.
+
+**C3. Anon can read all worker PII (`users`)**
+Policy `"Public can view active worker info"` (role `public`, `role='worker' AND is_active=true`) grants SELECT on the whole row. `users` includes `email`, `phone`, `city`, `zipcode`, `latitude`, `longitude`. Any unauthenticated visitor can enumerate every active worker with contact info + home coords via the Data API.
+
+---
+
+### HIGH — meaningful privilege / integrity gap
+
+**H1. Customers can UPDATE payment fields on their own bookings**
+Policy `"Customers can update own bookings"`: `USING (customer_id=auth.uid())` and `WITH CHECK (customer_id=auth.uid())` — no column list. A signed-in customer can PATCH `payment_status`, `authorized_amount`, `captured_amount`, `tip_amount`, `worker_id`, `coupon_discount`, `payment_intent_id`, etc. directly via PostgREST. Any financial invariant enforced only in edge functions is bypassable.
+
+**H2. All active coupon codes are anon-readable (`coupons`)**
+`"Public can view active valid coupons"` returns every row where `is_active AND now() BETWEEN valid_from AND valid_until`. Codes intended as targeted/private (staff, retention, VIP) are enumerable. Combined with `coupon_services` also being public-readable, the entire promo matrix is exposed.
+
+**H3. `app_settings` is world-readable**
+`"Anyone can read app settings"` qual `true`, role `public`. Whatever is stored here (Stripe mode toggle at minimum; check for any secrets or feature flags that shouldn't be exposed) leaks to anon. Not a leak if contents are truly non-sensitive, but the blanket-true policy means every future key added is public by default — **latent risk**.
+
+---
+
+### MEDIUM — best-practice / hardening
+
+**M1. `invoice_sequences` has RLS disabled** — 2-row counter table; Data API can read and (with grants) mutate it. Even if grants are limited, RLS should be ON with a service-role-only policy.
+
+**M2. Worker geo mapping is anon-readable**
+`worker_service_zipcodes` `"System can view zip codes for assignment"` = `true`, `worker_service_areas` `"System can view service areas for assignment"` = `is_active=true`. Combined with C3, an attacker can build a full map of which worker covers which ZIPs. Likely intentional for the coverage map — confirm whether `worker_id` needs to be exposed or if it should be aggregated.
+
+**M3. `stripe_customers` email fallback**
+`"Users can view their own stripe customer record"` qual `(user_id=auth.uid() OR email=auth.email())`. Safe as long as `email` is NOT NULL and `auth.email()` returns null for anon. Worth pinning down (add `email IS NOT NULL AND auth.email() IS NOT NULL`).
+
+**M4. Missing FKs / ON DELETE gaps**
+
+| Column | Current | Risk |
+|---|---|---|
+| `email_logs.booking_id` | **no FK** | orphans on booking delete |
+| `booking_audit_log.booking_id` | **no FK** | orphans (may be intentional for audit persistence) |
+| `idempotency_records.user_id` | **no FK** | orphans |
+| `worker_service_areas.worker_id` | **no FK** | orphans / integrity |
+| `worker_coverage_overlays.worker_id` | **no FK** | orphans |
+| `service_area_audit_logs.worker_id` | **no FK** | orphans |
+| `sms_logs.booking_id` | FK, **no ON DELETE** | blocks booking delete |
+| `tip_sync_log.booking_id`, `transaction_id` | FK, **no ON DELETE** | blocks delete |
+| `worker_coverage_notifications.booking_id`, `worker_id` | FK, **no ON DELETE** | blocks delete |
+| `transactions.cancelled_by`, `captured_by` | FK, **no ON DELETE** | blocks user delete |
+
+`booking_services.booking_id` **is** properly `FK … ON DELETE CASCADE` — confirmed, no orphan risk there.
+
+**M5. Duplicate / redundant policies** — `users` has 3 near-identical SELECT-own policies and 2 UPDATE-own policies; `worker_availability`, `worker_bookings`, `worker_schedule` each have overlapping admin/worker ALL policies. Not a leak, but any future tightening has multiple stacked permissive rules to prune.
+
+**M6. Hardcoded email admin escape hatch on `users`**
+`"Direct admin access"` policy: `(auth.jwt() ->> 'email') = 'captain@herotvmounting.com'`. Works, but couples auth to a mutable identity claim; use role-based `has_role()` instead.
+
+**M7. `worker_applications` INSERT is `WITH CHECK true` for anon** — expected (public form), but no rate limiting → spam risk. Non-security, operational.
+
+---
+
+### PCI / payment-data storage — clean ✅
+
+Scanned columns matching `card`, `cvv`, `pan`, `secret`, `api_key`, `password`, `ssn`. Only match: `users.has_saved_card` (boolean flag). Payment persistence uses Stripe tokens only (`stripe_customer_id`, `stripe_payment_method_id`, `payment_intent_id`) — no raw card data, no Stripe secret keys in DB. Nothing to remediate here.
+
+---
+
+## 4. Cross-role escalation summary
+
+| Attempt | Result |
+|---|---|
+| Anon → read another customer's booking | **YES if guest booking (C1)**; blocked for authed customer bookings |
+| Anon → read another guest's line items | **YES (C2)** |
+| Anon → read worker PII | **YES (C3)** |
+| Anon → read active coupon codes | **YES (H2)** |
+| Customer → read another customer's data | Blocked (auth.uid scoping OK) |
+| Customer → modify own booking payment fields | **YES (H1)** |
+| Customer → read admin tables (admin_alerts, sms_logs, email_logs, invoice_audit_log, transactions insert) | Blocked ✅ |
+| Worker → read/modify another worker's bookings/availability/service areas | Blocked (worker_id=auth.uid scoping) ✅ |
+| Worker → read another worker's coverage or notifications | Blocked ✅ |
+| Worker → read admin tables | Blocked ✅ |
+
+---
+
+## Recommended Phase 2 scope (for your approval before any edits)
+
+Ranked by blast radius:
+
+1. **Fix C1 + C2** — replace the "any guest booking with a payment_intent_id" rule with a token-scoped model (e.g. require the client to pass a signed booking-lookup token, or move guest reads behind an edge function that validates email + last-4-digits or a session-bound token).
+2. **Fix C3** — replace the full-row worker SELECT policy with a view/policy exposing only public columns (name, city, profile photo) — never email/phone/lat/lng to anon.
+3. **Fix H1** — restrict `bookings` UPDATE for customers to a whitelist of columns (via revoking column privileges or moving all payment-affecting updates to edge functions with `service_role`).
+4. **Fix H2** — remove public SELECT on `coupons`; validate codes via edge function.
+5. **Fix H3 + M1** — either add an `is_public` gate on `app_settings` or list only whitelisted keys; enable RLS on `invoice_sequences`.
+6. **M2 / M4 / M5 / M6** — cleanup pass: tighten anon-readable worker mapping, add missing FKs / ON DELETE clauses, dedupe redundant policies, replace hardcoded-email admin policy.
+
+I'll wait for your go-ahead (and any scope changes) before drafting Phase 2 migrations.
