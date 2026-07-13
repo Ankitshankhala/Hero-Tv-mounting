@@ -114,14 +114,11 @@ Deno.serve(async (req) => {
         const numTvs = Number(cfg.numberOfTvs) || tvConfigs.length || Number(li.quantity) || 1;
         let serverBase = 0;
         if (Array.isArray(tiers) && tiers.length > 0) {
-          for (let i = 1; i <= numTvs; i++) {
-            const tier = tiers.find((t: any) => Number(t.quantity) === i);
-            if (tier) serverBase += Number(tier.price) || 0;
-            else {
-              const def = tiers.find((t: any) => t.is_default_for_additional);
-              serverBase += Number(def?.price) || Number(tiers[tiers.length - 1]?.price) || 0;
-            }
-          }
+          serverBase = getServiceLineTotal(
+            { tiers: tiers as any, base_price: Number(svc.base_price) || 0 },
+            0,
+            numTvs
+          );
         } else {
           serverBase = (Number(svc.base_price) || 0) * numTvs;
         }
