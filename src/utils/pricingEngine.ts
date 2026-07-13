@@ -160,7 +160,7 @@ export class PricingEngine {
         }
       }
 
-      if (config.wallType === 'steel' || config.wallType === 'brick' || config.wallType === 'concrete') {
+      if (config.wallType && (SPECIAL_WALL_TYPES as readonly string[]).includes(config.wallType)) {
         const { price } = this.getAddOnPrice(
           tvMountingService,
           'specialWall',
