@@ -57,7 +57,7 @@ export function calculateServiceLinePrice(
     const addOns = resolveAddOnPrices(services);
     if (config.over65)      price += addOns.over65;
     if (config.frameMount)  price += addOns.frameMount;
-    if (config.wallType === 'steel' || config.wallType === 'brick' || config.wallType === 'concrete' || config.wallType === 'stone' || config.wallType === 'tile') {
+    if (config.wallType && (SPECIAL_WALL_TYPES as readonly string[]).includes(config.wallType)) {
       price += addOns.specialWall;
     }
     if (config.soundbar)    price += addOns.soundbar;
