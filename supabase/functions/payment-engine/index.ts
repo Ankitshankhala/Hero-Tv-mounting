@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createStripeClient, corsHeaders, refreshStripeMode } from '../_shared/stripe.ts';
 import { getSupabaseClient } from '../_shared/supabaseClient.ts';
+import { getServiceLineTotal, SPECIAL_WALL_TYPES } from '../_shared/pricing.ts';
 
 declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void };
 
