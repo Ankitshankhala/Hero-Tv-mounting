@@ -1,115 +1,79 @@
+# Duplication Audit — findings only, no fixes
 
-# Flowchart vs. Codebase Cross-Check (read-only)
-
-Each item marked **MATCHES / PARTIALLY MATCHES / DOES NOT EXIST YET** with file evidence.
-
----
-
-### 1. Entry / Auth — **PARTIALLY MATCHES**
-- `src/components/auth/AuthModal.tsx` has both **login** and **signup** tabs (single modal used from `Header.tsx` for customers).
-- Workers have a **separate** login surface: `src/pages/WorkerLogin.tsx` + `src/components/worker/WorkerLoginForm.tsx`. Worker signup is `src/pages/WorkerSignup.tsx` (via worker applications).
-- Admin has its own gate: `src/components/admin/AdminLogin.tsx` inside `src/pages/Admin.tsx` (no signup — role must be pre-set).
-- Role-based redirect: **not implemented in a single place**. `AuthModal` just closes; role-appropriate dashboard link then appears in `Header.tsx` based on `profile.role`. Only `WorkerLogin.tsx` has an explicit `navigate('/worker-dashboard')` on auth. `Admin.tsx` gates by `profile.role !== 'admin'` in-page.
-- Mismatch to document: there is **no unified post-login role router** — behavior is per-page.
+Ranked by risk. "Drifted" = copies already behave differently, so a live bug likely exists. "Identical" = same logic in multiple places, safe to consolidate but a landmine (updating one and forgetting the others is exactly the tiered-pricing bug pattern).
 
 ---
 
-### 2. Booking flow step order — **DOES NOT MATCH DOCUMENTED ORDER**
-Actual order in `src/components/EnhancedInlineBookingFlow.tsx` (lines 440–570), 5 steps:
-1. **Service Configuration** (`ServiceConfigurationStep`)
-2. **Contact & Location** — name/email/phone **and** zipcode (`ContactLocationStep`) + coupon section
-3. **Schedule** (`ScheduleStep`)
-4. **Tip** (`TipStep`)
-5. **Payment Authorization** (`PaymentAuthorizationForm`)
+## 1. DRIFTED — `getEffectiveServicePrice` exists as 3 different functions with the same name
 
-Documented order was `zip → services → schedule → details → payment`. Real order is `services → contact+zip → schedule → tip → payment`. Zip is captured **inside** the contact step, not first; there is a dedicated **Tip** step before payment that the flowchart omits.
+Highest risk. This is the same class of bug you already hit.
 
----
+- `supabase/functions/_shared/pricing.ts` — signature `(config, quantityIndex)`, uses `config.tiers[min(idx, len-1)]`. Server-authoritative, used by `add-booking-services`.
+- `src/lib/pricing/getEffectiveServicePrice.ts` — byte-identical copy of the above. Frontend twin.
+- `src/utils/pricingEngine.ts` line 102+ — completely different implementation: `(service, quantity)`, uses `tiers.find(t => t.quantity === quantity)`, falls back to `is_default_for_additional`, then last tier, then `base_price`. Different lookup semantics (exact-match vs index-clamp), different fallback chain.
+- `src/contexts/TestingModeContext.tsx:95` — a fourth `getEffectiveServicePrice(originalPrice, isTestingMode, lineIndex)` overrides prices entirely in testing mode. Unrelated signature, same exported name — namespace collision waiting to mislead a future edit.
 
-### 3. Zip / Geo assignment — **MATCHES (both tables live-wired)**
-Live assignment path: `supabase/functions/assign-authorized-booking-worker/index.ts` calls RPC `find_available_workers_by_zip`. Function body (verified via `pg_get_functiondef`) does:
-```
-INNER JOIN worker_service_zipcodes wsz ON u.id = wsz.worker_id
-INNER JOIN worker_service_areas   wsa ON wsz.service_area_id = wsa.id
-WHERE wsa.is_active = true AND wsz.zipcode = p_zipcode
-```
-So both tables are required at match time: `worker_service_areas` gates activation of an area, `worker_service_zipcodes` provides the flat zip lookup. Neither is dead. `service-area-upsert` writes both on save.
+**Live inconsistency risk:** any code path importing `pricingEngine.getServicePriceForQuantity` will price differently from `_shared/pricing.ts` when the tiers array isn't ordered 1..N contiguously, or when quantity exceeds defined tiers without `is_default_for_additional` set. `payment-engine` reconciles server-side, so the visible symptom is a client/server total mismatch surfacing as a checkout error, not a silent overcharge — but it is drift.
 
----
+## 2. DRIFTED — discount application math is reimplemented client-side in 4 places
 
-### 4. Worker dashboard tabs/actions — **PARTIALLY MATCHES**
-Tabs (`src/pages/WorkerDashboard.tsx` lines 371–374):
-- My Jobs, Calendar, Set Schedule, Service Area. (4 tabs, no separate "Earnings" tab at the top level — earnings surface inside job cards.)
+`validate-coupon` edge function only returns `discount_amount` from a DB RPC. Every subtotal→final-total computation happens client-side:
 
-Per-job actions in `src/components/worker/JobActions.tsx`:
-- ✅ **Call customer**
-- ✅ **Complete Job & Accept Payment** (single button = mark complete + capture)
-- ✅ **Charge / OnSiteChargeModal** (`onChargeClick`)
-- ✅ **Add Services** (`AddServicesModal`)
-- ✅ **Modify / Remove Services** (`RemoveServicesModal`)
-- ✅ **Reassign** (`ReassignJobModal`), **Reschedule** (`RescheduleJobModal`)
-- ✅ **Archive**
-- ❌ "Capture payment" as a *separate* action from completion does **not** exist — it is fused into "Complete Job & Accept Payment".
-- Service-area editing is a **top-level tab**, not a per-job action (correct).
+- `src/utils/couponCalculation.ts` — `applyCouponToCart` clamps at 0 (`Math.max(0, cartTotal - discount)`).
+- `src/hooks/booking/useBookingFormState.ts:62,67` — clamps at 0 via `Math.max(0, discountedSubtotal)`. Matches util.
+- `src/components/checkout/CheckoutActions.tsx:35` — `total - appliedCoupon.discountAmount`. **No zero clamp.** Renders negative totals if discount > subtotal.
+- `src/components/EmbeddedCheckout.tsx:237` — same as CheckoutActions, no clamp.
 
----
+**Live inconsistency:** the form-state hook and CheckoutActions can display different "final totals" for the same cart when a fixed-discount coupon exceeds subtotal. Stripe-side is protected (payment-engine recomputes), but the confirm button label and the price the user thinks they're paying can disagree. Also: `couponCalculation.ts` exists but is not imported by any of the three consumers above — dead canonical util.
 
-### 5. Worker Map / propose-approve staging — **PARTIALLY MATCHES**
-- A worker-facing map editor **does exist**: `src/components/worker/service-area/ServiceAreaMap.tsx` using **Leaflet + leaflet-draw + concaveman** (not Mapbox — `rg mapbox` returns nothing anywhere). Also `ServiceAreaSettings.tsx`, `ZipCodeTester.tsx` in the same folder.
-- **No propose/approve staging workflow exists.** No `propose`/`approval` strings in the worker service-area code or `useWorkerServiceAreas.ts`; saves go directly through `service-area-upsert` edge fn which writes to `worker_service_areas` + `worker_service_zipcodes` live. Your flag that staging is "not yet built" is correct; the map itself IS built.
+## 3. DRIFTED — phone formatting has two disagreeing canonical utils
 
----
+- `src/utils/validation.ts:25` `formatPhoneNumber` — display format `(XXX) XXX-XXXX` or `+1 (XXX) XXX-XXXX`. Used by `ValidatedInput`.
+- `src/utils/phoneUtils.ts:9` `formatPhoneForTel` — E.164 format `+1XXXXXXXXXX`. Used for `tel:` links.
+- Edge functions `send-customer-sms-notification`, `send-sms-notification`, `send-customer-booking-confirmation-email` each reimplement `phone.replace(/\D/g, '')` inline with their own normalization branches (SMS functions do E.164-ish, one email function has it twice in the same file at lines 23 and 42).
 
-### 6. Admin tabs — **PARTIALLY MATCHES**
-Actual tabs in `src/pages/Admin.tsx` switch (lines 121–170):
-`dashboard, bookings, customers, workers, services, reviews, payments, invoices, coupons, sms, email, blog, coverage/service-areas, tips, payroll, settings` (+ hidden: `invoice-monitoring`, `email-notifications` redirect to dashboard).
+These serve different purposes so drift is expected, but the **4 inline copies in edge functions** are the risky part — no shared `_shared/phone.ts` exists, so a future E.164 rule change (e.g. handling +44) has to be made in 4+ places.
 
-Vs. your assumed list (Bookings/Services/Workers/Customers/Coupons/Payments/Monitoring):
-- ✅ Bookings, Services, Workers, Customers, Coupons, Payments — all real.
-- ❌ **Monitoring** — no tab by that name. Nearest equivalents live inside other tabs (`BookingIntegrityMonitor`, `PaymentPerformanceMonitor`, `ServiceOperationsMonitor`, `SpatialHealthDashboard`) but are not top-level.
-- ➕ Not in your doc: **Reviews, Invoices, SMS logs, Email logs, Blog, Service Areas/Coverage, Tips, Payroll, Settings, Dashboard (stats home)**.
+## 4. IDENTICAL (but scattered) — `zipcode.replace(/\D/g,'').slice(0,5)` in 10+ files
 
-There is a second, apparently unused surface `src/pages/AdminDashboard.tsx` with only 4 tabs (spatial/tips/areas/analytics) — the real entry route `/admin` uses `Admin.tsx`.
+Canonical `cleanZip` exists in `src/utils/zip.ts` and is exported alongside `isValidZip`/`assertValidZip`. Yet inline copies live in:
+
+`src/hooks/useZipcodeValidation.ts:27`, `src/hooks/useOptimizedZipcodeValidation.ts:30`, `src/services/optimizedZipcodeService.ts:141`, `src/utils/zipcodeValidation.ts:116,191,261`, `src/components/ZipcodeInput.tsx:57`, `src/components/EnhancedZipcodeInput.tsx:57`, `src/components/ZipcodeLocationInput.tsx:85`, `src/components/admin/AdminZipCodeManager.tsx:121`, `src/components/admin/AdminWorkerCoverageModal.tsx:188`. Plus ad-hoc `/^\d{5}$/` regex in `src/lib/mcp/tools/check-service-area.ts` and `src/services/reverseGeocodingService.ts:112`.
+
+All currently identical behavior. No live bug — but if you ever need to accept ZIP+4 or normalize differently, you have 12 edit sites.
+
+Email regex has only one home (`src/utils/validation.ts` `ValidationPatterns.email`) — clean. No signup/checkout/admin form was found reimplementing email format checks.
+
+## 5. IDENTICAL — `America/Chicago` timezone hardcoded in 5+ files instead of using `DEFAULT_SERVICE_TIMEZONE`
+
+`src/utils/timeUtils.ts` exports `DEFAULT_SERVICE_TIMEZONE = 'America/Chicago'`, but consumers hardcode the string:
+
+- `src/hooks/booking/useWorkerAvailability.ts:30,56,57,58` — 4 usages
+- `src/hooks/booking/useZctaWorkerAvailability.ts:37,83,84,85` — 4 usages, near-identical block of `formatInTimeZone(...) / toZonedTime(new Date(), 'America/Chicago')` to compute "today in Chicago". These two hooks are essentially the same "is this slot in the past?" logic duplicated.
+- `src/components/booking/ScheduleStep.tsx:49`, `src/components/booking/CalendarView.tsx:131` — same `nowInChicago = toZonedTime(new Date(), 'America/Chicago')` idiom, no shared helper.
+
+`src/utils/dateHelpers.ts` also defines its own `getDayOfWeek` returning lowercase strings, while `useWorkerAvailability` and `useZctaWorkerAvailability` each call `format(date, 'EEEE')` inline to get capitalized day names for a DB enum lookup — a third variant.
+
+**Live risk:** if the business ever operates outside Central Time, or DST edge cases surface, five files need coordinated edits. No current-behavior bug detected — all copies use the same string.
 
 ---
 
-### 7. Coupon system UI — **MATCHES**
-Full admin UI exists: `src/components/admin/CouponsManager.tsx`, `CreateCouponModal.tsx`, `EditCouponModal.tsx`, `CouponUsageModal.tsx`; wired to the `coupons` tab in `Admin.tsx`. Validation on checkout via `supabase/functions/validate-coupon` and `CouponSection` inside the booking flow.
+## Also noted (single-owner, no duplication concern)
+
+- **Tax calculation** — only in `supabase/functions/generate-invoice/index.ts`, `update-invoice/index.ts`, and `worker-remove-services/index.ts`, all reading `tax_rate` from the invoice row and doing `subtotal * tax_rate`. Same formula in each, driven by DB value. No client-side tax math. ✅ single owner.
+- **Refund amount** — only `admin-process-refund` and `payment-engine` compute refund amounts server-side. Clients pass amounts, don't calculate. ✅
+- **Cancellation fee** — no computation exists in code. Referenced only in `TermsOfService.tsx` copy and DB column definitions. Feature not implemented; nothing to duplicate.
+- **Worker earnings** — single implementation in `src/utils/workerEarningsCalculator.ts`. ✅
+- **Base-price × quantity subtotal** — recomputed in ~8 edge functions (`payment-engine`, `add-booking-services`, `worker-remove-services`, `create-payment-intent`, `sync-authorized-bookings`, `repair-tip-calculations`, `generate-invoice`, `validate-booking-integrity`). All identical (`sum + base_price * quantity`). Low risk today, but no `_shared/subtotal.ts` exists — same landmine pattern as pricing.
 
 ---
 
-### 8. Tips / Stripe Connect — **DOES NOT EXIST YET (for Connect)**
-`rg 'stripe.accounts|stripe.transfers|transfer_data|application_fee|connected_account|acct_' src supabase/functions` returns **zero hits**. `rg -i mapbox|connect` shows no Stripe Connect code anywhere.
-Tips are handled entirely internally: `tip_amount` column on bookings, `tip_sync_log` table, `WorkerTipTracker.tsx`, `TipAnalyticsDashboard.tsx`, `WorkerTipsHistory.tsx`, `repair-tip-calculations` fn, plus `WorkerWeeklyPayments` payroll view. No connected accounts; payouts are ledger-only.
+## Suggested Phase-2 priority (for your approval, no edits yet)
 
----
+1. **Consolidate `getEffectiveServicePrice`** — pick one algorithm (`_shared/pricing.ts` index-clamp is the one the server enforces), delete `src/lib/pricing/getEffectiveServicePrice.ts` in favor of re-exporting the shared logic, and reconcile or rename `pricingEngine.getServicePriceForQuantity` so the exact-match variant can't be confused with the canonical one. Rename the testing-mode helper to remove the name collision.
+2. **Add zero-clamp to CheckoutActions + EmbeddedCheckout** or route both through `useBookingFormState`'s already-clamped total. Import `applyCouponToCart` from `couponCalculation.ts` at all four sites so one file owns the rule.
+3. **Extract `nowInChicago` / `todayInServiceTz` / `dayOfWeekEnum` helpers** into `timeUtils.ts` and replace the ~10 hardcoded `'America/Chicago'` sites.
+4. **Add `supabase/functions/_shared/phone.ts` and `_shared/subtotal.ts`** so future edge functions have one place to import from.
+5. Route all inline `replace(/\D/g,'').slice(0,5)` sites through `cleanZip` — mechanical, low-risk.
 
-### 9. Notification dispatcher — **MATCHES**
-Confirmed the two mechanisms and their triggers:
-- **Email**: `supabase/functions/unified-email-dispatcher` (called with `emailType` discriminator).
-- **SMS**: `supabase/functions/send-sms-notification` (worker) and `send-customer-sms-notification` (customer). Also `send-increment-notification`.
-
-Actual invocation sites (grep of `functions.invoke('unified-email-dispatcher'|'send-*sms-notification')`):
-- `assign-authorized-booking-worker` → worker_assignment email + worker SMS + customer SMS + booking_confirmation email (post-assignment).
-- `worker-reschedule-booking`, `worker-reassign-booking`, `worker-cancel-booking` → email dispatcher.
-- `generate-invoice` → email dispatcher.
-- `admin-process-refund` → email dispatcher.
-- `AssignWorkerModal.tsx` (admin manual assign) → email dispatcher (×2 for worker + customer).
-- Standalone: `send-customer-booking-confirmation-email`, `send-invoice-email`, `send-worker-assignment-notification` also exist; the codebase has migrated most call-sites to the unified dispatcher but these older direct functions remain deployed.
-
----
-
-## Overall verdicts
-| # | Module | Verdict |
-|---|---|---|
-| 1 | Entry/Auth | Partial — three separate login surfaces, no unified role router |
-| 2 | Booking step order | **Wrong** — real order includes a Tip step, zip is in contact step |
-| 3 | Zip/Geo (both tables) | Matches — both tables required by `find_available_workers_by_zip` |
-| 4 | Worker dashboard | Partial — 4 tabs; complete+capture is one fused button |
-| 5 | Worker map / staging | Partial — Leaflet map exists; propose/approve staging does **not** |
-| 6 | Admin tabs | Partial — 6 of your 7 exist, no "Monitoring" tab, 9 extra tabs undocumented |
-| 7 | Coupons UI | Matches — full CRUD + usage modal |
-| 8 | Stripe Connect for tips | Does not exist — tips are internal ledger only |
-| 9 | Notification dispatcher | Matches — unified-email-dispatcher + SMS fns, triggered by assignment/reschedule/reassign/cancel/refund/invoice |
-
-No files changed. Approve to proceed with any follow-up (e.g., updating your flowchart doc) or ask for deeper drill-down on any row.
+Awaiting approval before making any changes.
