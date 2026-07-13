@@ -94,6 +94,13 @@ export type Database = {
             foreignKeyName: "admin_alerts_resolved_by_fkey"
             columns: ["resolved_by"]
             isOneToOne: false
+            referencedRelation: "admin_worker_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_alerts_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -442,7 +449,21 @@ export type Database = {
             foreignKeyName: "bookings_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
+            referencedRelation: "admin_worker_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_reserved_worker_id_fkey"
+            columns: ["reserved_worker_id"]
+            isOneToOne: false
+            referencedRelation: "admin_worker_directory"
             referencedColumns: ["id"]
           },
           {
@@ -463,7 +484,21 @@ export type Database = {
             foreignKeyName: "bookings_worker_id_fkey"
             columns: ["worker_id"]
             isOneToOne: false
+            referencedRelation: "admin_worker_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_bookings_worker_id"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "admin_worker_directory"
             referencedColumns: ["id"]
           },
           {
@@ -1099,6 +1134,13 @@ export type Database = {
             foreignKeyName: "invoices_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
+            referencedRelation: "admin_worker_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -1287,6 +1329,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_missing_transactions"
             referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "service_operation_logs_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "admin_worker_directory"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "service_operation_logs_worker_id_fkey"
@@ -1678,6 +1727,13 @@ export type Database = {
             foreignKeyName: "transactions_cancelled_by_fkey"
             columns: ["cancelled_by"]
             isOneToOne: false
+            referencedRelation: "admin_worker_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_cancelled_by_fkey"
+            columns: ["cancelled_by"]
+            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -1884,6 +1940,13 @@ export type Database = {
             foreignKeyName: "worker_availability_worker_id_fkey"
             columns: ["worker_id"]
             isOneToOne: false
+            referencedRelation: "admin_worker_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "worker_availability_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -1958,6 +2021,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_missing_transactions"
             referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "worker_bookings_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "admin_worker_directory"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "worker_bookings_worker_id_fkey"
@@ -2042,6 +2112,13 @@ export type Database = {
             foreignKeyName: "worker_coverage_notifications_worker_id_fkey"
             columns: ["worker_id"]
             isOneToOne: false
+            referencedRelation: "admin_worker_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "worker_coverage_notifications_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -2067,6 +2144,13 @@ export type Database = {
           zip_count?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "worker_coverage_overlays_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: true
+            referencedRelation: "admin_worker_directory"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "worker_coverage_overlays_worker_id_fkey"
             columns: ["worker_id"]
@@ -2106,6 +2190,13 @@ export type Database = {
             foreignKeyName: "worker_notifications_worker_id_fkey"
             columns: ["worker_id"]
             isOneToOne: false
+            referencedRelation: "admin_worker_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "worker_notifications_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -2140,6 +2231,13 @@ export type Database = {
           worker_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "worker_schedule_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "admin_worker_directory"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "worker_schedule_worker_id_fkey"
             columns: ["worker_id"]
@@ -2222,7 +2320,21 @@ export type Database = {
             foreignKeyName: "fk_wsz_worker"
             columns: ["worker_id"]
             isOneToOne: false
+            referencedRelation: "admin_worker_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_wsz_worker"
+            columns: ["worker_id"]
+            isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "worker_service_zipcodes_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "admin_worker_directory"
             referencedColumns: ["id"]
           },
           {
@@ -2263,6 +2375,63 @@ export type Database = {
       }
     }
     Views: {
+      admin_worker_directory: {
+        Row: {
+          city: string | null
+          created_at: string | null
+          email: string | null
+          has_saved_card: boolean | null
+          id: string | null
+          is_active: boolean | null
+          latitude: number | null
+          longitude: number | null
+          name: string | null
+          phone: string | null
+          reason: string | null
+          role: Database["public"]["Enums"]["user_role"] | null
+          stripe_customer_id: string | null
+          stripe_default_payment_method_id: string | null
+          updated_at: string | null
+          zip_code: string | null
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string | null
+          email?: string | null
+          has_saved_card?: boolean | null
+          id?: string | null
+          is_active?: boolean | null
+          latitude?: number | null
+          longitude?: number | null
+          name?: string | null
+          phone?: string | null
+          reason?: string | null
+          role?: Database["public"]["Enums"]["user_role"] | null
+          stripe_customer_id?: string | null
+          stripe_default_payment_method_id?: string | null
+          updated_at?: string | null
+          zip_code?: string | null
+        }
+        Update: {
+          city?: string | null
+          created_at?: string | null
+          email?: string | null
+          has_saved_card?: boolean | null
+          id?: string | null
+          is_active?: boolean | null
+          latitude?: number | null
+          longitude?: number | null
+          name?: string | null
+          phone?: string | null
+          reason?: string | null
+          role?: Database["public"]["Enums"]["user_role"] | null
+          stripe_customer_id?: string | null
+          stripe_default_payment_method_id?: string | null
+          updated_at?: string | null
+          zip_code?: string | null
+        }
+        Relationships: []
+      }
       geography_columns: {
         Row: {
           coord_dimension: number | null
@@ -2547,7 +2716,21 @@ export type Database = {
             foreignKeyName: "bookings_worker_id_fkey"
             columns: ["worker_id"]
             isOneToOne: false
+            referencedRelation: "admin_worker_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_bookings_worker_id"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "admin_worker_directory"
             referencedColumns: ["id"]
           },
           {
@@ -3183,6 +3366,33 @@ export type Database = {
           total_spent: number
           zipcode: string
         }[]
+      }
+      get_my_profile: {
+        Args: never
+        Returns: {
+          city: string | null
+          created_at: string | null
+          email: string
+          has_saved_card: boolean
+          id: string
+          is_active: boolean | null
+          latitude: number | null
+          longitude: number | null
+          name: string | null
+          phone: string | null
+          reason: string | null
+          role: Database["public"]["Enums"]["user_role"]
+          stripe_customer_id: string | null
+          stripe_default_payment_method_id: string | null
+          updated_at: string | null
+          zip_code: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "users"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       get_nearby_zip_boundaries: {
         Args: { center_lat: number; center_lng: number; radius_km?: number }
