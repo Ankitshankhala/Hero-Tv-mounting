@@ -56,3 +56,38 @@ describe('pricing contract (frozen)', () => {
     expect(tierPriceForNth(undefined, 75, 1)).toBe(75);
   });
 });
+
+import { PricingEngine } from '@/utils/pricingEngine';
+import { getTierPrice as displayGetTierPrice } from '@/utils/pricingDisplay';
+
+describe('frontend wrappers delegate to canonical (drift lock)', () => {
+  const mountTvService = {
+    id: 'x',
+    name: 'Mount TV',
+    base_price: 90,
+    pricing_config: {
+      tiers: [
+        { quantity: 1, price: 90 },
+        { quantity: 2, price: 80 },
+        { quantity: 3, price: 70, is_default_for_additional: true },
+      ],
+    },
+  } as any;
+
+  it('PricingEngine.getTierPrice matches canonical for n 1..6', () => {
+    for (const n of [1, 2, 3, 4, 5, 6]) {
+      expect(PricingEngine.getTierPrice(mountTvService, n)).toBe(
+        tierPriceForNth(mountTvService.pricing_config.tiers, mountTvService.base_price, n)
+      );
+    }
+  });
+
+  it('pricingDisplay.getTierPrice matches canonical for n 1..6', () => {
+    for (const n of [1, 2, 3, 4, 5, 6]) {
+      expect(displayGetTierPrice(mountTvService, n)).toBe(
+        tierPriceForNth(mountTvService.pricing_config.tiers, mountTvService.base_price, n)
+      );
+    }
+  });
+});
+
