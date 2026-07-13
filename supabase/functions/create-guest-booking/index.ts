@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { getSupabaseClient } from '../_shared/supabaseClient.ts';
 import { corsHeaders, refreshStripeMode } from '../_shared/stripe.ts';
+import { getServiceLineTotal } from '../_shared/pricing.ts';
 
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
@@ -178,21 +179,12 @@ Deno.serve(async (req) => {
             const countMatch = service.name?.match(/\((\d+)\s+TVs?\)/i);
             const itemCount = countMatch ? parseInt(countMatch[1]) : (service.quantity || 1);
 
-            // Calculate tiered total server-side
-            let tieredTotal = 0;
-            const tiers = official.pricing_config.tiers;
-            for (let i = 1; i <= itemCount; i++) {
-              const tier = tiers.find((t: any) => t.quantity === i);
-              if (tier) {
-                tieredTotal += tier.price;
-              } else {
-                // Use default tier for additional items, or last defined tier
-                const defaultTier = tiers.find((t: any) => t.is_default_for_additional);
-                tieredTotal += defaultTier?.price || tiers[tiers.length - 1]?.price || 0;
-              }
-            }
-            finalPrice = tieredTotal;
-            console.log(`📊 Tiered pricing for "${service.name}": ${itemCount} items = $${tieredTotal}`);
+            finalPrice = getServiceLineTotal(
+              { tiers: official.pricing_config.tiers, base_price: Number(official.base_price) },
+              0,
+              itemCount
+            );
+            console.log(`📊 Tiered pricing for "${service.name}": ${itemCount} items = $${finalPrice}`);
           } else {
             // Non-tiered: use base_price as source of truth
             finalPrice = official.base_price;

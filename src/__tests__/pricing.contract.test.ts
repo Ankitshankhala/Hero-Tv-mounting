@@ -55,6 +55,13 @@ describe('pricing contract (frozen)', () => {
   it('non-tiered config falls back to base_price', () => {
     expect(tierPriceForNth(undefined, 75, 1)).toBe(75);
   });
+
+  it('getServiceLineTotal(0, N) matches frozen edge-function contract for N 1..5', () => {
+    const expected = [90, 170, 240, 310, 380];
+    for (let n = 1; n <= 5; n++) {
+      expect(getServiceLineTotal(mountTv, 0, n)).toBe(expected[n - 1]);
+    }
+  });
 });
 
 import { PricingEngine } from '@/utils/pricingEngine';

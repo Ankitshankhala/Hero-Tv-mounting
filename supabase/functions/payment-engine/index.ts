@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createStripeClient, corsHeaders, refreshStripeMode } from '../_shared/stripe.ts';
 import { getSupabaseClient } from '../_shared/supabaseClient.ts';
+import { getServiceLineTotal, SPECIAL_WALL_TYPES } from '../_shared/pricing.ts';
 
 declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void };
 
@@ -65,7 +66,8 @@ Deno.serve(async (req) => {
     // configuration. Throws if the client-stored line price differs from the
     // server-computed price by more than $0.01.
     const MOUNT_TV_ID = 'a50013bc-ee03-4452-b3ec-1683094d787a';
-    const SPECIAL_WALL_TYPES = new Set(['steel', 'brick', 'concrete', 'stone', 'tile']);
+    const isSpecialWall = (w: unknown) =>
+      typeof w === 'string' && (SPECIAL_WALL_TYPES as readonly string[]).includes(w);
     async function validateMountTvAddOns(bookingId: string) {
       const { data: lineItems, error: liErr } = await supabase
         .from('booking_services')
@@ -94,7 +96,7 @@ Deno.serve(async (req) => {
           if (tc?.over65)     serverAddOnTotal += Number(addOns.over65) || 0;
           if (tc?.frameMount) serverAddOnTotal += Number(addOns.frameMount) || 0;
           if (tc?.soundbar)   serverAddOnTotal += Number(addOns.soundbar) || 0;
-          if (tc?.wallType && SPECIAL_WALL_TYPES.has(String(tc.wallType))) {
+          if (isSpecialWall(tc?.wallType)) {
             serverAddOnTotal += Number(addOns.specialWall) || 0;
           }
         }
@@ -103,7 +105,7 @@ Deno.serve(async (req) => {
           if (cfg.over65)     serverAddOnTotal += Number(addOns.over65) || 0;
           if (cfg.frameMount) serverAddOnTotal += Number(addOns.frameMount) || 0;
           if (cfg.soundbar)   serverAddOnTotal += Number(addOns.soundbar) || 0;
-          if (cfg.wallType && SPECIAL_WALL_TYPES.has(String(cfg.wallType))) {
+          if (isSpecialWall(cfg.wallType)) {
             serverAddOnTotal += Number(addOns.specialWall) || 0;
           }
         }
@@ -112,14 +114,11 @@ Deno.serve(async (req) => {
         const numTvs = Number(cfg.numberOfTvs) || tvConfigs.length || Number(li.quantity) || 1;
         let serverBase = 0;
         if (Array.isArray(tiers) && tiers.length > 0) {
-          for (let i = 1; i <= numTvs; i++) {
-            const tier = tiers.find((t: any) => Number(t.quantity) === i);
-            if (tier) serverBase += Number(tier.price) || 0;
-            else {
-              const def = tiers.find((t: any) => t.is_default_for_additional);
-              serverBase += Number(def?.price) || Number(tiers[tiers.length - 1]?.price) || 0;
-            }
-          }
+          serverBase = getServiceLineTotal(
+            { tiers: tiers as any, base_price: Number(svc.base_price) || 0 },
+            0,
+            numTvs
+          );
         } else {
           serverBase = (Number(svc.base_price) || 0) * numTvs;
         }
@@ -1140,20 +1139,12 @@ Deno.serve(async (req) => {
           const countMatch = rs.service_name?.match(/\((\d+)\s+TVs?\)/i);
           const itemCount = countMatch ? parseInt(countMatch[1]) : (rs.quantity || 1);
 
-          // Calculate tiered total server-side
-          let tieredTotal = 0;
-          const tiers = official.pricing_config.tiers;
-          for (let i = 1; i <= itemCount; i++) {
-            const tier = tiers.find((t: any) => t.quantity === i);
-            if (tier) {
-              tieredTotal += tier.price;
-            } else {
-              const defaultTier = tiers.find((t: any) => t.is_default_for_additional);
-              tieredTotal += defaultTier?.price || tiers[tiers.length - 1]?.price || 0;
-            }
-          }
-          officialPrice = tieredTotal;
-          console.log(`[PAYMENT-ENGINE] Tiered refund for "${rs.service_name}": ${itemCount} items = $${tieredTotal}`);
+          officialPrice = getServiceLineTotal(
+            { tiers: official.pricing_config.tiers, base_price: Number(official.base_price) },
+            0,
+            itemCount
+          );
+          console.log(`[PAYMENT-ENGINE] Tiered refund for "${rs.service_name}": ${itemCount} items = $${officialPrice}`);
         } else {
           officialPrice = official.base_price;
         }
