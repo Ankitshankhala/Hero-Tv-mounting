@@ -98,9 +98,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const fetchUserProfile = async (user: User) => {
     try {
-      console.log('Fetching profile for user:', user.id);
-      
-      // Get user profile from our users table
+      setProfileError(null);
       const { data, error } = await supabase
         .from('users')
         .select('*')
@@ -109,15 +107,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (error) {
         console.error('Error fetching user profile:', error);
+        setProfileError(error.message || 'Failed to load profile');
         return;
       }
 
-      console.log('User profile:', data);
       setProfile(data);
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
+      setProfileError(error instanceof Error ? error.message : 'Failed to load profile');
     }
   };
+
+  const refetchProfile = async () => {
+    if (user) await fetchUserProfile(user);
+  };
+
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -253,6 +257,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     user,
     session,
     profile,
+    profileError,
     isAdmin: !!profile?.role && profile.role === 'admin',
     isWorker: !!profile?.role && profile.role === 'worker',
     isCustomer: !!profile?.role && profile.role === 'customer',
@@ -261,7 +266,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     signUp,
     signOut,
     changePassword,
+    refetchProfile,
   };
+
 
   return (
     <AuthContext.Provider value={value}>
