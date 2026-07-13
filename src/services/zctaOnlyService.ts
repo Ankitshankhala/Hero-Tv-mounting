@@ -341,8 +341,8 @@ export class ZctaOnlyService {
         return {
           worker_id: zData.worker_id,
           worker_name: worker?.name || '',
-          worker_email: worker?.email || '',
-          worker_phone: worker?.phone || '',
+          worker_email: '',
+          worker_phone: '',
           area_id: area?.id || '',
           area_name: area?.area_name || '',
           zcta_code: zctaCode,
