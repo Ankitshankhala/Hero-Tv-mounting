@@ -1,85 +1,78 @@
 
-# Diagnostic Report — read-only, no edits
+# Diagnostic Report — worker email/phone exposure via ZCTA services
 
-## 3. Active booking flow (answer first, since it affects #2)
+## TL;DR
 
-**`EnhancedInlineBookingFlow.tsx` is the live component.** Both routed pages import it:
-- `src/pages/Index.tsx:18` — `lazy(() => import('@/components/EnhancedInlineBookingFlow'))`, rendered at line 274; also prefetched at line 43.
-- `src/pages/cities/CityPage.tsx:8` — named import, rendered at line 305.
+**YES — worker `email` and `phone` are currently reachable by an anonymous visitor.** Triggered by simply entering a ZIP code in the booking flow's location step (before any login). The values arrive in the network response but are dropped by the frontend before rendering, so nothing visible in the UI reveals them — however, anyone with DevTools/Network inspector sees them in the raw response.
 
-**`InlineBookingFlow.tsx` is dead code.** No import of it exists anywhere in `src/`. It still contains a `.from('users').eq('role','worker')` query, but nothing mounts it. Safe to ignore for RLS scoping (and a candidate for deletion in a separate cleanup).
-
-`EnhancedInlineBookingFlow.tsx` itself does **not** query the `users` table directly — worker/coverage lookups in that flow go through hooks/services listed below (e.g. `useZctaWorkerAvailability`, `zctaOnlyService`, `zctaServiceOptimized`), not through an inline `.from('users')`.
+`zctaServiceOptimized.ts` (line 63) is **dead code** — no importer anywhere in `src/`.
 
 ---
 
-## 1. Every `.from('coupons')` in `src/`
+## 1. Call chain for `zctaOnlyService.ts:312` (SELECT id, name, email, phone)
 
-Only two files. No checkout/admin component queries `coupons` directly — all validation goes through the `validate-coupon` edge function.
+The query lives inside `findAvailableWorkersWithAreaInfo()` (lines 287–350).
 
-| File | Op | Columns | Filters |
-|---|---|---|---|
-| `src/hooks/useCoupons.ts:48` | select | `*` | none, ordered by `created_at desc` (admin list) |
-| `src/hooks/useCoupons.ts:69` | insert | — | admin create |
-| `src/hooks/useCoupons.ts:97` | update | — | `eq('id', id)` (admin edit) |
-| `src/hooks/useCoupons.ts:127` | update (soft-delete) | `is_active=false` | `eq('id', id)` |
-| `src/hooks/useCoupons.ts:173` | select count | `*` head-only | `eq('is_active', true)` (analytics) |
-| `src/hooks/useCoupons.ts:188` | select | `code, usage_count` | order by `usage_count desc` limit 1 (analytics) |
-| `src/hooks/usePublicCoupons.ts:30` | select | `id, code, discount_type, discount_value, max_discount_amount, min_order_amount, valid_until, usage_limit_total, usage_count` | `is_active=true`, `valid_from <= now`, `valid_until >= now` (anon-facing promo strips/banners) |
+### Callers of `findAvailableWorkersWithAreaInfo`
 
-Consumers of `usePublicCoupons` (anon-legit reads): `HeroPromoStrip`, `MobilePromoBar`, `PromoBanner`, `CheckoutPromoReminder` (grep confirms — all display-only, they don't compute discount).
+- `src/hooks/useZctaBookingIntegration.ts:87` — inside `findAvailableWorkers` callback
+- `src/hooks/useZctaBookingIntegration.ts:138` — inside `checkCoverage` callback (fires with `today` / `09:00`)
+- `src/services/zctaOnlyService.ts:396` — internal use inside `autoAssignWorkerToBooking`
 
-**Implication for RLS:** `usePublicCoupons` is the only anon reader. Its column list is a strict subset — an anon SELECT policy can be scoped to (a) `is_active = true AND valid_from <= now() AND valid_until >= now()` and (b) optionally a column-level grant restricted to those 9 columns. `useCoupons.ts` is admin-only and must retain full access via authenticated/admin policy.
+### Path that runs under anon guest booking
 
----
+```
+EnhancedInlineBookingFlow.tsx (routed at / and /locations/:slug — LIVE)
+  └── ContactLocationStep (src/components/booking/ContactLocationStep.tsx:7)
+       └── ZctaLocationInput (src/components/booking/ZctaLocationInput.tsx:15)
+            └── useZipcodeValidationCompat  (useZctaBookingIntegration.ts:195)
+                 └── validateZipcode → Promise.all([validateZctaCode, checkCoverage])
+                                                            │
+                                                            └── checkCoverage
+                                                                 └── findAvailableWorkersWithAreaInfo(zip, today, '09:00')
+                                                                      └── supabase.from('users').select('id, name, email, phone')
+                                                                             .eq('role', 'worker').eq('is_active', true)
+```
 
-## 2. Every `.from('users')` with a `role='worker'` filter (or worker-scoped)
+**Trigger:** the anon visitor typing a ZIP into the location step of the booking flow. `useZipcodeValidationCompat.validateZipcode` runs on ZIP submit/blur inside `ZctaLocationInput`, which calls `checkCoverage`, which unconditionally invokes `findAvailableWorkersWithAreaInfo`.
 
-### Anon / public booking surface
-- **`src/components/InlineBookingFlow.tsx:100`** — `select('id, zip_code')` with `eq('role','worker')`, `eq('is_active', true)`. **DEAD CODE — not mounted.** Ignore for RLS scoping.
-- **`src/components/EnhancedInlineBookingFlow.tsx`** — no direct `.from('users')`. Worker discovery routes through hooks/services below.
+### Other paths (not anon)
 
-### Indirect anon paths (worker discovery during booking)
-- `src/utils/zctaServiceOptimized.ts:63` — `select('id, name, city')`, `in('id', active_workers)`, `eq('role','worker')`, `eq('is_active', true)`. Called by ZCTA coverage lookups; can hit from anon booking flow.
-- `src/services/zctaOnlyService.ts:312` — `select('id, name, email, phone')`, `in('id', workerIds)`, `eq('role','worker')`, `eq('is_active', true)`. **Exposes email + phone** — check whether anon calls reach here.
-
-### Authenticated user contexts
-- `src/hooks/useAuth.tsx:100` — `select('*')` `eq('id', user.id)` (self profile).
-- `src/hooks/useAuth.tsx:177` — insert self profile on signup.
-- `src/hooks/useBookingManager.tsx:60` — `select('id, name, email, phone')` `eq('id', booking.worker_id)`.
-- `src/hooks/useBookingManager.tsx:242` — `select('id, name, email, phone')` `in('id', workerIds)`.
-- `src/hooks/booking/useBookingOperations.ts:451` — update own `zip_code, city` where `id = user.id` and `zip_code is null`.
-- `src/components/worker/WorkerProfileSettings.tsx:69` — worker self-update.
-- `src/components/worker/WorkerCreateBookingModal.tsx:171` — insert customer row (worker action).
-- `src/components/ConnectionTester.tsx:100` — self profile smoke test.
-
-### Admin contexts (all filter `role='worker'`)
-- `src/hooks/useAdminServiceAreas.ts:51` — `id, name, email, phone, is_active, created_at`.
-- `src/hooks/useAdminServiceAreas.ts:181` — `id, name, email, phone, is_active`.
-- `src/components/admin/WorkersManager.tsx:78` — `select('*, worker_availability(...)')` `eq('role','worker')`.
-- `src/components/admin/WorkerTable.tsx:90/116/167/179/187` — activate/deactivate/delete (soft+hard).
-- `src/components/admin/AddWorkerModal.tsx:84` — insert worker row.
-- `src/components/admin/PendingWorkersManager.tsx:33/56/82` — list/activate/delete pending workers (`role='worker'`, `is_active=false`).
-- `src/components/admin/WorkerApplicationsManager.tsx:56` — lookup by email + `role='worker'`.
-- `src/components/admin/WorkerAssignmentManager.tsx:28` — `select('email, name') eq('id', workerId)`; `:107` — `select('email') eq('id', booking.customer_id)`.
-- `src/components/admin/AssignWorkerModal.tsx:87` — `id, name, city, phone, email` `eq('role','worker')`, `eq('is_active', true)`; `:246` — customer email lookup.
-- `src/components/admin/EditBookingModal.tsx:86` — `id, name, email, phone, city` `eq('role','worker')`, `eq('is_active', true)`.
-- `src/components/admin/CreateBookingModal.tsx:80` — `id, name, email` `eq('role','worker')`, `eq('is_active', true)`.
-- `src/components/admin/AdminCalendarView.tsx:71` — `id, name, email` `eq('role','worker')`, `eq('is_active', true)`.
-- `src/components/admin/WorkerWeeklyPayments.tsx:69` — `id, name, email` `eq('role','worker')`; `:113` — customer name lookup `in('id', customerIds)`.
-- `src/components/admin/ZctaManagementDashboard.tsx:81` — `id, name, email, phone` `eq('role','worker')`, `eq('is_active', true)`.
-- `src/components/admin/SystemStatusCard.tsx:30` — `select('count')` smoke check.
-
-### Other
-- `src/utils/createTestBooking.ts:20/30` — test-fixture util (customer role).
-- `src/hooks/useSupabaseQuery.tsx:49` — generic wrapper, caller-supplied `select`.
+- `useZctaBookingIntegration.findAvailableWorkers` — only invoked from admin `ZctaManagementDashboard.tsx` and from the compat hook indirectly (already covered above).
+- `autoAssignWorkerToBooking` — invoked from admin dashboard and via booking-server flow.
 
 ---
 
-## Key takeaways for the RLS design (not applied yet)
+## 2. Call chain for `zctaServiceOptimized.ts:63` (SELECT id, name, city)
 
-- **Coupons anon policy** can safely be tightened to just active-window rows and the 9 columns `usePublicCoupons` reads. Everything else is admin/authenticated.
-- **Users(role=worker) anon exposure** currently flows through `zctaServiceOptimized.ts` and `zctaOnlyService.ts` — the latter selects `email` and `phone`, which is broader than the anon booking flow needs (the flow only needs coverage availability, not contact info). Worth confirming whether these run under anon at all or only under authenticated worker/admin contexts before tightening.
-- `InlineBookingFlow.tsx` is dead — its worker query does not need to be preserved by any RLS policy.
+**Zero importers.** `rg "zctaServiceOptimized"` across `src/` returns no matches outside the file itself. It is dead code and does not execute in any user-facing path (anon, authenticated, or admin). No RLS-tightening decision needs to preserve it.
 
-No changes will be made until you approve the RLS scope.
+---
+
+## 3. Does the frontend display or use the email/phone?
+
+Followed the data flow after the DB round-trip:
+
+- `useZctaBookingIntegration.ts:138–145` — `checkCoverage` maps each worker result into only `{ id, name, city: area_name, coverage_source }`. `email` and `phone` are **discarded** before reaching component state.
+- `useZipcodeValidationCompat` returns only `coverageInfo` / `workerCount` / `locationData` — no worker contact fields.
+- `ZctaLocationInput` and `ContactLocationStep` render workerCount / city, never email or phone.
+
+So `email` and `phone` are **fetched but unused** by the UI on the anon path — a classic over-fetch. However, PostgREST returns them in the JSON response body (visible in DevTools → Network → `users?select=id,name,email,phone&role=eq.worker...`). This is a real (though passive) PII disclosure to any unauthenticated user who inspects network traffic.
+
+---
+
+## 3. Final answer
+
+- **Is worker email/phone currently reachable by an anonymous visitor? YES.**
+- **What triggers it:** the visitor entering a ZIP code in `ZctaLocationInput` inside the booking flow's location step (guest checkout, before signup/login).
+- **Rendered in UI?** No — the frontend strips those fields before display.
+- **Wire-visible?** Yes — response payload contains `email` and `phone` for every active worker returned by `findAvailableWorkersWithAreaInfo` for that ZIP.
+- **Dead code note:** `zctaServiceOptimized.ts:63` is unreferenced; it is not part of any live anon path (and not part of any live authenticated path either).
+
+### Suggested (not yet applied) mitigations for later discussion
+
+1. Change the `findAvailableWorkersWithAreaInfo` select list from `id, name, email, phone` to `id, name` (email/phone are already discarded by the only caller that reaches anon). Zero UI impact.
+2. Additionally / alternatively, tighten the `users` RLS anon policy so anon SELECT on `role='worker'` returns only non-PII columns, or move worker discovery behind an edge function / SECURITY DEFINER RPC.
+3. Delete `zctaServiceOptimized.ts` in a cleanup pass (unrelated to RLS scope but eliminates a confusing duplicate query pattern).
+
+No changes will be made until you approve the mitigation approach.
