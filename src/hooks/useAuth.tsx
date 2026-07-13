@@ -24,6 +24,7 @@ type AuthContextType = {
   user: User | null;
   session: Session | null;
   profile: any | null;
+  profileError: string | null;
   isAdmin: boolean;
   isWorker: boolean;
   isCustomer: boolean;
@@ -32,7 +33,9 @@ type AuthContextType = {
   signUp: (email: string, password: string, userData: any) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   changePassword: (newPassword: string) => Promise<{ error: any }>;
+  refetchProfile: () => Promise<void>;
 };
+
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -40,7 +43,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<any | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -93,9 +98,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const fetchUserProfile = async (user: User) => {
     try {
-      console.log('Fetching profile for user:', user.id);
-      
-      // Get user profile from our users table
+      setProfileError(null);
       const { data, error } = await supabase
         .from('users')
         .select('*')
@@ -104,15 +107,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (error) {
         console.error('Error fetching user profile:', error);
+        setProfileError(error.message || 'Failed to load profile');
         return;
       }
 
-      console.log('User profile:', data);
       setProfile(data);
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
+      setProfileError(error instanceof Error ? error.message : 'Failed to load profile');
     }
   };
+
+  const refetchProfile = async () => {
+    if (user) await fetchUserProfile(user);
+  };
+
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -248,6 +257,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     user,
     session,
     profile,
+    profileError,
     isAdmin: !!profile?.role && profile.role === 'admin',
     isWorker: !!profile?.role && profile.role === 'worker',
     isCustomer: !!profile?.role && profile.role === 'customer',
@@ -256,7 +266,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     signUp,
     signOut,
     changePassword,
+    refetchProfile,
   };
+
 
   return (
     <AuthContext.Provider value={value}>
