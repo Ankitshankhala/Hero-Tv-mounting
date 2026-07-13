@@ -1,4 +1,5 @@
 import { SERVICE_IDS } from '@/constants/serviceIds';
+import { SPECIAL_WALL_TYPES } from '@shared/pricing';
 
 interface BookingService {
   service_name: string;
