@@ -911,10 +911,29 @@ Deno.serve(async (req) => {
 
       const nowIso = new Date().toISOString();
 
-      // Idempotent success — already captured, just finalize state
+      // Idempotent success — already captured, just finalize state.
+      // REVENUE_GUARD invariant: any UPDATE that sets status='completed' must
+      // also write payment_status='captured' and a non-null captured_amount
+      // in the SAME update, so completed rows can never desync from capture.
       if (booking.payment_status === 'captured' || booking.payment_status === 'completed') {
+        let idempotentCapturedAmount = Number(booking.captured_amount);
+        if (!idempotentCapturedAmount && booking.payment_intent_id) {
+          // captured_amount missing on an already-captured booking — recover from Stripe
+          try {
+            const piRecover = await stripe.paymentIntents.retrieve(booking.payment_intent_id);
+            idempotentCapturedAmount = (piRecover.amount_received || piRecover.amount || 0) / 100;
+          } catch (e) {
+            console.error('[PAYMENT-ENGINE] idempotent recover PI retrieve failed:', e);
+          }
+        }
+        if (!idempotentCapturedAmount || Number.isNaN(idempotentCapturedAmount)) {
+          idempotentCapturedAmount = 0;
+        }
+
         await supabase.from('bookings').update({
           status: 'completed',
+          payment_status: 'captured',
+          captured_amount: idempotentCapturedAmount,
           is_archived: true,
           archived_at: nowIso,
           updated_at: nowIso,
@@ -923,7 +942,7 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({
           success: true,
           already_captured: true,
-          amount_captured: Number(booking.captured_amount) || 0,
+          amount_captured: idempotentCapturedAmount,
           payment_intent_id: booking.payment_intent_id,
           message: 'Payment already captured; job marked completed and archived',
         }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
