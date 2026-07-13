@@ -1,78 +1,62 @@
+# Bookings anon-read scoping — design plan
 
-# Diagnostic Report — worker email/phone exposure via ZCTA services
+## Findings (confirmed)
 
-## TL;DR
+1. **Probe is not auth-branched.** `EnhancedInlineBookingFlow.tsx:115–151` runs the `.from('bookings').select('id, payment_status, status').eq('id', pendingBookingId)` probe on mount for any visitor with a `pendingBookingId` in sessionStorage. For logged-in customers the request is sent with their JWT and resolves under the `authenticated` policy — no code change needed to gate it.
+2. **Logged-in bookings have `customer_id = auth.uid()`.** `useBookingOperations.ts:309,371` — authenticated users insert directly; guests (`!user`) route through the `create-guest-booking` edge function which sets `customer_id: bookingData.customer_id || null`. The existing `Customers can view own bookings` policy (`customer_id = auth.uid()`) fully covers logged-in customers.
+3. **`reservation_expires_at` exists** (timestamptz, set to `now() + 15 min` at insert, both in client path and edge function). No `reservation_token` / nonce column exists today.
+4. **Current anon SELECT policy is too broad:** `(customer_id IS NULL AND status='payment_pending') OR (customer_id IS NULL AND payment_intent_id IS NOT NULL)` — unbounded in time, unbounded across sessions, and the second clause survives long after checkout completes.
 
-**YES — worker `email` and `phone` are currently reachable by an anonymous visitor.** Triggered by simply entering a ZIP code in the booking flow's location step (before any login). The values arrive in the network response but are dropped by the frontend before rendering, so nothing visible in the UI reveals them — however, anyone with DevTools/Network inspector sees them in the raw response.
+## Design decision
 
-`zctaServiceOptimized.ts` (line 63) is **dead code** — no importer anywhere in `src/`.
+Adopt **Option A: narrow by time + status, no nonce**. Rationale:
+- Zero frontend change, no schema migration, immediate risk reduction.
+- Guest reads are already keyed by `id` (a v4 UUID) held only in the guest's own `sessionStorage` — effectively an unguessable capability.
+- The 15-min `reservation_expires_at` window matches the actual checkout lifetime; anything older is stale and shouldn't be readable anon.
 
----
+Option B (add `guest_session_token` column + require it as a filter) is stronger but requires schema + frontend changes across guest booking creation, sessionStorage, and probe. Deferred unless the security scanner or a threat model demands it.
 
-## 1. Call chain for `zctaOnlyService.ts:312` (SELECT id, name, email, phone)
+## Policy to apply (single migration, no frontend edits)
 
-The query lives inside `findAvailableWorkersWithAreaInfo()` (lines 287–350).
+Drop the current broad policy and replace with a tight one:
 
-### Callers of `findAvailableWorkersWithAreaInfo`
+```sql
+DROP POLICY IF EXISTS "Enable guest booking viewing during checkout" ON public.bookings;
 
-- `src/hooks/useZctaBookingIntegration.ts:87` — inside `findAvailableWorkers` callback
-- `src/hooks/useZctaBookingIntegration.ts:138` — inside `checkCoverage` callback (fires with `today` / `09:00`)
-- `src/services/zctaOnlyService.ts:396` — internal use inside `autoAssignWorkerToBooking`
-
-### Path that runs under anon guest booking
-
+CREATE POLICY "Anon can view own guest booking during active checkout"
+ON public.bookings
+FOR SELECT
+TO anon
+USING (
+  customer_id IS NULL
+  AND status = 'payment_pending'
+  AND reservation_expires_at IS NOT NULL
+  AND reservation_expires_at > now()
+);
 ```
-EnhancedInlineBookingFlow.tsx (routed at / and /locations/:slug — LIVE)
-  └── ContactLocationStep (src/components/booking/ContactLocationStep.tsx:7)
-       └── ZctaLocationInput (src/components/booking/ZctaLocationInput.tsx:15)
-            └── useZipcodeValidationCompat  (useZctaBookingIntegration.ts:195)
-                 └── validateZipcode → Promise.all([validateZctaCode, checkCoverage])
-                                                            │
-                                                            └── checkCoverage
-                                                                 └── findAvailableWorkersWithAreaInfo(zip, today, '09:00')
-                                                                      └── supabase.from('users').select('id, name, email, phone')
-                                                                             .eq('role', 'worker').eq('is_active', true)
-```
 
-**Trigger:** the anon visitor typing a ZIP into the location step of the booking flow. `useZipcodeValidationCompat.validateZipcode` runs on ZIP submit/blur inside `ZctaLocationInput`, which calls `checkCoverage`, which unconditionally invokes `findAvailableWorkersWithAreaInfo`.
+Key differences vs current policy:
+- **Role scoped to `anon`** (was `public`, which also matched authenticated — harmless but noisy).
+- **Removes the `payment_intent_id IS NOT NULL` disjunct** — that clause kept rows readable indefinitely after payment authorization.
+- **Adds `reservation_expires_at > now()`** — enforces the 15-min lifetime already used elsewhere.
+- **Keeps `status = 'payment_pending'`** — after the row transitions to `payment_authorized`/`confirmed`, anon loses read access (frontend probe already clears sessionStorage on non-pending states).
 
-### Other paths (not anon)
+Column exposure: no `REVOKE`/column-GRANT change needed in this migration — the probe only selects `id, payment_status, status`. If the security team wants defense-in-depth, follow up with a column-scoped `GRANT SELECT (id, status, payment_status) ON public.bookings TO anon` after `REVOKE SELECT ... FROM anon`. Flagged separately, not part of this change.
 
-- `useZctaBookingIntegration.findAvailableWorkers` — only invoked from admin `ZctaManagementDashboard.tsx` and from the compat hook indirectly (already covered above).
-- `autoAssignWorkerToBooking` — invoked from admin dashboard and via booking-server flow.
+## What logged-in customers get
 
----
+Nothing changes for them. Their probe uses their JWT and is served by `Customers can view own bookings` (`customer_id = auth.uid()`). Confirmed policy exists and predicate is exactly that.
 
-## 2. Call chain for `zctaServiceOptimized.ts:63` (SELECT id, name, city)
+## Verification after apply
 
-**Zero importers.** `rg "zctaServiceOptimized"` across `src/` returns no matches outside the file itself. It is dead code and does not execute in any user-facing path (anon, authenticated, or admin). No RLS-tightening decision needs to preserve it.
+1. `supabase--linter` clean.
+2. Manual: guest flow in preview — create booking, reload tab within 15 min, confirm probe restores state; wait past 15 min (or manually expire), confirm probe returns null and sessionStorage clears.
+3. Manual: logged-in customer flow — create booking, reload, confirm restore works (served by authenticated policy).
+4. Query `pg_policies` and paste the applied policy row in the report.
 
----
+## Out of scope for this change
 
-## 3. Does the frontend display or use the email/phone?
-
-Followed the data flow after the DB round-trip:
-
-- `useZctaBookingIntegration.ts:138–145` — `checkCoverage` maps each worker result into only `{ id, name, city: area_name, coverage_source }`. `email` and `phone` are **discarded** before reaching component state.
-- `useZipcodeValidationCompat` returns only `coverageInfo` / `workerCount` / `locationData` — no worker contact fields.
-- `ZctaLocationInput` and `ContactLocationStep` render workerCount / city, never email or phone.
-
-So `email` and `phone` are **fetched but unused** by the UI on the anon path — a classic over-fetch. However, PostgREST returns them in the JSON response body (visible in DevTools → Network → `users?select=id,name,email,phone&role=eq.worker...`). This is a real (though passive) PII disclosure to any unauthenticated user who inspects network traffic.
-
----
-
-## 3. Final answer
-
-- **Is worker email/phone currently reachable by an anonymous visitor? YES.**
-- **What triggers it:** the visitor entering a ZIP code in `ZctaLocationInput` inside the booking flow's location step (guest checkout, before signup/login).
-- **Rendered in UI?** No — the frontend strips those fields before display.
-- **Wire-visible?** Yes — response payload contains `email` and `phone` for every active worker returned by `findAvailableWorkersWithAreaInfo` for that ZIP.
-- **Dead code note:** `zctaServiceOptimized.ts:63` is unreferenced; it is not part of any live anon path (and not part of any live authenticated path either).
-
-### Suggested (not yet applied) mitigations for later discussion
-
-1. Change the `findAvailableWorkersWithAreaInfo` select list from `id, name, email, phone` to `id, name` (email/phone are already discarded by the only caller that reaches anon). Zero UI impact.
-2. Additionally / alternatively, tighten the `users` RLS anon policy so anon SELECT on `role='worker'` returns only non-PII columns, or move worker discovery behind an edge function / SECURITY DEFINER RPC.
-3. Delete `zctaServiceOptimized.ts` in a cleanup pass (unrelated to RLS scope but eliminates a confusing duplicate query pattern).
-
-No changes will be made until you approve the mitigation approach.
+- Adding `guest_session_token` nonce column.
+- Tightening authenticated-role access to `users` PII (tracked separately from the prior worker-email diagnosis).
+- Column-level GRANTs on `bookings` for anon (defense-in-depth, follow-up).
+- Any frontend edits — the probe code stays as-is.
