@@ -48,6 +48,15 @@ Deno.serve(async (req) => {
       throw new Error('guest_customer_info.email is required');
     }
 
+    // Enforce Stripe 7-day authorization window: job must be within the next 7 days.
+    const todayStr = new Date().toISOString().split('T')[0];
+    const maxDate = new Date();
+    maxDate.setDate(maxDate.getDate() + 7);
+    const maxStr = maxDate.toISOString().split('T')[0];
+    if (bookingData.scheduled_date < todayStr || bookingData.scheduled_date > maxStr) {
+      throw new Error(`Bookings can only be scheduled from today through ${maxStr} (within the 7-day payment authorization window).`);
+    }
+
     // PHASE 1: CRITICAL - Verify worker availability before creating booking
     console.log('🔍 Checking worker availability before creating booking...');
 
