@@ -1,4 +1,5 @@
 import { PricingEngine, ServiceLike } from './pricingEngine';
+import { tierPriceForNth } from '@shared/pricing';
 
 /**
  * Formats tiered pricing display for TV mounting service
@@ -45,19 +46,6 @@ export const getAddOnPrice = (
 export const getTierPrice = (
   service: ServiceLike | undefined,
   quantity: number
-): number => {
-  if (!service?.pricing_config?.tiers) {
-    return service?.base_price || 0;
-  }
+): number =>
+  tierPriceForNth(service?.pricing_config?.tiers as any, Number(service?.base_price) || 0, quantity);
 
-  const tiers = service.pricing_config.tiers;
-  const tier = tiers.find(t => t.quantity === quantity);
-  
-  if (tier) {
-    return tier.price;
-  }
-
-  // Use default additional TV price for quantities beyond defined tiers
-  const defaultTier = tiers.find(t => t.is_default_for_additional);
-  return defaultTier?.price || tiers[tiers.length - 1].price;
-};

@@ -3,6 +3,7 @@
  * Single source of truth for all TV mounting pricing calculations
  */
 import { SERVICE_IDS } from '@/constants/serviceIds';
+import { tierPriceForNth, SPECIAL_WALL_TYPES } from '@shared/pricing';
 
 // Flexible service type that works with PublicService, CachedService, and FallbackService
 export interface ServiceLike {
@@ -99,21 +100,9 @@ export class PricingEngine {
    * Get tiered price for TV mounting based on quantity
    */
   static getTierPrice(service: ServiceLike | undefined, quantity: number): number {
-    if (!service?.pricing_config?.tiers) {
-      return service?.base_price || 0;
-    }
-
-    const tiers = service.pricing_config.tiers;
-    const tier = tiers.find(t => t.quantity === quantity);
-
-    if (tier) {
-      return tier.price;
-    }
-
-    // Use default additional TV price for quantities beyond defined tiers
-    const defaultTier = tiers.find(t => t.is_default_for_additional);
-    return defaultTier?.price || tiers[tiers.length - 1]?.price || service.base_price || 0;
+    return tierPriceForNth(service?.pricing_config?.tiers as any, Number(service?.base_price) || 0, quantity);
   }
+
 
   /**
    * Calculate complete TV mounting configuration price
@@ -171,7 +160,7 @@ export class PricingEngine {
         }
       }
 
-      if (config.wallType === 'steel' || config.wallType === 'brick' || config.wallType === 'concrete') {
+      if (config.wallType && (SPECIAL_WALL_TYPES as readonly string[]).includes(config.wallType)) {
         const { price } = this.getAddOnPrice(
           tvMountingService,
           'specialWall',
