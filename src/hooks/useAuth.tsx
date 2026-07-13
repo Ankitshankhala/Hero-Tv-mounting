@@ -24,6 +24,7 @@ type AuthContextType = {
   user: User | null;
   session: Session | null;
   profile: any | null;
+  profileError: string | null;
   isAdmin: boolean;
   isWorker: boolean;
   isCustomer: boolean;
@@ -32,7 +33,9 @@ type AuthContextType = {
   signUp: (email: string, password: string, userData: any) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   changePassword: (newPassword: string) => Promise<{ error: any }>;
+  refetchProfile: () => Promise<void>;
 };
+
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -40,7 +43,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<any | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
 
   useEffect(() => {
     // Set up auth state listener FIRST
