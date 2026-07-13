@@ -328,6 +328,49 @@ Deno.serve(async (req) => {
         stripe_payment_method_id: paymentMethodId,
       }).eq('id', bookingId);
 
+      // Record coupon usage at AUTHORIZATION (idempotent). Abandoned/never-paid
+      // bookings never reach here, so they can no longer burn coupon usage limits.
+      // `lock_booking_for_payment` does not return coupon/customer fields, so
+      // fetch them explicitly here.
+      try {
+        const { data: couponBooking } = await supabase
+          .from('bookings')
+          .select('coupon_id, coupon_code, coupon_discount, subtotal_before_discount, customer_id, guest_customer_info')
+          .eq('id', bookingId)
+          .single();
+
+        if (couponBooking?.coupon_id) {
+          const { data: existingUsage } = await supabase
+            .from('coupon_usage')
+            .select('id')
+            .eq('booking_id', bookingId)
+            .limit(1);
+
+          if (!existingUsage || existingUsage.length === 0) {
+            const guestEmail = (couponBooking.guest_customer_info as any)?.email;
+            const emailRaw = customerEmail || guestEmail || null;
+            const emailLower = emailRaw ? String(emailRaw).toLowerCase() : null;
+
+            const { error: couponInsErr } = await supabase.from('coupon_usage').insert({
+              coupon_id: couponBooking.coupon_id,
+              booking_id: bookingId,
+              discount_amount: Number(couponBooking.coupon_discount) || 0,
+              order_total: Number(couponBooking.subtotal_before_discount) || totalAmount,
+              user_id: couponBooking.customer_id || null,
+              customer_email: emailLower,
+            });
+            if (couponInsErr) {
+              console.error('[PAYMENT-ENGINE] coupon_usage insert failed (non-fatal):', couponInsErr.message);
+            } else {
+              console.log('[PAYMENT-ENGINE] coupon_usage recorded at authorization for booking', bookingId);
+            }
+          }
+        }
+      } catch (couponErr: any) {
+        // Never fail authorization because of coupon-usage bookkeeping.
+        console.error('[PAYMENT-ENGINE] coupon_usage recording error (non-fatal):', couponErr?.message || couponErr);
+      }
+
       // Background writes
       EdgeRuntime.waitUntil(
         Promise.all([
