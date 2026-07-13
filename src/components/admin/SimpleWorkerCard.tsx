@@ -5,6 +5,8 @@ interface Worker {
   id: string;
   name: string;
   is_active: boolean;
+  total_zipcodes?: number;
+  service_area_count?: number;
   // Removed zcta_zipcodes references - now using us_zcta_polygons directly
   service_areas?: Array<{
     id: string;
