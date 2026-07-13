@@ -5,6 +5,8 @@ interface Worker {
   id: string;
   name: string;
   is_active: boolean;
+  total_zipcodes?: number;
+  service_area_count?: number;
   // Removed zcta_zipcodes references - now using us_zcta_polygons directly
   service_areas?: Array<{
     id: string;
@@ -44,28 +46,19 @@ export const SimpleWorkerCard: React.FC<SimpleWorkerCardProps> = ({
   const getWorkerCoverageDisplay = (worker: Worker) => {
     const activeAreas = worker.service_areas?.filter(area => area.is_active) || [];
     const areaCount = activeAreas.length;
-    
-    // Use database count directly (consolidated from us_zcta_polygons)
-    const uniqueZipCount = worker.service_zipcodes?.length || 0;
-    const totalZipCount = uniqueZipCount;
-    
-    if (areaCount === 0) return '0 areas';
-    
-    // Format with proper singular/plural
+
+    // Prefer server-computed distinct ZIP count. Fall back to distinct zipcodes
+    // from the loaded rows only if the server value is missing.
+    const uniqueZipCount = typeof worker.total_zipcodes === 'number'
+      ? worker.total_zipcodes
+      : new Set((worker.service_zipcodes || []).map(z => z.zipcode)).size;
+
     const areaText = areaCount === 1 ? 'area' : 'areas';
-    const uniqueZipText = uniqueZipCount === 1 ? 'ZIP' : 'ZIPs';
-    
-    if (uniqueZipCount > 0) {
-      // Show both metrics when they differ (indicating overlap)
-      if (totalZipCount > uniqueZipCount) {
-        return `${areaCount} ${areaText}, ${totalZipCount} total ZIPs (${uniqueZipCount} unique)`;
-      }
-      
-      // Show simple format when no overlap
-      return `${areaCount} ${areaText}, ${uniqueZipCount} ${uniqueZipText}`;
-    }
-    
-    return `${areaCount} ${areaText}`;
+    const zipText = uniqueZipCount === 1 ? 'ZIP' : 'ZIPs';
+
+    // Always show the ZIP count — workers can have ZIPs with no polygon area,
+    // and areas with no ZIPs; both facts matter.
+    return `${areaCount} ${areaText}, ${uniqueZipCount} ${zipText}`;
   };
 
   const workerColor = WORKER_COLORS[colorIndex % WORKER_COLORS.length];
