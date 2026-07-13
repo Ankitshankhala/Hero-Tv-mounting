@@ -157,10 +157,12 @@ export const ScheduleStep = ({
               selected={formData.selectedDate}
               onSelect={(date) => setFormData(prev => ({ ...prev, selectedDate: date }))}
               disabled={(date) => {
-                // Allow today and future dates, disable past dates
+                // Restrict to today through today + 7 days (Stripe auth window)
                 const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-                return dateOnly < today;
+                return dateOnly < today || dateOnly > maxBookingDate;
               }}
+              fromDate={today}
+              toDate={maxBookingDate}
               className="w-full"
               classNames={{
                 months: "flex w-full flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
