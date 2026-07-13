@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
           if (cfg.over65)     serverAddOnTotal += Number(addOns.over65) || 0;
           if (cfg.frameMount) serverAddOnTotal += Number(addOns.frameMount) || 0;
           if (cfg.soundbar)   serverAddOnTotal += Number(addOns.soundbar) || 0;
-          if (cfg.wallType && SPECIAL_WALL_TYPES.has(String(cfg.wallType))) {
+          if (isSpecialWall(cfg.wallType)) {
             serverAddOnTotal += Number(addOns.specialWall) || 0;
           }
         }
