@@ -3741,12 +3741,10 @@ export type Database = {
         Args: { p_grace_minutes?: number; p_lookback_minutes?: number }
         Returns: Json
       }
-      run_automated_watchdog:
-        | { Args: never; Returns: Json }
-        | {
-            Args: { p_batch_limit?: number; p_lookback_minutes?: number }
-            Returns: Json
-          }
+      run_automated_watchdog: {
+        Args: { p_batch_limit?: number; p_lookback_minutes?: number }
+        Returns: Json
+      }
       select_best_available_worker: {
         Args: {
           p_date: string
