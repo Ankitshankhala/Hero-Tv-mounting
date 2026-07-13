@@ -1139,20 +1139,12 @@ Deno.serve(async (req) => {
           const countMatch = rs.service_name?.match(/\((\d+)\s+TVs?\)/i);
           const itemCount = countMatch ? parseInt(countMatch[1]) : (rs.quantity || 1);
 
-          // Calculate tiered total server-side
-          let tieredTotal = 0;
-          const tiers = official.pricing_config.tiers;
-          for (let i = 1; i <= itemCount; i++) {
-            const tier = tiers.find((t: any) => t.quantity === i);
-            if (tier) {
-              tieredTotal += tier.price;
-            } else {
-              const defaultTier = tiers.find((t: any) => t.is_default_for_additional);
-              tieredTotal += defaultTier?.price || tiers[tiers.length - 1]?.price || 0;
-            }
-          }
-          officialPrice = tieredTotal;
-          console.log(`[PAYMENT-ENGINE] Tiered refund for "${rs.service_name}": ${itemCount} items = $${tieredTotal}`);
+          officialPrice = getServiceLineTotal(
+            { tiers: official.pricing_config.tiers, base_price: Number(official.base_price) },
+            0,
+            itemCount
+          );
+          console.log(`[PAYMENT-ENGINE] Tiered refund for "${rs.service_name}": ${itemCount} items = $${officialPrice}`);
         } else {
           officialPrice = official.base_price;
         }
