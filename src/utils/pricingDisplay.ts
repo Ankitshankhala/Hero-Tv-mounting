@@ -1,4 +1,5 @@
 import { PricingEngine, ServiceLike } from './pricingEngine';
+import { tierPriceForNth } from '@shared/pricing';
 
 /**
  * Formats tiered pricing display for TV mounting service
