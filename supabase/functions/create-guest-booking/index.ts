@@ -124,28 +124,11 @@ Deno.serve(async (req) => {
 
     console.log('✅ Booking created successfully:', booking.id);
 
-    // Record coupon usage if a coupon was applied
-    if (bookingData.coupon_id && bookingData.coupon_code) {
-      console.log('📝 Recording coupon usage:', bookingData.coupon_code);
-      
-      const { error: couponError } = await supabaseClient
-        .from('coupon_usage')
-        .insert({
-          coupon_id: bookingData.coupon_id,
-          booking_id: booking.id,
-          customer_email: bookingData.guest_customer_info.email.toLowerCase(),
-          user_id: bookingData.customer_id || null,
-          discount_amount: bookingData.coupon_discount || 0,
-          order_total: bookingData.subtotal_before_discount || bookingData.total_price || 0,
-        });
+    // NOTE: Coupon usage is intentionally NOT recorded here. It is recorded by
+    // payment-engine at authorization time, so abandoned/never-paid bookings
+    // do not consume coupon usage limits.
 
-      if (couponError) {
-        console.error('⚠️ Failed to record coupon usage:', couponError);
-        // Don't fail the booking for coupon tracking error
-      } else {
-        console.log('✅ Coupon usage recorded successfully');
-      }
-    }
+
 
     // Insert booking services if provided
     if (services.length > 0) {
