@@ -310,7 +310,7 @@ export class ZctaOnlyService {
       const workerIds = [...new Set(zipcodeData.map(z => z.worker_id))];
       const { data: workers, error: workerError } = await supabase
         .from('users')
-        .select('id, name, email, phone')
+        .select('id, name')
         .in('id', workerIds)
         .eq('is_active', true)
         .eq('role', 'worker');
