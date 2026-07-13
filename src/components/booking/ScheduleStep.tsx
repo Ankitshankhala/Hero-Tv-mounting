@@ -48,6 +48,9 @@ export const ScheduleStep = ({
   // Get current time in America/Chicago timezone to filter out past time slots for today
   const nowInChicago = toZonedTime(new Date(), 'America/Chicago');
   const today = new Date(nowInChicago.getFullYear(), nowInChicago.getMonth(), nowInChicago.getDate());
+  // Stripe authorization window: only allow booking today through today + 7 days.
+  const maxBookingDate = new Date(today);
+  maxBookingDate.setDate(today.getDate() + 7);
   const currentHour = nowInChicago.getHours();
   const currentMinutes = nowInChicago.getMinutes();
   
@@ -154,10 +157,12 @@ export const ScheduleStep = ({
               selected={formData.selectedDate}
               onSelect={(date) => setFormData(prev => ({ ...prev, selectedDate: date }))}
               disabled={(date) => {
-                // Allow today and future dates, disable past dates
+                // Restrict to today through today + 7 days (Stripe auth window)
                 const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-                return dateOnly < today;
+                return dateOnly < today || dateOnly > maxBookingDate;
               }}
+              fromDate={today}
+              toDate={maxBookingDate}
               className="w-full"
               classNames={{
                 months: "flex w-full flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
