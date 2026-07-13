@@ -66,7 +66,8 @@ Deno.serve(async (req) => {
     // configuration. Throws if the client-stored line price differs from the
     // server-computed price by more than $0.01.
     const MOUNT_TV_ID = 'a50013bc-ee03-4452-b3ec-1683094d787a';
-    const SPECIAL_WALL_TYPES = new Set(['steel', 'brick', 'concrete', 'stone', 'tile']);
+    const isSpecialWall = (w: unknown) =>
+      typeof w === 'string' && (SPECIAL_WALL_TYPES as readonly string[]).includes(w);
     async function validateMountTvAddOns(bookingId: string) {
       const { data: lineItems, error: liErr } = await supabase
         .from('booking_services')
