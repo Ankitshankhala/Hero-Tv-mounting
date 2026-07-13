@@ -48,6 +48,9 @@ export const ScheduleStep = ({
   // Get current time in America/Chicago timezone to filter out past time slots for today
   const nowInChicago = toZonedTime(new Date(), 'America/Chicago');
   const today = new Date(nowInChicago.getFullYear(), nowInChicago.getMonth(), nowInChicago.getDate());
+  // Stripe authorization window: only allow booking today through today + 7 days.
+  const maxBookingDate = new Date(today);
+  maxBookingDate.setDate(today.getDate() + 7);
   const currentHour = nowInChicago.getHours();
   const currentMinutes = nowInChicago.getMinutes();
   
