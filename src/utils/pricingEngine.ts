@@ -3,6 +3,7 @@
  * Single source of truth for all TV mounting pricing calculations
  */
 import { SERVICE_IDS } from '@/constants/serviceIds';
+import { tierPriceForNth, SPECIAL_WALL_TYPES } from '@shared/pricing';
 
 // Flexible service type that works with PublicService, CachedService, and FallbackService
 export interface ServiceLike {
