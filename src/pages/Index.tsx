@@ -31,6 +31,7 @@ const LazyLoader = () => (
 
 const Index = () => {
   const { isTestingMode } = useTestingMode();
+  const { enabled: paymentFirstEnabled } = usePaymentFirstFlag();
   const MINIMUM_BOOKING_AMOUNT = getEffectiveMinimumAmount(isTestingMode);
   
   const [showAuthModal, setShowAuthModal] = useState(false);
