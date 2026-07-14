@@ -16,6 +16,10 @@ import { SEO } from '@/components/SEO';
 
 // Lazy load heavy components that are not needed for initial render
 const EnhancedInlineBookingFlow = lazy(() => import('@/components/EnhancedInlineBookingFlow'));
+// V2 (payment-first) — gated behind `app_settings.payment_first_enabled`.
+// Default OFF: when the flag is false/missing/errored, V1 above is used.
+const EnhancedInlineBookingFlowV2 = lazy(() => import('@/components/EnhancedInlineBookingFlowV2'));
+import { usePaymentFirstFlag } from '@/hooks/usePaymentFirstFlag';
 const AuthModal = lazy(() => import('@/components/auth/AuthModal'));
 
 // Minimal loading spinner for lazy components
@@ -27,6 +31,7 @@ const LazyLoader = () => (
 
 const Index = () => {
   const { isTestingMode } = useTestingMode();
+  const { enabled: paymentFirstEnabled } = usePaymentFirstFlag();
   const MINIMUM_BOOKING_AMOUNT = getEffectiveMinimumAmount(isTestingMode);
   
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -268,15 +273,24 @@ const Index = () => {
         />
       )}
 
-      {/* Booking Flow - Lazy loaded */}
+      {/* Booking Flow - Lazy loaded. Flag OFF (default) → V1 unchanged. */}
       {showBookingFlow && (
         <Suspense fallback={<LazyLoader />}>
-          <EnhancedInlineBookingFlow
-            isOpen={showBookingFlow}
-            onClose={() => setShowBookingFlow(false)}
-            onSubmit={handleBookingComplete}
-            selectedServices={selectedServices}
-          />
+          {paymentFirstEnabled ? (
+            <EnhancedInlineBookingFlowV2
+              isOpen={showBookingFlow}
+              onClose={() => setShowBookingFlow(false)}
+              onSubmit={handleBookingComplete}
+              selectedServices={selectedServices}
+            />
+          ) : (
+            <EnhancedInlineBookingFlow
+              isOpen={showBookingFlow}
+              onClose={() => setShowBookingFlow(false)}
+              onSubmit={handleBookingComplete}
+              selectedServices={selectedServices}
+            />
+          )}
         </Suspense>
       )}
 
