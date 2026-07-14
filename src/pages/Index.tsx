@@ -273,15 +273,24 @@ const Index = () => {
         />
       )}
 
-      {/* Booking Flow - Lazy loaded */}
+      {/* Booking Flow - Lazy loaded. Flag OFF (default) → V1 unchanged. */}
       {showBookingFlow && (
         <Suspense fallback={<LazyLoader />}>
-          <EnhancedInlineBookingFlow
-            isOpen={showBookingFlow}
-            onClose={() => setShowBookingFlow(false)}
-            onSubmit={handleBookingComplete}
-            selectedServices={selectedServices}
-          />
+          {paymentFirstEnabled ? (
+            <EnhancedInlineBookingFlowV2
+              isOpen={showBookingFlow}
+              onClose={() => setShowBookingFlow(false)}
+              onSubmit={handleBookingComplete}
+              selectedServices={selectedServices}
+            />
+          ) : (
+            <EnhancedInlineBookingFlow
+              isOpen={showBookingFlow}
+              onClose={() => setShowBookingFlow(false)}
+              onSubmit={handleBookingComplete}
+              selectedServices={selectedServices}
+            />
+          )}
         </Suspense>
       )}
 
