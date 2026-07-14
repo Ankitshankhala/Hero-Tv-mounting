@@ -234,6 +234,10 @@ export const PaymentsManager = () => {
       {/* 0. Stripe Test/Live Mode Toggle */}
       <StripeModeToggle />
 
+      {/* 0b. Checkout Engine Toggle (V1 Classic ↔ V2 Payment-First) */}
+      <PaymentFirstToggle />
+
+
       {/* 1. Payment Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
