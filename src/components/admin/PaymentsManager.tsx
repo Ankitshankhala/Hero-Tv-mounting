@@ -15,6 +15,7 @@ import { StripeSyncButton } from './StripeSyncButton';
 import { PaymentHealthCheck } from './PaymentHealthCheck';
 import { PaymentCaptureHistory } from './PaymentCaptureHistory';
 import { StripeModeToggle } from './StripeModeToggle';
+import { PaymentFirstToggle } from './PaymentFirstToggle';
 
 
 interface Transaction {
