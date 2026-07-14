@@ -1170,6 +1170,27 @@ export type Database = {
         }
         Relationships: []
       }
+      pending_authorizations: {
+        Row: {
+          cart: Json
+          created_at: string
+          payment_intent_id: string
+          reserved_worker_id: string | null
+        }
+        Insert: {
+          cart: Json
+          created_at?: string
+          payment_intent_id: string
+          reserved_worker_id?: string | null
+        }
+        Update: {
+          cart?: Json
+          created_at?: string
+          payment_intent_id?: string
+          reserved_worker_id?: string | null
+        }
+        Relationships: []
+      }
       rls_debug_logs: {
         Row: {
           auth_uid: string | null

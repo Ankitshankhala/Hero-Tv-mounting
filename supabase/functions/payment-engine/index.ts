@@ -1372,6 +1372,160 @@ Deno.serve(async (req) => {
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
+    // ========== ACTION: AUTHORIZE-CART ==========
+    // Payment-first flow (STEP 1): authorize a card BEFORE any booking exists.
+    // Pure Stripe operation — reads/writes NO `bookings` row. The orchestrator
+    // (`create-authorized-booking`) is responsible for persisting cart state
+    // into `pending_authorizations` when 3DS is required.
+    if (action === 'authorize-cart') {
+      const {
+        amount_cents,
+        currency = 'usd',
+        customer,
+        payment_method_id,
+        metadata = {},
+      } = payload as {
+        amount_cents: number;
+        currency?: string;
+        customer: { email: string; name?: string; phone?: string };
+        payment_method_id: string;
+        metadata?: Record<string, string>;
+      };
+
+      if (!amount_cents || amount_cents < 50) {
+        throw new Error('amount_cents must be an integer >= 50');
+      }
+      if (!customer?.email) throw new Error('customer.email is required');
+      if (!payment_method_id) throw new Error('payment_method_id is required');
+
+      // Find or create Stripe customer — mirrors the `authorize` action.
+      const { data: existingCustomer } = await supabase
+        .from('stripe_customers')
+        .select('stripe_customer_id')
+        .eq('email', customer.email)
+        .maybeSingle();
+
+      let stripeCustomerId = '';
+      if (existingCustomer?.stripe_customer_id) {
+        stripeCustomerId = existingCustomer.stripe_customer_id;
+        try {
+          await stripe.customers.retrieve(stripeCustomerId);
+          await stripe.paymentMethods.attach(payment_method_id, { customer: stripeCustomerId });
+        } catch (e: any) {
+          if (e.code === 'resource_missing' || e.message?.includes('No such customer')) {
+            console.warn('[PAYMENT-ENGINE] Stale customer, recreating:', stripeCustomerId);
+            await supabase.from('stripe_customers').delete().eq('email', customer.email);
+            stripeCustomerId = '';
+          } else if (!e.message?.includes('already been attached')) {
+            console.warn('[PAYMENT-ENGINE] attach warning:', e.message);
+          }
+        }
+      }
+      if (!stripeCustomerId) {
+        const c = await stripe.customers.create({
+          email: customer.email,
+          name: customer.name || 'Guest Customer',
+          phone: customer.phone || undefined,
+        });
+        stripeCustomerId = c.id;
+        await stripe.paymentMethods.attach(payment_method_id, { customer: stripeCustomerId });
+        await supabase.from('stripe_customers').insert({
+          email: customer.email,
+          name: customer.name || 'Guest Customer',
+          stripe_customer_id: stripeCustomerId,
+          stripe_default_payment_method_id: payment_method_id,
+        });
+      }
+      await stripe.customers.update(stripeCustomerId, {
+        invoice_settings: { default_payment_method: payment_method_id },
+      });
+
+      let pi: any;
+      try {
+        pi = await stripe.paymentIntents.create({
+          amount: amount_cents,
+          currency,
+          customer: stripeCustomerId,
+          capture_method: 'manual',
+          payment_method: payment_method_id,
+          confirm: true,
+          return_url: `${Deno.env.get('FRONTEND_URL') || 'https://hero-tv-mounting.lovable.app'}/booking/payment-complete`,
+          metadata: {
+            flow: 'authorize_cart_pre_booking',
+            customer_email: customer.email,
+            ...metadata,
+          },
+        });
+      } catch (e: any) {
+        if (e?.type === 'StripeCardError' || e?.raw?.type === 'card_error') {
+          return new Response(JSON.stringify({
+            success: false,
+            error: e.message || 'Card error',
+            stripe_error: {
+              type: e.type || 'StripeCardError',
+              code: e.code || e.raw?.code,
+              decline_code: e.decline_code || e.raw?.decline_code,
+              message: e.message,
+            },
+          }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        throw e;
+      }
+
+      const requiresAction = pi.status === 'requires_action' || pi.status === 'requires_source_action';
+      const authorized = pi.status === 'requires_capture' || pi.status === 'succeeded';
+
+      return new Response(JSON.stringify({
+        success: authorized,
+        requires_action: requiresAction,
+        status: pi.status,
+        payment_intent_id: pi.id,
+        client_secret: pi.client_secret,
+        stripe_customer_id: stripeCustomerId,
+      }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // ========== ACTION: FINALIZE-AUTHORIZED-BOOKING ==========
+    // Payment-first flow (STEP 1): after a 3DS challenge completes on the client,
+    // re-fetch the PI. If it is now authorized, hand off to `create-authorized-booking`
+    // via its internal `finalize` mode which reads the cart from
+    // `pending_authorizations` and creates the booking + notifications.
+    // This action itself does NOT create any booking row — it only routes.
+    if (action === 'finalize-authorized-booking') {
+      const { payment_intent_id } = payload as { payment_intent_id: string };
+      if (!payment_intent_id) throw new Error('payment_intent_id required');
+
+      const pi = await stripe.paymentIntents.retrieve(payment_intent_id);
+      const requiresAction = pi.status === 'requires_action' || pi.status === 'requires_source_action';
+      const authorized = pi.status === 'requires_capture' || pi.status === 'succeeded';
+
+      if (requiresAction) {
+        return new Response(JSON.stringify({
+          success: false,
+          requires_action: true,
+          status: pi.status,
+          payment_intent_id: pi.id,
+          client_secret: pi.client_secret,
+        }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      if (!authorized) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: `Payment not authorized (status: ${pi.status})`,
+          status: pi.status,
+        }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      // Delegate booking creation to the orchestrator (finalize mode).
+      const { data: fin, error: finErr } = await supabase.functions.invoke('create-authorized-booking', {
+        body: { mode: 'finalize', payment_intent_id },
+      });
+      if (finErr) throw new Error(finErr.message || 'finalize failed');
+      return new Response(JSON.stringify(fin), {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     throw new Error(`Unknown action: ${action}`);
 
   } catch (error: any) {
