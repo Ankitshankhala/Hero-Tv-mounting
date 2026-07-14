@@ -155,20 +155,20 @@ export const PaymentFirstToggle: React.FC = () => {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="text-sm text-primary space-y-2">
-          <p className="text-primary">
-            <strong className="text-primary">Current engine:</strong>{" "}
+        <CardContent className="text-sm text-foreground space-y-2 pt-4">
+          <p>
+            <strong className="text-foreground">Current engine:</strong>{" "}
             <span
               className={
                 enabled
-                  ? "font-medium text-emerald-700"
-                  : "font-medium text-secondary-foreground"
+                  ? "font-medium text-emerald-600 dark:text-emerald-400"
+                  : "font-medium text-foreground"
               }
             >
               {enabled ? "Payment-First (V2)" : "Classic (V1)"}
             </span>
           </p>
-          <p className="text-secondary-foreground">
+          <p className="text-muted-foreground">
             Changes apply on new page loads. Customers who already have the
             site open will keep the engine they loaded with until they
             refresh.
