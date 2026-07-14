@@ -189,7 +189,16 @@ export const CartPaymentAuthorizationForm = ({
           },
         },
       );
-      if (invokeErr) throw new Error(invokeErr.message || 'Authorization request failed');
+      if (invokeErr) {
+        let friendly = 'Authorization request failed. Please try again.';
+        try {
+          const body = await (invokeErr as any)?.context?.json?.();
+          if (body?.error) friendly = body.error;
+        } catch {
+          /* body not JSON — keep fallback */
+        }
+        throw new Error(friendly);
+      }
 
       // 3a. Success — booking row already created server-side.
       if (authRes?.success && authRes?.booking_id) {
