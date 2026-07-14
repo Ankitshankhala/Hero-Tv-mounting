@@ -16,6 +16,10 @@ import { SEO } from '@/components/SEO';
 
 // Lazy load heavy components that are not needed for initial render
 const EnhancedInlineBookingFlow = lazy(() => import('@/components/EnhancedInlineBookingFlow'));
+// V2 (payment-first) — gated behind `app_settings.payment_first_enabled`.
+// Default OFF: when the flag is false/missing/errored, V1 above is used.
+const EnhancedInlineBookingFlowV2 = lazy(() => import('@/components/EnhancedInlineBookingFlowV2'));
+import { usePaymentFirstFlag } from '@/hooks/usePaymentFirstFlag';
 const AuthModal = lazy(() => import('@/components/auth/AuthModal'));
 
 // Minimal loading spinner for lazy components
