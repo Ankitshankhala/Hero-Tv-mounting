@@ -1,93 +1,85 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Video } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-interface BlogPost {
+export interface BlogPostFormData {
   id?: string;
   title: string;
+  slug?: string;
   category: string;
-  content?: string;
-  status: 'published' | 'draft' | 'scheduled';
-  hasVideo: boolean;
-  videoId?: string;
-  publishDate?: string;
+  author?: string;
+  excerpt?: string;
+  content: string;
+  cover_image_url?: string;
+  video_id?: string;
+  status: 'draft' | 'published' | 'scheduled';
+  publish_date?: string | null;
 }
 
-interface BlogPostModalProps {
+interface Props {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (post: BlogPost) => void;
-  post?: BlogPost | null;
+  onSave: (post: BlogPostFormData) => void;
+  post?: any | null;
 }
 
-export const BlogPostModal = ({ isOpen, onClose, onSave, post }: BlogPostModalProps) => {
+const empty: BlogPostFormData = {
+  title: '',
+  slug: '',
+  category: '',
+  author: 'Admin',
+  excerpt: '',
+  content: '',
+  cover_image_url: '',
+  video_id: '',
+  status: 'draft',
+  publish_date: '',
+};
+
+export const BlogPostModal = ({ isOpen, onClose, onSave, post }: Props) => {
   const { toast } = useToast();
-  const [formData, setFormData] = useState<BlogPost>({
-    title: '',
-    category: '',
-    content: '',
-    status: 'draft',
-    hasVideo: false,
-    videoId: '',
-  });
+  const [formData, setFormData] = useState<BlogPostFormData>(empty);
 
   useEffect(() => {
     if (post) {
-      setFormData(post);
-    } else {
       setFormData({
-        title: '',
-        category: '',
-        content: '',
-        status: 'draft',
-        hasVideo: false,
-        videoId: '',
+        id: post.id,
+        title: post.title || '',
+        slug: post.slug || '',
+        category: post.category || '',
+        author: post.author || 'Admin',
+        excerpt: post.excerpt || '',
+        content: post.content || '',
+        cover_image_url: post.cover_image_url || '',
+        video_id: post.video_id || '',
+        status: post.status || 'draft',
+        publish_date: post.publish_date || '',
       });
+    } else {
+      setFormData(empty);
     }
-  }, [post]);
+  }, [post, isOpen]);
 
   const handleSave = () => {
-    if (!formData.title || !formData.category || !formData.content) {
-      toast({
-        title: "Error",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      });
+    if (!formData.title || !formData.content) {
+      toast({ title: 'Error', description: 'Title and content are required', variant: 'destructive' });
       return;
     }
-
-    if (formData.hasVideo && !formData.videoId) {
-      toast({
-        title: "Error",
-        description: "Please provide a video ID if the post has video content",
-        variant: "destructive",
-      });
-      return;
-    }
-
     onSave(formData);
-    onClose();
-    toast({
-      title: "Success",
-      description: post ? "Blog post updated successfully" : "Blog post created successfully and added to frontend",
-    });
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{post ? 'Edit Blog Post' : 'Create New Blog Post'}</DialogTitle>
         </DialogHeader>
-        
+
         <div className="space-y-4">
           <div>
             <Label htmlFor="title">Title *</Label>
@@ -99,9 +91,22 @@ export const BlogPostModal = ({ isOpen, onClose, onSave, post }: BlogPostModalPr
             />
           </div>
 
+          {post && (
+            <div>
+              <Label htmlFor="slug">Slug</Label>
+              <Input
+                id="slug"
+                value={formData.slug || ''}
+                onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                placeholder="url-friendly-slug"
+              />
+              <p className="text-xs text-gray-500 mt-1">Leave unchanged to keep current slug; changing title regenerates it.</p>
+            </div>
+          )}
+
           <div>
-            <Label htmlFor="category">Category *</Label>
-            <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
+            <Label htmlFor="category">Category</Label>
+            <Select value={formData.category} onValueChange={(v) => setFormData({ ...formData, category: v })}>
               <SelectTrigger>
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
@@ -115,46 +120,61 @@ export const BlogPostModal = ({ isOpen, onClose, onSave, post }: BlogPostModalPr
           </div>
 
           <div>
+            <Label htmlFor="author">Author</Label>
+            <Input
+              id="author"
+              value={formData.author || ''}
+              onChange={(e) => setFormData({ ...formData, author: e.target.value })}
+              placeholder="Author name"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="excerpt">Excerpt</Label>
+            <Textarea
+              id="excerpt"
+              value={formData.excerpt || ''}
+              onChange={(e) => setFormData({ ...formData, excerpt: e.target.value })}
+              placeholder="Short summary (used on cards and SEO)"
+              className="min-h-[80px]"
+            />
+          </div>
+
+          <div>
             <Label htmlFor="content">Content *</Label>
             <Textarea
               id="content"
-              value={formData.content || ''}
+              value={formData.content}
               onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-              placeholder="Enter detailed blog post content"
+              placeholder="Full post content (plain text or markdown)"
               className="min-h-[200px]"
             />
           </div>
 
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="hasVideo"
-              checked={formData.hasVideo}
-              onCheckedChange={(checked) => setFormData({ ...formData, hasVideo: checked, videoId: checked ? formData.videoId : '' })}
+          <div>
+            <Label htmlFor="cover">Cover Image URL</Label>
+            <Input
+              id="cover"
+              value={formData.cover_image_url || ''}
+              onChange={(e) => setFormData({ ...formData, cover_image_url: e.target.value })}
+              placeholder="https://..."
             />
-            <Label htmlFor="hasVideo" className="flex items-center space-x-2">
-              <Video className="h-4 w-4" />
-              <span>Has Video Content</span>
-            </Label>
           </div>
 
-          {formData.hasVideo && (
-            <div>
-              <Label htmlFor="videoId">YouTube Video ID *</Label>
-              <Input
-                id="videoId"
-                value={formData.videoId || ''}
-                onChange={(e) => setFormData({ ...formData, videoId: e.target.value })}
-                placeholder="Enter YouTube video ID (e.g., dQw4w9WgXcQ)"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Extract the video ID from YouTube URL: https://youtube.com/watch?v=<strong>VIDEO_ID</strong>
-              </p>
-            </div>
-          )}
+          <div>
+            <Label htmlFor="videoId">YouTube Video ID (optional)</Label>
+            <Input
+              id="videoId"
+              value={formData.video_id || ''}
+              onChange={(e) => setFormData({ ...formData, video_id: e.target.value })}
+              placeholder="e.g. dQw4w9WgXcQ"
+            />
+            <p className="text-xs text-gray-500 mt-1">If provided, video is embedded instead of the cover image.</p>
+          </div>
 
           <div>
             <Label htmlFor="status">Status</Label>
-            <Select value={formData.status} onValueChange={(value: 'published' | 'draft' | 'scheduled') => setFormData({ ...formData, status: value })}>
+            <Select value={formData.status} onValueChange={(v: 'draft' | 'published' | 'scheduled') => setFormData({ ...formData, status: v })}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -166,23 +186,19 @@ export const BlogPostModal = ({ isOpen, onClose, onSave, post }: BlogPostModalPr
             </Select>
           </div>
 
-          {formData.status === 'published' && (
-            <div>
-              <Label htmlFor="publishDate">Publish Date</Label>
-              <Input
-                id="publishDate"
-                type="date"
-                value={formData.publishDate}
-                onChange={(e) => setFormData({ ...formData, publishDate: e.target.value })}
-              />
-            </div>
-          )}
+          <div>
+            <Label htmlFor="publishDate">Publish Date</Label>
+            <Input
+              id="publishDate"
+              type="date"
+              value={formData.publish_date || ''}
+              onChange={(e) => setFormData({ ...formData, publish_date: e.target.value })}
+            />
+          </div>
         </div>
 
         <div className="flex justify-end space-x-2 mt-6">
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700">
             {post ? 'Update' : 'Create'} Post
           </Button>

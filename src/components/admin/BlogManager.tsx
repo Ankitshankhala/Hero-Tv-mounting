@@ -1,86 +1,65 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { FileText, Edit, Trash2, Eye, Video, Plus } from 'lucide-react';
-import { BlogPostModal } from './BlogPostModal';
+import { FileText, Edit, Trash2, Eye, Video, Plus, ExternalLink } from 'lucide-react';
+import { BlogPostModal, BlogPostFormData } from './BlogPostModal';
 import { useToast } from '@/hooks/use-toast';
-import { useBlogData } from '@/hooks/useBlogData';
+import { supabase } from '@/integrations/supabase/client';
 
 interface BlogPost {
   id: string;
   title: string;
-  category: string;
-  author: string;
-  status: 'published' | 'draft' | 'scheduled';
+  slug: string;
+  category: string | null;
+  author: string | null;
+  excerpt: string | null;
+  content: string | null;
+  cover_image_url: string | null;
+  video_id: string | null;
+  status: 'draft' | 'published' | 'scheduled';
   views: number;
-  hasVideo: boolean;
-  videoId?: string;
-  publishDate: string | null;
-  lastModified: string;
-  content?: string;
+  publish_date: string | null;
+  created_at: string;
+  updated_at: string;
 }
+
+const slugify = (title: string) =>
+  title
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .slice(0, 80);
 
 export const BlogManager = () => {
   const { toast } = useToast();
-  const { addAdminBlogPost } = useBlogData();
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
+  const [posts, setPosts] = useState<BlogPost[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [blogPosts, setBlogPosts] = useState<BlogPost[]>([
-    {
-      id: 'POST001',
-      title: 'How to Choose the Perfect TV Wall Mount',
-      category: 'Pro Tips',
-      author: 'Admin',
-      status: 'published',
-      views: 1247,
-      hasVideo: true,
-      videoId: 'dQw4w9WgXcQ',
-      publishDate: '2024-01-10',
-      lastModified: '2024-01-12',
-      content: 'Content for choosing the perfect TV wall mount...'
-    },
-    {
-      id: 'POST002',
-      title: 'Cable Management: Clean Installation Guide',
-      category: 'Tutorial',
-      author: 'Admin',
-      status: 'draft',
-      views: 0,
-      hasVideo: false,
-      publishDate: null,
-      lastModified: '2024-01-14',
-      content: 'Content for cable management guide...'
-    },
-    {
-      id: 'POST003',
-      title: 'Best TV Heights for Different Room Layouts',
-      category: 'Pro Tips',
-      author: 'Admin',
-      status: 'published',
-      views: 892,
-      hasVideo: true,
-      publishDate: '2024-01-08',
-      lastModified: '2024-01-08',
-      content: 'Content for TV heights guide...'
-    },
-    {
-      id: 'POST004',
-      title: 'Understanding Different Wall Types for TV Mounting',
-      category: 'Education',
-      author: 'Admin',
-      status: 'published',
-      views: 634,
-      hasVideo: false,
-      publishDate: '2024-01-05',
-      lastModified: '2024-01-06',
-      content: 'Content for wall types guide...'
-    },
-  ]);
+  const fetchPosts = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('blog_posts')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      setPosts((data || []) as BlogPost[]);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchPosts();
+  }, []);
 
   const handleCreatePost = () => {
     setSelectedPost(null);
@@ -92,70 +71,95 @@ export const BlogManager = () => {
     setShowModal(true);
   };
 
-  const handleDeletePost = (postId: string) => {
-    if (window.confirm('Are you sure you want to delete this blog post?')) {
-      setBlogPosts(prev => prev.filter(post => post.id !== postId));
-      toast({
-        title: "Success",
-        description: "Blog post deleted successfully",
-      });
+  const handleDeletePost = async (postId: string) => {
+    if (!window.confirm('Are you sure you want to delete this blog post?')) return;
+    const { error } = await supabase.from('blog_posts').delete().eq('id', postId);
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Success', description: 'Blog post deleted' });
+    fetchPosts();
+  };
+
+  const ensureUniqueSlug = async (base: string, ignoreId?: string): Promise<string> => {
+    let candidate = base || 'post';
+    let suffix = 0;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const q = supabase.from('blog_posts').select('id').eq('slug', candidate).limit(1);
+      const { data } = await q;
+      const conflict = (data || []).find((r: any) => r.id !== ignoreId);
+      if (!conflict) return candidate;
+      suffix += 1;
+      candidate = `${base}-${Math.random().toString(36).slice(2, 6)}`;
+      if (suffix > 5) return `${base}-${Date.now().toString(36)}`;
     }
   };
 
-  const handleSavePost = (postData: any) => {
+  const handleSavePost = async (formData: BlogPostFormData) => {
+    const payload: any = {
+      title: formData.title,
+      category: formData.category || null,
+      author: formData.author || 'Admin',
+      excerpt: formData.excerpt || null,
+      content: formData.content || null,
+      cover_image_url: formData.cover_image_url || null,
+      video_id: formData.video_id || null,
+      status: formData.status,
+      publish_date:
+        formData.status === 'published'
+          ? formData.publish_date || new Date().toISOString().slice(0, 10)
+          : formData.publish_date || null,
+    };
+
     if (selectedPost) {
-      // Update existing post
-      setBlogPosts(prev => prev.map(post => 
-        post.id === selectedPost.id 
-          ? { 
-              ...post, 
-              ...postData, 
-              lastModified: new Date().toISOString().split('T')[0],
-              publishDate: postData.status === 'published' ? (postData.publishDate || new Date().toISOString().split('T')[0]) : null
-            }
-          : post
-      ));
-    } else {
-      // Create new post
-      const newPost: BlogPost = {
-        id: `POST${String(blogPosts.length + 1).padStart(3, '0')}`,
-        author: 'Admin',
-        views: 0,
-        lastModified: new Date().toISOString().split('T')[0],
-        publishDate: postData.status === 'published' ? (postData.publishDate || new Date().toISOString().split('T')[0]) : null,
-        ...postData,
-      };
-      setBlogPosts(prev => [...prev, newPost]);
-      
-      // Add to frontend display if published
-      if (postData.status === 'published') {
-        addAdminBlogPost(newPost);
+      if (formData.title !== selectedPost.title || (formData.slug && formData.slug !== selectedPost.slug)) {
+        const base = slugify(formData.slug || formData.title);
+        payload.slug = await ensureUniqueSlug(base, selectedPost.id);
       }
+      const { error } = await supabase.from('blog_posts').update(payload).eq('id', selectedPost.id);
+      if (error) {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        return;
+      }
+      toast({ title: 'Success', description: 'Blog post updated' });
+    } else {
+      const base = slugify(formData.slug || formData.title);
+      payload.slug = await ensureUniqueSlug(base);
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData?.user) payload.created_by = userData.user.id;
+      const { error } = await supabase.from('blog_posts').insert(payload);
+      if (error) {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        return;
+      }
+      toast({ title: 'Success', description: 'Blog post created' });
     }
+    setShowModal(false);
+    fetchPosts();
   };
 
-  const filteredPosts = blogPosts.filter(post =>
-    post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    post.category.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredPosts = posts.filter(
+    (post) =>
+      post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (post.category || '').toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   const getStatusBadge = (status: string) => {
-    const statusConfig = {
-      published: { label: 'Published', variant: 'default' as const },
-      draft: { label: 'Draft', variant: 'secondary' as const },
-      scheduled: { label: 'Scheduled', variant: 'outline' as const },
+    const map: Record<string, { label: string; variant: any }> = {
+      published: { label: 'Published', variant: 'default' },
+      draft: { label: 'Draft', variant: 'secondary' },
+      scheduled: { label: 'Scheduled', variant: 'outline' },
     };
-    
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.draft;
-    return <Badge variant={config.variant}>{config.label}</Badge>;
+    const cfg = map[status] || map.draft;
+    return <Badge variant={cfg.variant}>{cfg.label}</Badge>;
   };
 
-  // Calculate dynamic stats
-  const totalViews = blogPosts.reduce((sum, post) => sum + post.views, 0);
-  const postsWithVideos = blogPosts.filter(post => post.hasVideo).length;
-  const videoPercentage = blogPosts.length > 0 ? Math.round((postsWithVideos / blogPosts.length) * 100) : 0;
-  const avgViewsPerPost = blogPosts.length > 0 ? Math.round(totalViews / blogPosts.length) : 0;
-  const publishedPosts = blogPosts.filter(post => post.status === 'published').length;
+  const totalViews = posts.reduce((sum, p) => sum + (p.views || 0), 0);
+  const postsWithVideos = posts.filter((p) => !!p.video_id).length;
+  const publishedCount = posts.filter((p) => p.status === 'published').length;
+  const draftCount = posts.filter((p) => p.status === 'draft').length;
 
   return (
     <div className="space-y-6">
@@ -166,8 +170,8 @@ export const BlogManager = () => {
               <FileText className="h-4 w-4 text-blue-600" />
               <span className="text-sm text-gray-600">Total Posts</span>
             </div>
-            <div className="text-2xl font-bold text-gray-900 mt-2">{blogPosts.length}</div>
-            <div className="text-sm text-green-600">{publishedPosts} published</div>
+            <div className="text-2xl font-bold text-gray-900 mt-2">{posts.length}</div>
+            <div className="text-sm text-green-600">{publishedCount} published</div>
           </CardContent>
         </Card>
         <Card>
@@ -177,7 +181,6 @@ export const BlogManager = () => {
               <span className="text-sm text-gray-600">Total Views</span>
             </div>
             <div className="text-2xl font-bold text-gray-900 mt-2">{totalViews.toLocaleString()}</div>
-            <div className="text-sm text-gray-600">Total across all posts</div>
           </CardContent>
         </Card>
         <Card>
@@ -187,16 +190,15 @@ export const BlogManager = () => {
               <span className="text-sm text-gray-600">With Videos</span>
             </div>
             <div className="text-2xl font-bold text-gray-900 mt-2">{postsWithVideos}</div>
-            <div className="text-sm text-gray-600">{videoPercentage}% of posts</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-600">Avg. Views/Post</span>
+              <FileText className="h-4 w-4 text-yellow-600" />
+              <span className="text-sm text-gray-600">Drafts</span>
             </div>
-            <div className="text-2xl font-bold text-gray-900 mt-2">{avgViewsPerPost.toLocaleString()}</div>
-            <div className="text-sm text-gray-600">{avgViewsPerPost > 500 ? 'Good engagement' : avgViewsPerPost > 100 ? 'Moderate engagement' : 'Low engagement'}</div>
+            <div className="text-2xl font-bold text-gray-900 mt-2">{draftCount}</div>
           </CardContent>
         </Card>
       </div>
@@ -226,69 +228,71 @@ export const BlogManager = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Post ID</TableHead>
                   <TableHead>Title</TableHead>
+                  <TableHead>Slug</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Author</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Views</TableHead>
                   <TableHead>Media</TableHead>
                   <TableHead>Publish Date</TableHead>
-                  <TableHead>Last Modified</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredPosts.map((post) => (
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-8 text-gray-500">Loading…</TableCell>
+                  </TableRow>
+                ) : filteredPosts.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-8 text-gray-500">No posts found</TableCell>
+                  </TableRow>
+                ) : filteredPosts.map((post) => (
                   <TableRow key={post.id}>
-                    <TableCell className="font-medium">{post.id}</TableCell>
                     <TableCell className="max-w-xs">
                       <p className="font-medium truncate">{post.title}</p>
                     </TableCell>
+                    <TableCell className="text-xs text-gray-500 max-w-[160px] truncate">{post.slug}</TableCell>
                     <TableCell>
-                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                        {post.category}
-                      </span>
+                      {post.category && (
+                        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">{post.category}</span>
+                      )}
                     </TableCell>
-                    <TableCell>{post.author}</TableCell>
+                    <TableCell>{post.author || '—'}</TableCell>
                     <TableCell>{getStatusBadge(post.status)}</TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-1">
                         <Eye className="h-3 w-3" />
-                        <span className="text-sm">{post.views.toLocaleString()}</span>
+                        <span className="text-sm">{(post.views || 0).toLocaleString()}</span>
                       </div>
                     </TableCell>
                     <TableCell>
-                      {post.hasVideo ? (
+                      {post.video_id ? (
                         <div className="flex items-center space-x-1">
                           <Video className="h-4 w-4 text-purple-600" />
                           <span className="text-sm">Video</span>
                         </div>
+                      ) : post.cover_image_url ? (
+                        <span className="text-sm text-gray-600">Image</span>
                       ) : (
                         <span className="text-sm text-gray-400">Text only</span>
                       )}
                     </TableCell>
-                    <TableCell>{post.publishDate || 'Not published'}</TableCell>
-                    <TableCell>{post.lastModified}</TableCell>
+                    <TableCell>{post.publish_date || '—'}</TableCell>
                     <TableCell>
                       <div className="flex space-x-1">
-                        <Button variant="outline" size="sm" title="View">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={() => handleEditPost(post)}
-                          title="Edit"
-                        >
+                        {post.status === 'published' && (
+                          <Button variant="outline" size="sm" title="View" asChild>
+                            <a href={`/blog/${post.slug}`} target="_blank" rel="noreferrer">
+                              <ExternalLink className="h-4 w-4" />
+                            </a>
+                          </Button>
+                        )}
+                        <Button variant="outline" size="sm" onClick={() => handleEditPost(post)} title="Edit">
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleDeletePost(post.id)}
-                          title="Delete"
-                        >
+                        <Button variant="outline" size="sm" onClick={() => handleDeletePost(post.id)} title="Delete">
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
