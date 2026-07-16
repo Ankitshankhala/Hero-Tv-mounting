@@ -15,7 +15,9 @@ interface Invoice {
   id: string;
   invoice_number: string;
   booking_id: string;
-  customer_id: string;
+  customer_id: string | null;
+  customer_name: string | null;
+  customer_email: string | null;
   amount: number;
   tax_amount: number;
   total_amount: number;
@@ -27,13 +29,14 @@ interface Invoice {
     name: string;
     email: string;
     phone: string;
-  };
+  } | null;
   booking: {
     scheduled_date: string;
+    guest_customer_info: any;
     service: {
       name: string;
     };
-  };
+  } | null;
 }
 
 export const InvoicesManager = () => {
@@ -44,6 +47,16 @@ export const InvoicesManager = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const { toast } = useToast();
 
+  const getCustomerName = (invoice: Invoice): string => {
+    const guestName = invoice.booking?.guest_customer_info?.name;
+    return invoice.customer_name || invoice.customer?.name || guestName || 'Guest Customer';
+  };
+
+  const getCustomerEmail = (invoice: Invoice): string => {
+    const guestEmail = invoice.booking?.guest_customer_info?.email;
+    return invoice.customer_email || invoice.customer?.email || guestEmail || 'N/A';
+  };
+
   const fetchInvoices = useCallback(async () => {
     try {
       const { data, error } = await supabase
@@ -53,6 +66,7 @@ export const InvoicesManager = () => {
           customer:users!invoices_customer_id_fkey(name, email, phone),
           booking:bookings!invoices_booking_id_fkey(
             scheduled_date,
+            guest_customer_info,
             service:services(name)
           )
         `)
@@ -127,11 +141,15 @@ export const InvoicesManager = () => {
     }
   };
 
-  const filteredInvoices = invoices.filter(invoice =>
-    invoice.invoice_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (invoice.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (invoice.customer?.email?.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredInvoices = invoices.filter(invoice => {
+    const name = getCustomerName(invoice).toLowerCase();
+    const email = getCustomerEmail(invoice).toLowerCase();
+    return (
+      invoice.invoice_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      name.includes(searchTerm.toLowerCase()) ||
+      email.includes(searchTerm.toLowerCase())
+    );
+  });
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -198,8 +216,8 @@ export const InvoicesManager = () => {
                     </TableCell>
                      <TableCell>
                        <div>
-                         <div className="font-medium">{invoice.customer?.name || 'N/A'}</div>
-                         <div className="text-sm text-gray-500">{invoice.customer?.email || 'N/A'}</div>
+                         <div className="font-medium">{getCustomerName(invoice)}</div>
+                         <div className="text-sm text-gray-500">{getCustomerEmail(invoice)}</div>
                        </div>
                      </TableCell>
                      <TableCell>{invoice.booking?.service?.name || 'N/A'}</TableCell>

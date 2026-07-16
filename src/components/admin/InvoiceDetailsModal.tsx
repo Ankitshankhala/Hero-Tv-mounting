@@ -10,7 +10,9 @@ interface Invoice {
   id: string;
   invoice_number: string;
   booking_id: string;
-  customer_id: string;
+  customer_id: string | null;
+  customer_name: string | null;
+  customer_email: string | null;
   amount: number;
   tax_amount: number;
   total_amount: number;
@@ -22,13 +24,14 @@ interface Invoice {
     name: string;
     email: string;
     phone: string;
-  };
+  } | null;
   booking: {
     scheduled_date: string;
+    guest_customer_info: any;
     service: {
       name: string;
     };
-  };
+  } | null;
 }
 
 interface InvoiceDetailsModalProps {
@@ -51,6 +54,21 @@ export const InvoiceDetailsModal = ({ invoice, isOpen, onClose }: InvoiceDetails
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
+  };
+
+  const getCustomerName = (): string => {
+    const guestName = invoice.booking?.guest_customer_info?.name;
+    return invoice.customer_name || invoice.customer?.name || guestName || 'Guest Customer';
+  };
+
+  const getCustomerEmail = (): string => {
+    const guestEmail = invoice.booking?.guest_customer_info?.email;
+    return invoice.customer_email || invoice.customer?.email || guestEmail || 'N/A';
+  };
+
+  const getCustomerPhone = (): string => {
+    const guestPhone = invoice.booking?.guest_customer_info?.phone;
+    return invoice.customer?.phone || guestPhone || 'N/A';
   };
 
   return (
@@ -83,7 +101,7 @@ export const InvoiceDetailsModal = ({ invoice, isOpen, onClose }: InvoiceDetails
               <h4 className="font-semibold text-gray-900">Invoice Details</h4>
               <div className="text-sm space-y-1">
                 <p><span className="font-medium">Invoice Date:</span> {new Date(invoice.invoice_date).toLocaleDateString()}</p>
-                <p><span className="font-medium">Service Date:</span> {new Date(invoice.booking.scheduled_date).toLocaleDateString()}</p>
+                <p><span className="font-medium">Service Date:</span> {invoice.booking?.scheduled_date ? new Date(invoice.booking.scheduled_date).toLocaleDateString() : 'N/A'}</p>
                 <p><span className="font-medium">Booking ID:</span> {invoice.booking_id}</p>
               </div>
             </div>
@@ -91,9 +109,9 @@ export const InvoiceDetailsModal = ({ invoice, isOpen, onClose }: InvoiceDetails
             <div className="space-y-2">
               <h4 className="font-semibold text-gray-900">Bill To</h4>
               <div className="text-sm space-y-1">
-                <p className="font-medium">{invoice.customer.name}</p>
-                <p>{invoice.customer.email}</p>
-                <p>{invoice.customer.phone}</p>
+                <p className="font-medium">{getCustomerName()}</p>
+                <p>{getCustomerEmail()}</p>
+                <p>{getCustomerPhone()}</p>
               </div>
             </div>
           </div>
@@ -114,7 +132,7 @@ export const InvoiceDetailsModal = ({ invoice, isOpen, onClose }: InvoiceDetails
                 </TableHeader>
                 <TableBody>
                   <TableRow>
-                    <TableCell className="font-medium">{invoice.booking.service.name}</TableCell>
+                    <TableCell className="font-medium">{invoice.booking?.service?.name || 'N/A'}</TableCell>
                     <TableCell>Professional TV mounting and installation service</TableCell>
                     <TableCell className="text-right">1</TableCell>
                     <TableCell className="text-right">${invoice.amount.toFixed(2)}</TableCell>
@@ -127,9 +145,19 @@ export const InvoiceDetailsModal = ({ invoice, isOpen, onClose }: InvoiceDetails
             {/* Totals */}
             <div className="flex justify-end">
               <div className="w-80 space-y-2">
+                <div className="flex justify-between">
+                  <span>Subtotal:</span>
+                  <span>${invoice.amount.toFixed(2)}</span>
+                </div>
+                {invoice.tax_amount > 0 && (
+                  <div className="flex justify-between">
+                    <span>Tax:</span>
+                    <span>${invoice.tax_amount.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between font-bold text-lg border-t pt-2">
                   <span>Total:</span>
-                  <span>${invoice.amount.toFixed(2)}</span>
+                  <span>${invoice.total_amount.toFixed(2)}</span>
                 </div>
               </div>
             </div>
