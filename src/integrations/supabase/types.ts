@@ -1009,7 +1009,9 @@ export type Database = {
           booking_id: string
           business_license: string | null
           created_at: string | null
+          customer_email: string | null
           customer_id: string | null
+          customer_name: string | null
           delivery_attempts: number | null
           delivery_status: string | null
           due_date: string
@@ -1040,7 +1042,9 @@ export type Database = {
           booking_id: string
           business_license?: string | null
           created_at?: string | null
+          customer_email?: string | null
           customer_id?: string | null
+          customer_name?: string | null
           delivery_attempts?: number | null
           delivery_status?: string | null
           due_date?: string
@@ -1071,7 +1075,9 @@ export type Database = {
           booking_id?: string
           business_license?: string | null
           created_at?: string | null
+          customer_email?: string | null
           customer_id?: string | null
+          customer_name?: string | null
           delivery_attempts?: number | null
           delivery_status?: string | null
           due_date?: string
@@ -4526,6 +4532,10 @@ export type Database = {
       start_impersonation_session: {
         Args: { p_reason?: string; p_worker_id: string }
         Returns: string
+      }
+      sync_invoice_status_for_booking: {
+        Args: { p_booking_id: string }
+        Returns: undefined
       }
       toggle_service_area_status: {
         Args: { p_area_id: string; p_is_active: boolean }
