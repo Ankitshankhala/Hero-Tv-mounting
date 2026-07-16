@@ -104,6 +104,13 @@ export type Database = {
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "admin_alerts_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "v_active_workers_without_coverage"
+            referencedColumns: ["worker_id"]
+          },
         ]
       }
       admin_impersonation_sessions: {
@@ -460,6 +467,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "bookings_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "v_active_workers_without_coverage"
+            referencedColumns: ["worker_id"]
+          },
+          {
             foreignKeyName: "bookings_reserved_worker_id_fkey"
             columns: ["reserved_worker_id"]
             isOneToOne: false
@@ -472,6 +486,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_reserved_worker_id_fkey"
+            columns: ["reserved_worker_id"]
+            isOneToOne: false
+            referencedRelation: "v_active_workers_without_coverage"
+            referencedColumns: ["worker_id"]
           },
           {
             foreignKeyName: "bookings_service_id_fkey"
@@ -495,6 +516,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "bookings_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "v_active_workers_without_coverage"
+            referencedColumns: ["worker_id"]
+          },
+          {
             foreignKeyName: "fk_bookings_worker_id"
             columns: ["worker_id"]
             isOneToOne: false
@@ -507,6 +535,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_bookings_worker_id"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "v_active_workers_without_coverage"
+            referencedColumns: ["worker_id"]
           },
         ]
       }
@@ -1147,6 +1182,13 @@ export type Database = {
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "invoices_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "v_active_workers_without_coverage"
+            referencedColumns: ["worker_id"]
+          },
         ]
       }
       notification_settings: {
@@ -1367,6 +1409,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_operation_logs_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "v_active_workers_without_coverage"
+            referencedColumns: ["worker_id"]
           },
         ]
       }
@@ -1761,6 +1810,13 @@ export type Database = {
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "transactions_cancelled_by_fkey"
+            columns: ["cancelled_by"]
+            isOneToOne: false
+            referencedRelation: "v_active_workers_without_coverage"
+            referencedColumns: ["worker_id"]
+          },
         ]
       }
       us_zcta_polygons: {
@@ -1974,6 +2030,13 @@ export type Database = {
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "worker_availability_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "v_active_workers_without_coverage"
+            referencedColumns: ["worker_id"]
+          },
         ]
       }
       worker_bookings: {
@@ -2059,6 +2122,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "worker_bookings_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "v_active_workers_without_coverage"
+            referencedColumns: ["worker_id"]
           },
         ]
       }
@@ -2146,6 +2216,13 @@ export type Database = {
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "worker_coverage_notifications_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "v_active_workers_without_coverage"
+            referencedColumns: ["worker_id"]
+          },
         ]
       }
       worker_coverage_overlays: {
@@ -2181,6 +2258,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "users"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "worker_coverage_overlays_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: true
+            referencedRelation: "v_active_workers_without_coverage"
+            referencedColumns: ["worker_id"]
           },
         ]
       }
@@ -2223,6 +2307,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "worker_notifications_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "v_active_workers_without_coverage"
+            referencedColumns: ["worker_id"]
           },
         ]
       }
@@ -2268,6 +2359,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "worker_schedule_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "v_active_workers_without_coverage"
+            referencedColumns: ["worker_id"]
           },
         ]
       }
@@ -2355,6 +2453,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "fk_wsz_worker"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "v_active_workers_without_coverage"
+            referencedColumns: ["worker_id"]
+          },
+          {
             foreignKeyName: "worker_service_zipcodes_worker_id_fkey"
             columns: ["worker_id"]
             isOneToOne: false
@@ -2367,6 +2472,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "worker_service_zipcodes_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "v_active_workers_without_coverage"
+            referencedColumns: ["worker_id"]
           },
         ]
       }
@@ -2495,6 +2607,33 @@ export type Database = {
           f_table_schema?: unknown
           srid?: number | null
           type?: string | null
+        }
+        Relationships: []
+      }
+      v_active_workers_without_coverage: {
+        Row: {
+          city: string | null
+          created_at: string | null
+          email: string | null
+          name: string | null
+          worker_id: string | null
+          zip_code: string | null
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string | null
+          email?: string | null
+          name?: string | null
+          worker_id?: string | null
+          zip_code?: string | null
+        }
+        Update: {
+          city?: string | null
+          created_at?: string | null
+          email?: string | null
+          name?: string | null
+          worker_id?: string | null
+          zip_code?: string | null
         }
         Relationships: []
       }
@@ -2751,6 +2890,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "bookings_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "v_active_workers_without_coverage"
+            referencedColumns: ["worker_id"]
+          },
+          {
             foreignKeyName: "fk_bookings_worker_id"
             columns: ["worker_id"]
             isOneToOne: false
@@ -2763,6 +2909,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_bookings_worker_id"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "v_active_workers_without_coverage"
+            referencedColumns: ["worker_id"]
           },
         ]
       }
