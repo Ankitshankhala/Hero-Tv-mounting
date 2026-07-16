@@ -2,7 +2,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Wrench } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Wrench, AlertTriangle, X } from 'lucide-react';
 import { AddWorkerModal } from './AddWorkerModal';
 import { WorkerApplicationsManager } from './WorkerApplicationsManager';
 import { WorkerFilters } from './WorkerFilters';
@@ -11,12 +13,22 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { formatAdminError } from '@/utils/adminErrorMessage';
 
+interface UncoveredWorker {
+  worker_id: string;
+  name: string | null;
+  email: string | null;
+  city: string | null;
+  zip_code: string | null;
+}
+
 export const WorkersManager = () => {
   const [workers, setWorkers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddWorker, setShowAddWorker] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [uncovered, setUncovered] = useState<UncoveredWorker[]>([]);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
   const { toast } = useToast();
 
   // Debounced fetch function to avoid excessive API calls
@@ -31,8 +43,21 @@ export const WorkersManager = () => {
     []
   );
 
+  const fetchUncovered = async () => {
+    try {
+      const { data, error } = await (supabase as any)
+        .from('v_active_workers_without_coverage')
+        .select('*');
+      if (error) throw error;
+      setUncovered((data as UncoveredWorker[]) || []);
+    } catch (err) {
+      console.error('Failed to load coverage-gap workers:', err);
+    }
+  };
+
   useEffect(() => {
     fetchWorkers();
+    fetchUncovered();
 
     // Subscribe to worker availability changes
     const availabilityChannel = supabase
@@ -136,6 +161,35 @@ export const WorkersManager = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
+              {!bannerDismissed && uncovered.length > 0 && (
+                <Alert variant="default" className="mb-4 border-amber-300 bg-amber-50 text-amber-900 [&>svg]:text-amber-600">
+                  <AlertTriangle className="h-4 w-4" />
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <AlertTitle>
+                        {uncovered.length} active worker{uncovered.length === 1 ? '' : 's'} have no service-area coverage
+                      </AlertTitle>
+                      <AlertDescription>
+                        <div className="mt-1">
+                          {uncovered.map((w) => w.name || w.email || w.worker_id).join(', ')}
+                        </div>
+                        <div className="mt-2 text-xs">
+                          They can't be matched to bookings until you set up coverage in Service Areas.
+                        </div>
+                      </AlertDescription>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-amber-700 hover:bg-amber-100"
+                      onClick={() => setBannerDismissed(true)}
+                      aria-label="Dismiss"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </Alert>
+              )}
               <WorkerFilters
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}

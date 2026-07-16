@@ -160,6 +160,14 @@ export const WorkerApplicationsManager = () => {
           title: "Success",
           description: successMessage,
         });
+
+        if (data?.coverage_warning && typeof data.coverage_warning === 'string') {
+          toast({
+            title: "Coverage setup needed",
+            description: data.coverage_warning,
+            variant: "destructive",
+          });
+        }
       } else {
         // Handle rejection
         const { error } = await supabase
