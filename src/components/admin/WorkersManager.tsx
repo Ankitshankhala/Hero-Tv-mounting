@@ -2,7 +2,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Wrench } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Wrench, AlertTriangle, X } from 'lucide-react';
 import { AddWorkerModal } from './AddWorkerModal';
 import { WorkerApplicationsManager } from './WorkerApplicationsManager';
 import { WorkerFilters } from './WorkerFilters';
@@ -11,12 +13,22 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { formatAdminError } from '@/utils/adminErrorMessage';
 
+interface UncoveredWorker {
+  worker_id: string;
+  name: string | null;
+  email: string | null;
+  city: string | null;
+  zip_code: string | null;
+}
+
 export const WorkersManager = () => {
   const [workers, setWorkers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddWorker, setShowAddWorker] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [uncovered, setUncovered] = useState<UncoveredWorker[]>([]);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
   const { toast } = useToast();
 
   // Debounced fetch function to avoid excessive API calls
