@@ -101,7 +101,7 @@ export const InvoiceDetailsModal = ({ invoice, isOpen, onClose }: InvoiceDetails
               <h4 className="font-semibold text-gray-900">Invoice Details</h4>
               <div className="text-sm space-y-1">
                 <p><span className="font-medium">Invoice Date:</span> {new Date(invoice.invoice_date).toLocaleDateString()}</p>
-                <p><span className="font-medium">Service Date:</span> {new Date(invoice.booking.scheduled_date).toLocaleDateString()}</p>
+                <p><span className="font-medium">Service Date:</span> {invoice.booking?.scheduled_date ? new Date(invoice.booking.scheduled_date).toLocaleDateString() : 'N/A'}</p>
                 <p><span className="font-medium">Booking ID:</span> {invoice.booking_id}</p>
               </div>
             </div>
