@@ -191,8 +191,8 @@ const Index = () => {
         >
           <ServicesSection onAddToCart={addToCart} />
         </ErrorBoundary>
-        <ReviewsSection />
-        <BlogSection />
+        <DeferredSection minHeight={600}><ReviewsSection /></DeferredSection>
+        <DeferredSection minHeight={600}><BlogSection /></DeferredSection>
         
         {/* Service Areas Section */}
         <section className="py-16 bg-slate-800">
