@@ -21,6 +21,24 @@ const EnhancedInlineBookingFlowV2 = lazy(() => import('@/components/EnhancedInli
 import { usePaymentFirstFlag } from '@/hooks/usePaymentFirstFlag';
 const AuthModal = lazy(() => import('@/components/auth/AuthModal'));
 
+// Below-the-fold sections — deferred to avoid blocking hero/services first paint.
+const ReviewsSection = lazy(() =>
+  import('@/components/ReviewsSection').then(m => ({ default: m.ReviewsSection }))
+);
+const BlogSection = lazy(() =>
+  import('@/components/BlogSection').then(m => ({ default: m.BlogSection }))
+);
+
+// Wrapper: only mounts children once scrolled near viewport.
+const DeferredSection: React.FC<{ children: React.ReactNode; minHeight?: number }> = ({ children, minHeight = 400 }) => {
+  const { ref, inView } = useInView<HTMLDivElement>({ rootMargin: '300px' });
+  return (
+    <div ref={ref} style={{ minHeight: inView ? undefined : minHeight }}>
+      {inView ? <Suspense fallback={null}>{children}</Suspense> : null}
+    </div>
+  );
+};
+
 // Minimal loading spinner for lazy components
 const LazyLoader = () => (
   <div className="flex items-center justify-center p-8">
