@@ -62,6 +62,8 @@ const CityPage = lazy(() => import('@/pages/cities/CityPage'));
 const PrivacyPolicy = lazy(() => import('@/pages/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('@/pages/TermsOfService'));
 const SubmitReview = lazy(() => import('@/pages/SubmitReview'));
+const BlogIndex = lazy(() => import('@/pages/BlogIndex'));
+const BlogPost = lazy(() => import('@/pages/BlogPost'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -111,6 +113,8 @@ function AppWithSecurity() {
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/terms-of-service" element={<TermsOfService />} />
           <Route path="/review/:bookingId" element={<SubmitReview />} />
+          <Route path="/blog" element={<BlogIndex />} />
+          <Route path="/blog/:slug" element={<BlogPost />} />
           
           {/* City landing pages */}
           <Route path="/locations/:slug" element={<CityPage />} />
