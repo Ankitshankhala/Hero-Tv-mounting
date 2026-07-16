@@ -4,11 +4,10 @@ import { Header } from '@/components/Header';
 import { useTestingMode, getEffectiveMinimumAmount } from '@/contexts/TestingModeContext';
 import { Footer } from '@/components/Footer';
 import { ServicesSection } from '@/components/ServicesSection';
-import { ReviewsSection } from '@/components/ReviewsSection';
-import { BlogSection } from '@/components/BlogSection';
 import { Cart } from '@/components/Cart';
 import { TestingModeIndicator } from '@/components/TestingModeIndicator';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { useInView } from '@/hooks/useInView';
 import { CartItem } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { SEO } from '@/components/SEO';
@@ -21,6 +20,24 @@ const EnhancedInlineBookingFlow = lazy(() => import('@/components/EnhancedInline
 const EnhancedInlineBookingFlowV2 = lazy(() => import('@/components/EnhancedInlineBookingFlowV2'));
 import { usePaymentFirstFlag } from '@/hooks/usePaymentFirstFlag';
 const AuthModal = lazy(() => import('@/components/auth/AuthModal'));
+
+// Below-the-fold sections — deferred to avoid blocking hero/services first paint.
+const ReviewsSection = lazy(() =>
+  import('@/components/ReviewsSection').then(m => ({ default: m.ReviewsSection }))
+);
+const BlogSection = lazy(() =>
+  import('@/components/BlogSection').then(m => ({ default: m.BlogSection }))
+);
+
+// Wrapper: only mounts children once scrolled near viewport.
+const DeferredSection: React.FC<{ children: React.ReactNode; minHeight?: number }> = ({ children, minHeight = 400 }) => {
+  const { ref, inView } = useInView<HTMLDivElement>({ rootMargin: '300px' });
+  return (
+    <div ref={ref} style={{ minHeight: inView ? undefined : minHeight }}>
+      {inView ? <Suspense fallback={null}>{children}</Suspense> : null}
+    </div>
+  );
+};
 
 // Minimal loading spinner for lazy components
 const LazyLoader = () => (
@@ -174,8 +191,8 @@ const Index = () => {
         >
           <ServicesSection onAddToCart={addToCart} />
         </ErrorBoundary>
-        <ReviewsSection />
-        <BlogSection />
+        <DeferredSection minHeight={600}><ReviewsSection /></DeferredSection>
+        <DeferredSection minHeight={600}><BlogSection /></DeferredSection>
         
         {/* Service Areas Section */}
         <section className="py-16 bg-slate-800">

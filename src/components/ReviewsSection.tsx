@@ -70,6 +70,8 @@ export const ReviewsSection = () => {
                           className="w-full h-full object-cover"
                           loading="lazy"
                           decoding="async"
+                          width="500"
+                          height="400"
                         />
                       ) : (
                         <div className="w-full h-full bg-slate-700 animate-pulse" />
@@ -124,6 +126,9 @@ export const ReviewsSection = () => {
                           alt={`Customer ${review.customer_name} installation`}
                           className="w-full h-full object-cover"
                           loading="lazy"
+                          decoding="async"
+                          width="600"
+                          height="400"
                         />
                       ) : (
                         <div className="w-full h-full bg-slate-700 animate-pulse" />
