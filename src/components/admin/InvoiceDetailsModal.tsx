@@ -56,6 +56,21 @@ export const InvoiceDetailsModal = ({ invoice, isOpen, onClose }: InvoiceDetails
     }
   };
 
+  const getCustomerName = (): string => {
+    const guestName = invoice.booking?.guest_customer_info?.name;
+    return invoice.customer_name || invoice.customer?.name || guestName || 'Guest Customer';
+  };
+
+  const getCustomerEmail = (): string => {
+    const guestEmail = invoice.booking?.guest_customer_info?.email;
+    return invoice.customer_email || invoice.customer?.email || guestEmail || 'N/A';
+  };
+
+  const getCustomerPhone = (): string => {
+    const guestPhone = invoice.booking?.guest_customer_info?.phone;
+    return invoice.customer?.phone || guestPhone || 'N/A';
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
