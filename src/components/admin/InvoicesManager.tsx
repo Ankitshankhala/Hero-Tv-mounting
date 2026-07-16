@@ -56,6 +56,7 @@ export const InvoicesManager = () => {
           customer:users!invoices_customer_id_fkey(name, email, phone),
           booking:bookings!invoices_booking_id_fkey(
             scheduled_date,
+            guest_customer_info,
             service:services(name)
           )
         `)
