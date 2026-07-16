@@ -132,7 +132,7 @@ export const InvoiceDetailsModal = ({ invoice, isOpen, onClose }: InvoiceDetails
                 </TableHeader>
                 <TableBody>
                   <TableRow>
-                    <TableCell className="font-medium">{invoice.booking.service.name}</TableCell>
+                    <TableCell className="font-medium">{invoice.booking?.service?.name || 'N/A'}</TableCell>
                     <TableCell>Professional TV mounting and installation service</TableCell>
                     <TableCell className="text-right">1</TableCell>
                     <TableCell className="text-right">${invoice.amount.toFixed(2)}</TableCell>
