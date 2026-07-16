@@ -109,9 +109,9 @@ export const InvoiceDetailsModal = ({ invoice, isOpen, onClose }: InvoiceDetails
             <div className="space-y-2">
               <h4 className="font-semibold text-gray-900">Bill To</h4>
               <div className="text-sm space-y-1">
-                <p className="font-medium">{invoice.customer.name}</p>
-                <p>{invoice.customer.email}</p>
-                <p>{invoice.customer.phone}</p>
+                <p className="font-medium">{getCustomerName()}</p>
+                <p>{getCustomerEmail()}</p>
+                <p>{getCustomerPhone()}</p>
               </div>
             </div>
           </div>
