@@ -47,6 +47,16 @@ export const InvoicesManager = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const { toast } = useToast();
 
+  const getCustomerName = (invoice: Invoice): string => {
+    const guestName = invoice.booking?.guest_customer_info?.name;
+    return invoice.customer_name || invoice.customer?.name || guestName || 'Guest Customer';
+  };
+
+  const getCustomerEmail = (invoice: Invoice): string => {
+    const guestEmail = invoice.booking?.guest_customer_info?.email;
+    return invoice.customer_email || invoice.customer?.email || guestEmail || 'N/A';
+  };
+
   const fetchInvoices = useCallback(async () => {
     try {
       const { data, error } = await supabase
