@@ -161,6 +161,35 @@ export const WorkersManager = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
+              {!bannerDismissed && uncovered.length > 0 && (
+                <Alert variant="default" className="mb-4 border-amber-300 bg-amber-50 text-amber-900 [&>svg]:text-amber-600">
+                  <AlertTriangle className="h-4 w-4" />
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <AlertTitle>
+                        {uncovered.length} active worker{uncovered.length === 1 ? '' : 's'} have no service-area coverage
+                      </AlertTitle>
+                      <AlertDescription>
+                        <div className="mt-1">
+                          {uncovered.map((w) => w.name || w.email || w.worker_id).join(', ')}
+                        </div>
+                        <div className="mt-2 text-xs">
+                          They can't be matched to bookings until you set up coverage in Service Areas.
+                        </div>
+                      </AlertDescription>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-amber-700 hover:bg-amber-100"
+                      onClick={() => setBannerDismissed(true)}
+                      aria-label="Dismiss"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </Alert>
+              )}
               <WorkerFilters
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}
