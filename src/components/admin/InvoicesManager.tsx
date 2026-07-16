@@ -216,8 +216,8 @@ export const InvoicesManager = () => {
                     </TableCell>
                      <TableCell>
                        <div>
-                         <div className="font-medium">{invoice.customer?.name || 'N/A'}</div>
-                         <div className="text-sm text-gray-500">{invoice.customer?.email || 'N/A'}</div>
+                         <div className="font-medium">{getCustomerName(invoice)}</div>
+                         <div className="text-sm text-gray-500">{getCustomerEmail(invoice)}</div>
                        </div>
                      </TableCell>
                      <TableCell>{invoice.booking?.service?.name || 'N/A'}</TableCell>
