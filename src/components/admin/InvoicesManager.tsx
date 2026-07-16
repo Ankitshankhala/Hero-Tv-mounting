@@ -141,11 +141,15 @@ export const InvoicesManager = () => {
     }
   };
 
-  const filteredInvoices = invoices.filter(invoice =>
-    invoice.invoice_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (invoice.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (invoice.customer?.email?.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredInvoices = invoices.filter(invoice => {
+    const name = getCustomerName(invoice).toLowerCase();
+    const email = getCustomerEmail(invoice).toLowerCase();
+    return (
+      invoice.invoice_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      name.includes(searchTerm.toLowerCase()) ||
+      email.includes(searchTerm.toLowerCase())
+    );
+  });
 
   const getStatusBadge = (status: string) => {
     switch (status) {
