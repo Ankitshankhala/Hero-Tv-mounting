@@ -42,7 +42,7 @@ export const Header = () => {
         </div>
         
         <div className="flex items-center justify-center mb-8 text-primary-foreground">
-          <img src="/lovable-uploads/885a4cd2-a143-4e2e-b07c-e10030eb73c1.png" alt="Hero TV Mounting Logo" className="h-16 w-16 mr-4" />
+          <img src="/lovable-uploads/885a4cd2-a143-4e2e-b07c-e10030eb73c1.png" alt="Hero TV Mounting Logo" className="h-16 w-16 mr-4" width="64" height="64" decoding="async" fetchPriority="high" />
           <h1 className="text-4xl md:text-6xl font-bold text-white leading-tight pb-2">
             Hero TV Mounting
           </h1>

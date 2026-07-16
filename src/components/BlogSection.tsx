@@ -45,13 +45,14 @@ export const BlogSection = () => {
           className="w-full h-full"
           src={`https://www.youtube.com/embed/${post.video_id}`}
           title={post.title}
+          loading="lazy"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
         />
       );
     }
     if (post.cover_image_url) {
-      return <img src={post.cover_image_url} alt={post.title} className="w-full h-full object-cover" loading="lazy" />;
+      return <img src={post.cover_image_url} alt={post.title} className="w-full h-full object-cover" loading="lazy" decoding="async" width="800" height="600" />;
     }
     return (
       <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-600/20 to-purple-600/20">
