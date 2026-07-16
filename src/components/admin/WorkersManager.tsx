@@ -43,8 +43,21 @@ export const WorkersManager = () => {
     []
   );
 
+  const fetchUncovered = async () => {
+    try {
+      const { data, error } = await (supabase as any)
+        .from('v_active_workers_without_coverage')
+        .select('*');
+      if (error) throw error;
+      setUncovered((data as UncoveredWorker[]) || []);
+    } catch (err) {
+      console.error('Failed to load coverage-gap workers:', err);
+    }
+  };
+
   useEffect(() => {
     fetchWorkers();
+    fetchUncovered();
 
     // Subscribe to worker availability changes
     const availabilityChannel = supabase
