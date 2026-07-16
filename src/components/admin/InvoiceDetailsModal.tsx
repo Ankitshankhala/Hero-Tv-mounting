@@ -10,7 +10,9 @@ interface Invoice {
   id: string;
   invoice_number: string;
   booking_id: string;
-  customer_id: string;
+  customer_id: string | null;
+  customer_name: string | null;
+  customer_email: string | null;
   amount: number;
   tax_amount: number;
   total_amount: number;
@@ -22,13 +24,14 @@ interface Invoice {
     name: string;
     email: string;
     phone: string;
-  };
+  } | null;
   booking: {
     scheduled_date: string;
+    guest_customer_info: any;
     service: {
       name: string;
     };
-  };
+  } | null;
 }
 
 interface InvoiceDetailsModalProps {
