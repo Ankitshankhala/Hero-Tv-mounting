@@ -200,6 +200,82 @@ export type Database = {
         }
         Relationships: []
       }
+      blog_posts: {
+        Row: {
+          author: string
+          category: string | null
+          content: string | null
+          cover_image_url: string | null
+          created_at: string
+          created_by: string | null
+          excerpt: string | null
+          id: string
+          publish_date: string | null
+          slug: string
+          status: string
+          title: string
+          updated_at: string
+          video_id: string | null
+          views: number
+        }
+        Insert: {
+          author?: string
+          category?: string | null
+          content?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          excerpt?: string | null
+          id?: string
+          publish_date?: string | null
+          slug: string
+          status?: string
+          title: string
+          updated_at?: string
+          video_id?: string | null
+          views?: number
+        }
+        Update: {
+          author?: string
+          category?: string | null
+          content?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          excerpt?: string | null
+          id?: string
+          publish_date?: string | null
+          slug?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          video_id?: string | null
+          views?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blog_posts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "admin_worker_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "blog_posts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "blog_posts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_active_workers_without_coverage"
+            referencedColumns: ["worker_id"]
+          },
+        ]
+      }
       booking_audit_log: {
         Row: {
           booking_id: string | null
@@ -1238,6 +1314,162 @@ export type Database = {
           reserved_worker_id?: string | null
         }
         Relationships: []
+      }
+      reviews: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          booking_id: string | null
+          city: string | null
+          comment: string
+          created_at: string
+          customer_id: string | null
+          customer_name: string
+          id: string
+          image_url: string | null
+          is_featured: boolean
+          rating: number
+          status: string
+          title: string | null
+          updated_at: string
+          worker_id: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          booking_id?: string | null
+          city?: string | null
+          comment: string
+          created_at?: string
+          customer_id?: string | null
+          customer_name: string
+          id?: string
+          image_url?: string | null
+          is_featured?: boolean
+          rating: number
+          status?: string
+          title?: string | null
+          updated_at?: string
+          worker_id?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          booking_id?: string | null
+          city?: string | null
+          comment?: string
+          created_at?: string
+          customer_id?: string | null
+          customer_name?: string
+          id?: string
+          image_url?: string | null
+          is_featured?: boolean
+          rating?: number
+          status?: string
+          title?: string | null
+          updated_at?: string
+          worker_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "admin_worker_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "v_active_workers_without_coverage"
+            referencedColumns: ["worker_id"]
+          },
+          {
+            foreignKeyName: "reviews_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_booking_payment_status_monitor"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_booking_status_inconsistencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_bookings_integrity_issues"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "reviews_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_missing_transactions"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "reviews_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "admin_worker_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "v_active_workers_without_coverage"
+            referencedColumns: ["worker_id"]
+          },
+          {
+            foreignKeyName: "reviews_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "admin_worker_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "v_active_workers_without_coverage"
+            referencedColumns: ["worker_id"]
+          },
+        ]
       }
       rls_debug_logs: {
         Row: {

@@ -130,19 +130,27 @@ export const BookingSuccessModal = ({
             </div>
 
             {/* Action Buttons */}
-            <div className="flex space-x-3 mt-6">
-              <Button 
-                onClick={onClose} 
+            <div className="flex flex-col sm:flex-row gap-3 mt-6">
+              <Button
+                onClick={onClose}
                 className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
               >
                 <Heart className="h-4 w-4 mr-2" />
                 Awesome, Thanks!
               </Button>
+              {bookingId && (
+                <a
+                  href={`/review/${bookingId}`}
+                  className="flex-1 inline-flex items-center justify-center rounded-md border border-yellow-400 text-yellow-700 hover:bg-yellow-50 px-4 py-2 text-sm font-medium"
+                >
+                  ⭐ Leave a Review
+                </a>
+              )}
             </div>
 
             {/* Footer Note */}
             <p className="text-center text-xs text-gray-500 mt-4">
-              Booking ID: {bookingId?.slice(0, 8)}... • Auto-closing in 5 seconds
+              Booking ID: {bookingId?.slice(0, 8)}... • You can leave a review after the job is completed.
             </p>
           </div>
         </div>
