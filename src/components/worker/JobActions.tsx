@@ -1,9 +1,23 @@
 import React, { useState } from 'react';
-import { Trash2, Phone, MapPin, CreditCard, DollarSign, Plus, Users, Clock, Archive, CheckCircle, Loader2 } from 'lucide-react';
+import {
+  Trash2,
+  CreditCard,
+  Plus,
+  Users,
+  Clock,
+  Archive,
+  CheckCircle,
+  Loader2,
+  MoreHorizontal,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { initiatePhoneCall } from '@/utils/phoneUtils';
-import { MapAppSelector } from './MapAppSelector';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { ReassignJobModal } from './ReassignJobModal';
 import { RescheduleJobModal } from './RescheduleJobModal';
 import { archiveBooking } from '@/utils/serviceHelpers';
