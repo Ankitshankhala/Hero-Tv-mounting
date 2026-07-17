@@ -265,6 +265,20 @@ export const BookingsManager = () => {
             {isConnected && (
               <span className="text-xs text-[hsl(var(--action-success))]">● Live</span>
             )}
+            {archiveFilter !== 'archived' && (
+              <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-border accent-primary"
+                  checked={includeArchived}
+                  onChange={(e) => {
+                    setIncludeArchived(e.target.checked);
+                    setSelectedBookingIds([]);
+                  }}
+                />
+                Include archived
+              </label>
+            )}
             {selectedBookingIds.length > 0 && (
               <Button variant="default" size="sm" onClick={handleBulkArchive}>
                 <Archive className="h-4 w-4 mr-2" />
