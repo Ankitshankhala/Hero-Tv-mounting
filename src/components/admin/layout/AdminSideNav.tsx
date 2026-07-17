@@ -21,6 +21,7 @@ const groups = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
   ]},
   { label: 'Operations', items: [
+    { id: 'services', label: 'Services', icon: Wrench },
     { id: 'bookings', label: 'Bookings', icon: Calendar },
     { id: 'calendar', label: 'Calendar', icon: Calendar },
     { id: 'customers', label: 'Customers', icon: Users },
