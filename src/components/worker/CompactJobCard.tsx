@@ -309,28 +309,27 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
         <div className="flex items-start sm:items-center justify-between gap-2 sm:gap-4">
           {/* Left: Status and Service */}
           <div className="flex-1 min-w-0 pr-0 sm:pr-4">
-            {/* Mobile: Status and payment dots with name */}
+            {/* Mobile: Name + wrapping status/payment badges */}
             <div className="sm:hidden">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <div 
-                    className={`h-2.5 w-2.5 rounded-full ${getStatusDotClass(job.status, isArchived)}`}
-                    title={getDisplayStatus(job.status, isArchived)}
-                  >
-                    <span className="sr-only">{getDisplayStatus(job.status, isArchived)}</span>
-                  </div>
-                  <div 
-                    className={`h-2.5 w-2.5 rounded-full ${getPaymentDotClass(job.payment_status, job, isArchived)}`}
-                    title={paymentStatus.text}
-                  >
-                    <span className="sr-only">{paymentStatus.text}</span>
-                  </div>
-                </div>
-                <div className="text-sm font-medium text-foreground min-w-0 flex-1 truncate whitespace-nowrap">
-                  {getCustomerName()}
-                </div>
+              <div className="text-sm font-semibold text-foreground min-w-0 mb-2 break-words">
+                {getCustomerName()}
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                <Badge
+                  variant="outline"
+                  className={`text-[10px] font-medium ${getStatusColor(job.status, isArchived)}`}
+                >
+                  {getDisplayStatus(job.status, isArchived)}
+                </Badge>
+                <Badge
+                  variant="outline"
+                  className={`text-[10px] font-medium ${paymentStatus.color}`}
+                >
+                  {paymentStatus.text}
+                </Badge>
               </div>
             </div>
+            
             
             {/* Desktop: Horizontal layout */}
             <div className="hidden sm:flex flex-wrap items-center gap-3 mb-1">
