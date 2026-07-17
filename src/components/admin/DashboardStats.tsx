@@ -16,6 +16,7 @@ const formatCurrency = (amount: number) =>
 interface DashboardStatsData {
   revenue_this_month: number;
   revenue_last_month: number;
+  revenue_all_time: number;
   revenue_delta_pct: number | null;
   jobs_completed_this_month: number;
   jobs_completed_last_month: number;
