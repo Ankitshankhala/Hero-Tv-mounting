@@ -89,49 +89,45 @@ export const ReviewsSection = () => {
           </div>
         </div>
 
-        {/* Desktop: original tall layout preserved */}
+        {/* Desktop: equal-height card grid */}
         <div className="hidden md:block">
-          <ScrollArea className="h-[600px] w-full">
-            <div className="space-y-6 pr-4">
-              {reviews.map((review) => (
-                <div
-                  key={review.id}
-                  className="bg-slate-800/50 backdrop-blur-sm rounded-xl overflow-hidden border border-slate-700"
-                >
-                  <div className="grid grid-cols-2 h-80">
-                    <div className="relative aspect-[5/4] overflow-hidden">
-                      <img
-                        src={review.image_url || FALLBACK_IMAGE}
-                        alt={`Customer ${review.customer_name} installation`}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                        decoding="async"
-                        width="500"
-                        height="400"
-                      />
-                    </div>
-                    <div className="p-8 flex flex-col justify-center">
-                      <div className="flex items-center mb-4">
-                        {[...Array(review.rating)].map((_, i) => (
-                          <Star key={i} className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-                        ))}
-                      </div>
-                      {review.title && (
-                        <div className="text-white font-semibold text-lg mb-2">{review.title}</div>
-                      )}
-                      <blockquote className="text-lg text-white leading-relaxed flex-1 mb-6">
-                        "{review.comment}"
-                      </blockquote>
-                      <div className="text-slate-300">
-                        <div className="font-semibold text-white text-lg">{review.customer_name}</div>
-                        {review.city && <div className="text-sm text-slate-400">{review.city}</div>}
-                      </div>
-                    </div>
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
+            {reviews.slice(0, 9).map((review) => (
+              <article
+                key={review.id}
+                className="flex flex-col bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700 hover:border-blue-500/60 transition-colors p-6"
+              >
+                <div className="flex items-center mb-3">
+                  {[...Array(review.rating)].map((_, i) => (
+                    <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                  ))}
+                </div>
+                {review.title && (
+                  <div className="text-white font-semibold mb-2 line-clamp-1">{review.title}</div>
+                )}
+                <blockquote className="text-slate-200 leading-relaxed line-clamp-5 flex-1">
+                  "{review.comment}"
+                </blockquote>
+                <div className="mt-4 flex items-center gap-3 pt-4 border-t border-slate-700/70">
+                  {review.image_url && (
+                    <img
+                      src={review.image_url}
+                      alt={review.customer_name}
+                      className="h-9 w-9 rounded-full object-cover shrink-0"
+                      loading="lazy"
+                      decoding="async"
+                      width="36"
+                      height="36"
+                    />
+                  )}
+                  <div className="text-sm">
+                    <div className="font-semibold text-white">{review.customer_name}</div>
+                    {review.city && <div className="text-slate-400 text-xs">{review.city}</div>}
                   </div>
                 </div>
-              ))}
-            </div>
-          </ScrollArea>
+              </article>
+            ))}
+          </div>
         </div>
       </div>
     </section>

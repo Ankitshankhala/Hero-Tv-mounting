@@ -102,31 +102,31 @@ export const BlogSection = () => {
           </div>
         </div>
 
-        {/* Desktop: preserved */}
+        {/* Desktop: equal-height card grid */}
         <div className="hidden md:block">
-          <ScrollArea className="h-[600px] w-full">
-            <div className="space-y-6 pr-4">
-              {posts.map((post) => (
-                <div key={post.id} className="bg-slate-800/50 backdrop-blur-sm rounded-xl overflow-hidden border border-slate-700">
-                  <div className="grid grid-cols-2 h-80">
-                    <div className="relative bg-slate-900">{renderMedia(post)}</div>
-                    <div className="p-6 md:p-8 flex flex-col justify-center">
-                      {post.category && (
-                        <div className="text-xs uppercase tracking-wide text-blue-400 mb-2">{post.category}</div>
-                      )}
-                      <h3 className="text-xl md:text-2xl font-bold text-white mb-4 line-clamp-2">{post.title}</h3>
-                      <ScrollArea className="flex-1">
-                        <p className="text-sm md:text-base text-slate-300 leading-relaxed pr-4">{post.excerpt}</p>
-                      </ScrollArea>
-                      <Link to={`/blog/${post.slug}`} className="mt-4 text-blue-400 hover:text-blue-300 text-sm font-medium">
-                        Read more →
-                      </Link>
-                    </div>
-                  </div>
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
+            {posts.slice(0, 9).map((post) => (
+              <Link
+                key={post.id}
+                to={`/blog/${post.slug}`}
+                className="group flex flex-col bg-slate-800/50 backdrop-blur-sm rounded-xl overflow-hidden border border-slate-700 hover:border-blue-500/60 transition-colors"
+              >
+                <div className="aspect-[4/3] bg-slate-900 overflow-hidden">{renderThumb(post)}</div>
+                <div className="p-5 flex flex-col flex-1">
+                  {post.category && (
+                    <div className="text-xs uppercase tracking-wide text-blue-400 mb-2">{post.category}</div>
+                  )}
+                  <h3 className="text-lg font-semibold text-white mb-2 line-clamp-2 group-hover:text-blue-300 transition-colors">
+                    {post.title}
+                  </h3>
+                  {post.excerpt && (
+                    <p className="text-sm text-slate-400 line-clamp-2 flex-1">{post.excerpt}</p>
+                  )}
+                  <span className="mt-4 text-blue-400 text-sm font-medium">Read more →</span>
                 </div>
-              ))}
-            </div>
-          </ScrollArea>
+              </Link>
+            ))}
+          </div>
         </div>
       </div>
     </section>

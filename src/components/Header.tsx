@@ -41,23 +41,42 @@ export const Header = () => {
             </div> : null}
         </div>
         
-        <div className="flex items-center justify-center mb-8 text-primary-foreground">
-          <img src="/lovable-uploads/885a4cd2-a143-4e2e-b07c-e10030eb73c1.png" alt="Hero TV Mounting Logo" className="h-16 w-16 mr-4" width="64" height="64" decoding="async" fetchPriority="high" />
+        <div className="flex items-center justify-center mb-6 md:mb-8 text-primary-foreground">
+          <img src="/lovable-uploads/885a4cd2-a143-4e2e-b07c-e10030eb73c1.png" alt="Hero TV Mounting Logo" className="h-14 w-14 md:h-16 md:w-16 mr-3 md:mr-4" width="64" height="64" decoding="async" fetchPriority="high" />
           <h1 className="text-4xl md:text-6xl font-bold text-white leading-tight pb-2">
             Hero TV Mounting
           </h1>
         </div>
-        
-        <div className="text-center space-y-3">
-          <div>
-            <a href="tel:+17372729971" className="text-2xl md:text-3xl text-white hover:text-gray-200 transition-colors duration-200 font-semibold">
+
+        <div className="text-center max-w-3xl mx-auto space-y-3 md:space-y-5">
+          <p className="text-lg md:text-2xl text-white font-semibold">
+            Professional TV mounting in Austin, TX
+          </p>
+          <p className="hidden md:block text-slate-300 text-base md:text-lg">
+            Same-day availability. Licensed &amp; insured technicians. Clean cable concealment and rock-solid installs.
+          </p>
+
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm md:text-base text-slate-200">
+            <span className="inline-flex items-center gap-1">
+              <span className="text-yellow-400">★</span>
+              <span className="font-semibold">5.0</span>
+              <span className="text-slate-400">rating</span>
+            </span>
+            <span className="text-slate-600">·</span>
+            <span>Licensed &amp; insured</span>
+            <span className="text-slate-600">·</span>
+            <span>1,500+ jobs completed</span>
+          </div>
+
+          <div className="pt-1">
+            <a href="tel:+17372729971" className="text-2xl md:text-3xl text-white hover:text-blue-300 transition-colors duration-200 font-semibold">
               737-272-9971
             </a>
           </div>
           <div className="flex justify-center">
-            <span className="inline-flex flex-col items-center bg-[#4171F1] text-white font-extrabold uppercase tracking-wide px-6 py-3 rounded-2xl shadow-lg text-sm md:text-base text-center leading-tight">
-              <span className="bg-white text-[#4171F1] rounded-full px-3 py-1 mb-1 text-base md:text-lg">20% OFF</span>
-              <span>ALREADY APPLIED</span>
+            <span className="inline-flex items-center gap-2 bg-blue-600 text-white font-extrabold uppercase tracking-wide px-4 py-2 rounded-full shadow-lg text-sm">
+              <span className="bg-white text-blue-700 rounded-full px-2.5 py-0.5 text-sm">20% OFF</span>
+              <span>Already applied</span>
             </span>
           </div>
         </div>
