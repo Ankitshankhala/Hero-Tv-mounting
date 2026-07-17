@@ -12,10 +12,12 @@ import { EditBookingModal } from './EditBookingModal';
 import { BookingDetailsModal } from './BookingDetailsModal';
 import { DeleteBookingModal } from './DeleteBookingModal';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Calendar, Archive, Trash2 } from 'lucide-react';
+import { RefreshCw, Archive, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
+import { PageHeader } from '@/components/admin/ui/PageHeader';
+import { TableSkeleton } from '@/components/admin/ui/Skeletons';
 import {
   AlertDialog,
   AlertDialogAction,
