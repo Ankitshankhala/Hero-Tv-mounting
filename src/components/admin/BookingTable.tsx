@@ -48,6 +48,7 @@ interface Booking {
   stripe_payment_status?: string;
   services?: any[];
   booking_services?: any[];
+  is_archived?: boolean;
 }
 
 const getStatusVariant = (status: string) => {
@@ -255,7 +256,7 @@ export const BookingTable = ({
                 
                 return (
                   <>
-                    <TableRow key={booking.id}>
+                    <TableRow key={booking.id} className={booking.is_archived ? 'opacity-60 bg-muted/30' : ''}>
                       {showBulkActions && (
                         <TableCell>
                           <Checkbox
@@ -279,6 +280,12 @@ export const BookingTable = ({
                           <div className="font-mono text-sm">
                             {booking.id.slice(0, 8)}
                           </div>
+                          {booking.is_archived && (
+                            <Badge variant="outline" className="text-xs border-border text-muted-foreground">
+                              <Archive className="w-3 h-3 mr-1" />
+                              Archived
+                            </Badge>
+                          )}
                         </div>
                       </TableCell>
                      <TableCell>

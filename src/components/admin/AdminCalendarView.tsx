@@ -8,7 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CalendarIcon, RefreshCw, Users, MapPin } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { CalendarIcon, RefreshCw, Users, MapPin, Archive } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useCalendarSync } from '@/hooks/useCalendarSync';
@@ -47,6 +49,7 @@ export const AdminCalendarView = React.memo(() => {
   const [workers, setWorkers] = useState<any[]>([]);
   const [selectedWorker, setSelectedWorker] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
+  const [includeArchived, setIncludeArchived] = useState(false);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -73,6 +76,7 @@ export const AdminCalendarView = React.memo(() => {
           customer_id,
           guest_customer_info,
           service_id,
+          is_archived,
           customer:users!customer_id(name, email, phone, city),
           worker:users!worker_id(name, email, phone),
           service:services!service_id(name, description, duration_minutes, base_price)
@@ -86,6 +90,9 @@ export const AdminCalendarView = React.memo(() => {
       }
       if (selectedStatus !== 'all' && (['pending', 'confirmed', 'completed', 'cancelled'] as const).includes(selectedStatus as BookingStatus)) {
         query = query.eq('status', selectedStatus as BookingStatus);
+      }
+      if (!includeArchived) {
+        query = query.eq('is_archived', false);
       }
 
       const { data, error } = await query;
@@ -137,7 +144,7 @@ export const AdminCalendarView = React.memo(() => {
     } finally {
       setLoading(false);
     }
-  }, [selectedWorker, selectedStatus, toast]);
+  }, [selectedWorker, selectedStatus, includeArchived, toast]);
 
   const { isConnected, isRefreshing, forceRefresh } = useCalendarSync({
     userRole: 'admin',
@@ -269,6 +276,18 @@ export const AdminCalendarView = React.memo(() => {
                 <SelectItem value="cancelled">Cancelled</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Archive className="h-4 w-4 text-muted-foreground" />
+            <Checkbox
+              id="calendar-include-archived"
+              checked={includeArchived}
+              onCheckedChange={(v) => setIncludeArchived(!!v)}
+            />
+            <Label htmlFor="calendar-include-archived" className="text-sm cursor-pointer">
+              Include archived
+            </Label>
           </div>
         </div>
       </CardHeader>
