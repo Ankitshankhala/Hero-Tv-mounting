@@ -205,28 +205,10 @@ const Admin = () => {
         description="Admin controls for bookings, payments, invoices, and system health."
         noindex
       />
-      <SidebarProvider
-        defaultOpen={getSidebarState()}
-        className="w-full"
-        style={{
-          "--sidebar-width": "280px",
-          "--sidebar-width-mobile": "280px",
-        } as React.CSSProperties}
-      >
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex w-full overflow-hidden">
-          <AdminSidebar activeTab={activeTab} onTabChange={setActiveTab} />
-          <div className="flex-1 flex flex-col min-w-0">
-            <AdminHeader onNavigate={setActiveTab} />
-            <main className="flex-1 p-4 lg:p-6 overflow-auto">
-              <div className="max-w-full">
-                {renderContent()}
-              </div>
-            </main>
-          </div>
-        </div>
-        
-        <TourManager />
-      </SidebarProvider>
+      <AdminLayout activeTab={activeTab} onTabChange={setActiveTab}>
+        {renderContent()}
+      </AdminLayout>
+      <TourManager />
     </TourProvider>
   );
 };
