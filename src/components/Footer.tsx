@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Facebook, Instagram, Linkedin, Phone, Mail } from 'lucide-react';
+import { Facebook, Instagram, Linkedin, Phone, Mail, ShieldCheck } from 'lucide-react';
 
 const cities = [
   { name: 'Austin, TX', href: '/locations/austin' },
@@ -17,10 +17,11 @@ const linkCls =
 export const Footer = () => {
   return (
     <footer className="bg-slate-800 border-t border-slate-700">
-      <div className="container mx-auto px-4 py-8 md:py-10">
-        {/* Brand block */}
-        <div className="md:flex md:items-start md:justify-between md:gap-10">
-          <div className="max-w-sm">
+      <div className="container mx-auto px-4 py-8 md:py-12 max-w-7xl">
+        {/* Mobile: stacked (unchanged). Desktop: 12-col grid */}
+        <div className="md:grid md:grid-cols-12 md:gap-8">
+          {/* Brand block */}
+          <div className="md:col-span-5 max-w-sm">
             <div className="flex items-center gap-3">
               <img
                 src="/assets/images/logo.png"
@@ -34,6 +35,10 @@ export const Footer = () => {
             </div>
             <p className="mt-2 text-sm text-slate-400">
               Professional TV mounting in Austin, TX
+            </p>
+            <p className="mt-1 inline-flex items-center gap-1.5 text-xs text-slate-500">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              Licensed & insured
             </p>
             <div className="mt-3 flex flex-col gap-1">
               <a
@@ -85,7 +90,7 @@ export const Footer = () => {
           </div>
 
           {/* Link groups */}
-          <div className="mt-8 md:mt-0 grid grid-cols-2 gap-x-6 gap-y-6 md:flex md:gap-10">
+          <div className="mt-8 md:mt-0 md:col-span-7 grid grid-cols-2 gap-x-6 gap-y-6 md:grid-cols-3 md:gap-8">
             <div>
               <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">
                 Company
@@ -123,11 +128,11 @@ export const Footer = () => {
         </div>
 
         {/* Bottom bar */}
-        <div className="mt-8 pt-4 border-t border-slate-700 flex flex-col items-center gap-2">
-          <p className="text-xs text-slate-500 text-center">
+        <div className="mt-8 pt-4 border-t border-slate-700 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+          <p className="text-xs text-slate-500 text-center md:text-left">
             © 2026 Hero TV Mounting. All rights reserved.
           </p>
-          <p className="text-xs text-slate-500 text-center">
+          <p className="text-xs text-slate-500 text-center md:text-right">
             Developed by{' '}
             <a
               href="https://www.charusolutions.com/"
