@@ -21,7 +21,7 @@
     --popover-foreground: 222 20% 12%;
 
     /* Hero brand red primary (admin) */
-    --primary: 358 76% 48%;
+    --primary: 221 83% 53%;
     --primary-foreground: 0 0% 100%;
 
     /* Secondary brand accent (blue) — for links/secondary highlights */
@@ -43,7 +43,7 @@
     /* Tightened neutral gray for borders/inputs */
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 358 76% 48%;
+    --ring: 221 83% 53%;
 
     --radius: 0.5rem;
 
@@ -77,12 +77,12 @@
     /* Sidebar (light SaaS) */
     --sidebar-background: 220 20% 98.5%;
     --sidebar-foreground: 220 15% 30%;
-    --sidebar-primary: 358 76% 48%;
+    --sidebar-primary: 221 83% 53%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 220 14% 93%;
     --sidebar-accent-foreground: 222 20% 12%;
     --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 358 76% 48%;
+    --sidebar-ring: 221 83% 53%;
   }
 
   .dark {
@@ -95,7 +95,7 @@
     --popover: 222 40% 11%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 356 78% 52%;
+    --primary: 221 83% 60%;
     --primary-foreground: 0 0% 100%;
 
     --brand-secondary: 217 91% 60%;
@@ -115,7 +115,7 @@
 
     --border: 217 33% 20%;
     --input: 217 33% 20%;
-    --ring: 356 78% 52%;
+    --ring: 221 83% 60%;
 
     /* Modern Worker Job Colors - Dark Mode */
     --worker-primary: 210 40% 98%;
@@ -141,12 +141,12 @@
 
     --sidebar-background: 222 47% 5%;
     --sidebar-foreground: 215 20% 75%;
-    --sidebar-primary: 356 78% 52%;
+    --sidebar-primary: 221 83% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 217 33% 15%;
     --sidebar-accent-foreground: 210 40% 98%;
     --sidebar-border: 217 33% 16%;
-    --sidebar-ring: 356 78% 52%;
+    --sidebar-ring: 221 83% 60%;
   }
 }
 
