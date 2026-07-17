@@ -4,12 +4,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { AdminSidebar } from '@/components/admin/AdminSidebar';
-import { AdminHeader } from '@/components/admin/AdminHeader';
+import { AdminLayout } from '@/components/admin/layout/AdminLayout';
 import { AdminLogin } from '@/components/admin/AdminLogin';
 import { DashboardStats } from '@/components/admin/DashboardStats';
 import { SEO } from '@/components/SEO';
-import { SidebarProvider } from '@/components/ui/sidebar';
 import { TourProvider } from '@/contexts/TourContext';
 import { TourManager } from '@/components/tour/TourManager';
 
