@@ -50,11 +50,8 @@ const JobActions = ({
   const [completing, setCompleting] = useState(false);
   const { toast } = useToast();
 
-  const callCustomer = (phone: string) => initiatePhoneCall(phone);
   const getCustomerAddress = () =>
     job.guest_customer_info?.address || job.customer?.address || '';
-  const getCustomerPhone = () =>
-    job.guest_customer_info?.phone || job.customer?.phone || '';
 
   // Single source of truth for the unified worker action.
   // Backend (payment-engine) is the final authority — these guards just
