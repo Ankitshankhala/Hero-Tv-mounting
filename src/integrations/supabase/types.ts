@@ -3782,6 +3782,7 @@ export type Database = {
           zipcode: string
         }[]
       }
+      get_dashboard_stats: { Args: never; Returns: Json }
       get_my_profile: {
         Args: never
         Returns: {
