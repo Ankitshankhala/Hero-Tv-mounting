@@ -308,7 +308,7 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
       <CardContent className="p-3 sm:p-4">
         <div className="flex items-start sm:items-center justify-between gap-2 sm:gap-4">
           {/* Left: Status and Service */}
-          <div className="flex-1 min-w-0 pr-4">
+          <div className="flex-1 min-w-0 pr-0 sm:pr-4">
             {/* Mobile: Status and payment dots with name */}
             <div className="sm:hidden">
               <div className="flex items-center gap-2 mb-2">
