@@ -1,9 +1,9 @@
-import React from 'react';
-import { TrendingUp, Calendar, DollarSign, Users, Star, Clock, UserCheck, AlertCircle } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { TrendingUp, Calendar, DollarSign, Users, Star, UserCheck, AlertCircle } from 'lucide-react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line,
 } from 'recharts';
-import { useAdminMetrics } from '@/hooks/useAdminMetrics';
+import { supabase } from '@/integrations/supabase/client';
 import { PageHeader } from '@/components/admin/ui/PageHeader';
 import { StatCard } from '@/components/admin/ui/StatCard';
 import { StatusBadge } from '@/components/admin/ui/StatusBadge';
@@ -13,51 +13,81 @@ import { Card } from '@/components/ui/card';
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(amount);
 
-export const DashboardStats = () => {
-  const { metrics, loading } = useAdminMetrics();
+interface DashboardStatsData {
+  revenue_this_month: number;
+  revenue_last_month: number;
+  revenue_delta_pct: number | null;
+  jobs_completed_this_month: number;
+  jobs_completed_last_month: number;
+  jobs_completed_delta_pct: number | null;
+  new_customers_this_month: number;
+  new_customers_last_month: number;
+  new_customers_delta_pct: number | null;
+  upcoming_jobs: number;
+  unassigned_jobs: number;
+  pending_bookings: number;
+  active_workers: number;
+  total_customers: number;
+  avg_rating: number;
+  review_count: number;
+  generated_at: string;
+}
 
-  if (loading) {
+export const DashboardStats = () => {
+  const [stats, setStats] = useState<DashboardStatsData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const { data, error } = await (supabase as any).rpc('get_dashboard_stats');
+        if (error) throw error;
+        if (mounted) setStats(data as DashboardStatsData);
+      } catch (e) {
+        console.error('Error fetching dashboard stats:', e);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
+  if (loading || !stats) {
     return (
       <div>
         <PageHeader title="Dashboard" subtitle="Overview of your business at a glance" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => <CardSkeleton key={i} />)}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3, 4, 5, 6].map((i) => <CardSkeleton key={i} />)}
         </div>
       </div>
     );
   }
 
-  // Reconstruct previous-period values from current + growth% (no new queries)
-  const previous = (current: number, growth: number) =>
-    growth === 0 ? current : Math.max(0, Math.round(current / (1 + growth / 100)));
-
-  const revenueLast = previous(metrics.revenueThisMonth, metrics.revenueGrowth);
-  const bookingsLast = previous(metrics.bookingsThisMonth, metrics.bookingsGrowth);
+  const deltaProps = (pct: number | null) =>
+    pct === null || pct === undefined
+      ? {}
+      : { delta: Number(Number(pct).toFixed(1)), deltaLabel: 'vs last month' };
 
   const revenueSeries = [
-    { name: 'Last month', value: revenueLast },
-    { name: 'This month', value: metrics.revenueThisMonth },
+    { name: 'Last month', value: stats.revenue_last_month },
+    { name: 'This month', value: stats.revenue_this_month },
   ];
-  const bookingsSeries = [
-    { name: 'Last month', value: bookingsLast },
-    { name: 'This month', value: metrics.bookingsThisMonth },
+  const jobsSeries = [
+    { name: 'Last month', value: stats.jobs_completed_last_month },
+    { name: 'This month', value: stats.jobs_completed_this_month },
   ];
 
   const attention = [
-    metrics.pendingBookings > 0 && {
-      label: 'Pending bookings',
-      value: `${metrics.pendingBookings} awaiting confirmation`,
-      status: 'pending',
-    },
-    metrics.activeWorkers === 0 && {
-      label: 'No active workers',
-      value: 'No workers available for assignment',
+    stats.unassigned_jobs > 0 && {
+      label: 'Unassigned jobs',
+      value: `${stats.unassigned_jobs} awaiting assignment`,
       status: 'cancelled',
     },
-    metrics.averageRating > 0 && metrics.averageRating < 4 && {
-      label: 'Rating below target',
-      value: `Average ${metrics.averageRating.toFixed(1)} across ${metrics.totalReviews} reviews`,
-      status: 'progress',
+    stats.pending_bookings > 0 && {
+      label: 'Pending bookings',
+      value: `${stats.pending_bookings} awaiting confirmation`,
+      status: 'pending',
     },
   ].filter(Boolean) as { label: string; value: string; status: string }[];
 
@@ -65,58 +95,54 @@ export const DashboardStats = () => {
     <div>
       <PageHeader title="Dashboard" subtitle="Overview of your business at a glance" />
 
-      {/* KPI row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* KPI grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard
           label="Revenue this month"
-          value={<span className="tabular-nums">{formatCurrency(metrics.revenueThisMonth)}</span>}
-          delta={Number(metrics.revenueGrowth.toFixed(1))}
-          deltaLabel="vs last month"
+          value={<span className="tabular-nums">{formatCurrency(stats.revenue_this_month)}</span>}
           icon={DollarSign}
-        />
-        <StatCard
-          label="Authorized bookings"
-          value={<span className="tabular-nums">{metrics.bookingsThisMonth}</span>}
-          delta={Number(metrics.bookingsGrowth.toFixed(1))}
-          deltaLabel="vs last month"
-          icon={Calendar}
-        />
-        <StatCard
-          label="Active customers"
-          value={<span className="tabular-nums">{metrics.activeCustomers}</span>}
-          delta={Number(metrics.customersGrowth.toFixed(1))}
-          deltaLabel="vs last month"
-          icon={Users}
+          {...deltaProps(stats.revenue_delta_pct)}
         />
         <StatCard
           label="Jobs completed"
-          value={<span className="tabular-nums">{metrics.completedJobs}</span>}
-          delta={Number(metrics.jobsGrowth.toFixed(1))}
-          deltaLabel="vs last month"
+          value={<span className="tabular-nums">{stats.jobs_completed_this_month}</span>}
           icon={TrendingUp}
+          {...(stats.jobs_completed_delta_pct === null || stats.jobs_completed_delta_pct === undefined
+            ? { deltaLabel: 'this month' } as any
+            : { delta: Number(stats.jobs_completed_delta_pct.toFixed(1)), deltaLabel: 'this month' })}
         />
-      </div>
-
-      {/* Secondary KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
         <StatCard
-          label="Pending bookings"
-          value={<span className="tabular-nums">{metrics.pendingBookings}</span>}
-          icon={Clock}
+          label="Upcoming jobs"
+          value={<span className="tabular-nums">{stats.upcoming_jobs}</span>}
+          icon={Calendar}
         />
         <StatCard
           label="Active workers"
-          value={<span className="tabular-nums">{metrics.activeWorkers}</span>}
+          value={<span className="tabular-nums">{stats.active_workers}</span>}
           icon={UserCheck}
+        />
+        <StatCard
+          label="New customers"
+          value={<span className="tabular-nums">{stats.new_customers_this_month}</span>}
+          icon={Users}
+          {...(stats.new_customers_delta_pct === null || stats.new_customers_delta_pct === undefined
+            ? { deltaLabel: 'this month' } as any
+            : { delta: Number(stats.new_customers_delta_pct.toFixed(1)), deltaLabel: 'this month' })}
         />
         <StatCard
           label="Average rating"
           value={
             <span className="tabular-nums">
-              {metrics.averageRating > 0 ? metrics.averageRating.toFixed(1) : '—'}
-              <span className="text-sm text-muted-foreground font-normal ml-2">
-                {metrics.totalReviews} reviews
-              </span>
+              {stats.review_count > 0 ? (
+                <>
+                  {Number(stats.avg_rating).toFixed(1)}
+                  <span className="text-sm text-muted-foreground font-normal ml-2">
+                    · {stats.review_count} {stats.review_count === 1 ? 'review' : 'reviews'}
+                  </span>
+                </>
+              ) : (
+                <span className="text-base text-muted-foreground font-normal">No reviews yet</span>
+              )}
             </span>
           }
           icon={Star}
@@ -132,7 +158,7 @@ export const DashboardStats = () => {
               <p className="text-xs text-muted-foreground mt-0.5">This month vs last month</p>
             </div>
             <span className="text-xs text-muted-foreground tabular-nums">
-              {formatCurrency(metrics.revenueThisMonth)}
+              {formatCurrency(stats.revenue_this_month)}
             </span>
           </div>
           <div className="h-[220px]">
@@ -160,16 +186,16 @@ export const DashboardStats = () => {
         <Card className="p-5 border-border shadow-sm">
           <div className="flex items-baseline justify-between mb-4">
             <div>
-              <h3 className="text-sm font-semibold text-foreground">Bookings</h3>
+              <h3 className="text-sm font-semibold text-foreground">Jobs completed</h3>
               <p className="text-xs text-muted-foreground mt-0.5">This month vs last month</p>
             </div>
             <span className="text-xs text-muted-foreground tabular-nums">
-              {metrics.bookingsThisMonth} bookings
+              {stats.jobs_completed_this_month} jobs
             </span>
           </div>
           <div className="h-[220px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={bookingsSeries} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+              <BarChart data={jobsSeries} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                 <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} />
                 <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
