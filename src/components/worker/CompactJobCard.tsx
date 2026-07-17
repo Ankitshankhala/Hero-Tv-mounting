@@ -300,13 +300,16 @@ export const CompactJobCard = ({
   const phone = getCustomerPhone();
 
   // Determine primary action rendered on the dispatch card
+  const primaryBtnClass =
+    'w-full h-11 md:h-10 px-4 text-sm font-medium bg-primary hover:bg-primary/90 text-primary-foreground';
+
   const renderPrimaryAction = () => {
     if (canCompleteAndCapture) {
       return (
         <Button
           onClick={handleCompleteAndCapture}
           disabled={completing}
-          className="w-full min-h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+          className={primaryBtnClass}
         >
           {completing ? (
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -324,7 +327,7 @@ export const CompactJobCard = ({
             stop(e);
             setShowCharge(true);
           }}
-          className="w-full min-h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+          className={primaryBtnClass}
         >
           <CreditCard className="h-4 w-4 mr-2" />
           Collect payment
@@ -339,7 +342,7 @@ export const CompactJobCard = ({
           if (!isExpanded) onToggle();
         }}
         variant="outline"
-        className="w-full min-h-11 font-medium"
+        className="w-full h-11 md:h-10 px-4 text-sm font-medium"
       >
         <Eye className="h-4 w-4 mr-2" />
         View details
@@ -446,7 +449,7 @@ export const CompactJobCard = ({
                 stop(e);
                 onDirections();
               }}
-              className="h-11 w-11 shrink-0"
+              className="h-11 w-11 md:h-10 md:w-10 shrink-0"
               aria-label="Get directions"
             >
               <Navigation className="h-5 w-5" />
@@ -460,7 +463,7 @@ export const CompactJobCard = ({
                 onCall();
               }}
               disabled={!phone}
-              className="h-11 w-11 shrink-0"
+              className="h-11 w-11 md:h-10 md:w-10 shrink-0"
               aria-label="Call customer"
             >
               <Phone className="h-5 w-5" />
@@ -472,7 +475,7 @@ export const CompactJobCard = ({
                   variant="outline"
                   size="icon"
                   onClick={stop}
-                  className="h-11 w-11 shrink-0"
+                  className="h-11 w-11 md:h-10 md:w-10 shrink-0"
                   aria-label="More actions"
                 >
                   <MoreHorizontal className="h-5 w-5" />
@@ -522,7 +525,7 @@ export const CompactJobCard = ({
                 stop(e);
                 onToggle();
               }}
-              className="h-11 w-11 shrink-0"
+              className="h-11 w-11 md:h-10 md:w-10 shrink-0"
               aria-label={isExpanded ? 'Collapse' : 'Expand'}
             >
               <ChevronDown

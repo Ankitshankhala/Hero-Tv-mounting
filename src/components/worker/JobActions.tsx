@@ -163,14 +163,14 @@ const JobActions = ({
             variant="default"
             onClick={handleCompleteAndCapture}
             disabled={completing}
-            className="w-full min-h-11 justify-center bg-green-600 hover:bg-green-700 text-white transition-all duration-200"
+            className="w-full h-11 md:h-10 px-4 text-sm font-medium justify-center bg-primary hover:bg-primary/90 text-primary-foreground transition-all duration-200"
           >
             {completing ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             ) : (
               <CheckCircle className="h-4 w-4 mr-2" />
             )}
-            {completing ? 'Processing...' : 'Complete Job & Accept Payment'}
+            {completing ? 'Processing…' : 'Complete & collect payment'}
           </Button>
         )}
 
