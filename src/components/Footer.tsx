@@ -133,14 +133,9 @@ export const Footer = () => {
               href="https://www.charusolutions.com/"
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:brightness-125 transition-all"
+              className="text-blue-400 hover:text-blue-300 transition-colors"
             >
-              <span style={{ color: '#5B9BF5' }}>Cha</span>
-              <span style={{ color: '#F56565' }}>ru</span>
-              <span className="text-slate-400"> </span>
-              <span style={{ color: '#FBBC05' }}>Sol</span>
-              <span style={{ color: '#48BB78' }}>uti</span>
-              <span style={{ color: '#5B9BF5' }}>ons</span>
+              Charu Solutions
             </a>
           </p>
         </div>
