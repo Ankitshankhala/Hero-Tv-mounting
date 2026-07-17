@@ -403,40 +403,41 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
           </div>
 
           {/* Right: Quick Actions and Expand */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <div className="flex flex-col gap-1 sm:flex-row sm:gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onCall();
-                }}
-                className="h-8 w-8 p-0"
-              >
-                <Phone className="h-4 w-4" />
-              </Button>
-              
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDirections();
-                }}
-                className="h-8 w-8 p-0"
-              >
-                <MapPin className="h-4 w-4" />
-              </Button>
-            </div>
-            
+          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCall();
+              }}
+              className="h-11 w-11 p-0"
+              aria-label="Call customer"
+            >
+              <Phone className="h-5 w-5" />
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDirections();
+              }}
+              className="h-11 w-11 p-0"
+              aria-label="Get directions"
+            >
+              <MapPin className="h-5 w-5" />
+            </Button>
+
             <Button
               variant="ghost"
               size="sm"
               onClick={onToggle}
-              className="h-8 w-8 p-0"
+              className="h-11 w-11 p-0"
+              aria-label={isExpanded ? 'Collapse job' : 'Expand job'}
             >
-              <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${
+              <ChevronDown className={`h-5 w-5 transition-transform duration-200 ${
                 isExpanded ? 'rotate-180' : ''
               }`} />
             </Button>
