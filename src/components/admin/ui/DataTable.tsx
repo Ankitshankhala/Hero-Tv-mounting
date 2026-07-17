@@ -162,18 +162,21 @@ export function DataTable<T>({
               <SelectItem value="compact">Compact</SelectItem>
             </SelectContent>
           </Select>
-          <span className="ml-2">{sorted.length} row{sorted.length === 1 ? '' : 's'}</span>
+          <span className="ml-2">
+            {sorted.length === 0
+              ? 'Showing 0 of 0'
+              : `Showing ${page * pageSize + 1}–${Math.min((page + 1) * pageSize, sorted.length)} of ${sorted.length}`}
+          </span>
         </div>
         {pageCount > 1 && (
           <div className="flex items-center gap-2">
-            <span>Page {page + 1} of {pageCount}</span>
-            <Button variant="outline" size="sm" className="h-8 w-8 p-0"
+            <Button variant="outline" size="sm" className="h-8 px-2"
               disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-4 w-4 mr-1" />Prev
             </Button>
-            <Button variant="outline" size="sm" className="h-8 w-8 p-0"
+            <Button variant="outline" size="sm" className="h-8 px-2"
               disabled={page >= pageCount - 1} onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}>
-              <ChevronRight className="h-4 w-4" />
+              Next<ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           </div>
         )}
