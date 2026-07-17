@@ -107,7 +107,7 @@ export const AdminLogin = ({ onLogin }: AdminLoginProps) => {
             
             <Button 
               type="submit" 
-              className="w-full bg-blue-600 hover:bg-blue-700"
+              className="w-full"
               disabled={loading}
             >
               {loading ? 'Signing In...' : 'Sign In'}
