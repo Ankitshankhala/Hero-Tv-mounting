@@ -207,7 +207,7 @@ const WorkerDashboard = () => {
           *,
           customer:users!customer_id(name, phone),
           service:services!service_id(name, description, base_price, duration_minutes)
-        `).eq('worker_id', user.id).in('status', ['confirmed', 'completed', 'payment_authorized']).not('payment_status', 'in', '(pending,payment_pending)').order('updated_at', {
+        `).eq('worker_id', user.id).in('status', ['confirmed', 'completed']).not('payment_status', 'in', '(pending,payment_pending)').order('updated_at', {
         ascending: false
       }).order('scheduled_date', {
         ascending: true
@@ -241,16 +241,23 @@ const WorkerDashboard = () => {
       console.log('Booking services data:', servicesByBooking);
 
       // Transform data to match expected format
-      const transformedJobs = (bookingsData || []).map(job => ({
+      const transformedJobs = (bookingsData || []).map(job => {
+        const bookingServices = servicesByBooking[job.id] || [];
+        const servicesTotal = bookingServices.reduce(
+          (sum: number, s: any) => sum + (Number(s.quantity) || 0) * (Number(s.base_price) || 0),
+          0
+        );
+        return {
         ...job,
-        booking_services: servicesByBooking[job.id] || [],
+        booking_services: bookingServices,
         scheduled_at: `${job.scheduled_date}T${job.scheduled_start}`,
-        total_price: job.service?.base_price || 0,
+        total_price: bookingServices.length > 0 ? servicesTotal : (job.service?.base_price || 0),
         total_duration_minutes: job.service?.duration_minutes || 60,
         services: job.service ? [job.service] : [],
         // Ensure customer data is properly nested and accessible
         customer: job.customer || null
-      }));
+        };
+      });
       console.log('Transformed jobs with services:', transformedJobs);
       console.log('First job customer data:', transformedJobs[0]?.customer);
       console.log('First job booking services:', transformedJobs[0]?.booking_services);
