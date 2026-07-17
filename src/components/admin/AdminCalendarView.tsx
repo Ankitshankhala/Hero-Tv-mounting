@@ -49,6 +49,7 @@ export const AdminCalendarView = React.memo(() => {
   const [workers, setWorkers] = useState<any[]>([]);
   const [selectedWorker, setSelectedWorker] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
+  const [includeArchived, setIncludeArchived] = useState(false);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
