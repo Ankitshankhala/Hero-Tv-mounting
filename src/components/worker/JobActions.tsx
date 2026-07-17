@@ -151,30 +151,17 @@ const JobActions = ({
     }
   };
 
+  const hasOverflow =
+    canModifyServices || canReassignOrReschedule || canArchive;
+
   return (
-    <div className="pt-6 border-t border-worker-border mt-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => callCustomer(getCustomerPhone())}
-          disabled={!getCustomerPhone()}
-          className="w-full min-h-11 justify-center border-input bg-background hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-        >
-          <Phone className="h-4 w-4 mr-2" />
-          Call Customer
-        </Button>
-
-        <MapAppSelector address={getCustomerAddress()} />
-
-        {/* Unified single action: capture authorized payment + complete + archive */}
+    <div>
+      <div className="flex flex-wrap items-center gap-2">
         {canCompleteAndCapture && (
           <Button
-            size="sm"
-            variant="default"
             onClick={handleCompleteAndCapture}
             disabled={completing}
-            className="w-full h-11 md:h-10 px-4 text-sm font-medium justify-center bg-primary hover:bg-primary/90 text-primary-foreground transition-all duration-200"
+            className="h-11 md:h-10 px-4 text-sm font-medium bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             {completing ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -187,97 +174,79 @@ const JobActions = ({
 
         {canCollectPayment && (
           <Button
-            size="sm"
-            variant="default"
             onClick={onChargeClick}
-            className="w-full min-h-11 justify-center bg-primary hover:bg-primary/90 text-primary-foreground transition-all duration-200"
+            className="h-11 md:h-10 px-4 text-sm font-medium bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             <CreditCard className="h-4 w-4 mr-2" />
-            Collect Payment
+            Collect payment
           </Button>
-        )}
-
-        {(job.payment_status === 'failed' ||
-          job.payment_status === 'cancelled') && (
-          <div className="w-full mt-2 p-2 bg-destructive/10 border border-destructive/20 rounded-md">
-            <p className="text-sm text-destructive font-medium">
-              ⚠️ Payment required before job completion
-            </p>
-          </div>
         )}
 
         {canAddServices && (
           <Button
-            size="sm"
             variant="outline"
             onClick={onAddServicesClick}
-            className="w-full min-h-11 justify-center border-action-warning text-action-warning hover:bg-action-warning hover:text-white transition-all duration-200"
+            className="h-11 md:h-10 px-4 text-sm font-medium"
           >
             <Plus className="h-4 w-4 mr-2" />
-            Add Services
+            Add services
           </Button>
         )}
 
-        {canModifyServices && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={onModifyServicesClick}
-            className="w-full min-h-11 justify-center border-action-info text-action-info hover:bg-action-info hover:text-white transition-all duration-200"
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Remove Services
-          </Button>
-        )}
-
-        {canReassignOrReschedule && (
-          <>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setShowReassignModal(true)}
-              className="w-full min-h-11 justify-center border-action-warning text-action-warning hover:bg-action-warning hover:text-white transition-all duration-200"
-            >
-              <Users className="h-4 w-4 mr-2" />
-              Reassign Job
-            </Button>
-
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setShowRescheduleModal(true)}
-              className="w-full min-h-11 justify-center border-action-info text-action-info hover:bg-action-info hover:text-white transition-all duration-200"
-            >
-              <Clock className="h-4 w-4 mr-2" />
-              Change Time
-            </Button>
-          </>
-        )}
-
-        {canArchive && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleArchiveJob}
-            className="w-full min-h-11 justify-center border-green-500 text-green-600 hover:bg-green-500 hover:text-white transition-all duration-200"
-          >
-            <Archive className="h-4 w-4 mr-2" />
-            Archive Job
-          </Button>
+        {hasOverflow && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-11 w-11 md:h-10 md:w-10"
+                aria-label="More actions"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              {canModifyServices && (
+                <DropdownMenuItem onClick={onModifyServicesClick}>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Remove services
+                </DropdownMenuItem>
+              )}
+              {canReassignOrReschedule && (
+                <>
+                  <DropdownMenuItem onClick={() => setShowReassignModal(true)}>
+                    <Users className="h-4 w-4 mr-2" />
+                    Reassign job
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setShowRescheduleModal(true)}>
+                    <Clock className="h-4 w-4 mr-2" />
+                    Change time
+                  </DropdownMenuItem>
+                </>
+              )}
+              {canArchive && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleArchiveJob}>
+                    <Archive className="h-4 w-4 mr-2" />
+                    Archive job
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
 
-      <div className="mt-4 pt-4 border-t border-worker-border/50">
-        {canReassignOrReschedule && (
-          <div className="bg-muted/50 p-3 rounded-md">
-            <p className="text-sm text-muted-foreground">
-              💡 <strong>Tip:</strong> If you're not able to complete this job
-              at the scheduled time, you can change the time or reassign it to
-              another technician using the buttons above.
-            </p>
-          </div>
-        )}
-      </div>
+      {(job.payment_status === 'failed' ||
+        job.payment_status === 'cancelled') && (
+        <div className="mt-3 p-2 bg-destructive/10 border border-destructive/20 rounded-md">
+          <p className="text-sm text-destructive font-medium">
+            Payment required before job completion
+          </p>
+        </div>
+      )}
+
 
       <ReassignJobModal
         isOpen={showReassignModal}
