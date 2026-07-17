@@ -36,30 +36,61 @@ interface DashboardStatsData {
 export const DashboardStats = () => {
   const [stats, setStats] = useState<DashboardStatsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let mounted = true;
+    setLoading(true);
+    setError(null);
     (async () => {
       try {
         const { data, error } = await (supabase as any).rpc('get_dashboard_stats');
         if (error) throw error;
-        if (mounted) setStats(data as DashboardStatsData);
-      } catch (e) {
+        if (mounted) {
+          setStats(data as DashboardStatsData);
+          setError(null);
+        }
+      } catch (e: any) {
         console.error('Error fetching dashboard stats:', e);
+        if (mounted) setError(e?.message || 'Unknown error');
       } finally {
         if (mounted) setLoading(false);
       }
     })();
     return () => { mounted = false; };
-  }, []);
+  }, [reloadKey]);
 
-  if (loading || !stats) {
+  if (loading) {
     return (
       <div>
         <PageHeader title="Dashboard" subtitle="Overview of your business at a glance" />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map((i) => <CardSkeleton key={i} />)}
         </div>
+      </div>
+    );
+  }
+
+  if (!stats) {
+    return (
+      <div>
+        <PageHeader title="Dashboard" subtitle="Overview of your business at a glance" />
+        <Card className="p-6 border-border shadow-sm">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-destructive mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-semibold text-foreground">Couldn't load dashboard stats</h3>
+              {error && <p className="text-xs text-muted-foreground mt-1">{error}</p>}
+              <button
+                onClick={() => setReloadKey((k) => k + 1)}
+                className="mt-3 inline-flex items-center rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        </Card>
       </div>
     );
   }
