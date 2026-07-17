@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Calendar, CheckCircle, Clock, DollarSign, Trophy } from 'lucide-react';
 import { formatCurrency } from '@/utils/workerEarningsCalculator';
 
@@ -11,44 +11,19 @@ interface WorkerDashboardStatsProps {
   totalTips: number;
 }
 
-const WorkerDashboardStats = ({ 
-  todaysJobs, 
-  upcomingJobs, 
-  completedJobs, 
+const WorkerDashboardStats = ({
+  todaysJobs,
+  upcomingJobs,
+  completedJobs,
   todaysEarnings,
-  totalTips 
+  totalTips,
 }: WorkerDashboardStatsProps) => {
   const stats = [
-    {
-      title: "Today's Jobs",
-      value: todaysJobs,
-      icon: Calendar,
-      color: "text-blue-400"
-    },
-    {
-      title: "Upcoming Jobs",
-      value: upcomingJobs,
-      icon: Clock,
-      color: "text-orange-400"
-    },
-    {
-      title: "Completed Jobs",
-      value: completedJobs,
-      icon: CheckCircle,
-      color: "text-green-400"
-    },
-    {
-      title: "Today's Earnings",
-      value: formatCurrency(todaysEarnings),
-      icon: DollarSign,
-      color: "text-yellow-400"
-    },
-    {
-      title: "Total Tips Earned",
-      value: formatCurrency(totalTips),
-      icon: Trophy,
-      color: "text-purple-400"
-    }
+    { title: "Today's Jobs", value: todaysJobs, icon: Calendar },
+    { title: 'Upcoming Jobs', value: upcomingJobs, icon: Clock },
+    { title: 'Completed Jobs', value: completedJobs, icon: CheckCircle },
+    { title: "Today's Earnings", value: formatCurrency(todaysEarnings), icon: DollarSign },
+    { title: 'Total Tips Earned', value: formatCurrency(totalTips), icon: Trophy },
   ];
 
   return (
@@ -56,15 +31,15 @@ const WorkerDashboardStats = ({
       {stats.map((stat, index) => {
         const Icon = stat.icon;
         return (
-          <Card key={index} className="bg-slate-800 border-slate-700">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-              <CardTitle className="text-xs font-medium text-slate-300">
-                {stat.title}
-              </CardTitle>
-              <Icon className={`h-3 w-3 ${stat.color}`} />
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="text-lg font-bold text-white">{stat.value}</div>
+          <Card key={index} className="bg-card border border-border shadow-sm">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {stat.title}
+                </span>
+                <Icon className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div className="text-2xl font-bold text-foreground">{stat.value}</div>
             </CardContent>
           </Card>
         );
