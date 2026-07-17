@@ -189,25 +189,22 @@ export const TvMountingModal = ({ open, onClose, onAddToCart, services }: TvMoun
         <div className="border-t border-slate-700 pt-4">
           <div className="flex justify-between items-center">
             <div className="text-2xl font-bold text-green-400">${totalPrice}</div>
-            
+
             <div className="flex flex-col items-end space-y-2">
-              {usingFallback && (
-                <div className="text-xs text-amber-400">Reconnecting to pricing server…</div>
-              )}
               <div className="flex space-x-3">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={onClose}
                   className="border-slate-500 text-white bg-slate-700 hover:bg-slate-600 hover:border-slate-400 transition-colors"
                 >
                   Cancel
                 </Button>
-                <Button 
+                <Button
                   onClick={handleAddToCart}
-                  disabled={!isReady || servicesLoading}
+                  disabled={!isReady}
                   className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {servicesLoading ? 'Loading...' : 'Add to Cart'}
+                  Add to Cart
                 </Button>
               </div>
             </div>
