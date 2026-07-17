@@ -76,6 +76,7 @@ export const AdminCalendarView = React.memo(() => {
           customer_id,
           guest_customer_info,
           service_id,
+          is_archived,
           customer:users!customer_id(name, email, phone, city),
           worker:users!worker_id(name, email, phone),
           service:services!service_id(name, description, duration_minutes, base_price)
