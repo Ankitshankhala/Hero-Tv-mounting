@@ -139,36 +139,36 @@ export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onCollaps
   // Get tip display information
   const getTipDisplay = (tipAmount: number | undefined, paymentStatus: string) => {
     if (!tipAmount || tipAmount <= 0) return null;
-    
+
     switch (paymentStatus?.toLowerCase()) {
       case 'authorized':
         return {
           text: `Tip: $${tipAmount.toFixed(2)} (Authorized)`,
-          color: 'bg-amber-500 text-white border-amber-500',
-          icon: '💳',
-          description: 'Will be charged when service is completed'
+          color: 'bg-action-warning text-white border-action-warning',
+          Icon: CreditCard,
+          description: 'Will be charged when service is completed',
         };
       case 'captured':
       case 'completed':
         return {
           text: `Tip: $${tipAmount.toFixed(2)} (Received)`,
-          color: 'bg-green-500 text-white border-green-500',
-          icon: '✓',
-          description: 'Tip has been processed'
+          color: 'bg-action-success text-white border-action-success',
+          Icon: CheckCircle2,
+          description: 'Tip has been processed',
         };
       case 'pending':
         return {
           text: `Tip: $${tipAmount.toFixed(2)} (Pending)`,
-          color: 'bg-blue-500 text-white border-blue-500',
-          icon: '⏳',
-          description: 'Processing tip payment'
+          color: 'bg-action-info text-white border-action-info',
+          Icon: Clock,
+          description: 'Processing tip payment',
         };
       default:
         return {
           text: `Tip: $${tipAmount.toFixed(2)}`,
-          color: 'bg-gray-500 text-white border-gray-500',
-          icon: '💵',
-          description: 'Tip amount'
+          color: 'bg-muted text-muted-foreground border-border',
+          Icon: DollarSign,
+          description: 'Tip amount',
         };
     }
   };
