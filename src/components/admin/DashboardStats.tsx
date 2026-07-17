@@ -145,7 +145,7 @@ export const DashboardStats = () => {
           <button
             type="button"
             onClick={() => setRevenueView((v) => (v === 'month' ? 'all' : 'month'))}
-            className="absolute top-3 right-3 inline-flex items-center rounded-md border border-border bg-background/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring"
+            className="absolute bottom-3 right-3 inline-flex items-center rounded-md border border-border bg-background/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring"
             aria-label="Toggle revenue view"
           >
             {revenueView === 'month' ? 'All time' : 'This month'}
