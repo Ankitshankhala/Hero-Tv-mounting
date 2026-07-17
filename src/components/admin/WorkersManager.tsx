@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Wrench, AlertTriangle, X } from 'lucide-react';
+import { AlertTriangle, X } from 'lucide-react';
 import { AddWorkerModal } from './AddWorkerModal';
 import { WorkerApplicationsManager } from './WorkerApplicationsManager';
 import { WorkerFilters } from './WorkerFilters';
@@ -12,6 +12,8 @@ import { WorkerTable } from './WorkerTable';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { formatAdminError } from '@/utils/adminErrorMessage';
+import { PageHeader } from '@/components/admin/ui/PageHeader';
+import { TableSkeleton } from '@/components/admin/ui/Skeletons';
 
 interface UncoveredWorker {
   worker_id: string;
