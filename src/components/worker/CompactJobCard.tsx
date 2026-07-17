@@ -233,32 +233,34 @@ export const CompactJobCard = ({
         <div className="flex items-center gap-3">
           {/* Main info */}
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <div className="flex items-center gap-2 min-w-0">
               <span className="text-sm font-medium text-foreground truncate">
                 {getCustomerName()}
               </span>
+            </div>
+            <div className="mt-1 flex flex-wrap items-center gap-1">
               <Badge
                 variant="outline"
-                className={`text-[10px] font-medium ${getStatusColor(job.status)}`}
+                className={`text-[11px] leading-none py-0.5 px-1.5 font-medium ${getStatusColor(job.status)}`}
               >
                 {getDisplayStatus(job.status)}
               </Badge>
               <Badge
                 variant="outline"
-                className={`text-[10px] font-medium ${payment.color}`}
+                className={`text-[11px] leading-none py-0.5 px-1.5 font-medium ${payment.color}`}
               >
                 {payment.text}
               </Badge>
               {tipBadge && (
                 <Badge
                   variant="outline"
-                  className={`text-[10px] font-medium ${tipBadge.color}`}
+                  className={`text-[11px] leading-none py-0.5 px-1.5 font-medium ${tipBadge.color}`}
                 >
                   {tipBadge.text}
                 </Badge>
               )}
             </div>
-            <div className="mt-0.5 text-xs text-muted-foreground truncate">
+            <div className="mt-1 text-xs text-muted-foreground truncate">
               <span className="hidden sm:inline">{getServiceSummary()} · </span>
               <span>{getShortAddress()}</span>
             </div>
