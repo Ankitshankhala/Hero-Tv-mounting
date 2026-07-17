@@ -151,6 +151,7 @@ export function DataTable<T>({
         </div>
       </div>
 
+      {!hideFooter && (
       <div className="flex items-center justify-between mt-3 text-xs text-muted-foreground">
         <div className="flex items-center gap-2">
           <span>Density</span>
