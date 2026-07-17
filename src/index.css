@@ -20,9 +20,13 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222 20% 12%;
 
-    /* Muted indigo accent for primary actions (Linear-like) */
-    --primary: 234 60% 52%;
+    /* Hero brand red primary (admin) */
+    --primary: 358 76% 48%;
     --primary-foreground: 0 0% 100%;
+
+    /* Secondary brand accent (blue) — for links/secondary highlights */
+    --brand-secondary: 224 76% 48%;
+    --brand-secondary-foreground: 0 0% 100%;
 
     --secondary: 220 14% 96%;
     --secondary-foreground: 222 20% 12%;
@@ -39,7 +43,7 @@
     /* Tightened neutral gray for borders/inputs */
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 234 60% 52%;
+    --ring: 358 76% 48%;
 
     --radius: 0.5rem;
 
@@ -73,12 +77,12 @@
     /* Sidebar (light SaaS) */
     --sidebar-background: 220 20% 98.5%;
     --sidebar-foreground: 220 15% 30%;
-    --sidebar-primary: 234 60% 52%;
+    --sidebar-primary: 358 76% 48%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 220 14% 93%;
     --sidebar-accent-foreground: 222 20% 12%;
     --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 234 60% 52%;
+    --sidebar-ring: 358 76% 48%;
   }
 
   .dark {
