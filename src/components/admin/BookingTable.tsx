@@ -48,6 +48,7 @@ interface Booking {
   stripe_payment_status?: string;
   services?: any[];
   booking_services?: any[];
+  is_archived?: boolean;
 }
 
 const getStatusVariant = (status: string) => {
