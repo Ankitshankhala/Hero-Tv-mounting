@@ -286,15 +286,15 @@ export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onCollaps
             {(() => {
               const tipDisplay = getTipDisplay(job.tip_amount, job.payment_status);
               return tipDisplay && (
-                <div className="mt-3 p-3 bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                <div className="mt-3 p-3 bg-muted/40 rounded-lg border border-border">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="text-2xl">{tipDisplay.icon}</span>
+                      <tipDisplay.Icon className="h-5 w-5 text-muted-foreground" />
                       <div>
-                        <div className="text-sm font-semibold text-amber-900 dark:text-amber-100">
+                        <div className="text-sm font-semibold text-foreground">
                           {tipDisplay.text}
                         </div>
-                        <div className="text-xs text-amber-700 dark:text-amber-300">
+                        <div className="text-xs text-muted-foreground">
                           {tipDisplay.description}
                         </div>
                       </div>
