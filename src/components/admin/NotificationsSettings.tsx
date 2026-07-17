@@ -77,7 +77,7 @@ export const NotificationsSettings: React.FC = () => {
           <div className="flex items-center justify-between py-2">
             <div>
               <Label htmlFor="sms-toggle" className="text-base">Enable SMS notifications</Label>
-              <p className="text-sm text-gray-500">Controls all SMS messages sent by the system.</p>
+              <p className="text-sm text-muted-foreground">Controls all SMS messages sent by the system.</p>
             </div>
             {loading ? (
               <Loader2 className="h-5 w-5 animate-spin" />

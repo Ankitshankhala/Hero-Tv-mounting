@@ -62,21 +62,21 @@ export const SMSLogsManager = () => {
           <CardContent className="p-6">
             <div className="flex items-center space-x-2">
               <Send className="h-4 w-4 text-blue-600" />
-              <span className="text-sm text-gray-600">SMS Sent Today</span>
+              <span className="text-sm text-muted-foreground">SMS Sent Today</span>
             </div>
-            <div className="text-2xl font-bold text-gray-900 mt-2">
+            <div className="text-2xl font-bold text-foreground mt-2">
               {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.sentToday}
             </div>
-            <div className="text-sm text-gray-600">Messages today</div>
+            <div className="text-sm text-muted-foreground">Messages today</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center space-x-2">
               <MessageSquare className="h-4 w-4 text-green-600" />
-              <span className="text-sm text-gray-600">Delivery Rate</span>
+              <span className="text-sm text-muted-foreground">Delivery Rate</span>
             </div>
-            <div className="text-2xl font-bold text-gray-900 mt-2">
+            <div className="text-2xl font-bold text-foreground mt-2">
               {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : `${stats.deliveryRate}%`}
             </div>
             <div className="text-sm text-green-600">
@@ -87,20 +87,20 @@ export const SMSLogsManager = () => {
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-600">Monthly Total</span>
+              <span className="text-sm text-muted-foreground">Monthly Total</span>
             </div>
-            <div className="text-2xl font-bold text-gray-900 mt-2">
+            <div className="text-2xl font-bold text-foreground mt-2">
               {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.monthlyTotal}
             </div>
-            <div className="text-sm text-gray-600">Messages this month</div>
+            <div className="text-sm text-muted-foreground">Messages this month</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-600">Failed Messages</span>
+              <span className="text-sm text-muted-foreground">Failed Messages</span>
             </div>
-            <div className="text-2xl font-bold text-gray-900 mt-2">
+            <div className="text-2xl font-bold text-foreground mt-2">
               {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.failedCount}
             </div>
             <div className="text-sm text-red-600">
@@ -165,7 +165,7 @@ export const SMSLogsManager = () => {
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8">
                       <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                      <p className="text-sm text-gray-500 mt-2">Loading SMS logs...</p>
+                      <p className="text-sm text-muted-foreground mt-2">Loading SMS logs...</p>
                     </TableCell>
                   </TableRow>
                 ) : error ? (
@@ -180,7 +180,7 @@ export const SMSLogsManager = () => {
                 ) : filteredLogs.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8">
-                      <p className="text-sm text-gray-500">No SMS logs found</p>
+                      <p className="text-sm text-muted-foreground">No SMS logs found</p>
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -192,7 +192,7 @@ export const SMSLogsManager = () => {
                       <TableCell>{sms.recipient_name || 'Unknown'}</TableCell>
                       <TableCell className="font-mono text-sm">{sms.recipient_number}</TableCell>
                       <TableCell>
-                        <span className="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded">
+                        <span className="text-xs bg-muted text-foreground px-2 py-1 rounded">
                           {sms.message_type}
                         </span>
                       </TableCell>

@@ -168,9 +168,9 @@ export const LivePaymentValidator = () => {
                     <h4 className="font-medium">{result.category}</h4>
                     {getStatusBadge(result.status)}
                   </div>
-                  <p className="text-sm text-gray-600 mt-1">{result.message}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{result.message}</p>
                   {result.details && (
-                    <p className="text-xs text-gray-500 mt-1">{result.details}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{result.details}</p>
                   )}
                 </div>
               </div>
@@ -179,7 +179,7 @@ export const LivePaymentValidator = () => {
         )}
         
         {validationResults.length === 0 && !isValidating && (
-          <p className="text-gray-500 text-center py-8">
+          <p className="text-muted-foreground text-center py-8">
             Click "Run Validation" to check your environment for live deployment
           </p>
         )}

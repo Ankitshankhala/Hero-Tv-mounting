@@ -158,7 +158,7 @@ export const WorkerTableRow = ({
     <TableRow key={worker.id}>
       <TableCell>
         <div className="font-medium">{worker.name}</div>
-        <div className="text-sm text-gray-600">{worker.email}</div>
+        <div className="text-sm text-muted-foreground">{worker.email}</div>
       </TableCell>
       <TableCell>
         <div className="flex items-center space-x-2 text-sm">
@@ -183,7 +183,7 @@ export const WorkerTableRow = ({
         </Badge>
       </TableCell>
       <TableCell>
-        <span className="text-sm text-gray-600">
+        <span className="text-sm text-muted-foreground">
           {new Date(worker.created_at).toLocaleDateString()}
         </span>
       </TableCell>

@@ -282,7 +282,7 @@ export const WorkerApplicationsManager = () => {
   const renderAvailability = (availability: any) => {
     const days = getAvailableDays(availability);
     if (days.length === 0) {
-      return <span className="text-xs text-gray-500">Not specified</span>;
+      return <span className="text-xs text-muted-foreground">Not specified</span>;
     }
     return (
       <div className="flex flex-wrap gap-1">
@@ -320,8 +320,8 @@ export const WorkerApplicationsManager = () => {
         <CardContent>
           {applications.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-500">No worker applications found</p>
-              <p className="text-sm text-gray-400 mt-2">
+              <p className="text-muted-foreground">No worker applications found</p>
+              <p className="text-sm text-muted-foreground mt-2">
                 Applications will appear here when workers apply through the application form.
               </p>
             </div>
@@ -358,30 +358,30 @@ export const WorkerApplicationsManager = () => {
                       <TableCell className="align-top">
                         <div className="min-w-0">
                           <div className="font-medium flex items-center space-x-2">
-                            <User className="h-4 w-4 text-gray-400 shrink-0" />
+                            <User className="h-4 w-4 text-muted-foreground shrink-0" />
                             <span className="break-words">{application.name}</span>
                           </div>
-                          <div className="text-sm text-gray-600 break-words">{application.skills}</div>
+                          <div className="text-sm text-muted-foreground break-words">{application.skills}</div>
                         </div>
                       </TableCell>
                       <TableCell className="align-top">
                         <div className="space-y-1 min-w-0">
                           <div className="flex items-center space-x-2 text-sm min-w-0">
-                            <Mail className="h-4 w-4 text-gray-400 shrink-0" />
+                            <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
                             <span className="truncate" title={application.email}>{application.email}</span>
                           </div>
                           <div className="flex items-center space-x-2 text-sm">
-                            <Phone className="h-4 w-4 text-gray-400 shrink-0" />
+                            <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
                             <span className="break-words">{application.phone}</span>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell className="align-top">
                         <div className="flex items-start space-x-2">
-                          <MapPin className="h-4 w-4 text-gray-400 shrink-0 mt-0.5" />
+                          <MapPin className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                           <div className="min-w-0">
                             <div className="font-medium break-words">{application.city}</div>
-                            <div className="text-sm text-gray-600 break-words">{application.region}</div>
+                            <div className="text-sm text-muted-foreground break-words">{application.region}</div>
                           </div>
                         </div>
                       </TableCell>
@@ -410,7 +410,7 @@ export const WorkerApplicationsManager = () => {
                       </TableCell>
                       <TableCell className="align-middle text-center"><div className="flex justify-center">{getStatusBadge(application.status)}</div></TableCell>
                       <TableCell className="align-top">
-                        <div className="text-sm text-gray-600 whitespace-nowrap">
+                        <div className="text-sm text-muted-foreground whitespace-nowrap">
                           {application.created_at ? new Date(application.created_at).toLocaleDateString() : 'N/A'}
                         </div>
                       </TableCell>
@@ -520,13 +520,13 @@ export const WorkerApplicationsManager = () => {
               </p>
               <div className="space-y-2">
                 <div>
-                  <label className="text-xs font-medium text-gray-600">Email:</label>
+                  <label className="text-xs font-medium text-muted-foreground">Email:</label>
                   <p className="font-medium">{approvalResult?.email}</p>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-600">Temporary Password:</label>
+                  <label className="text-xs font-medium text-muted-foreground">Temporary Password:</label>
                   <div className="flex items-center space-x-2 mt-1">
-                    <div className="flex-1 p-2 bg-gray-100 rounded border font-mono text-sm">
+                    <div className="flex-1 p-2 bg-muted rounded border font-mono text-sm">
                       {showPassword ? approvalResult?.temporaryPassword : '••••••••••••'}
                     </div>
                     <Button

@@ -75,7 +75,7 @@ export const EmailLogsManager = () => {
       case 'pending':
         return <Clock className="h-4 w-4 text-yellow-500" />;
       default:
-        return <Mail className="h-4 w-4 text-gray-500" />;
+        return <Mail className="h-4 w-4 text-muted-foreground" />;
     }
   };
 
@@ -120,7 +120,7 @@ export const EmailLogsManager = () => {
                 <div className="flex-1">
                   <label className="text-sm font-medium mb-2 block">Search</label>
                   <div className="relative">
-                    <Search className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
+                    <Search className="h-4 w-4 absolute left-3 top-3 text-muted-foreground" />
                     <Input
                       placeholder="Search by email, subject, or booking ID..."
                       value={searchTerm}
@@ -160,7 +160,7 @@ export const EmailLogsManager = () => {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                 </div>
               ) : emailLogs.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-muted-foreground">
                   No email logs found
                 </div>
               ) : (
@@ -173,19 +173,19 @@ export const EmailLogsManager = () => {
                           <span className="font-medium">{log.recipient_email}</span>
                           {getStatusBadge(log.status)}
                         </div>
-                        <div className="text-sm text-gray-500">
+                        <div className="text-sm text-muted-foreground">
                           {format(new Date(log.created_at), 'MMM dd, yyyy HH:mm')}
                         </div>
                       </div>
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <span className="text-sm font-medium text-gray-600">Subject:</span>
+                          <span className="text-sm font-medium text-muted-foreground">Subject:</span>
                           <p className="text-sm">{truncateText(log.subject)}</p>
                         </div>
                         {log.booking_id && (
                           <div>
-                            <span className="text-sm font-medium text-gray-600">Booking ID:</span>
+                            <span className="text-sm font-medium text-muted-foreground">Booking ID:</span>
                             <p className="text-sm font-mono">{log.booking_id}</p>
                           </div>
                         )}
@@ -225,7 +225,7 @@ export const EmailLogsManager = () => {
 
                       {log.sent_at && (
                         <div>
-                          <span className="text-sm font-medium text-gray-600">Sent at:</span>
+                          <span className="text-sm font-medium text-muted-foreground">Sent at:</span>
                           <p className="text-sm">
                             {format(new Date(log.sent_at), 'MMM dd, yyyy HH:mm:ss')}
                           </p>
@@ -236,7 +236,7 @@ export const EmailLogsManager = () => {
                         <summary className="cursor-pointer text-blue-600 hover:text-blue-800">
                           View Message Content
                         </summary>
-                        <div className="mt-2 p-3 bg-gray-50 rounded border max-h-40 overflow-y-auto">
+                        <div className="mt-2 p-3 bg-muted rounded border max-h-40 overflow-y-auto">
                           <pre className="whitespace-pre-wrap text-xs">
                             {log.message}
                           </pre>

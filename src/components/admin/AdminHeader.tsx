@@ -86,7 +86,7 @@ export const AdminHeader = ({
           <div className="flex items-center space-x-4">
             <ArrowSidebarToggle />
             <Link to="/">
-              <Button variant="outline" size="sm" className="bg-slate-700/50 text-slate-300 border-slate-600 hover:bg-white hover:text-slate-900 transition-colors">
+              <Button variant="outline" size="sm" className="bg-slate-700/50 text-slate-300 border-slate-600 hover:bg-card hover:text-slate-900 transition-colors">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Site
               </Button>

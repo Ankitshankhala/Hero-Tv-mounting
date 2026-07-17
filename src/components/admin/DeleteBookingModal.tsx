@@ -69,7 +69,7 @@ export const DeleteBookingModal = ({ booking, isOpen, onClose, onBookingDeleted 
         </DialogHeader>
         
         <div className="space-y-4">
-          <p className="text-gray-600">
+          <p className="text-muted-foreground">
             Are you sure you want to delete booking #{booking.id.slice(0, 8)}? This action cannot be undone.
           </p>
           

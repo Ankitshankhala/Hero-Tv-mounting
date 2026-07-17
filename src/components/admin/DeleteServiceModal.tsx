@@ -26,7 +26,7 @@ export const DeleteServiceModal: React.FC<DeleteServiceModalProps> = ({
           <DialogTitle>Delete Service</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-muted-foreground">
             Are you sure you want to delete "{service?.name}"? This action cannot be undone.
           </p>
           <div className="flex justify-end space-x-2">

@@ -104,25 +104,25 @@ const PaymentDetailsModal = ({ isOpen, onClose, payment, onSyncComplete }: Payme
 
         <div className="space-y-6">
           {/* Payment Status and Amount */}
-          <div className="bg-gray-50 p-4 rounded-lg">
+          <div className="bg-muted p-4 rounded-lg">
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h3 className="font-semibold text-lg">{formatCurrency(payment.amount, payment.currency)}</h3>
-                <p className="text-gray-600">Total Amount</p>
+                <p className="text-muted-foreground">Total Amount</p>
               </div>
               <div className="text-right">
                 {getStatusBadge(payment.status)}
-                <p className="text-sm text-gray-600 mt-1">{formatDate(payment.created_at)}</p>
+                <p className="text-sm text-muted-foreground mt-1">{formatDate(payment.created_at)}</p>
               </div>
             </div>
             
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <span className="text-gray-600">Payment Method:</span>
+                <span className="text-muted-foreground">Payment Method:</span>
                 <span className="font-medium ml-2 capitalize">{payment.payment_method || 'Card'}</span>
               </div>
               <div>
-                <span className="text-gray-600">Transaction ID:</span>
+                <span className="text-muted-foreground">Transaction ID:</span>
                 <span className="font-medium ml-2">{payment.id?.slice(0, 8)}...</span>
               </div>
             </div>
@@ -134,22 +134,22 @@ const PaymentDetailsModal = ({ isOpen, onClose, payment, onSyncComplete }: Payme
               <User className="h-4 w-4" />
               <span>Customer Information</span>
             </h4>
-            <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+            <div className="bg-muted p-4 rounded-lg space-y-2">
               <div className="flex items-center space-x-2">
-                <User className="h-4 w-4 text-gray-400" />
+                <User className="h-4 w-4 text-muted-foreground" />
                 <span>{payment.booking?.guest_customer_info?.name || 'Unknown Customer'}</span>
               </div>
               <div className="flex items-center space-x-2">
-                <Mail className="h-4 w-4 text-gray-400" />
+                <Mail className="h-4 w-4 text-muted-foreground" />
                 <span>{payment.booking?.guest_customer_info?.email || 'No email'}</span>
               </div>
               <div className="flex items-center space-x-2">
-                <Phone className="h-4 w-4 text-gray-400" />
+                <Phone className="h-4 w-4 text-muted-foreground" />
                 <span>{payment.booking?.guest_customer_info?.phone || 'No phone'}</span>
               </div>
               {payment.booking?.guest_customer_info?.city && (
                 <div className="flex items-center space-x-2">
-                  <MapPin className="h-4 w-4 text-gray-400" />
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
                   <span>{payment.booking.guest_customer_info.city}, {payment.booking.guest_customer_info.zipcode}</span>
                 </div>
               )}
@@ -162,19 +162,19 @@ const PaymentDetailsModal = ({ isOpen, onClose, payment, onSyncComplete }: Payme
               <MapPin className="h-4 w-4" />
               <span>Booking Information</span>
             </h4>
-            <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+            <div className="bg-muted p-4 rounded-lg space-y-2">
               <div>
-                <span className="text-gray-600">Booking ID:</span>
+                <span className="text-muted-foreground">Booking ID:</span>
                 <Button variant="link" className="p-0 h-auto ml-2">
                   {payment.booking_id?.slice(0, 8) || 'N/A'}...
                 </Button>
               </div>
               <div>
-                <span className="text-gray-600">Payment Intent ID:</span>
+                <span className="text-muted-foreground">Payment Intent ID:</span>
                 <span className="ml-2 font-mono text-sm">{payment.payment_intent_id || 'N/A'}</span>
               </div>
               <div>
-                <span className="text-gray-600">Transaction Date:</span>
+                <span className="text-muted-foreground">Transaction Date:</span>
                 <span className="ml-2">{formatDate(payment.created_at)}</span>
               </div>
             </div>
@@ -186,21 +186,21 @@ const PaymentDetailsModal = ({ isOpen, onClose, payment, onSyncComplete }: Payme
               <CreditCard className="h-4 w-4" />
               <span>Payment Method</span>
             </h4>
-            <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+            <div className="bg-muted p-4 rounded-lg space-y-2">
               <div>
-                <span className="text-gray-600">Method:</span>
+                <span className="text-muted-foreground">Method:</span>
                 <span className="ml-2 capitalize">{payment.payment_method || 'Card'}</span>
               </div>
               <div>
-                <span className="text-gray-600">Payment Intent ID:</span>
+                <span className="text-muted-foreground">Payment Intent ID:</span>
                 <span className="ml-2 font-mono text-sm">{payment.payment_intent_id || 'N/A'}</span>
               </div>
               <div>
-                <span className="text-gray-600">Status:</span>
+                <span className="text-muted-foreground">Status:</span>
                 <span className="ml-2">{getStatusBadge(payment.status)}</span>
               </div>
               <div>
-                <span className="text-gray-600">Processed At:</span>
+                <span className="text-muted-foreground">Processed At:</span>
                 <span className="ml-2">{formatDate(payment.created_at)}</span>
               </div>
             </div>
@@ -225,14 +225,14 @@ const PaymentDetailsModal = ({ isOpen, onClose, payment, onSyncComplete }: Payme
                 }`}></div>
                 <div>
                   <p className="font-medium">Transaction Status: {payment.status}</p>
-                  <p className="text-sm text-gray-600">{formatDate(payment.created_at)}</p>
+                  <p className="text-sm text-muted-foreground">{formatDate(payment.created_at)}</p>
                 </div>
               </div>
               <div className="flex items-start space-x-3">
                 <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
                 <div>
                   <p className="font-medium">Transaction Created</p>
-                  <p className="text-sm text-gray-600">{formatDate(payment.created_at)}</p>
+                  <p className="text-sm text-muted-foreground">{formatDate(payment.created_at)}</p>
                 </div>
               </div>
             </div>

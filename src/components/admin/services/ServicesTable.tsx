@@ -61,11 +61,11 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+    <div className="bg-card rounded-xl shadow-sm border overflow-hidden">
       <div className="overflow-x-auto">
         <Table className="min-w-[900px]">
         <TableHeader>
-          <TableRow className="bg-gray-50 hover:bg-gray-50">
+          <TableRow className="bg-muted hover:bg-muted">
             <TableHead className="font-semibold">Order</TableHead>
             <TableHead className="font-semibold">Image</TableHead>
             <TableHead className="font-semibold">Service Name</TableHead>
@@ -78,7 +78,7 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
         <TableBody>
           {filteredServices.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+              <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                 {searchTerm ? 'No services found matching your search.' : 'No services available. Add your first service to get started.'}
               </TableCell>
             </TableRow>

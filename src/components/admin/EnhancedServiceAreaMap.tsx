@@ -201,7 +201,7 @@ export const EnhancedServiceAreaMap: React.FC<EnhancedServiceAreaMapProps> = ({
 
       {/* Selected area info panel */}
       {selectedArea && (
-        <div className="absolute top-4 right-4 bg-white rounded-lg shadow-lg border p-4 max-w-sm z-[1000]">
+        <div className="absolute top-4 right-4 bg-card rounded-lg shadow-lg border p-4 max-w-sm z-[1000]">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-lg">Area Details</h3>
             <Button
@@ -217,7 +217,7 @@ export const EnhancedServiceAreaMap: React.FC<EnhancedServiceAreaMapProps> = ({
           <div className="space-y-3">
             {/* Editable area name */}
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">
+              <label className="text-sm font-medium text-foreground mb-1 block">
                 Area Name
               </label>
               <AreaNameEditor
@@ -229,7 +229,7 @@ export const EnhancedServiceAreaMap: React.FC<EnhancedServiceAreaMapProps> = ({
             </div>
 
             {/* Worker info */}
-            <div className="flex items-center gap-2 text-sm text-gray-600">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <MapPin className="h-4 w-4" />
               <span>Worker: {selectedArea.worker.name}</span>
             </div>
@@ -246,7 +246,7 @@ export const EnhancedServiceAreaMap: React.FC<EnhancedServiceAreaMapProps> = ({
 
             {/* ZIP codes count */}
             {selectedArea.zipcode_list?.length && (
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-muted-foreground">
                 <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
                   {selectedArea.zipcode_list.length} ZIP codes
                 </span>
@@ -254,7 +254,7 @@ export const EnhancedServiceAreaMap: React.FC<EnhancedServiceAreaMapProps> = ({
             )}
 
             {/* Created date */}
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-muted-foreground">
               Created: {new Date(selectedArea.created_at).toLocaleDateString()}
             </div>
           </div>
@@ -285,20 +285,20 @@ export const EnhancedServiceAreaMap: React.FC<EnhancedServiceAreaMapProps> = ({
       {/* ZCTA loading indicator */}
       {zctaIntegration.isLoading && (
         <div className="absolute top-4 left-4 z-[1000]">
-          <div className="bg-white rounded-lg shadow-lg border p-3">
+          <div className="bg-card rounded-lg shadow-lg border p-3">
             <div className="flex items-center gap-2">
               <div className="animate-spin h-4 w-4 border-2 border-purple-600 border-t-transparent rounded-full"></div>
               <div className="text-sm">
                 <div className="font-medium">Loading ZCTA Boundaries</div>
                 {zctaIntegration.progress && (
-                  <div className="text-xs text-gray-600">
+                  <div className="text-xs text-muted-foreground">
                     {zctaIntegration.progress.message}
                   </div>
                 )}
               </div>
             </div>
             {zctaIntegration.progress && (
-              <div className="mt-2 w-48 bg-gray-200 rounded-full h-1">
+              <div className="mt-2 w-48 bg-muted rounded-full h-1">
                 <div 
                   className="bg-purple-600 h-1 rounded-full transition-all duration-300"
                   style={{ width: `${zctaIntegration.progress.progress}%` }}
@@ -310,7 +310,7 @@ export const EnhancedServiceAreaMap: React.FC<EnhancedServiceAreaMapProps> = ({
       )}
 
       {/* Enhanced Legend with ZCTA info */}
-      <div className="absolute bottom-4 right-4 bg-white rounded-lg shadow-lg border p-3 z-[1000]">
+      <div className="absolute bottom-4 right-4 bg-card rounded-lg shadow-lg border p-3 z-[1000]">
         <h4 className="font-medium text-sm mb-2">Legend</h4>
         <div className="space-y-1 text-xs">
           <div className="flex items-center gap-2">
@@ -318,7 +318,7 @@ export const EnhancedServiceAreaMap: React.FC<EnhancedServiceAreaMapProps> = ({
             <span>Active Service Areas</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 border-2 border-gray-400 bg-gray-100 border-dashed"></div>
+            <div className="w-3 h-3 border-2 border-gray-400 bg-muted border-dashed"></div>
             <span>Inactive Areas</span>
           </div>
           {zctaBoundariesVisible && (
@@ -346,7 +346,7 @@ export const EnhancedServiceAreaMap: React.FC<EnhancedServiceAreaMapProps> = ({
             )}
           </div>
           
-          <div className="text-gray-500 mt-2">
+          <div className="text-muted-foreground mt-2">
             Click areas for details • Zoom in for ZIP boundaries
           </div>
         </div>

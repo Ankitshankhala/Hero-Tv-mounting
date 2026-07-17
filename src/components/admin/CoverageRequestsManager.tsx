@@ -158,7 +158,7 @@ export const CoverageRequestsManager = () => {
       </CardHeader>
       <CardContent className="space-y-4">
         {coverageRequests.length === 0 ? (
-          <p className="text-gray-500 text-center py-4">No active coverage requests</p>
+          <p className="text-muted-foreground text-center py-4">No active coverage requests</p>
         ) : (
           coverageRequests.map((request) => {
             const stats = getResponseStats(request.notifications);
@@ -172,7 +172,7 @@ export const CoverageRequestsManager = () => {
                         <h3 className="font-semibold">
                           {request.service?.name} - {request.customer?.name}
                         </h3>
-                        <div className="flex items-center space-x-4 text-sm text-gray-600">
+                        <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                           <div className="flex items-center space-x-1">
                             <Clock className="h-4 w-4" />
                             <span>{request.scheduled_date} at {request.scheduled_start}</span>
@@ -201,7 +201,7 @@ export const CoverageRequestsManager = () => {
 
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2">
-                        <Users className="h-4 w-4 text-gray-500" />
+                        <Users className="h-4 w-4 text-muted-foreground" />
                         <span className="text-sm">
                           {stats.total} workers notified
                         </span>
@@ -228,7 +228,7 @@ export const CoverageRequestsManager = () => {
                         <h4 className="text-sm font-medium">Worker Responses:</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                           {request.notifications.map((notification) => (
-                            <div key={notification.id} className="flex items-center justify-between text-sm p-2 bg-gray-50 rounded">
+                            <div key={notification.id} className="flex items-center justify-between text-sm p-2 bg-muted rounded">
                               <span>{notification.worker?.name}</span>
                               <div className="flex items-center space-x-2">
                                 <Badge

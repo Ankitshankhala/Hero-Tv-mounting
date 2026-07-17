@@ -310,10 +310,10 @@ export const AssignWorkerModal = ({ onClose, onAssignmentComplete, isOpen, selec
   if (loading) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6 w-full max-w-md">
+        <div className="bg-card rounded-lg p-6 w-full max-w-md">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading...</p>
+            <p className="text-muted-foreground">Loading...</p>
           </div>
         </div>
       </div>
@@ -322,7 +322,7 @@ export const AssignWorkerModal = ({ onClose, onAssignmentComplete, isOpen, selec
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-card rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold">Assign Worker to Booking</h2>
           <Button variant="ghost" size="sm" onClick={onClose}>
@@ -337,7 +337,7 @@ export const AssignWorkerModal = ({ onClose, onAssignmentComplete, isOpen, selec
             </Label>
             <div className="space-y-3 max-h-96 overflow-y-auto">
               {unassignedBookings.length === 0 ? (
-                <p className="text-gray-500 text-center py-4">No unassigned bookings</p>
+                <p className="text-muted-foreground text-center py-4">No unassigned bookings</p>
               ) : (
                 unassignedBookings
                   .filter(booking => !selectedBookingId || booking.id === selectedBookingId)
@@ -345,7 +345,7 @@ export const AssignWorkerModal = ({ onClose, onAssignmentComplete, isOpen, selec
                     <Card 
                       key={booking.id} 
                       className={`cursor-pointer transition-colors ${
-                        selectedBooking === booking.id ? 'ring-2 ring-blue-500 bg-blue-50' : 'hover:bg-gray-50'
+                        selectedBooking === booking.id ? 'ring-2 ring-blue-500 bg-blue-50' : 'hover:bg-muted'
                       } ${selectedBookingId ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
                       onClick={() => setSelectedBooking(booking.id)}
                     >
@@ -359,8 +359,8 @@ export const AssignWorkerModal = ({ onClose, onAssignmentComplete, isOpen, selec
                                 : null) || 
                               'Unknown Customer'}
                            </p>
-                           <p className="text-sm text-gray-600">{booking.service?.name || 'Unknown Service'}</p>
-                            <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
+                           <p className="text-sm text-muted-foreground">{booking.service?.name || 'Unknown Service'}</p>
+                            <div className="flex items-center space-x-4 mt-2 text-sm text-muted-foreground">
                               <div className="flex items-center space-x-1">
                                 <Clock className="h-3 w-3" />
                                 <span>{formatDate(booking.scheduled_date)} at {formatTime(booking.scheduled_start)}</span>
@@ -390,7 +390,7 @@ export const AssignWorkerModal = ({ onClose, onAssignmentComplete, isOpen, selec
             </Label>
             <div className="space-y-3 max-h-96 overflow-y-auto">
               {availableWorkers.length === 0 ? (
-                <p className="text-gray-500 text-center py-4">No available workers</p>
+                <p className="text-muted-foreground text-center py-4">No available workers</p>
               ) : (
                 availableWorkers.map((worker) => (
                   <Card 
@@ -398,7 +398,7 @@ export const AssignWorkerModal = ({ onClose, onAssignmentComplete, isOpen, selec
                     className={`transition-colors ${
                       selectedWorker === worker.id ? 'ring-2 ring-green-500 bg-green-50' : 
                       worker.isAvailable === false ? 'opacity-60 cursor-not-allowed' :
-                      'cursor-pointer hover:bg-gray-50'
+                      'cursor-pointer hover:bg-muted'
                     }`}
                     onClick={() => worker.isAvailable !== false && setSelectedWorker(worker.id)}
                   >
@@ -409,11 +409,11 @@ export const AssignWorkerModal = ({ onClose, onAssignmentComplete, isOpen, selec
                             <User className="h-4 w-4" />
                             <p className="font-medium">{worker.name}</p>
                           </div>
-                          <p className="text-sm text-gray-600 mt-1">{worker.email}</p>
+                          <p className="text-sm text-muted-foreground mt-1">{worker.email}</p>
                           {worker.city && (
                             <div className="flex items-center space-x-1 mt-2">
-                              <MapPin className="h-3 w-3 text-gray-500" />
-                              <span className="text-sm text-gray-600">{worker.city}</span>
+                              <MapPin className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-sm text-muted-foreground">{worker.city}</span>
                             </div>
                           )}
                           {worker.isAvailable === false && worker.unavailabilityReason && (

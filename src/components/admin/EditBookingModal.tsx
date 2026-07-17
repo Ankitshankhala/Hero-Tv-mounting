@@ -322,10 +322,10 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
             </div>
             {selectedService && (
               <div className="flex flex-col justify-end">
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-muted-foreground">
                   <span className="font-medium">Duration:</span> {selectedService.duration_minutes} minutes
                 </div>
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-muted-foreground">
                   <span className="font-medium">Price:</span> ${selectedService.base_price}
                 </div>
               </div>

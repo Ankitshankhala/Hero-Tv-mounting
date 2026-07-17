@@ -137,23 +137,23 @@ export const ReviewsManager = () => {
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card><CardContent className="p-6">
-          <div className="flex items-center space-x-2"><Star className="h-4 w-4 text-yellow-500" /><span className="text-sm text-gray-600">Average Rating</span></div>
-          <div className="text-2xl font-bold text-gray-900 mt-2">{stats.avg}</div>
-          <div className="text-xs text-gray-500">Across approved reviews</div>
+          <div className="flex items-center space-x-2"><Star className="h-4 w-4 text-yellow-500" /><span className="text-sm text-muted-foreground">Average Rating</span></div>
+          <div className="text-2xl font-bold text-foreground mt-2">{stats.avg}</div>
+          <div className="text-xs text-muted-foreground">Across approved reviews</div>
         </CardContent></Card>
         <Card><CardContent className="p-6">
-          <div className="text-sm text-gray-600">Total Reviews</div>
-          <div className="text-2xl font-bold text-gray-900 mt-2">{stats.total}</div>
+          <div className="text-sm text-muted-foreground">Total Reviews</div>
+          <div className="text-2xl font-bold text-foreground mt-2">{stats.total}</div>
         </CardContent></Card>
         <Card><CardContent className="p-6">
-          <div className="text-sm text-gray-600">Pending Approval</div>
-          <div className="text-2xl font-bold text-gray-900 mt-2">{stats.pending}</div>
+          <div className="text-sm text-muted-foreground">Pending Approval</div>
+          <div className="text-2xl font-bold text-foreground mt-2">{stats.pending}</div>
           <div className="text-xs text-orange-600">{stats.pending > 0 ? 'Needs attention' : 'All clear'}</div>
         </CardContent></Card>
         <Card><CardContent className="p-6">
-          <div className="flex items-center space-x-2"><ImageIcon className="h-4 w-4 text-blue-600" /><span className="text-sm text-gray-600">With Images</span></div>
-          <div className="text-2xl font-bold text-gray-900 mt-2">{stats.withImages}</div>
-          <div className="text-xs text-gray-500">{stats.total ? `${Math.round((stats.withImages / stats.total) * 100)}% of reviews` : '—'}</div>
+          <div className="flex items-center space-x-2"><ImageIcon className="h-4 w-4 text-blue-600" /><span className="text-sm text-muted-foreground">With Images</span></div>
+          <div className="text-2xl font-bold text-foreground mt-2">{stats.withImages}</div>
+          <div className="text-xs text-muted-foreground">{stats.total ? `${Math.round((stats.withImages / stats.total) * 100)}% of reviews` : '—'}</div>
         </CardContent></Card>
       </div>
 
@@ -196,19 +196,19 @@ export const ReviewsManager = () => {
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-gray-500">Loading…</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
                 ) : filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-gray-500">No reviews found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No reviews found</TableCell></TableRow>
                 ) : filtered.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell>
                       <div className="font-medium">{r.customer_name}</div>
-                      {r.city && <div className="text-xs text-gray-500">{r.city}</div>}
+                      {r.city && <div className="text-xs text-muted-foreground">{r.city}</div>}
                     </TableCell>
                     <TableCell>{renderStars(r.rating)}</TableCell>
                     <TableCell className="font-medium">{r.title || '—'}</TableCell>
                     <TableCell className="max-w-xs"><p className="text-sm truncate">{r.comment}</p></TableCell>
-                    <TableCell>{r.image_url ? <ImageIcon className="h-4 w-4 text-blue-600" /> : <span className="text-sm text-gray-400">—</span>}</TableCell>
+                    <TableCell>{r.image_url ? <ImageIcon className="h-4 w-4 text-blue-600" /> : <span className="text-sm text-muted-foreground">—</span>}</TableCell>
                     <TableCell>{getStatusBadge(r.status)}</TableCell>
                     <TableCell className="whitespace-nowrap text-xs">{new Date(r.created_at).toLocaleDateString()}</TableCell>
                     <TableCell>

@@ -265,7 +265,7 @@ export const StripeConfigTest = () => {
 
             <div className="space-y-3">
               {Object.entries(testResults.tests).map(([key, test]: [string, any]) => (
-                <div key={key} className="p-3 bg-white border rounded-md">
+                <div key={key} className="p-3 bg-card border rounded-md">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center space-x-2">
                       {getStatusIcon(test.passed)}

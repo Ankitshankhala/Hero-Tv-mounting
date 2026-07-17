@@ -108,10 +108,10 @@ export const TodaysJobsModal = ({ onClose }: TodaysJobsModalProps) => {
   if (loading) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6 w-full max-w-md">
+        <div className="bg-card rounded-lg p-6 w-full max-w-md">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading today's jobs...</p>
+            <p className="text-muted-foreground">Loading today's jobs...</p>
           </div>
         </div>
       </div>
@@ -120,11 +120,11 @@ export const TodaysJobsModal = ({ onClose }: TodaysJobsModalProps) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-card rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <div>
             <h2 className="text-xl font-bold">Today's Jobs</h2>
-            <p className="text-gray-600">{new Date().toLocaleDateString('en-US', { 
+            <p className="text-muted-foreground">{new Date().toLocaleDateString('en-US', { 
               weekday: 'long', 
               year: 'numeric', 
               month: 'long', 
@@ -138,7 +138,7 @@ export const TodaysJobsModal = ({ onClose }: TodaysJobsModalProps) => {
 
         {todaysJobs.length === 0 ? (
           <div className="text-center py-8">
-            <p className="text-gray-500">No jobs scheduled for today</p>
+            <p className="text-muted-foreground">No jobs scheduled for today</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -157,20 +157,20 @@ export const TodaysJobsModal = ({ onClose }: TodaysJobsModalProps) => {
                       </div>
                     </div>
                     <div className="text-right">
-                      <span className="text-sm text-gray-600">{job.id.slice(0, 8)}</span>
+                      <span className="text-sm text-muted-foreground">{job.id.slice(0, 8)}</span>
                       <div className="mt-1">{getStatusBadge(job.status)}</div>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div>
-                    <p className="font-medium text-gray-900">{job.service?.name || 'Unknown Service'}</p>
+                    <p className="font-medium text-foreground">{job.service?.name || 'Unknown Service'}</p>
                   </div>
                   
                   {job.location_notes && (
                     <div className="flex items-start space-x-2">
-                      <MapPin className="h-4 w-4 text-gray-500 mt-0.5" />
-                      <span className="text-sm text-gray-600">{job.location_notes}</span>
+                      <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+                      <span className="text-sm text-muted-foreground">{job.location_notes}</span>
                     </div>
                   )}
 
@@ -183,8 +183,8 @@ export const TodaysJobsModal = ({ onClose }: TodaysJobsModalProps) => {
                     </div>
                     {job.worker?.phone && (
                       <div className="flex items-center space-x-2">
-                        <Phone className="h-4 w-4 text-gray-500" />
-                        <span className="text-sm text-gray-600">{job.worker.phone}</span>
+                        <Phone className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">{job.worker.phone}</span>
                       </div>
                     )}
                   </div>

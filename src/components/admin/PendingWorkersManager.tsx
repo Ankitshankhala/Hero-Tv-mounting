@@ -131,7 +131,7 @@ const PendingWorkersManager = () => {
       </CardHeader>
       <CardContent>
         {pendingWorkers.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-muted-foreground">
             <Clock className="h-12 w-12 mx-auto mb-4 text-gray-300" />
             <p>No pending worker registrations</p>
           </div>
@@ -142,18 +142,18 @@ const PendingWorkersManager = () => {
                 <div className="flex items-start justify-between">
                   <div className="space-y-2">
                     <div className="flex items-center space-x-2">
-                      <User className="h-4 w-4 text-gray-500" />
+                      <User className="h-4 w-4 text-muted-foreground" />
                       <span className="font-medium">{worker.name}</span>
                     </div>
-                    <div className="flex items-center space-x-2 text-sm text-gray-600">
+                    <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                       <Mail className="h-4 w-4" />
                       <span>{worker.email}</span>
                     </div>
-                    <div className="flex items-center space-x-2 text-sm text-gray-600">
+                    <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                       <Phone className="h-4 w-4" />
                       <span>{worker.phone}</span>
                     </div>
-                    <div className="flex items-center space-x-2 text-sm text-gray-600">
+                    <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                       <MapPin className="h-4 w-4" />
                       <span>{worker.city} - {worker.zip_code}</span>
                     </div>

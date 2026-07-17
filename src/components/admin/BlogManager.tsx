@@ -168,9 +168,9 @@ export const BlogManager = () => {
           <CardContent className="p-6">
             <div className="flex items-center space-x-2">
               <FileText className="h-4 w-4 text-blue-600" />
-              <span className="text-sm text-gray-600">Total Posts</span>
+              <span className="text-sm text-muted-foreground">Total Posts</span>
             </div>
-            <div className="text-2xl font-bold text-gray-900 mt-2">{posts.length}</div>
+            <div className="text-2xl font-bold text-foreground mt-2">{posts.length}</div>
             <div className="text-sm text-green-600">{publishedCount} published</div>
           </CardContent>
         </Card>
@@ -178,27 +178,27 @@ export const BlogManager = () => {
           <CardContent className="p-6">
             <div className="flex items-center space-x-2">
               <Eye className="h-4 w-4 text-green-600" />
-              <span className="text-sm text-gray-600">Total Views</span>
+              <span className="text-sm text-muted-foreground">Total Views</span>
             </div>
-            <div className="text-2xl font-bold text-gray-900 mt-2">{totalViews.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-foreground mt-2">{totalViews.toLocaleString()}</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center space-x-2">
               <Video className="h-4 w-4 text-purple-600" />
-              <span className="text-sm text-gray-600">With Videos</span>
+              <span className="text-sm text-muted-foreground">With Videos</span>
             </div>
-            <div className="text-2xl font-bold text-gray-900 mt-2">{postsWithVideos}</div>
+            <div className="text-2xl font-bold text-foreground mt-2">{postsWithVideos}</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center space-x-2">
               <FileText className="h-4 w-4 text-yellow-600" />
-              <span className="text-sm text-gray-600">Drafts</span>
+              <span className="text-sm text-muted-foreground">Drafts</span>
             </div>
-            <div className="text-2xl font-bold text-gray-900 mt-2">{draftCount}</div>
+            <div className="text-2xl font-bold text-foreground mt-2">{draftCount}</div>
           </CardContent>
         </Card>
       </div>
@@ -242,18 +242,18 @@ export const BlogManager = () => {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-gray-500">Loading…</TableCell>
+                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Loading…</TableCell>
                   </TableRow>
                 ) : filteredPosts.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-gray-500">No posts found</TableCell>
+                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No posts found</TableCell>
                   </TableRow>
                 ) : filteredPosts.map((post) => (
                   <TableRow key={post.id}>
                     <TableCell className="max-w-xs">
                       <p className="font-medium truncate">{post.title}</p>
                     </TableCell>
-                    <TableCell className="text-xs text-gray-500 max-w-[160px] truncate">{post.slug}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground max-w-[160px] truncate">{post.slug}</TableCell>
                     <TableCell>
                       {post.category && (
                         <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">{post.category}</span>
@@ -274,9 +274,9 @@ export const BlogManager = () => {
                           <span className="text-sm">Video</span>
                         </div>
                       ) : post.cover_image_url ? (
-                        <span className="text-sm text-gray-600">Image</span>
+                        <span className="text-sm text-muted-foreground">Image</span>
                       ) : (
-                        <span className="text-sm text-gray-400">Text only</span>
+                        <span className="text-sm text-muted-foreground">Text only</span>
                       )}
                     </TableCell>
                     <TableCell>{post.publish_date || '—'}</TableCell>

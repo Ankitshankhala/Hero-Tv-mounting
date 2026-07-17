@@ -394,7 +394,7 @@ export const ZctaDataManager = () => {
                     populateZctaData(true);
                   }
                 }}
-                className="rounded border-gray-300"
+                className="rounded border-border"
                 disabled={isPopulating}
               />
               <span className="text-muted-foreground">
