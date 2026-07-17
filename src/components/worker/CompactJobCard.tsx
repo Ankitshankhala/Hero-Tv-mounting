@@ -5,34 +5,11 @@ import { Button } from '@/components/ui/button';
 import {
   ChevronDown,
   Phone,
-  MapPin,
   Clock,
   Navigation,
-  MoreHorizontal,
-  CheckCircle,
-  CreditCard,
-  Plus,
-  Trash2,
-  Users,
-  Loader2,
-  Eye,
 } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu';
 import { formatBookingTimeForContext, convertUTCToLocal } from '@/utils/timeUtils';
 import { getJobAddress } from '@/utils/jobAddress';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { ReassignJobModal } from './ReassignJobModal';
-import { RescheduleJobModal } from './RescheduleJobModal';
-import { AddServicesModal } from './AddServicesModal';
-import { RemoveServicesModal } from './RemoveServicesModal';
-import OnSiteChargeModal from './OnSiteChargeModal';
 
 interface CompactJobCardProps {
   job: any;
@@ -49,17 +26,9 @@ export const CompactJobCard = ({
   onToggle,
   onCall,
   onDirections,
-  onJobUpdated,
 }: CompactJobCardProps) => {
   const [timeToStart, setTimeToStart] = useState<string | null>(null);
   const [isToday, setIsToday] = useState(false);
-  const [completing, setCompleting] = useState(false);
-  const [showReassign, setShowReassign] = useState(false);
-  const [showReschedule, setShowReschedule] = useState(false);
-  const [showAdd, setShowAdd] = useState(false);
-  const [showRemove, setShowRemove] = useState(false);
-  const [showCharge, setShowCharge] = useState(false);
-  const { toast } = useToast();
 
   const isArchived = !!job.is_archived;
 
@@ -171,11 +140,10 @@ export const CompactJobCard = ({
   const getAccentStyle = (): React.CSSProperties => {
     const s = isArchived ? 'completed' : (job.status || 'pending').toLowerCase();
     let token = '--status-pending';
-    if (s === 'confirmed' || s === 'scheduled' || s === 'in_progress')
-      token = '--status-confirmed';
+    if (s === 'confirmed' || s === 'scheduled') token = '--status-confirmed';
+    else if (s === 'in_progress') token = '--status-progress';
     else if (s === 'completed') token = '--status-completed';
     else if (s === 'cancelled') token = '--status-cancelled';
-    if (s === 'in_progress') token = '--status-progress';
     return { backgroundColor: `hsl(var(${token}))` };
   };
 
@@ -185,7 +153,7 @@ export const CompactJobCard = ({
   const getPaymentDisplay = (paymentStatus: string) => {
     if (isArchived) {
       return {
-        text: 'PAYMENT ACCEPTED',
+        text: 'PAID',
         color: 'bg-action-success text-white border-action-success',
       };
     }
@@ -198,18 +166,18 @@ export const CompactJobCard = ({
       case 'captured':
       case 'completed':
         return {
-          text: 'PAYMENT CAPTURED',
+          text: 'CAPTURED',
           color: 'bg-action-success text-white border-action-success',
         };
       case 'pending':
         return {
-          text: 'PAYMENT PENDING',
+          text: 'PENDING',
           color: 'bg-action-info text-white border-action-info',
         };
       case 'failed':
       case 'cancelled':
         return {
-          text: 'PAYMENT FAILED',
+          text: 'FAILED',
           color: 'bg-destructive text-white border-destructive',
         };
       default:
@@ -223,74 +191,10 @@ export const CompactJobCard = ({
   const getTipBadge = () => {
     const tip = job.tip_amount;
     if (!tip || tip <= 0) return null;
-    const status = job.payment_status?.toLowerCase();
-    let color = 'bg-muted text-muted-foreground border-border';
-    if (status === 'authorized')
-      color = 'bg-action-warning text-white border-action-warning';
-    else if (status === 'captured' || status === 'completed')
-      color = 'bg-action-success text-white border-action-success';
-    else if (status === 'pending')
-      color = 'bg-action-info text-white border-action-info';
-    return { text: `Tip $${tip.toFixed(2)}`, color };
-  };
-
-  // ---------- primary action logic (mirrors JobActions) ----------
-  const canCompleteAndCapture =
-    ['confirmed', 'in_progress', 'payment_authorized'].includes(job.status) &&
-    job.payment_status === 'authorized' &&
-    !!job.payment_intent_id &&
-    !job.requires_manual_payment &&
-    !job.pending_payment_amount;
-
-  const canCollectPayment =
-    job.payment_status === 'failed' || job.payment_status === 'cancelled';
-
-  const canAddServices =
-    job.status === 'confirmed' ||
-    job.status === 'in_progress' ||
-    job.status === 'payment_authorized';
-  const canModifyServices = canAddServices;
-  const canReassignOrReschedule =
-    job.status !== 'completed' && job.status !== 'cancelled';
-
-  const handleCompleteAndCapture = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (completing) return;
-    setCompleting(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const { data, error } = await supabase.functions.invoke(
-        'worker-complete-and-capture',
-        {
-          body: { booking_id: job.id },
-          headers: { Authorization: `Bearer ${session?.access_token ?? ''}` },
-        }
-      );
-      if (error) {
-        const err: any = error;
-        throw new Error(
-          err?.context?.error || err?.message || 'Unable to complete job'
-        );
-      }
-      if (!data?.success) throw new Error(data?.error || 'Unable to complete job');
-      const captured = Number(data.amount_captured || 0);
-      toast({
-        title: data.recovered_from_stripe
-          ? 'Job Completed (Recovered)'
-          : 'Job Completed & Payment Captured',
-        description: `Successfully charged $${captured.toFixed(2)}`,
-      });
-      onJobUpdated?.();
-    } catch (err) {
-      toast({
-        title: 'Payment Not Captured',
-        description:
-          err instanceof Error ? err.message : 'Please try again or contact admin.',
-        variant: 'destructive',
-      });
-    } finally {
-      setCompleting(false);
-    }
+    return {
+      text: `Tip $${tip.toFixed(2)}`,
+      color: 'bg-muted text-foreground border-border',
+    };
   };
 
   const stop = (e: React.MouseEvent) => e.stopPropagation();
@@ -299,225 +203,100 @@ export const CompactJobCard = ({
   const tipBadge = getTipBadge();
   const phone = getCustomerPhone();
 
-  // Determine primary action rendered on the dispatch card
-  const primaryBtnClass =
-    'w-full h-11 md:h-10 px-4 text-sm font-medium bg-primary hover:bg-primary/90 text-primary-foreground';
-
-  const renderPrimaryAction = () => {
-    if (canCompleteAndCapture) {
-      return (
-        <Button
-          onClick={handleCompleteAndCapture}
-          disabled={completing}
-          className={primaryBtnClass}
-        >
-          {completing ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          ) : (
-            <CheckCircle className="h-4 w-4 mr-2" />
-          )}
-          {completing ? 'Processing…' : 'Complete & collect payment'}
-        </Button>
-      );
-    }
-    if (canCollectPayment) {
-      return (
-        <Button
-          onClick={(e) => {
-            stop(e);
-            setShowCharge(true);
-          }}
-          className={primaryBtnClass}
-        >
-          <CreditCard className="h-4 w-4 mr-2" />
-          Collect payment
-        </Button>
-      );
-    }
-    // Fallback: view details
-    return (
-      <Button
-        onClick={(e) => {
-          stop(e);
-          if (!isExpanded) onToggle();
-        }}
-        variant="outline"
-        className="w-full h-11 md:h-10 px-4 text-sm font-medium"
-      >
-        <Eye className="h-4 w-4 mr-2" />
-        View details
-      </Button>
-    );
-  };
-
   return (
-    <>
-      <Card
-        onClick={onToggle}
-        className={`
-          relative overflow-hidden cursor-pointer transition-all duration-200
-          hover:shadow-md bg-card border border-border
-          ${isExpanded ? 'shadow-lg ring-2 ring-primary/20' : 'shadow-sm'}
-          ${isArchived ? 'opacity-80' : ''}
-        `}
-      >
-        {/* Left accent bar */}
-        <div
-          className="absolute left-0 top-0 bottom-0 w-[3px]"
-          style={getAccentStyle()}
-          aria-hidden="true"
-        />
+    <Card
+      onClick={onToggle}
+      className={`
+        relative overflow-hidden cursor-pointer transition-all duration-200
+        hover:shadow-md bg-card border border-border
+        ${isExpanded ? 'shadow-lg ring-1 ring-primary/30' : 'shadow-sm'}
+        ${isArchived ? 'opacity-80' : ''}
+      `}
+    >
+      {/* Left accent bar */}
+      <div
+        className="absolute left-0 top-0 bottom-0 w-[3px]"
+        style={getAccentStyle()}
+        aria-hidden="true"
+      />
 
-        <CardContent className="p-4 pl-5 space-y-3">
-          {/* Top row */}
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <div className="text-base font-medium text-foreground truncate">
+      <CardContent className="p-3 pl-4">
+        <div className="flex items-center gap-3">
+          {/* Main info */}
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="text-sm font-medium text-foreground truncate">
                 {getCustomerName()}
-              </div>
-              <div className="text-sm text-muted-foreground break-words">
-                {getServiceSummary()}
-              </div>
-            </div>
-            <div className="text-right shrink-0">
-              <div className="text-sm font-medium text-foreground whitespace-nowrap">
-                {formatCompactDateTime(job)}
-              </div>
-              {timeToStart && isToday && !isArchived && (
-                <div className="mt-1 flex justify-end">
-                  <Badge
-                    variant="outline"
-                    className={`text-[10px] font-medium flex items-center gap-1 ${getCountdownBadgeStyle()}`}
-                  >
-                    <Clock className="h-3 w-3" />
-                    {timeToStart === 'Started' ? 'Started' : `in ${timeToStart}`}
-                  </Badge>
-                </div>
+              </span>
+              <Badge
+                variant="outline"
+                className={`text-[10px] font-medium ${getStatusColor(job.status)}`}
+              >
+                {getDisplayStatus(job.status)}
+              </Badge>
+              <Badge
+                variant="outline"
+                className={`text-[10px] font-medium ${payment.color}`}
+              >
+                {payment.text}
+              </Badge>
+              {tipBadge && (
+                <Badge
+                  variant="outline"
+                  className={`text-[10px] font-medium ${tipBadge.color}`}
+                >
+                  {tipBadge.text}
+                </Badge>
               )}
+            </div>
+            <div className="mt-0.5 text-xs text-muted-foreground truncate">
+              {getServiceSummary()} · {getShortAddress()}
             </div>
           </div>
 
-          {/* Pills */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <Badge
-              variant="outline"
-              className={`text-[10px] font-medium ${getStatusColor(job.status)}`}
-            >
-              {getDisplayStatus(job.status)}
-            </Badge>
-            <Badge
-              variant="outline"
-              className={`text-[10px] font-medium ${payment.color}`}
-            >
-              {payment.text}
-            </Badge>
-            {tipBadge && (
+          {/* Time + countdown */}
+          <div className="hidden sm:flex flex-col items-end shrink-0">
+            <span className="text-xs font-medium text-foreground whitespace-nowrap">
+              {formatCompactDateTime(job)}
+            </span>
+            {timeToStart && isToday && !isArchived && (
               <Badge
                 variant="outline"
-                className={`text-[10px] font-medium ${tipBadge.color}`}
+                className={`mt-1 text-[10px] font-medium flex items-center gap-1 ${getCountdownBadgeStyle()}`}
               >
-                {tipBadge.text}
+                <Clock className="h-3 w-3" />
+                {timeToStart === 'Started' ? 'Started' : `in ${timeToStart}`}
               </Badge>
             )}
           </div>
 
-          {/* Address + Phone rows */}
-          <div className="space-y-1.5 text-sm">
-            <div className="flex items-start gap-2 text-muted-foreground">
-              <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
-              <span className="break-words">{getShortAddress()}</span>
-            </div>
-            {phone && (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Phone className="h-4 w-4 shrink-0" />
-                <span className="truncate">{phone}</span>
-              </div>
-            )}
-          </div>
-
-          {/* Action bar */}
-          <div
-            className="flex items-stretch gap-2 pt-2"
-            onClick={stop}
-          >
-            <div className="flex-1 min-w-0">{renderPrimaryAction()}</div>
-
+          {/* Icon actions */}
+          <div className="flex items-center gap-1 shrink-0" onClick={stop}>
             <Button
-              variant="outline"
+              variant="ghost"
               size="icon"
               onClick={(e) => {
                 stop(e);
                 onDirections();
               }}
-              className="h-11 w-11 md:h-10 md:w-10 shrink-0"
+              className="h-11 w-11 sm:h-9 sm:w-9"
               aria-label="Get directions"
             >
-              <Navigation className="h-5 w-5" />
+              <Navigation className="h-4 w-4" />
             </Button>
-
             <Button
-              variant="outline"
+              variant="ghost"
               size="icon"
               onClick={(e) => {
                 stop(e);
                 onCall();
               }}
               disabled={!phone}
-              className="h-11 w-11 md:h-10 md:w-10 shrink-0"
+              className="h-11 w-11 sm:h-9 sm:w-9"
               aria-label="Call customer"
             >
-              <Phone className="h-5 w-5" />
+              <Phone className="h-4 w-4" />
             </Button>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={stop}
-                  className="h-11 w-11 md:h-10 md:w-10 shrink-0"
-                  aria-label="More actions"
-                >
-                  <MoreHorizontal className="h-5 w-5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" onClick={stop} className="w-56">
-                <DropdownMenuItem
-                  onClick={() => {
-                    if (!isExpanded) onToggle();
-                  }}
-                >
-                  <Eye className="h-4 w-4 mr-2" />
-                  View details
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                {canAddServices && (
-                  <DropdownMenuItem onClick={() => setShowAdd(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add services
-                  </DropdownMenuItem>
-                )}
-                {canModifyServices && (
-                  <DropdownMenuItem onClick={() => setShowRemove(true)}>
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Remove services
-                  </DropdownMenuItem>
-                )}
-                {canReassignOrReschedule && (
-                  <>
-                    <DropdownMenuItem onClick={() => setShowReassign(true)}>
-                      <Users className="h-4 w-4 mr-2" />
-                      Reassign job
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setShowReschedule(true)}>
-                      <Clock className="h-4 w-4 mr-2" />
-                      Change time
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
             <Button
               variant="ghost"
               size="icon"
@@ -525,73 +304,30 @@ export const CompactJobCard = ({
                 stop(e);
                 onToggle();
               }}
-              className="h-11 w-11 md:h-10 md:w-10 shrink-0"
-              aria-label={isExpanded ? 'Collapse' : 'Expand'}
+              className="h-11 w-11 sm:h-9 sm:w-9"
+              aria-label={isExpanded ? 'Collapse job details' : 'Expand job details'}
             >
               <ChevronDown
-                className={`h-5 w-5 transition-transform duration-200 ${
-                  isExpanded ? 'rotate-180' : ''
-                }`}
+                className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
               />
             </Button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Modals — reuse existing components/handlers */}
-      <ReassignJobModal
-        isOpen={showReassign}
-        onClose={() => setShowReassign(false)}
-        bookingId={job.id}
-        onSuccess={() => {
-          setShowReassign(false);
-          onJobUpdated?.();
-        }}
-      />
-      <RescheduleJobModal
-        isOpen={showReschedule}
-        onClose={() => setShowReschedule(false)}
-        bookingId={job.id}
-        currentDate={job.scheduled_date}
-        currentTime={job.scheduled_start}
-        onSuccess={() => {
-          setShowReschedule(false);
-          onJobUpdated?.();
-        }}
-      />
-      {showAdd && (
-        <AddServicesModal
-          isOpen={showAdd}
-          onClose={() => setShowAdd(false)}
-          job={job}
-          onServicesAdded={() => {
-            setShowAdd(false);
-            onJobUpdated?.();
-          }}
-        />
-      )}
-      {showRemove && (
-        <RemoveServicesModal
-          isOpen={showRemove}
-          onClose={() => setShowRemove(false)}
-          job={job}
-          onModificationCreated={() => {
-            setShowRemove(false);
-            onJobUpdated?.();
-          }}
-        />
-      )}
-      {showCharge && (
-        <OnSiteChargeModal
-          isOpen={showCharge}
-          onClose={() => setShowCharge(false)}
-          job={job}
-          onChargeSuccess={() => {
-            setShowCharge(false);
-            onJobUpdated?.();
-          }}
-        />
-      )}
-    </>
+        {/* Mobile time row */}
+        <div className="sm:hidden mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+          <span className="whitespace-nowrap">{formatCompactDateTime(job)}</span>
+          {timeToStart && isToday && !isArchived && (
+            <Badge
+              variant="outline"
+              className={`text-[10px] font-medium flex items-center gap-1 ${getCountdownBadgeStyle()}`}
+            >
+              <Clock className="h-3 w-3" />
+              {timeToStart === 'Started' ? 'Started' : `in ${timeToStart}`}
+            </Badge>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 };
