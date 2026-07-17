@@ -183,6 +183,7 @@ export function DataTable<T>({
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }
