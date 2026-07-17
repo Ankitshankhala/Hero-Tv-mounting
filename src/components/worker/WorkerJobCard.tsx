@@ -123,13 +123,18 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
 
   // Extract special instructions from location_notes or special_instructions field
   const getSpecialInstructions = () => {
-    // First check if there's a dedicated special_instructions field
     if (job.special_instructions && job.special_instructions.trim()) {
       return job.special_instructions.trim();
     }
 
-    // Then check location_notes for special instructions
     if (job.location_notes) {
+      // New format: "... | Notes: <instructions>"
+      const notesIdx = job.location_notes.indexOf('Notes:');
+      if (notesIdx !== -1) {
+        const instructions = job.location_notes.substring(notesIdx + 'Notes:'.length).trim();
+        return instructions || null;
+      }
+      // Legacy fallback
       const specialInstructionsIndex = job.location_notes.indexOf('Special Instructions:');
       if (specialInstructionsIndex !== -1) {
         const instructions = job.location_notes
@@ -140,6 +145,17 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
     }
 
     return null;
+  };
+
+  // Extract address portion (everything before "Notes:") from location_notes
+  const getAddressFromLocationNotes = () => {
+    if (!job.location_notes) return null;
+    const notesIdx = job.location_notes.indexOf('Notes:');
+    const addressPart = notesIdx !== -1
+      ? job.location_notes.substring(0, notesIdx)
+      : job.location_notes;
+    // Trim trailing " | " separators
+    return addressPart.replace(/\s*\|\s*$/, '').trim() || null;
   };
 
   const specialInstructions = getSpecialInstructions();
@@ -290,6 +306,7 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
                 const customerName = job.guest_customer_info?.name || job.customer?.name;
                 const customerEmail = job.guest_customer_info?.email || job.customer?.email;
                 const customerPhone = job.guest_customer_info?.phone || job.customer?.phone;
+                const customerAddressFromNotes = getAddressFromLocationNotes();
                 const customerAddress = job.guest_customer_info?.address;
                 const customerUnit = job.guest_customer_info?.unit;
                 const customerCity = job.guest_customer_info?.city;
@@ -301,11 +318,22 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
                     {customerName && (
                       <div><span className="font-medium">Name:</span> {customerName}</div>
                     )}
-                    {customerAddress && (
-                      <div><span className="font-medium">Address:</span> {customerAddress}</div>
-                    )}
-                    {customerUnit && (
-                      <div><span className="font-medium">Unit:</span> {customerUnit}</div>
+                    {customerAddressFromNotes ? (
+                      <div>
+                        <span className="font-medium">Address:</span>{' '}
+                        {customerAddressFromNotes.split(/\s*\|\s*/).map((line, i) => (
+                          <div key={i} className={i === 0 ? 'inline' : 'ml-16'}>{line}</div>
+                        ))}
+                      </div>
+                    ) : (
+                      <>
+                        {customerAddress && (
+                          <div><span className="font-medium">Address:</span> {customerAddress}</div>
+                        )}
+                        {customerUnit && (
+                          <div><span className="font-medium">Unit:</span> {customerUnit}</div>
+                        )}
+                      </>
                     )}
                     {(customerCity || customerState || customerZipcode) && (
                       <div>
