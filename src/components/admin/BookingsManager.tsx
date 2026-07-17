@@ -118,7 +118,7 @@ export const BookingsManager = () => {
       );
     }
     setFilteredBookings(filtered);
-  }, [bookings, filterStatus, filterRegion, archiveFilter, searchTerm]);
+  }, [bookings, filterStatus, filterRegion, archiveFilter, searchTerm, includeArchived]);
 
   const handleBookingCreated = () => {
     console.log('Booking created, refreshing list');
