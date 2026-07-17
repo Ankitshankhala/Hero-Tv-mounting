@@ -367,15 +367,20 @@ export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onCollaps
                     {customerApartmentName && !job.location_notes && (
                       <div><span className="font-medium">Apartment:</span> <span className="text-muted-foreground">{customerApartmentName}</span></div>
                     )}
-                    {(customerCity || customerState || customerZipcode) && (() => {
-                      const cityState = [customerCity, customerState].filter(Boolean).join(', ');
-                      const cityLine = [cityState, customerZipcode].filter(Boolean).join(' ');
-                      return (
-                        <div>
-                          <span className="font-medium">City:</span> <span className="text-muted-foreground">{cityLine}</span>
-                        </div>
-                      );
-                    })()}
+                    {(customerCity || customerState) && (
+                      <div>
+                        <span className="font-medium">City:</span>{' '}
+                        <span className="text-muted-foreground">
+                          {[customerCity, customerState].filter(Boolean).join(', ')}
+                        </span>
+                      </div>
+                    )}
+                    {customerZipcode && (
+                      <div>
+                        <span className="font-medium">ZIP:</span>{' '}
+                        <span className="text-muted-foreground">{customerZipcode}</span>
+                      </div>
+                    )}
                     {customerPhone && (
                       <div><span className="font-medium">Phone:</span> <span className="text-muted-foreground">{customerPhone}</span></div>
                     )}
