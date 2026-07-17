@@ -28,11 +28,12 @@ interface Props<T> {
   empty?: React.ReactNode;
   onRowClick?: (row: T) => void;
   zebra?: boolean;
+  hideFooter?: boolean;
 }
 
 export function DataTable<T>({
   data, columns, rowKey, pageSize = 10, density: densityProp,
-  onDensityChange, loading, empty, onRowClick, zebra = true,
+  onDensityChange, loading, empty, onRowClick, zebra = true, hideFooter,
 }: Props<T>) {
   const [sort, setSort] = React.useState<{ key: string; dir: 'asc' | 'desc' } | null>(null);
   const [page, setPage] = React.useState(0);
@@ -150,6 +151,7 @@ export function DataTable<T>({
         </div>
       </div>
 
+      {!hideFooter && (
       <div className="flex items-center justify-between mt-3 text-xs text-muted-foreground">
         <div className="flex items-center gap-2">
           <span>Density</span>
@@ -181,6 +183,7 @@ export function DataTable<T>({
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

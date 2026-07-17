@@ -1,15 +1,19 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { FileText, Mail, Search, Eye, Download } from 'lucide-react';
+import { FileText, Mail, Eye, MoreHorizontal } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { InvoiceDetailsModal } from './InvoiceDetailsModal';
 import { useRealtimeInvoices } from '@/hooks/useRealtimeInvoices';
+import { PageHeader } from '@/components/admin/ui/PageHeader';
+import { Toolbar } from '@/components/admin/ui/Toolbar';
+import { DataTable, type Column } from '@/components/admin/ui/DataTable';
+import { StatusBadge } from '@/components/admin/ui/StatusBadge';
+import { EmptyState } from '@/components/admin/ui/EmptyState';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface Invoice {
   id: string;
@@ -25,19 +29,16 @@ interface Invoice {
   status: string;
   email_sent: boolean;
   email_sent_at: string | null;
-  customer: {
-    name: string;
-    email: string;
-    phone: string;
-  } | null;
+  customer: { name: string; email: string; phone: string } | null;
   booking: {
     scheduled_date: string;
     guest_customer_info: any;
-    service: {
-      name: string;
-    };
+    service: { name: string };
   } | null;
 }
+
+const formatCurrency = (n: number) =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
 
 export const InvoicesManager = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -51,7 +52,6 @@ export const InvoicesManager = () => {
     const guestName = invoice.booking?.guest_customer_info?.name;
     return invoice.customer_name || invoice.customer?.name || guestName || 'Guest Customer';
   };
-
   const getCustomerEmail = (invoice: Invoice): string => {
     const guestEmail = invoice.booking?.guest_customer_info?.email;
     return invoice.customer_email || invoice.customer?.email || guestEmail || 'N/A';
@@ -76,217 +76,156 @@ export const InvoicesManager = () => {
       setInvoices(data || []);
     } catch (error) {
       console.error('Error fetching invoices:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load invoices",
-        variant: "destructive",
-      });
+      toast({ title: 'Error', description: 'Failed to load invoices', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   }, [toast]);
 
-  // Set up real-time subscription
   useRealtimeInvoices(fetchInvoices);
 
-  useEffect(() => {
-    fetchInvoices();
-  }, [fetchInvoices]);
-
-  const generateInvoice = async (bookingId: string) => {
-    try {
-      const { data, error } = await supabase.functions.invoke('generate-invoice', {
-        body: { booking_id: bookingId, send_email: true }
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Invoice generated and sent successfully",
-      });
-      
-      fetchInvoices();
-    } catch (error) {
-      console.error('Error generating invoice:', error);
-      toast({
-        title: "Error",
-        description: "Failed to generate invoice",
-        variant: "destructive",
-      });
-    }
-  };
+  useEffect(() => { fetchInvoices(); }, [fetchInvoices]);
 
   const resendInvoiceEmail = async (invoiceId: string, bookingId: string) => {
     try {
-      const { data, error } = await supabase.functions.invoke('generate-invoice', {
-        body: { booking_id: bookingId, send_email: true }
+      const { error } = await supabase.functions.invoke('generate-invoice', {
+        body: { booking_id: bookingId, send_email: true },
       });
-
       if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Invoice email resent successfully",
-      });
-      
+      toast({ title: 'Success', description: 'Invoice email resent successfully' });
       fetchInvoices();
     } catch (error) {
       console.error('Error resending invoice:', error);
-      toast({
-        title: "Error",
-        description: "Failed to resend invoice email",
-        variant: "destructive",
-      });
+      toast({ title: 'Error', description: 'Failed to resend invoice email', variant: 'destructive' });
     }
   };
 
-  const filteredInvoices = invoices.filter(invoice => {
-    const name = getCustomerName(invoice).toLowerCase();
-    const email = getCustomerEmail(invoice).toLowerCase();
+  const filtered = invoices.filter((inv) => {
+    const s = searchTerm.toLowerCase();
     return (
-      invoice.invoice_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      name.includes(searchTerm.toLowerCase()) ||
-      email.includes(searchTerm.toLowerCase())
+      inv.invoice_number.toLowerCase().includes(s) ||
+      getCustomerName(inv).toLowerCase().includes(s) ||
+      getCustomerEmail(inv).toLowerCase().includes(s)
     );
   });
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'sent':
-        return <Badge variant="default">Sent</Badge>;
-      case 'draft':
-        return <Badge variant="secondary">Draft</Badge>;
-      case 'paid':
-        return <Badge variant="outline">Paid</Badge>;
-      default:
-        return <Badge variant="secondary">{status}</Badge>;
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <FileText className="h-5 w-5" />
-            <span>Invoice Management</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col md:flex-row gap-4 mb-6">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                placeholder="Search by invoice number, customer name, or email..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </div>
-
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Invoice #</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Service</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Email Sent</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredInvoices.map((invoice) => (
-                  <TableRow key={invoice.id}>
-                    <TableCell className="font-medium">
-                      {invoice.invoice_number}
-                    </TableCell>
-                     <TableCell>
-                       <div>
-                         <div className="font-medium">{getCustomerName(invoice)}</div>
-                         <div className="text-sm text-gray-500">{getCustomerEmail(invoice)}</div>
-                       </div>
-                     </TableCell>
-                     <TableCell>{invoice.booking?.service?.name || 'N/A'}</TableCell>
-                    <TableCell>
-                      {new Date(invoice.invoice_date).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>${invoice.amount.toFixed(2)}</TableCell>
-                    <TableCell>{getStatusBadge(invoice.status)}</TableCell>
-                    <TableCell>
-                      {invoice.email_sent ? (
-                        <div>
-                          <Badge variant="outline" className="text-green-600">
-                            Sent
-                          </Badge>
-                          {invoice.email_sent_at && (
-                            <div className="text-xs text-gray-500 mt-1">
-                              {new Date(invoice.email_sent_at).toLocaleDateString()}
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <Badge variant="secondary">Not Sent</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedInvoice(invoice);
-                            setShowDetailsModal(true);
-                          }}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => resendInvoiceEmail(invoice.id, invoice.booking_id)}
-                        >
-                          <Mail className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-
-          {filteredInvoices.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
-              No invoices found matching your search criteria.
+  const columns: Column<Invoice>[] = [
+    {
+      key: 'number',
+      header: 'Invoice',
+      accessor: (i) => <span className="font-medium">{i.invoice_number}</span>,
+      sortable: true,
+      sortValue: (i) => i.invoice_number,
+    },
+    {
+      key: 'customer',
+      header: 'Customer',
+      accessor: (i) => (
+        <div className="min-w-0">
+          <div className="font-medium truncate">{getCustomerName(i)}</div>
+          <div className="text-xs text-muted-foreground truncate">{getCustomerEmail(i)}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'service',
+      header: 'Service',
+      accessor: (i) => i.booking?.service?.name || <span className="text-muted-foreground">—</span>,
+    },
+    {
+      key: 'date',
+      header: 'Date',
+      accessor: (i) => <span className="text-sm text-muted-foreground">{new Date(i.invoice_date).toLocaleDateString()}</span>,
+      sortable: true,
+      sortValue: (i) => new Date(i.invoice_date).getTime(),
+    },
+    {
+      key: 'amount',
+      header: 'Amount',
+      accessor: (i) => formatCurrency(i.amount),
+      numeric: true,
+      sortable: true,
+      sortValue: (i) => Number(i.amount) || 0,
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      accessor: (i) => <StatusBadge status={i.status} />,
+    },
+    {
+      key: 'email',
+      header: 'Email',
+      accessor: (i) => i.email_sent ? (
+        <div>
+          <StatusBadge status="sent" variant="success">Sent</StatusBadge>
+          {i.email_sent_at && (
+            <div className="text-[11px] text-muted-foreground mt-1">
+              {new Date(i.email_sent_at).toLocaleDateString()}
             </div>
           )}
-        </CardContent>
+        </div>
+      ) : <StatusBadge status="not_sent" variant="neutral">Not sent</StatusBadge>,
+    },
+    {
+      key: 'actions',
+      header: '',
+      className: 'text-right',
+      accessor: (i) => (
+        <div className="text-right">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" aria-label="Actions">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => { setSelectedInvoice(i); setShowDetailsModal(true); }}>
+                <Eye className="h-4 w-4 mr-2" />View details
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => resendInvoiceEmail(i.id, i.booking_id)}>
+                <Mail className="h-4 w-4 mr-2" />Resend email
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <>
+      <PageHeader title="Invoices" subtitle="Generated invoices and email delivery status" />
+
+      <Toolbar
+        search={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search by invoice number, customer name, or email..."
+      />
+
+      <Card className="p-4 border-border shadow-sm">
+        <DataTable
+          data={filtered}
+          columns={columns}
+          rowKey={(i) => i.id}
+          loading={loading}
+          pageSize={20}
+          empty={
+            <EmptyState
+              icon={FileText}
+              title={searchTerm ? 'No invoices found' : 'No invoices yet'}
+              description={searchTerm ? 'Try a different search term.' : 'Invoices will appear here once generated.'}
+            />
+          }
+        />
       </Card>
 
       {showDetailsModal && selectedInvoice && (
         <InvoiceDetailsModal
           invoice={selectedInvoice}
           isOpen={showDetailsModal}
-          onClose={() => {
-            setShowDetailsModal(false);
-            setSelectedInvoice(null);
-          }}
+          onClose={() => { setShowDetailsModal(false); setSelectedInvoice(null); }}
         />
       )}
-    </div>
+    </>
   );
 };

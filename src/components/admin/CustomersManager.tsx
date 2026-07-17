@@ -1,13 +1,14 @@
-
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Users, Phone, Mail, MapPin } from 'lucide-react';
+import { Users, Phone, MapPin } from 'lucide-react';
 import { CustomerHistoryModal } from './CustomerHistoryModal';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { PageHeader } from '@/components/admin/ui/PageHeader';
+import { Toolbar } from '@/components/admin/ui/Toolbar';
+import { DataTable, type Column } from '@/components/admin/ui/DataTable';
+import { EmptyState } from '@/components/admin/ui/EmptyState';
 
 interface Customer {
   email: string;
@@ -17,6 +18,7 @@ interface Customer {
   zipcode?: string;
   totalBookings: number;
   totalSpent: string;
+  totalSpentNum: number;
   lastBooking?: string;
 }
 
@@ -32,11 +34,10 @@ export const CustomersManager = () => {
   const [pageSize] = useState(25);
   const { toast } = useToast();
 
-  // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchTerm);
-      setPage(0); // Reset to first page on search
+      setPage(0);
     }, 500);
     return () => clearTimeout(timer);
   }, [searchTerm]);
@@ -48,12 +49,10 @@ export const CustomersManager = () => {
   const fetchCustomers = async () => {
     try {
       setLoading(true);
-
-      // Use optimized database function with pagination
       const { data, error } = await supabase.rpc('get_customer_stats', {
         search_term: debouncedSearch || null,
         limit_count: pageSize,
-        offset_count: page * pageSize
+        offset_count: page * pageSize,
       });
 
       if (error) {
@@ -67,27 +66,26 @@ export const CustomersManager = () => {
         return;
       }
 
-      // Transform database response to component format
-      const enrichedCustomers: Customer[] = data.map((row: any) => ({
-        email: row.email,
-        name: row.name || 'Unknown',
-        phone: row.phone,
-        city: row.city,
-        zipcode: row.zipcode,
-        totalBookings: Number(row.total_bookings || 0),
-        totalSpent: `$${Number(row.total_spent || 0).toFixed(2)}`,
-        lastBooking: row.last_booking ? new Date(row.last_booking).toLocaleDateString() : 'No bookings'
-      }));
+      const enrichedCustomers: Customer[] = data.map((row: any) => {
+        const spent = Number(row.total_spent || 0);
+        return {
+          email: row.email,
+          name: row.name || 'Unknown',
+          phone: row.phone,
+          city: row.city,
+          zipcode: row.zipcode,
+          totalBookings: Number(row.total_bookings || 0),
+          totalSpent: `$${spent.toFixed(2)}`,
+          totalSpentNum: spent,
+          lastBooking: row.last_booking ? new Date(row.last_booking).toLocaleDateString() : 'No bookings',
+        };
+      });
 
       setCustomers(enrichedCustomers);
       setTotalCount(data[0]?.total_count || 0);
     } catch (error) {
       console.error('Error in fetchCustomers:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load customers",
-        variant: "destructive",
-      });
+      toast({ title: 'Error', description: 'Failed to load customers', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -100,183 +98,147 @@ export const CustomersManager = () => {
     setShowHistoryModal(true);
   };
 
-  const handleCloseHistoryModal = () => {
-    setSelectedCustomer(null);
-    setShowHistoryModal(false);
-  };
-
-  const LoadingSkeleton = () => (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <Users className="h-5 w-5" />
-          <span>Customer Management</span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="mb-6">
-          <div className="h-10 bg-muted animate-pulse rounded-md max-w-md"></div>
+  const columns: Column<Customer>[] = [
+    {
+      key: 'name',
+      header: 'Name',
+      accessor: (c) => <span className="font-medium">{c.name}</span>,
+      sortable: true,
+      sortValue: (c) => c.name.toLowerCase(),
+    },
+    {
+      key: 'email',
+      header: 'Email',
+      accessor: (c) => <span className="text-muted-foreground">{c.email}</span>,
+      sortable: true,
+      sortValue: (c) => c.email.toLowerCase(),
+    },
+    {
+      key: 'phone',
+      header: 'Phone',
+      accessor: (c) => c.phone ? (
+        <span className="inline-flex items-center gap-1.5 text-sm">
+          <Phone className="h-3 w-3 text-muted-foreground" />
+          {c.phone}
+        </span>
+      ) : <span className="text-muted-foreground">—</span>,
+    },
+    {
+      key: 'location',
+      header: 'Location',
+      accessor: (c) => {
+        const loc = [c.city, c.zipcode].filter(Boolean).join(' ');
+        return loc ? (
+          <span className="inline-flex items-center gap-1.5 text-sm">
+            <MapPin className="h-3 w-3 text-muted-foreground" />
+            {loc}
+          </span>
+        ) : <span className="text-muted-foreground">—</span>;
+      },
+    },
+    {
+      key: 'bookings',
+      header: 'Bookings',
+      accessor: (c) => c.totalBookings,
+      numeric: true,
+      sortable: true,
+      sortValue: (c) => c.totalBookings,
+    },
+    {
+      key: 'spent',
+      header: 'Total Spent',
+      accessor: (c) => c.totalSpent,
+      numeric: true,
+      sortable: true,
+      sortValue: (c) => c.totalSpentNum,
+    },
+    {
+      key: 'last',
+      header: 'Last Booking',
+      accessor: (c) => c.lastBooking,
+    },
+    {
+      key: 'actions',
+      header: '',
+      accessor: (c) => (
+        <div className="text-right">
+          <Button variant="outline" size="sm" onClick={() => handleViewHistory(c)}>
+            View History
+          </Button>
         </div>
-        <div className="space-y-3">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-16 bg-muted animate-pulse rounded-md"></div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
-
-  if (loading && customers.length === 0) {
-    return <LoadingSkeleton />;
-  }
+      ),
+      className: 'text-right',
+    },
+  ];
 
   return (
     <>
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Users className="h-5 w-5" />
-              <span>Customer Management</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="mb-6">
-              <Input
-                placeholder="Search customers..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-md"
+      <PageHeader title="Customers" subtitle="Search and review customer activity" />
+
+      <Toolbar
+        search={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search customers by name, email, or phone..."
+      />
+
+      <Card className="p-0 border-border shadow-sm overflow-hidden">
+        <div className="p-4">
+          <DataTable
+            data={customers}
+            columns={columns}
+            rowKey={(c) => c.email}
+            loading={loading}
+            pageSize={pageSize}
+            hideFooter
+            empty={
+              <EmptyState
+                icon={Users}
+                title={searchTerm ? 'No customers found' : 'No customers yet'}
+                description={searchTerm ? 'Try a different search term.' : 'Customers will appear here after their first booking.'}
               />
-            </div>
+            }
+          />
 
-            {customers.length === 0 ? (
-              <div className="text-center py-8">
-                <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">
-                  {searchTerm ? 'No customers found matching your search.' : 'No customers found.'}
-                </p>
-              </div>
-            ) : (
-              <>
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Contact</TableHead>
-                        <TableHead>Location</TableHead>
-                        <TableHead>Total Bookings</TableHead>
-                        <TableHead>Total Spent</TableHead>
-                        <TableHead>Last Booking</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {loading ? (
-                        [...Array(5)].map((_, i) => (
-                          <TableRow key={i}>
-                            {[...Array(8)].map((_, j) => (
-                              <TableCell key={j}>
-                                <div className="h-4 bg-muted animate-pulse rounded"></div>
-                              </TableCell>
-                            ))}
-                          </TableRow>
-                        ))
-                      ) : (
-                        customers.map((customer) => (
-                      <TableRow key={customer.email}>
-                        <TableCell className="font-medium">
-                          {customer.email}
-                        </TableCell>
-                        <TableCell>
-                          <div className="font-medium">{customer.name}</div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-1">
-                            <div className="flex items-center space-x-2 text-sm">
-                              <Mail className="h-3 w-3" />
-                              <span>{customer.email}</span>
-                            </div>
-                            {customer.phone && (
-                              <div className="flex items-center space-x-2 text-sm">
-                                <Phone className="h-3 w-3" />
-                                <span>{customer.phone}</span>
-                              </div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center space-x-2 text-sm">
-                            <MapPin className="h-3 w-3" />
-                            <span>
-                              {customer.city ? `${customer.city}` : ''}
-                              {customer.zipcode ? ` ${customer.zipcode}` : ''}
-                              {!customer.city && !customer.zipcode ? 'Not provided' : ''}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm">
-                            {customer.totalBookings}
-                          </span>
-                        </TableCell>
-                        <TableCell className="font-medium">{customer.totalSpent}</TableCell>
-                        <TableCell>{customer.lastBooking}</TableCell>
-                        <TableCell>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleViewHistory(customer)}
-                          >
-                            View History
-                          </Button>
-                        </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                    </TableBody>
-                  </Table>
+          {/* Server-side pagination footer */}
+          {totalCount > 0 && (
+            <div className="flex items-center justify-between mt-3 text-xs text-muted-foreground">
+              <span>
+                Showing {page * pageSize + 1}–{Math.min((page + 1) * pageSize, totalCount)} of {totalCount}
+              </span>
+              {totalPages > 1 && (
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8"
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    disabled={page === 0 || loading}
+                  >
+                    Prev
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8"
+                    onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                    disabled={page >= totalPages - 1 || loading}
+                  >
+                    Next
+                  </Button>
                 </div>
-                
-                {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-between mt-4">
-                    <div className="text-sm text-muted-foreground">
-                      Showing {page * pageSize + 1} to {Math.min((page + 1) * pageSize, totalCount)} of {totalCount} customers
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPage(p => Math.max(0, p - 1))}
-                        disabled={page === 0 || loading}
-                      >
-                        Previous
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-                        disabled={page >= totalPages - 1 || loading}
-                      >
-                        Next
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+              )}
+            </div>
+          )}
+        </div>
+      </Card>
 
-      {/* Customer History Modal */}
       <CustomerHistoryModal
         customer={selectedCustomer}
         isOpen={showHistoryModal}
-        onClose={handleCloseHistoryModal}
+        onClose={() => {
+          setSelectedCustomer(null);
+          setShowHistoryModal(false);
+        }}
       />
     </>
   );

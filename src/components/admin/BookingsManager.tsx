@@ -12,10 +12,12 @@ import { EditBookingModal } from './EditBookingModal';
 import { BookingDetailsModal } from './BookingDetailsModal';
 import { DeleteBookingModal } from './DeleteBookingModal';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Calendar, Archive, Trash2 } from 'lucide-react';
+import { RefreshCw, Archive, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
+import { PageHeader } from '@/components/admin/ui/PageHeader';
+import { TableSkeleton } from '@/components/admin/ui/Skeletons';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -269,114 +271,93 @@ export const BookingsManager = () => {
 
   return (
     <AuthGuard allowedRoles={['admin']}>
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center space-x-2">
-                <Calendar className="h-5 w-5" />
-                <span>Bookings Management</span>
-              </CardTitle>
-              <div className="flex items-center space-x-4">
-                {selectedBookingIds.length > 0 && (
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={handleBulkArchive}
-                    className="flex items-center space-x-2"
-                  >
-                    <Archive className="h-4 w-4" />
-                    <span>Archive Selected ({selectedBookingIds.length})</span>
-                  </Button>
-                )}
-                {archiveFilter === 'pending_payments' && paymentPendingCount > 0 && (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        disabled={deletingPending}
-                        className="flex items-center space-x-2"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        <span>Delete All ({paymentPendingCount})</span>
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete All Payment Pending Bookings?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This will permanently delete <strong>{paymentPendingCount}</strong> bookings with payment_pending status. 
-                          Associated Stripe PaymentIntents will be canceled. This action cannot be undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={handleBulkDeletePaymentPending}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                          Delete All
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleRefresh}
-                  disabled={loading}
-                  className="flex items-center space-x-2"
-                >
-                  <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                  <span>Refresh</span>
-                </Button>
-                {isConnected && (
-                  <span className="text-sm text-green-600">● Live updates enabled</span>
-                )}
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="flex items-center justify-center p-8">
-                <div className="text-gray-600">Loading bookings...</div>
-              </div>
-            ) : (
-              <>
-                <BookingFilters
-                  searchTerm={searchTerm}
-                  filterStatus={filterStatus}
-                  filterRegion={filterRegion}
-                  archiveFilter={archiveFilter}
-                  onSearchChange={setSearchTerm}
-                  onStatusChange={setFilterStatus}
-                  onRegionChange={setFilterRegion}
-                  onArchiveFilterChange={setArchiveFilter}
-                />
-
-                <BookingTable 
-                  bookings={filteredBookings} 
-                  onBookingUpdate={handleBookingUpdated}
-                  onEditBooking={handleEditBooking}
-                  onDeleteBooking={handleDeleteBooking}
-                  onViewBooking={handleViewBooking}
-                  onAssignWorker={handleAssignWorker}
-                  loading={loading}
-                  enriching={enriching}
-                  showPendingPaymentActions={archiveFilter === 'pending_payments'}
-                  onSendReminder={handleSendReminder}
-                  onCancelBooking={handleCancelBooking}
-                  selectedBookingIds={selectedBookingIds}
-                  onSelectBooking={handleSelectBooking}
-                  onSelectAll={handleSelectAll}
-                  showBulkActions={archiveFilter === 'new_bookings'}
-                />
-              </>
+      <PageHeader
+        title="Bookings"
+        subtitle="Manage bookings, assignments, and archive"
+        actions={
+          <div className="flex items-center gap-2">
+            {isConnected && (
+              <span className="text-xs text-[hsl(var(--action-success))]">● Live</span>
             )}
-          </CardContent>
-        </Card>
+            {selectedBookingIds.length > 0 && (
+              <Button variant="default" size="sm" onClick={handleBulkArchive}>
+                <Archive className="h-4 w-4 mr-2" />
+                Archive ({selectedBookingIds.length})
+              </Button>
+            )}
+            {archiveFilter === 'pending_payments' && paymentPendingCount > 0 && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm" disabled={deletingPending}>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete All ({paymentPendingCount})
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete All Payment Pending Bookings?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently delete <strong>{paymentPendingCount}</strong> bookings with payment_pending status.
+                      Associated Stripe PaymentIntents will be canceled. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleBulkDeletePaymentPending}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Delete All
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+            <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
+        }
+      />
+
+      <Card className="p-4 border-border shadow-sm">
+        {loading ? (
+          <TableSkeleton rows={8} cols={6} />
+        ) : (
+          <>
+            <BookingFilters
+              searchTerm={searchTerm}
+              filterStatus={filterStatus}
+              filterRegion={filterRegion}
+              archiveFilter={archiveFilter}
+              onSearchChange={setSearchTerm}
+              onStatusChange={setFilterStatus}
+              onRegionChange={setFilterRegion}
+              onArchiveFilterChange={setArchiveFilter}
+            />
+
+            <BookingTable
+              bookings={filteredBookings}
+              onBookingUpdate={handleBookingUpdated}
+              onEditBooking={handleEditBooking}
+              onDeleteBooking={handleDeleteBooking}
+              onViewBooking={handleViewBooking}
+              onAssignWorker={handleAssignWorker}
+              loading={loading}
+              enriching={enriching}
+              showPendingPaymentActions={archiveFilter === 'pending_payments'}
+              onSendReminder={handleSendReminder}
+              onCancelBooking={handleCancelBooking}
+              selectedBookingIds={selectedBookingIds}
+              onSelectBooking={handleSelectBooking}
+              onSelectAll={handleSelectAll}
+              showBulkActions={archiveFilter === 'new_bookings'}
+            />
+          </>
+        )}
+      </Card>
+
 
         {/* Create Booking Modal */}
         {showCreateModal && (
@@ -436,7 +417,6 @@ export const BookingsManager = () => {
             onBookingDeleted={fetchBookings}
           />
         )}
-      </div>
     </AuthGuard>
   );
 };
