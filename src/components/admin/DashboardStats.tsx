@@ -1,196 +1,213 @@
 import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, Calendar, DollarSign, Users, Star, Clock, UserCheck, Wallet } from 'lucide-react';
+import { TrendingUp, Calendar, DollarSign, Users, Star, Clock, UserCheck, AlertCircle } from 'lucide-react';
+import {
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line,
+} from 'recharts';
 import { useAdminMetrics } from '@/hooks/useAdminMetrics';
-import { Badge } from '@/components/ui/badge';
-import { StripeConfigStatus } from './StripeConfigStatus';
-import { BookingSmokeTest } from './BookingSmokeTest';
-import { StorageCacheOptimizer } from './StorageCacheOptimizer';
-import { FlipCard } from '@/components/ui/flip-card';
+import { PageHeader } from '@/components/admin/ui/PageHeader';
+import { StatCard } from '@/components/admin/ui/StatCard';
+import { StatusBadge } from '@/components/admin/ui/StatusBadge';
+import { CardSkeleton } from '@/components/admin/ui/Skeletons';
+import { Card } from '@/components/ui/card';
+
+const formatCurrency = (amount: number) =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(amount);
 
 export const DashboardStats = () => {
-  const {
-    metrics,
-    loading
-  } = useAdminMetrics();
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
-  };
-  const formatGrowth = (growth: number) => {
-    const sign = growth >= 0 ? '+' : '';
-    return `${sign}${growth.toFixed(1)}%`;
-  };
-  const getGrowthColor = (growth: number) => {
-    return growth >= 0 ? 'text-green-600' : 'text-red-600';
-  };
+  const { metrics, loading } = useAdminMetrics();
+
   if (loading) {
-    return <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[1, 2, 3, 4].map(i => <Card key={i} className="animate-pulse bg-slate-800/50 border-slate-700">
-              <CardContent className="p-6">
-                <div className="h-4 bg-slate-700 rounded mb-2"></div>
-                <div className="h-8 bg-slate-700 rounded mb-1"></div>
-                <div className="h-3 bg-slate-700 rounded"></div>
-              </CardContent>
-            </Card>)}
+    return (
+      <div>
+        <PageHeader title="Dashboard" subtitle="Overview of your business at a glance" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => <CardSkeleton key={i} />)}
         </div>
-      </div>;
+      </div>
+    );
   }
-  const stats = [{
-    title: 'Revenue This Month',
-    value: formatCurrency(metrics.revenueThisMonth),
-    description: `${formatGrowth(metrics.revenueGrowth)} from last month`,
-    icon: DollarSign,
-    color: 'text-green-600',
-    growth: metrics.revenueGrowth
-  }, {
-    title: 'Authorized Bookings',
-    value: metrics.bookingsThisMonth.toString(),
-    description: `${formatGrowth(metrics.bookingsGrowth)} from last month`,
-    icon: Calendar,
-    color: 'text-blue-600',
-    growth: metrics.bookingsGrowth
-  }, {
-    title: 'Active Customers',
-    value: metrics.activeCustomers.toString(),
-    description: `${formatGrowth(metrics.customersGrowth)} from last month`,
-    icon: Users,
-    color: 'text-purple-600',
-    growth: metrics.customersGrowth
-  }, {
-    title: 'Jobs Completed',
-    value: metrics.completedJobs.toString(),
-    description: `${formatGrowth(metrics.jobsGrowth)} from last month`,
-    icon: TrendingUp,
-    color: 'text-orange-600',
-    growth: metrics.jobsGrowth
-  }];
-  const additionalStats = [{
-    title: 'Pending Bookings',
-    value: metrics.pendingBookings.toString(),
-    description: 'Awaiting confirmation',
-    icon: Clock,
-    color: 'text-yellow-600'
-  }, {
-    title: 'Active Workers',
-    value: metrics.activeWorkers.toString(),
-    description: 'Available for jobs',
-    icon: UserCheck,
-    color: 'text-indigo-600'
-  }, {
-    title: 'Average Rating',
-    value: metrics.averageRating > 0 ? metrics.averageRating.toFixed(1) : 'N/A',
-    description: `${metrics.totalReviews} reviews`,
-    icon: Star,
-    color: 'text-yellow-500'
-  }];
-  return <div className="space-y-6">
-      {/* Main Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Revenue Flip Card */}
-        <FlipCard
-          frontContent={
-            <Card className="h-full bg-slate-800/50 border-slate-700 backdrop-blur-sm hover:shadow-xl hover:shadow-blue-500/10">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-slate-300">
-                  Revenue This Month
-                </CardTitle>
-                <DollarSign className="h-4 w-4 text-green-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-white">{formatCurrency(metrics.revenueThisMonth)}</div>
-                <p className={`text-xs mt-1 ${getGrowthColor(metrics.revenueGrowth)}`}>
-                  {formatGrowth(metrics.revenueGrowth)} from last month
-                </p>
-              </CardContent>
-            </Card>
-          }
-          backContent={
-            <Card className="h-full bg-slate-800/70 border-emerald-700/50 backdrop-blur-sm shadow-xl shadow-emerald-500/10">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-emerald-300">
-                  Total Revenue
-                </CardTitle>
-                <Wallet className="h-4 w-4 text-emerald-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-white">{formatCurrency(metrics.totalRevenue)}</div>
-                <p className="text-xs mt-1 text-slate-400">
-                  From all completed transactions
-                </p>
-              </CardContent>
-            </Card>
-          }
+
+  // Reconstruct previous-period values from current + growth% (no new queries)
+  const previous = (current: number, growth: number) =>
+    growth === 0 ? current : Math.max(0, Math.round(current / (1 + growth / 100)));
+
+  const revenueLast = previous(metrics.revenueThisMonth, metrics.revenueGrowth);
+  const bookingsLast = previous(metrics.bookingsThisMonth, metrics.bookingsGrowth);
+
+  const revenueSeries = [
+    { name: 'Last month', value: revenueLast },
+    { name: 'This month', value: metrics.revenueThisMonth },
+  ];
+  const bookingsSeries = [
+    { name: 'Last month', value: bookingsLast },
+    { name: 'This month', value: metrics.bookingsThisMonth },
+  ];
+
+  const attention = [
+    metrics.pendingBookings > 0 && {
+      label: 'Pending bookings',
+      value: `${metrics.pendingBookings} awaiting confirmation`,
+      status: 'pending',
+    },
+    metrics.activeWorkers === 0 && {
+      label: 'No active workers',
+      value: 'No workers available for assignment',
+      status: 'cancelled',
+    },
+    metrics.averageRating > 0 && metrics.averageRating < 4 && {
+      label: 'Rating below target',
+      value: `Average ${metrics.averageRating.toFixed(1)} across ${metrics.totalReviews} reviews`,
+      status: 'progress',
+    },
+  ].filter(Boolean) as { label: string; value: string; status: string }[];
+
+  return (
+    <div>
+      <PageHeader title="Dashboard" subtitle="Overview of your business at a glance" />
+
+      {/* KPI row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          label="Revenue this month"
+          value={<span className="tabular-nums">{formatCurrency(metrics.revenueThisMonth)}</span>}
+          delta={Number(metrics.revenueGrowth.toFixed(1))}
+          deltaLabel="vs last month"
+          icon={DollarSign}
         />
-        
-        {/* Other Stats Cards */}
-        {stats.slice(1).map((stat, index) => {
-        const Icon = stat.icon;
-        return <Card key={index} className="bg-slate-800/50 border-slate-700 backdrop-blur-sm hover:bg-slate-800/70 transition-all duration-200 hover:shadow-xl hover:shadow-blue-500/10">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-slate-300">
-                  {stat.title}
-                </CardTitle>
-                <Icon className={`h-4 w-4 ${stat.color}`} />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-white">{stat.value}</div>
-                <p className={`text-xs mt-1 ${getGrowthColor(stat.growth)}`}>
-                  {stat.description}
-                </p>
-              </CardContent>
-            </Card>;
-      })}
+        <StatCard
+          label="Authorized bookings"
+          value={<span className="tabular-nums">{metrics.bookingsThisMonth}</span>}
+          delta={Number(metrics.bookingsGrowth.toFixed(1))}
+          deltaLabel="vs last month"
+          icon={Calendar}
+        />
+        <StatCard
+          label="Active customers"
+          value={<span className="tabular-nums">{metrics.activeCustomers}</span>}
+          delta={Number(metrics.customersGrowth.toFixed(1))}
+          deltaLabel="vs last month"
+          icon={Users}
+        />
+        <StatCard
+          label="Jobs completed"
+          value={<span className="tabular-nums">{metrics.completedJobs}</span>}
+          delta={Number(metrics.jobsGrowth.toFixed(1))}
+          deltaLabel="vs last month"
+          icon={TrendingUp}
+        />
       </div>
 
-      {/* Additional Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {additionalStats.map((stat, index) => {
-        const Icon = stat.icon;
-        return <Card key={index} className="bg-slate-800/50 border-slate-700 backdrop-blur-sm hover:bg-slate-800/70 transition-all duration-200 hover:shadow-xl hover:shadow-blue-500/10">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-slate-300">
-                  {stat.title}
-                </CardTitle>
-                <Icon className={`h-4 w-4 ${stat.color}`} />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-white">{stat.value}</div>
-                <p className="text-xs text-slate-400 mt-1">
-                  {stat.description}
-                </p>
-              </CardContent>
-            </Card>;
-      })}
+      {/* Secondary KPIs */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
+        <StatCard
+          label="Pending bookings"
+          value={<span className="tabular-nums">{metrics.pendingBookings}</span>}
+          icon={Clock}
+        />
+        <StatCard
+          label="Active workers"
+          value={<span className="tabular-nums">{metrics.activeWorkers}</span>}
+          icon={UserCheck}
+        />
+        <StatCard
+          label="Average rating"
+          value={
+            <span className="tabular-nums">
+              {metrics.averageRating > 0 ? metrics.averageRating.toFixed(1) : '—'}
+              <span className="text-sm text-muted-foreground font-normal ml-2">
+                {metrics.totalReviews} reviews
+              </span>
+            </span>
+          }
+          icon={Star}
+        />
       </div>
 
-      <BookingSmokeTest />
-
-      {/* Quick Status Overview */}
-      <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
-        <CardHeader>
-          <CardTitle className="text-white">System Status Overview</CardTitle>
-          <CardDescription className="text-slate-400">Current system health and activity</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2">
-            <Badge variant={metrics.pendingBookings > 0 ? "destructive" : "default"} className="bg-blue-600/20 text-blue-400 border-blue-500/30">
-              {metrics.pendingBookings} Pending Bookings
-            </Badge>
-            <Badge variant={metrics.activeWorkers > 0 ? "default" : "secondary"} className="bg-green-600/20 text-green-400 border-green-500/30">
-              {metrics.activeWorkers} Active Workers
-            </Badge>
-            <Badge variant="outline" className="border-slate-600 text-slate-300">
-              {metrics.totalReviews} Total Reviews
-            </Badge>
-            {metrics.averageRating > 4.5 && <Badge variant="default" className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
-                ⭐ Excellent Rating
-              </Badge>}
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-6">
+        <Card className="p-5 border-border shadow-sm">
+          <div className="flex items-baseline justify-between mb-4">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Revenue trend</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">This month vs last month</p>
+            </div>
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {formatCurrency(metrics.revenueThisMonth)}
+            </span>
           </div>
-        </CardContent>
-      </Card>
-    </div>;
+          <div className="h-[220px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={revenueSeries} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false}
+                  tickFormatter={(v) => `$${Math.round(v / 1000)}k`} />
+                <Tooltip
+                  contentStyle={{
+                    background: 'hsl(var(--popover))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                  formatter={(v: number) => formatCurrency(v)}
+                />
+                <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 4 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+
+        <Card className="p-5 border-border shadow-sm">
+          <div className="flex items-baseline justify-between mb-4">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Bookings</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">This month vs last month</p>
+            </div>
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {metrics.bookingsThisMonth} bookings
+            </span>
+          </div>
+          <div className="h-[220px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={bookingsSeries} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                <Tooltip
+                  contentStyle={{
+                    background: 'hsl(var(--popover))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                />
+                <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} maxBarSize={80} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+      </div>
+
+      {/* Needs attention */}
+      {attention.length > 0 && (
+        <Card className="p-5 border-border shadow-sm mt-6">
+          <div className="flex items-center gap-2 mb-4">
+            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+            <h3 className="text-sm font-semibold text-foreground">Needs attention</h3>
+          </div>
+          <ul className="divide-y divide-border">
+            {attention.map((item, i) => (
+              <li key={i} className="py-3 flex items-center justify-between gap-4 first:pt-0 last:pb-0">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground">{item.label}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{item.value}</p>
+                </div>
+                <StatusBadge status={item.status} />
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+    </div>
+  );
 };
