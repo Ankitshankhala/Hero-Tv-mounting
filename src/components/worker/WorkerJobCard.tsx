@@ -335,11 +335,15 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
                         )}
                       </>
                     )}
-                    {(customerCity || customerState || customerZipcode) && (
-                      <div>
-                        <span className="font-medium">City:</span> {customerCity}, {customerState} {customerZipcode}
-                      </div>
-                    )}
+                    {(customerCity || customerState || customerZipcode) && (() => {
+                      const cityState = [customerCity, customerState].filter(Boolean).join(', ');
+                      const cityLine = [cityState, customerZipcode].filter(Boolean).join(' ');
+                      return (
+                        <div>
+                          <span className="font-medium">City:</span> {cityLine}
+                        </div>
+                      );
+                    })()}
                     {customerPhone && (
                       <div><span className="font-medium">Phone:</span> {customerPhone}</div>
                     )}
