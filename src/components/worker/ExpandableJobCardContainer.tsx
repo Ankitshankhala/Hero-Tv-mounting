@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import { CompactJobCard } from './CompactJobCard';
 import { ExpandedJobCard } from './ExpandedJobCard';
 import { openDirections } from '@/utils/maps';
