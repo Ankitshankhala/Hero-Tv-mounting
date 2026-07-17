@@ -265,32 +265,32 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
   // Get tip display information
   const getTipDisplay = (tipAmount: number | undefined, paymentStatus: string) => {
     if (!tipAmount || tipAmount <= 0) return null;
-    
+
     switch (paymentStatus?.toLowerCase()) {
       case 'authorized':
         return {
           text: `Tip: $${tipAmount.toFixed(2)} (Authorized)`,
-          color: 'bg-amber-500 text-white border-amber-500',
-          shortText: `💵 $${tipAmount.toFixed(2)}`
+          color: 'bg-action-warning text-white border-action-warning',
+          shortText: `Tip $${tipAmount.toFixed(2)}`,
         };
       case 'captured':
       case 'completed':
         return {
           text: `Tip: $${tipAmount.toFixed(2)} (Received)`,
-          color: 'bg-green-500 text-white border-green-500',
-          shortText: `✓ $${tipAmount.toFixed(2)}`
+          color: 'bg-action-success text-white border-action-success',
+          shortText: `Tip $${tipAmount.toFixed(2)}`,
         };
       case 'pending':
         return {
           text: `Tip: $${tipAmount.toFixed(2)} (Pending)`,
-          color: 'bg-blue-500 text-white border-blue-500',
-          shortText: `⏳ $${tipAmount.toFixed(2)}`
+          color: 'bg-action-info text-white border-action-info',
+          shortText: `Tip $${tipAmount.toFixed(2)}`,
         };
       default:
         return {
           text: `Tip: $${tipAmount.toFixed(2)}`,
-          color: 'bg-gray-500 text-white border-gray-500',
-          shortText: `💵 $${tipAmount.toFixed(2)}`
+          color: 'bg-muted text-muted-foreground border-border',
+          shortText: `Tip $${tipAmount.toFixed(2)}`,
         };
     }
   };
