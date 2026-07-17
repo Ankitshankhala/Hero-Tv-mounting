@@ -113,8 +113,17 @@ export const CompactJobCard = ({
   const getCustomerName = () =>
     job.guest_customer_info?.name || job.customer?.name || 'Customer';
 
-  const getShortAddress = () =>
-    getJobAddress(job, { singleLine: true }) || 'Address not available';
+  const getShortAddress = () => {
+    const notes: string = job.location_notes || '';
+    const beforeNotes = notes.split(/notes\s*:/i)[0] || '';
+    if (beforeNotes.includes('|')) {
+      const segs = beforeNotes.split('|').map((s) => s.trim()).filter(Boolean);
+      const street = segs[segs.length - 1];
+      const zip = job.guest_customer_info?.zipcode || job.customer?.zipcode;
+      if (street) return zip ? `${street} · ${zip}` : street;
+    }
+    return getJobAddress(job, { singleLine: true }) || 'Address not available';
+  };
 
   const getCustomerPhone = () =>
     job.guest_customer_info?.phone || job.customer?.phone || '';
