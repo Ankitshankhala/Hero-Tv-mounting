@@ -1,0 +1,94 @@
+/* React Big Calendar - Dark theme overrides scoped to the worker calendar */
+
+.rbc-worker-dark {
+  color: hsl(var(--worker-card-foreground));
+}
+
+.rbc-worker-dark .rbc-toolbar {
+  color: hsl(var(--worker-card-foreground));
+}
+
+.rbc-worker-dark .rbc-toolbar button {
+  color: hsl(var(--worker-card-foreground));
+  background: transparent;
+  border: 1px solid hsl(var(--worker-border));
+}
+
+.rbc-worker-dark .rbc-toolbar button:hover,
+.rbc-worker-dark .rbc-toolbar button:focus {
+  background: hsl(var(--worker-card-hover));
+  color: hsl(var(--worker-card-foreground));
+  border-color: hsl(var(--worker-border));
+}
+
+.rbc-worker-dark .rbc-toolbar button.rbc-active,
+.rbc-worker-dark .rbc-toolbar button.rbc-active:hover,
+.rbc-worker-dark .rbc-toolbar button.rbc-active:focus {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border-color: hsl(var(--primary));
+  box-shadow: none;
+}
+
+.rbc-worker-dark .rbc-toolbar-label,
+.rbc-worker-dark .rbc-header,
+.rbc-worker-dark .rbc-label,
+.rbc-worker-dark .rbc-time-gutter,
+.rbc-worker-dark .rbc-button-link,
+.rbc-worker-dark .rbc-date-cell,
+.rbc-worker-dark .rbc-date-cell > a {
+  color: hsl(var(--worker-card-foreground));
+}
+
+.rbc-worker-dark .rbc-time-view,
+.rbc-worker-dark .rbc-time-content,
+.rbc-worker-dark .rbc-time-header,
+.rbc-worker-dark .rbc-time-header-content,
+.rbc-worker-dark .rbc-timeslot-group,
+.rbc-worker-dark .rbc-day-slot,
+.rbc-worker-dark .rbc-header,
+.rbc-worker-dark .rbc-month-view,
+.rbc-worker-dark .rbc-month-row,
+.rbc-worker-dark .rbc-day-bg,
+.rbc-worker-dark .rbc-time-content > *,
+.rbc-worker-dark .rbc-time-header-content > .rbc-row,
+.rbc-worker-dark .rbc-agenda-view table.rbc-agenda-table,
+.rbc-worker-dark .rbc-agenda-view table.rbc-agenda-table tbody > tr > td,
+.rbc-worker-dark .rbc-agenda-view table.rbc-agenda-table thead > tr > th {
+  border-color: hsl(var(--worker-border)) !important;
+}
+
+.rbc-worker-dark .rbc-today {
+  background-color: hsl(var(--primary) / 0.12);
+}
+
+.rbc-worker-dark .rbc-off-range-bg {
+  background-color: hsl(var(--worker-card) / 0.6);
+}
+
+.rbc-worker-dark .rbc-off-range {
+  color: hsl(var(--worker-muted));
+}
+
+.rbc-worker-dark .rbc-current-time-indicator {
+  background-color: hsl(var(--primary));
+  height: 2px;
+}
+
+.rbc-worker-dark .rbc-event {
+  color: #fff !important;
+  border: 1px solid hsl(var(--worker-border));
+}
+
+.rbc-worker-dark .rbc-event.rbc-selected {
+  filter: brightness(1.15);
+}
+
+.rbc-worker-dark .rbc-show-more {
+  color: hsl(var(--primary));
+  background: transparent;
+}
+
+.rbc-worker-dark .rbc-agenda-view table.rbc-agenda-table tbody > tr > td + td {
+  border-left-color: hsl(var(--worker-border));
+}
