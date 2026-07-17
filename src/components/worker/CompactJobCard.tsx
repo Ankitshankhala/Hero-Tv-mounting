@@ -1,11 +1,38 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ChevronDown, Phone, MapPin, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  ChevronDown,
+  Phone,
+  MapPin,
+  Clock,
+  Navigation,
+  MoreHorizontal,
+  CheckCircle,
+  CreditCard,
+  Plus,
+  Trash2,
+  Users,
+  Loader2,
+  Eye,
+} from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 import { formatBookingTimeForContext, convertUTCToLocal } from '@/utils/timeUtils';
 import { getJobAddress } from '@/utils/jobAddress';
-
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { ReassignJobModal } from './ReassignJobModal';
+import { RescheduleJobModal } from './RescheduleJobModal';
+import { AddServicesModal } from './AddServicesModal';
+import { RemoveServicesModal } from './RemoveServicesModal';
+import OnSiteChargeModal from './OnSiteChargeModal';
 
 interface CompactJobCardProps {
   job: any;
@@ -13,130 +40,120 @@ interface CompactJobCardProps {
   onToggle: () => void;
   onCall: () => void;
   onDirections: () => void;
+  onJobUpdated?: () => void;
 }
 
-export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections }: CompactJobCardProps) => {
+export const CompactJobCard = ({
+  job,
+  isExpanded,
+  onToggle,
+  onCall,
+  onDirections,
+  onJobUpdated,
+}: CompactJobCardProps) => {
   const [timeToStart, setTimeToStart] = useState<string | null>(null);
   const [isToday, setIsToday] = useState(false);
+  const [completing, setCompleting] = useState(false);
+  const [showReassign, setShowReassign] = useState(false);
+  const [showReschedule, setShowReschedule] = useState(false);
+  const [showAdd, setShowAdd] = useState(false);
+  const [showRemove, setShowRemove] = useState(false);
+  const [showCharge, setShowCharge] = useState(false);
+  const { toast } = useToast();
 
-  // Format date and time for compact display using America/Chicago timezone
+  const isArchived = !!job.is_archived;
+
+  // ---------- date/time helpers ----------
   const formatCompactDateTime = (booking: any) => {
     try {
       return formatBookingTimeForContext(booking, 'worker', 'America/Chicago');
-    } catch (error) {
-      console.error('Error formatting booking date/time:', { booking, error });
+    } catch {
       return 'Invalid date';
     }
   };
 
-  // Get job start time
-  const getJobStartTime = (job: any) => {
-    if (job.preferred_start_time) {
-      return new Date(job.preferred_start_time);
-    }
-    if (job.start_time) {
-      return new Date(job.start_time);
-    }
-    if (job.preferred_date && job.preferred_time) {
-      const serviceTimezone = job.service?.timezone || 'America/Chicago';
+  const getJobStartTime = (j: any) => {
+    if (j.preferred_start_time) return new Date(j.preferred_start_time);
+    if (j.start_time) return new Date(j.start_time);
+    if (j.preferred_date && j.preferred_time) {
+      const tz = j.service?.timezone || 'America/Chicago';
       try {
-        const localDateTime = convertUTCToLocal(
-          new Date(`${job.preferred_date}T${job.preferred_time}`), 
-          serviceTimezone
+        const l = convertUTCToLocal(
+          new Date(`${j.preferred_date}T${j.preferred_time}`),
+          tz
         );
-        return new Date(`${localDateTime.date}T${localDateTime.time}`);
+        return new Date(`${l.date}T${l.time}`);
       } catch {
-        return new Date(`${job.preferred_date}T${job.preferred_time}`);
+        return new Date(`${j.preferred_date}T${j.preferred_time}`);
       }
     }
     return null;
   };
 
-  // Calculate countdown and update every minute
   useEffect(() => {
-    const calculateTimeToStart = () => {
+    const calc = () => {
       const startTime = getJobStartTime(job);
       if (!startTime) {
         setTimeToStart(null);
         setIsToday(false);
         return;
       }
-
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const jobIsToday = startTime >= today && startTime < new Date(today.getTime() + 86400000);
+      const jobIsToday =
+        startTime >= today && startTime < new Date(today.getTime() + 86400000);
       setIsToday(jobIsToday);
-
       if (!jobIsToday) {
         setTimeToStart(null);
         return;
       }
-
-      const minutesToStart = Math.floor((startTime.getTime() - now.getTime()) / (1000 * 60));
-      
-      if (minutesToStart < 0) {
-        setTimeToStart('Started');
-      } else if (minutesToStart < 60) {
-        setTimeToStart(`${minutesToStart}m`);
-      } else {
-        const hours = Math.floor(minutesToStart / 60);
-        const minutes = minutesToStart % 60;
-        setTimeToStart(minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`);
+      const mins = Math.floor((startTime.getTime() - now.getTime()) / 60000);
+      if (mins < 0) setTimeToStart('Started');
+      else if (mins < 60) setTimeToStart(`${mins}m`);
+      else {
+        const h = Math.floor(mins / 60);
+        const m = mins % 60;
+        setTimeToStart(m > 0 ? `${h}h ${m}m` : `${h}h`);
       }
     };
-
-    calculateTimeToStart();
-    const interval = setInterval(calculateTimeToStart, 60000); // Update every minute
-
-    return () => clearInterval(interval);
+    calc();
+    const i = setInterval(calc, 60000);
+    return () => clearInterval(i);
   }, [job]);
 
-  // Get countdown badge style
   const getCountdownBadgeStyle = () => {
     const startTime = getJobStartTime(job);
-    if (!startTime || !isToday) return null;
-
-    const minutesToStart = Math.floor((startTime.getTime() - new Date().getTime()) / (1000 * 60));
-    
-    if (minutesToStart < 0) {
-      return 'bg-status-progress text-white border-status-progress'; // Started
-    } else if (minutesToStart <= 30) {
-      return 'bg-status-cancelled text-white border-status-cancelled'; // Red for urgent
-    } else if (minutesToStart <= 120) {
-      return 'bg-action-warning text-white border-action-warning'; // Orange for soon
-    }
-    return 'bg-action-info text-white border-action-info'; // Blue for today
+    if (!startTime || !isToday) return '';
+    const mins = Math.floor((startTime.getTime() - Date.now()) / 60000);
+    if (mins < 0) return 'bg-status-progress text-white border-status-progress';
+    if (mins <= 30) return 'bg-status-cancelled text-white border-status-cancelled';
+    if (mins <= 120) return 'bg-action-warning text-white border-action-warning';
+    return 'bg-action-info text-white border-action-info';
   };
 
-  // Get all service lines with quantities
-  const getServiceLines = () => {
+  // ---------- display helpers ----------
+  const getServiceSummary = () => {
     if (job.booking_services && job.booking_services.length > 0) {
-      return job.booking_services.map((service: any) => 
-        `${service.service_name} × ${service.quantity}`
-      );
+      return job.booking_services
+        .map((s: any) => `${s.service_name} × ${s.quantity}`)
+        .join(', ');
     }
-    return [job.service?.name || 'Service'];
+    return job.service?.name || 'Service';
   };
 
-  // Get customer name
-  const getCustomerName = () => {
-    return job.guest_customer_info?.name || job.customer?.name || 'Customer';
-  };
+  const getCustomerName = () =>
+    job.guest_customer_info?.name || job.customer?.name || 'Customer';
 
-  // Get short address
-  const getShortAddress = () => {
-    const addr = getJobAddress(job, { singleLine: true });
-    return addr || 'Address not available';
-  };
+  const getShortAddress = () =>
+    getJobAddress(job, { singleLine: true }) || 'Address not available';
 
-  // Get status color using design system
-  const getStatusColor = (status: string, isArchived: boolean = false) => {
-    // For archived jobs, always show as completed
-    if (isArchived) {
-      return 'bg-status-completed text-white border-status-completed';
-    }
-    
-    switch (status.toLowerCase()) {
+  const getCustomerPhone = () =>
+    job.guest_customer_info?.phone || job.customer?.phone || '';
+
+  const getStatusColor = (status: string) => {
+    if (isArchived) return 'bg-status-completed text-white border-status-completed';
+    switch (status?.toLowerCase()) {
+      case 'confirmed':
       case 'scheduled':
         return 'bg-status-confirmed text-white border-status-confirmed';
       case 'in_progress':
@@ -150,336 +167,428 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
     }
   };
 
-  // Get display status text
-  const getDisplayStatus = (status: string, isArchived: boolean = false) => {
-    if (isArchived) {
-      return 'COMPLETED';
-    }
-    return status.replace('_', ' ').toUpperCase();
+  // Left accent bar color mapped to --status-* tokens
+  const getAccentStyle = (): React.CSSProperties => {
+    const s = isArchived ? 'completed' : (job.status || 'pending').toLowerCase();
+    let token = '--status-pending';
+    if (s === 'confirmed' || s === 'scheduled' || s === 'in_progress')
+      token = '--status-confirmed';
+    else if (s === 'completed') token = '--status-completed';
+    else if (s === 'cancelled') token = '--status-cancelled';
+    if (s === 'in_progress') token = '--status-progress';
+    return { backgroundColor: `hsl(var(${token}))` };
   };
 
-  // Get payment status display
-  const getPaymentStatusDisplay = (paymentStatus: string, isArchived: boolean = false) => {
+  const getDisplayStatus = (status: string) =>
+    isArchived ? 'COMPLETED' : (status || '').replace('_', ' ').toUpperCase();
+
+  const getPaymentDisplay = (paymentStatus: string) => {
     if (isArchived) {
       return {
         text: 'PAYMENT ACCEPTED',
-        color: 'bg-action-success text-white border-action-success'
+        color: 'bg-action-success text-white border-action-success',
       };
     }
-    
     switch (paymentStatus?.toLowerCase()) {
       case 'authorized':
         return {
           text: 'AUTHORIZED',
-          color: 'bg-action-warning text-white border-action-warning'
+          color: 'bg-action-warning text-white border-action-warning',
         };
       case 'captured':
       case 'completed':
         return {
           text: 'PAYMENT CAPTURED',
-          color: 'bg-action-success text-white border-action-success'
+          color: 'bg-action-success text-white border-action-success',
         };
       case 'pending':
         return {
           text: 'PAYMENT PENDING',
-          color: 'bg-action-info text-white border-action-info'
+          color: 'bg-action-info text-white border-action-info',
         };
       case 'failed':
       case 'cancelled':
         return {
           text: 'PAYMENT FAILED',
-          color: 'bg-destructive text-white border-destructive'
+          color: 'bg-destructive text-white border-destructive',
         };
       default:
         return {
           text: paymentStatus?.toUpperCase() || 'UNKNOWN',
-          color: 'bg-muted text-muted-foreground border-muted'
-        };
-    }
-  };
-
-  // Check if this is a new job (within last 24 hours)
-  const isNewJob = () => {
-    const jobTime = new Date(job.created_at).getTime();
-    const dayAgo = Date.now() - (24 * 60 * 60 * 1000);
-    return jobTime > dayAgo;
-  };
-
-  // Get time since creation for display
-  const getTimeSinceCreation = () => {
-    const jobTime = new Date(job.created_at);
-    const now = new Date();
-    const diffHours = Math.floor((now.getTime() - jobTime.getTime()) / (1000 * 60 * 60));
-    
-    if (diffHours < 1) return 'Just now';
-    if (diffHours < 24) return `${diffHours}h ago`;
-    const diffDays = Math.floor(diffHours / 24);
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return jobTime.toLocaleDateString();
-  };
-
-  // Get status dot color
-  const getStatusDotClass = (status: string, isArchived: boolean = false) => {
-    if (isArchived) {
-      return 'bg-status-completed';
-    }
-    
-    switch (status.toLowerCase()) {
-      case 'confirmed':
-      case 'scheduled':
-      case 'in_progress':
-        return 'bg-status-confirmed';
-      case 'completed':
-        return 'bg-status-completed';
-      case 'cancelled':
-        return 'bg-status-cancelled';
-      default:
-        return 'bg-status-pending';
-    }
-  };
-
-  // Get payment dot color
-  const getPaymentDotClass = (paymentStatus: string, booking: any, isArchived: boolean = false) => {
-    if (isArchived) {
-      return 'bg-action-success';
-    }
-    
-    if (paymentStatus === 'authorized' || booking.status === 'payment_authorized') {
-      return 'bg-action-warning';
-    }
-    
-    switch (paymentStatus?.toLowerCase()) {
-      case 'captured':
-      case 'completed':
-        return 'bg-action-success';
-      case 'pending':
-        return 'bg-action-info';
-      case 'failed':
-      case 'cancelled':
-        return 'bg-destructive';
-      default:
-        return 'bg-muted';
-    }
-  };
-
-  // Get tip display information
-  const getTipDisplay = (tipAmount: number | undefined, paymentStatus: string) => {
-    if (!tipAmount || tipAmount <= 0) return null;
-
-    switch (paymentStatus?.toLowerCase()) {
-      case 'authorized':
-        return {
-          text: `Tip: $${tipAmount.toFixed(2)} (Authorized)`,
-          color: 'bg-action-warning text-white border-action-warning',
-          shortText: `Tip $${tipAmount.toFixed(2)}`,
-        };
-      case 'captured':
-      case 'completed':
-        return {
-          text: `Tip: $${tipAmount.toFixed(2)} (Received)`,
-          color: 'bg-action-success text-white border-action-success',
-          shortText: `Tip $${tipAmount.toFixed(2)}`,
-        };
-      case 'pending':
-        return {
-          text: `Tip: $${tipAmount.toFixed(2)} (Pending)`,
-          color: 'bg-action-info text-white border-action-info',
-          shortText: `Tip $${tipAmount.toFixed(2)}`,
-        };
-      default:
-        return {
-          text: `Tip: $${tipAmount.toFixed(2)}`,
           color: 'bg-muted text-muted-foreground border-border',
-          shortText: `Tip $${tipAmount.toFixed(2)}`,
         };
     }
   };
 
-  const isArchived = job.is_archived;
-  const paymentStatus = getPaymentStatusDisplay(job.payment_status, isArchived);
+  const getTipBadge = () => {
+    const tip = job.tip_amount;
+    if (!tip || tip <= 0) return null;
+    const status = job.payment_status?.toLowerCase();
+    let color = 'bg-muted text-muted-foreground border-border';
+    if (status === 'authorized')
+      color = 'bg-action-warning text-white border-action-warning';
+    else if (status === 'captured' || status === 'completed')
+      color = 'bg-action-success text-white border-action-success';
+    else if (status === 'pending')
+      color = 'bg-action-info text-white border-action-info';
+    return { text: `Tip $${tip.toFixed(2)}`, color };
+  };
+
+  // ---------- primary action logic (mirrors JobActions) ----------
+  const canCompleteAndCapture =
+    ['confirmed', 'in_progress', 'payment_authorized'].includes(job.status) &&
+    job.payment_status === 'authorized' &&
+    !!job.payment_intent_id &&
+    !job.requires_manual_payment &&
+    !job.pending_payment_amount;
+
+  const canCollectPayment =
+    job.payment_status === 'failed' || job.payment_status === 'cancelled';
+
+  const canAddServices =
+    job.status === 'confirmed' ||
+    job.status === 'in_progress' ||
+    job.status === 'payment_authorized';
+  const canModifyServices = canAddServices;
+  const canReassignOrReschedule =
+    job.status !== 'completed' && job.status !== 'cancelled';
+
+  const handleCompleteAndCapture = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (completing) return;
+    setCompleting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const { data, error } = await supabase.functions.invoke(
+        'worker-complete-and-capture',
+        {
+          body: { booking_id: job.id },
+          headers: { Authorization: `Bearer ${session?.access_token ?? ''}` },
+        }
+      );
+      if (error) {
+        const err: any = error;
+        throw new Error(
+          err?.context?.error || err?.message || 'Unable to complete job'
+        );
+      }
+      if (!data?.success) throw new Error(data?.error || 'Unable to complete job');
+      const captured = Number(data.amount_captured || 0);
+      toast({
+        title: data.recovered_from_stripe
+          ? 'Job Completed (Recovered)'
+          : 'Job Completed & Payment Captured',
+        description: `Successfully charged $${captured.toFixed(2)}`,
+      });
+      onJobUpdated?.();
+    } catch (err) {
+      toast({
+        title: 'Payment Not Captured',
+        description:
+          err instanceof Error ? err.message : 'Please try again or contact admin.',
+        variant: 'destructive',
+      });
+    } finally {
+      setCompleting(false);
+    }
+  };
+
+  const stop = (e: React.MouseEvent) => e.stopPropagation();
+
+  const payment = getPaymentDisplay(job.payment_status);
+  const tipBadge = getTipBadge();
+  const phone = getCustomerPhone();
+
+  // Determine primary action rendered on the dispatch card
+  const renderPrimaryAction = () => {
+    if (canCompleteAndCapture) {
+      return (
+        <Button
+          onClick={handleCompleteAndCapture}
+          disabled={completing}
+          className="w-full min-h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+        >
+          {completing ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <CheckCircle className="h-4 w-4 mr-2" />
+          )}
+          {completing ? 'Processing…' : 'Complete & collect payment'}
+        </Button>
+      );
+    }
+    if (canCollectPayment) {
+      return (
+        <Button
+          onClick={(e) => {
+            stop(e);
+            setShowCharge(true);
+          }}
+          className="w-full min-h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+        >
+          <CreditCard className="h-4 w-4 mr-2" />
+          Collect payment
+        </Button>
+      );
+    }
+    // Fallback: view details
+    return (
+      <Button
+        onClick={(e) => {
+          stop(e);
+          if (!isExpanded) onToggle();
+        }}
+        variant="outline"
+        className="w-full min-h-11 font-medium"
+      >
+        <Eye className="h-4 w-4 mr-2" />
+        View details
+      </Button>
+    );
+  };
 
   return (
-    <Card className={`
-      transition-all duration-200 ease-in-out cursor-pointer
-      hover:shadow-md hover:scale-[1.01]
-      ${isExpanded ? 'shadow-lg ring-2 ring-primary/20' : 'shadow-sm hover:shadow-md'}
-      bg-card border border-border
-    `}>
-      <CardContent className="p-3 sm:p-4">
-        <div className="flex items-start sm:items-center justify-between gap-2 sm:gap-4">
-          {/* Left: Status and Service */}
-          <div className="flex-1 min-w-0 pr-0 sm:pr-4">
-            {/* Mobile: Name + wrapping status/payment badges */}
-            <div className="sm:hidden">
-              <div className="text-sm font-semibold text-foreground min-w-0 mb-2 break-words">
+    <>
+      <Card
+        onClick={onToggle}
+        className={`
+          relative overflow-hidden cursor-pointer transition-all duration-200
+          hover:shadow-md bg-card border border-border
+          ${isExpanded ? 'shadow-lg ring-2 ring-primary/20' : 'shadow-sm'}
+          ${isArchived ? 'opacity-80' : ''}
+        `}
+      >
+        {/* Left accent bar */}
+        <div
+          className="absolute left-0 top-0 bottom-0 w-[3px]"
+          style={getAccentStyle()}
+          aria-hidden="true"
+        />
+
+        <CardContent className="p-4 pl-5 space-y-3">
+          {/* Top row */}
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="text-base font-medium text-foreground truncate">
                 {getCustomerName()}
               </div>
-              <div className="flex flex-wrap items-center gap-1.5 mb-2">
-                <Badge
-                  variant="outline"
-                  className={`text-[10px] font-medium ${getStatusColor(job.status, isArchived)}`}
-                >
-                  {getDisplayStatus(job.status, isArchived)}
-                </Badge>
-                <Badge
-                  variant="outline"
-                  className={`text-[10px] font-medium ${paymentStatus.color}`}
-                >
-                  {paymentStatus.text}
-                </Badge>
+              <div className="text-sm text-muted-foreground break-words">
+                {getServiceSummary()}
               </div>
             </div>
-            
-            
-            {/* Desktop: Horizontal layout */}
-            <div className="hidden sm:flex flex-wrap items-center gap-3 mb-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge 
-                  variant="outline" 
-                  className={`text-xs font-medium ${getStatusColor(job.status, isArchived)}`}
-                >
-                  {getDisplayStatus(job.status, isArchived)}
-                </Badge>
-                <Badge 
-                  variant="outline" 
-                  className={`text-xs font-medium ${paymentStatus.color}`}
-                >
-                  {paymentStatus.text}
-                </Badge>
-                {(() => {
-                  const tipDisplay = getTipDisplay(job.tip_amount, job.payment_status);
-                  return tipDisplay && (
-                    <Badge 
-                      variant="outline" 
-                      className={`text-xs font-medium ${tipDisplay.color}`}
-                    >
-                      {tipDisplay.text}
-                    </Badge>
-                  );
-                })()}
-                {timeToStart && isToday && !isArchived && (
-                  <Badge 
-                    variant="outline" 
-                    className={`text-xs font-medium flex items-center gap-1 ${getCountdownBadgeStyle()}`}
+            <div className="text-right shrink-0">
+              <div className="text-sm font-medium text-foreground whitespace-nowrap">
+                {formatCompactDateTime(job)}
+              </div>
+              {timeToStart && isToday && !isArchived && (
+                <div className="mt-1 flex justify-end">
+                  <Badge
+                    variant="outline"
+                    className={`text-[10px] font-medium flex items-center gap-1 ${getCountdownBadgeStyle()}`}
                   >
                     <Clock className="h-3 w-3" />
-                    {timeToStart === 'Started' ? 'Started' : `Starts in ${timeToStart}`}
+                    {timeToStart === 'Started' ? 'Started' : `in ${timeToStart}`}
                   </Badge>
-                )}
-                {isNewJob() && !isArchived && (
-                  <Badge 
-                    variant="outline" 
-                    className="text-xs font-medium bg-action-info text-white border-action-info"
-                  >
-                    NEW
-                  </Badge>
-                )}
-              </div>
-              <span className="text-sm font-medium text-foreground truncate">
-                {getCustomerName()}
-              </span>
-            </div>
-            <div className="text-sm text-muted-foreground space-y-1">
-              {getServiceLines().map((serviceLine, index) => (
-                <div key={index} className="break-words sm:truncate">
-                  {serviceLine}
                 </div>
-              ))}
+              )}
             </div>
           </div>
 
-          {/* Center: Date/Time and Address */}
-          <div className="flex-1 min-w-0 hidden sm:block">
-            <div className="text-sm font-medium text-foreground">
-              {formatCompactDateTime(job)}
-            </div>
-            <div className="text-sm text-muted-foreground truncate">
-              {getShortAddress()}
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">
-              {isArchived ? `Completed ${new Date(job.archived_at).toLocaleDateString()}` : `Received ${getTimeSinceCreation()}`}
-            </div>
+          {/* Pills */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Badge
+              variant="outline"
+              className={`text-[10px] font-medium ${getStatusColor(job.status)}`}
+            >
+              {getDisplayStatus(job.status)}
+            </Badge>
+            <Badge
+              variant="outline"
+              className={`text-[10px] font-medium ${payment.color}`}
+            >
+              {payment.text}
+            </Badge>
+            {tipBadge && (
+              <Badge
+                variant="outline"
+                className={`text-[10px] font-medium ${tipBadge.color}`}
+              >
+                {tipBadge.text}
+              </Badge>
+            )}
           </div>
 
-          {/* Right: Quick Actions and Expand */}
-          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+          {/* Address + Phone rows */}
+          <div className="space-y-1.5 text-sm">
+            <div className="flex items-start gap-2 text-muted-foreground">
+              <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
+              <span className="break-words">{getShortAddress()}</span>
+            </div>
+            {phone && (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Phone className="h-4 w-4 shrink-0" />
+                <span className="truncate">{phone}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Action bar */}
+          <div
+            className="flex items-stretch gap-2 pt-2"
+            onClick={stop}
+          >
+            <div className="flex-1 min-w-0">{renderPrimaryAction()}</div>
+
             <Button
-              variant="ghost"
-              size="sm"
+              variant="outline"
+              size="icon"
               onClick={(e) => {
-                e.stopPropagation();
+                stop(e);
+                onDirections();
+              }}
+              className="h-11 w-11 shrink-0"
+              aria-label="Get directions"
+            >
+              <Navigation className="h-5 w-5" />
+            </Button>
+
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={(e) => {
+                stop(e);
                 onCall();
               }}
-              className="h-11 w-11 p-0"
+              disabled={!phone}
+              className="h-11 w-11 shrink-0"
               aria-label="Call customer"
             >
               <Phone className="h-5 w-5" />
             </Button>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDirections();
-              }}
-              className="h-11 w-11 p-0"
-              aria-label="Get directions"
-            >
-              <MapPin className="h-5 w-5" />
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onToggle}
-              className="h-11 w-11 p-0"
-              aria-label={isExpanded ? 'Collapse job' : 'Expand job'}
-            >
-              <ChevronDown className={`h-5 w-5 transition-transform duration-200 ${
-                isExpanded ? 'rotate-180' : ''
-              }`} />
-            </Button>
-          </div>
-        </div>
-
-        {/* Mobile: Show date/address below on small screens */}
-        <div className="sm:hidden mt-2 pt-2 border-border">
-          <div className="flex items-center gap-2 mb-2 flex-wrap">
-            {timeToStart && isToday && !isArchived && (
-              <Badge 
-                variant="outline" 
-                className={`text-xs font-medium flex items-center gap-1 w-fit ${getCountdownBadgeStyle()}`}
-              >
-                <Clock className="h-3 w-3" />
-                {timeToStart === 'Started' ? 'Started' : `Starts in ${timeToStart}`}
-              </Badge>
-            )}
-            {(() => {
-              const tipDisplay = getTipDisplay(job.tip_amount, job.payment_status);
-              return tipDisplay && (
-                <Badge 
-                  variant="outline" 
-                  className={`text-xs font-medium ${tipDisplay.color}`}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={stop}
+                  className="h-11 w-11 shrink-0"
+                  aria-label="More actions"
                 >
-                  {tipDisplay.shortText}
-                </Badge>
-              );
-            })()}
+                  <MoreHorizontal className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" onClick={stop} className="w-56">
+                <DropdownMenuItem
+                  onClick={() => {
+                    if (!isExpanded) onToggle();
+                  }}
+                >
+                  <Eye className="h-4 w-4 mr-2" />
+                  View details
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {canAddServices && (
+                  <DropdownMenuItem onClick={() => setShowAdd(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add services
+                  </DropdownMenuItem>
+                )}
+                {canModifyServices && (
+                  <DropdownMenuItem onClick={() => setShowRemove(true)}>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Remove services
+                  </DropdownMenuItem>
+                )}
+                {canReassignOrReschedule && (
+                  <>
+                    <DropdownMenuItem onClick={() => setShowReassign(true)}>
+                      <Users className="h-4 w-4 mr-2" />
+                      Reassign job
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setShowReschedule(true)}>
+                      <Clock className="h-4 w-4 mr-2" />
+                      Change time
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => {
+                stop(e);
+                onToggle();
+              }}
+              className="h-11 w-11 shrink-0"
+              aria-label={isExpanded ? 'Collapse' : 'Expand'}
+            >
+              <ChevronDown
+                className={`h-5 w-5 transition-transform duration-200 ${
+                  isExpanded ? 'rotate-180' : ''
+                }`}
+              />
+            </Button>
           </div>
-          <div className="border-t border-border pt-2">
-            <div className="text-sm font-medium text-foreground">
-              {formatCompactDateTime(job)}
-            </div>
-            <div className="text-sm text-muted-foreground break-words">
-              {getShortAddress()}
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">
-              {isArchived ? `Completed ${new Date(job.archived_at).toLocaleDateString()}` : `Received ${getTimeSinceCreation()}`}
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+
+      {/* Modals — reuse existing components/handlers */}
+      <ReassignJobModal
+        isOpen={showReassign}
+        onClose={() => setShowReassign(false)}
+        bookingId={job.id}
+        onSuccess={() => {
+          setShowReassign(false);
+          onJobUpdated?.();
+        }}
+      />
+      <RescheduleJobModal
+        isOpen={showReschedule}
+        onClose={() => setShowReschedule(false)}
+        bookingId={job.id}
+        currentDate={job.scheduled_date}
+        currentTime={job.scheduled_start}
+        onSuccess={() => {
+          setShowReschedule(false);
+          onJobUpdated?.();
+        }}
+      />
+      {showAdd && (
+        <AddServicesModal
+          isOpen={showAdd}
+          onClose={() => setShowAdd(false)}
+          job={job}
+          onServicesAdded={() => {
+            setShowAdd(false);
+            onJobUpdated?.();
+          }}
+        />
+      )}
+      {showRemove && (
+        <RemoveServicesModal
+          isOpen={showRemove}
+          onClose={() => setShowRemove(false)}
+          job={job}
+          onModificationCreated={() => {
+            setShowRemove(false);
+            onJobUpdated?.();
+          }}
+        />
+      )}
+      {showCharge && (
+        <OnSiteChargeModal
+          isOpen={showCharge}
+          onClose={() => setShowCharge(false)}
+          job={job}
+          onChargeSuccess={() => {
+            setShowCharge(false);
+            onJobUpdated?.();
+          }}
+        />
+      )}
+    </>
   );
 };
