@@ -184,7 +184,7 @@ export const BookingSmokeTest = () => {
       case 'success':
         return 'text-green-400';
       case 'error':
-        return 'text-red-400';
+        return 'text-destructive';
       case 'skipped':
         return 'text-yellow-400';
     }

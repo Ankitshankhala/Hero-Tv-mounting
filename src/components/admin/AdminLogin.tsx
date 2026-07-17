@@ -52,7 +52,7 @@ export const AdminLogin = ({ onLogin }: AdminLoginProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-muted/40 flex items-center justify-center p-4">
+    <div className="dark min-h-screen bg-background text-foreground flex items-center justify-center p-4">
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="text-center">
           <img
@@ -66,7 +66,7 @@ export const AdminLogin = ({ onLogin }: AdminLoginProps) => {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+              <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-destructive text-sm">
                 {error}
               </div>
             )}
@@ -74,7 +74,7 @@ export const AdminLogin = ({ onLogin }: AdminLoginProps) => {
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <div className="relative">
-                <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="email"
                   type="email"
@@ -91,7 +91,7 @@ export const AdminLogin = ({ onLogin }: AdminLoginProps) => {
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="password"
                   type="password"
@@ -114,8 +114,8 @@ export const AdminLogin = ({ onLogin }: AdminLoginProps) => {
             </Button>
           </form>
           
-          <div className="mt-6 p-3 bg-gray-50 rounded-lg text-center">
-            <p className="text-sm text-gray-600">
+          <div className="mt-6 p-3 bg-muted rounded-lg text-center">
+            <p className="text-sm text-muted-foreground">
               Admin access is restricted to pre-authorized accounts only.
               <br />
               Contact your system administrator for access.

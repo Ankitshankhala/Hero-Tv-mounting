@@ -158,7 +158,7 @@ export const OptimizedZipDataManager = () => {
       case 'excellent':
         return <Badge className="bg-green-100 text-green-800"><CheckCircle className="w-3 h-3 mr-1" />Excellent</Badge>;
       case 'good':
-        return <Badge className="bg-blue-100 text-blue-800"><CheckCircle className="w-3 h-3 mr-1" />Good</Badge>;
+        return <Badge className="bg-primary/15 text-primary"><CheckCircle className="w-3 h-3 mr-1" />Good</Badge>;
       case 'fair':
         return <Badge className="bg-yellow-100 text-yellow-800"><AlertTriangle className="w-3 h-3 mr-1" />Fair</Badge>;
       case 'critical':

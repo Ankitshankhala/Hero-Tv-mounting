@@ -360,7 +360,7 @@ const AdminZipCodeManager = ({ workerId, workerName, onZipCodeUpdate }: AdminZip
                 }}
               />
               {zipSuggestions.length > 0 && (
-                <div className="absolute top-full left-0 right-0 bg-white border rounded-md shadow-lg z-10 max-h-40 overflow-y-auto">
+                <div className="absolute top-full left-0 right-0 bg-card border rounded-md shadow-lg z-10 max-h-40 overflow-y-auto">
                   {zipSuggestions.map((suggestion, index) => (
                     <div
                       key={index}

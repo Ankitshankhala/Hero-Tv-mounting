@@ -264,7 +264,7 @@ export const ZctaDataManager = () => {
   return (
     <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 dark:from-blue-950/20 dark:to-indigo-950/20 dark:border-blue-800">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
+        <CardTitle className="flex items-center gap-2 text-primary dark:text-blue-300">
           <Database className="h-5 w-5" />
           ZCTA Polygon Data Import
         </CardTitle>
@@ -338,7 +338,7 @@ export const ZctaDataManager = () => {
               onClick={() => populateZctaData(false)}
               disabled={isPopulating}
               size="sm"
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              className="bg-primary hover:opacity-90 text-primary-foreground text-white"
             >
               {isPopulating ? (
                 <>
@@ -394,7 +394,7 @@ export const ZctaDataManager = () => {
                     populateZctaData(true);
                   }
                 }}
-                className="rounded border-gray-300"
+                className="rounded border-border"
                 disabled={isPopulating}
               />
               <span className="text-muted-foreground">
@@ -417,8 +417,8 @@ export const ZctaDataManager = () => {
         )}
 
         {status === 'error' && stats?.recordsInserted === 0 && (
-          <div className="text-xs text-muted-foreground bg-red-50 dark:bg-red-950/10 p-3 rounded-lg border border-red-200 dark:border-red-800">
-            <p className="font-medium mb-1 text-red-700 dark:text-red-300">No ZCTA Polygons Found:</p>
+          <div className="text-xs text-muted-foreground bg-destructive/10 dark:bg-red-950/10 p-3 rounded-lg border border-destructive/30 dark:border-red-800">
+            <p className="font-medium mb-1 text-destructive dark:text-red-300">No ZCTA Polygons Found:</p>
             <ul className="space-y-1">
               <li>• The `us_zcta_polygons` table is empty</li>
               <li>• Click "Populate ZCTA Data" to import ~33,000 ZCTA boundaries</li>

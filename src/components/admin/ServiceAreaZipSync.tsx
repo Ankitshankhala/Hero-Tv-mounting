@@ -151,7 +151,7 @@ export const ServiceAreaZipSync: React.FC<ServiceAreaZipSyncProps> = ({
     (validationResult?.expectedCount !== validationResult?.actualCount);
 
   return (
-    <div className="bg-white border rounded-lg p-4 space-y-4">
+    <div className="bg-card border rounded-lg p-4 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -176,7 +176,7 @@ export const ServiceAreaZipSync: React.FC<ServiceAreaZipSyncProps> = ({
         {syncState.computedZips.length > 0 && (
           <div className="flex justify-between">
             <span>Computed ZIPs:</span>
-            <span className="text-blue-600">{syncState.computedZips.length}</span>
+            <span className="text-primary">{syncState.computedZips.length}</span>
           </div>
         )}
 
@@ -281,12 +281,12 @@ export const ServiceAreaZipSync: React.FC<ServiceAreaZipSyncProps> = ({
 
       {/* Quick Stats */}
       <div className="grid grid-cols-3 gap-2 text-xs text-center">
-        <div className="bg-gray-50 rounded p-2">
+        <div className="bg-muted rounded p-2">
           <div className="font-medium">{serviceArea.zipcode_list?.length || 0}</div>
           <div className="text-muted-foreground">Current</div>
         </div>
         <div className="bg-blue-50 rounded p-2">
-          <div className="font-medium text-blue-600">{syncState.computedZips.length}</div>
+          <div className="font-medium text-primary">{syncState.computedZips.length}</div>
           <div className="text-muted-foreground">Computed</div>
         </div>
         <div className="bg-green-50 rounded p-2">

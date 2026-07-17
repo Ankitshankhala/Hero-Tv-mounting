@@ -143,14 +143,14 @@ export const PaymentRecoveryTools = () => {
                     )}
                     <div>
                       <p className="font-medium">{getCustomerName(payment)}</p>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-muted-foreground">
                         Booking ID: {payment.id}
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-muted-foreground">
                         {payment.payment_status === 'authorized' ? 'Authorized' : 'Failed'}: {formatDate(payment.created_at)}
                       </p>
                       {payment.payment_intent_id && (
-                        <p className="text-xs text-gray-400">
+                        <p className="text-xs text-muted-foreground">
                           PI: {payment.payment_intent_id.slice(-8)}
                         </p>
                       )}
@@ -181,9 +181,9 @@ export const PaymentRecoveryTools = () => {
         
         {stuckPayments.length === 0 && !loading && (
           <div className="text-center py-8">
-            <AlertTriangle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500">No stuck payments found</p>
-            <p className="text-sm text-gray-400 mt-1">
+            <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground">No stuck payments found</p>
+            <p className="text-sm text-muted-foreground mt-1">
               All payments appear to be processing correctly
             </p>
           </div>
@@ -191,8 +191,8 @@ export const PaymentRecoveryTools = () => {
         
         {loading && (
           <div className="text-center py-8">
-            <RefreshCw className="h-8 w-8 text-gray-400 mx-auto mb-4 animate-spin" />
-            <p className="text-gray-500">Scanning for stuck payments...</p>
+            <RefreshCw className="h-8 w-8 text-muted-foreground mx-auto mb-4 animate-spin" />
+            <p className="text-muted-foreground">Scanning for stuck payments...</p>
           </div>
         )}
       </CardContent>

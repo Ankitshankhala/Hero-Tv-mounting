@@ -135,7 +135,7 @@ export function InvoiceEmailVerifier({ bookingIds, onVerificationComplete }: Inv
                   </CardContent>
                 </Card>
                 
-                <Card className="bg-red-50">
+                <Card className="bg-destructive/10">
                   <CardContent className="p-4">
                     <div className="text-2xl font-bold text-red-600">
                       {verifications.filter(v => !v.success).length}
@@ -146,10 +146,10 @@ export function InvoiceEmailVerifier({ bookingIds, onVerificationComplete }: Inv
                 
                 <Card className="bg-blue-50">
                   <CardContent className="p-4">
-                    <div className="text-2xl font-bold text-blue-600">
+                    <div className="text-2xl font-bold text-primary">
                       {verifications.length}
                     </div>
-                    <div className="text-sm text-blue-600">Total Bookings</div>
+                    <div className="text-sm text-primary">Total Bookings</div>
                   </CardContent>
                 </Card>
               </div>
@@ -163,7 +163,7 @@ export function InvoiceEmailVerifier({ bookingIds, onVerificationComplete }: Inv
                     <CardContent className="p-4">
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <div className="font-mono text-sm text-gray-600">
+                          <div className="font-mono text-sm text-muted-foreground">
                             Booking: {verification.booking_id.slice(0, 8)}...
                           </div>
                           {getStatusBadge(verification)}
@@ -172,25 +172,25 @@ export function InvoiceEmailVerifier({ bookingIds, onVerificationComplete }: Inv
                         {verification.success ? (
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
-                              <Mail className="w-4 h-4 text-gray-500" />
+                              <Mail className="w-4 h-4 text-muted-foreground" />
                               <span className="font-medium text-green-600">
                                 {verification.email_address}
                               </span>
                               {getCustomerTypeBadge(verification.customer_type)}
                             </div>
                             
-                            <div className="text-sm text-gray-600">
+                            <div className="text-sm text-muted-foreground">
                               Customer: {verification.customer_name}
                             </div>
                             
                             {verification.service_name && (
-                              <div className="text-sm text-gray-600">
+                              <div className="text-sm text-muted-foreground">
                                 Service: {verification.service_name}
                               </div>
                             )}
                             
                             {verification.scheduled_date && (
-                              <div className="flex items-center gap-1 text-sm text-gray-600">
+                              <div className="flex items-center gap-1 text-sm text-muted-foreground">
                                 <Calendar className="w-3 h-3" />
                                 {new Date(verification.scheduled_date).toLocaleDateString()}
                               </div>

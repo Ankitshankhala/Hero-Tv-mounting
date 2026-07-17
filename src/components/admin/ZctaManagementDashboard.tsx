@@ -372,7 +372,7 @@ export const ZctaManagementDashboard: React.FC = () => {
                   <select
                     value={selectedWorker}
                     onChange={(e) => setSelectedWorker(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-md"
+                    className="w-full p-2 border border-border rounded-md"
                   >
                     <option value="">Select a worker</option>
                     {workers.map(worker => (
@@ -435,10 +435,10 @@ export const ZctaManagementDashboard: React.FC = () => {
               <CardContent>
                 <div className="space-y-3">
                   {workerAreas.map((area, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded">
+                    <div key={index} className="flex items-center justify-between p-3 bg-muted rounded">
                       <div className="space-y-1">
                         <div className="font-medium">{area.area_name}</div>
-                        <div className="text-sm text-gray-600">
+                        <div className="text-sm text-muted-foreground">
                           ZCTA: {area.zcta_code} | {area.zcta_validation.city}, {area.zcta_validation.state}
                         </div>
                       </div>
@@ -536,8 +536,8 @@ export const ZctaManagementDashboard: React.FC = () => {
               <CardTitle>Coverage Analysis</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-8 text-gray-500">
-                <BarChart3 className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+              <div className="text-center py-8 text-muted-foreground">
+                <BarChart3 className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                 <p>Coverage analysis features coming soon...</p>
                 <p className="text-sm">Will include maps, charts, and expansion recommendations</p>
               </div>

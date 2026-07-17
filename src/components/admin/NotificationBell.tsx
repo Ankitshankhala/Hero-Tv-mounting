@@ -65,7 +65,7 @@ export const NotificationBell = () => {
     switch (type) {
       case 'booking': return <Calendar className="h-4 w-4 text-blue-400" />;
       case 'payment': return <DollarSign className="h-4 w-4 text-green-400" />;
-      case 'system': return <AlertCircle className="h-4 w-4 text-red-400" />;
+      case 'system': return <AlertCircle className="h-4 w-4 text-destructive" />;
       case 'message': return <MessageCircle className="h-4 w-4 text-purple-400" />;
       default: return <Bell className="h-4 w-4" />;
     }

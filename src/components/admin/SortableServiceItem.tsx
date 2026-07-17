@@ -56,18 +56,18 @@ export const SortableServiceItem: React.FC<SortableServiceItemProps> = ({
       style={style}
       className={`hover:bg-blue-50 transition-colors duration-200 ${
         isDragging ? 'opacity-50 shadow-lg' : ''
-      } ${!service.is_visible ? 'opacity-50 bg-gray-50' : ''}`}
+      } ${!service.is_visible ? 'opacity-50 bg-muted' : ''}`}
     >
       <TableCell>
         <div className="flex items-center gap-2">
           <div
             {...attributes}
             {...listeners}
-            className="cursor-grab hover:cursor-grabbing p-1 rounded hover:bg-gray-100"
+            className="cursor-grab hover:cursor-grabbing p-1 rounded hover:bg-muted"
           >
-            <GripVertical className="h-4 w-4 text-gray-400" />
+            <GripVertical className="h-4 w-4 text-muted-foreground" />
           </div>
-          <span className="font-medium text-sm text-gray-600">
+          <span className="font-medium text-sm text-muted-foreground">
             #{service.sort_order}
           </span>
         </div>
@@ -77,20 +77,20 @@ export const SortableServiceItem: React.FC<SortableServiceItemProps> = ({
           <img
             src={service.image_url}
             alt={service.name}
-            className="w-16 h-16 object-cover rounded-lg border border-gray-200"
+            className="w-16 h-16 object-cover rounded-lg border border-border"
           />
         ) : (
-          <div className="w-16 h-16 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
-            <Image className="h-6 w-6 text-gray-400" />
+          <div className="w-16 h-16 bg-muted rounded-lg border border-border flex items-center justify-center">
+            <Image className="h-6 w-6 text-muted-foreground" />
           </div>
         )}
       </TableCell>
-      <TableCell className="font-medium text-gray-900">
+      <TableCell className="font-medium text-foreground">
         {service.name}
-        {!service.is_visible && <span className="ml-2 text-xs text-gray-500">(Hidden)</span>}
+        {!service.is_visible && <span className="ml-2 text-xs text-muted-foreground">(Hidden)</span>}
       </TableCell>
       <TableCell className="max-w-xs">
-        <p className="text-sm text-gray-600 truncate">
+        <p className="text-sm text-muted-foreground truncate">
           {service.description || 'No description provided'}
         </p>
       </TableCell>
@@ -104,8 +104,8 @@ export const SortableServiceItem: React.FC<SortableServiceItemProps> = ({
       </TableCell>
       <TableCell>
         <div className="flex items-center space-x-1">
-          <Clock className="h-4 w-4 text-blue-600" />
-          <span className="text-blue-600 font-medium">
+          <Clock className="h-4 w-4 text-primary" />
+          <span className="text-primary font-medium">
             {formatDuration(service.duration_minutes)}
           </span>
         </div>
@@ -116,8 +116,8 @@ export const SortableServiceItem: React.FC<SortableServiceItemProps> = ({
             variant="outline"
             size="sm"
             onClick={() => onToggleVisibility(service.id)}
-            className={`hover:bg-gray-100 hover:border-gray-300 ${
-              !service.is_visible ? 'text-gray-500' : 'text-blue-600'
+            className={`hover:bg-muted hover:border-border ${
+              !service.is_visible ? 'text-muted-foreground' : 'text-primary'
             }`}
             title={service.is_visible ? 'Hide service' : 'Show service'}
           >

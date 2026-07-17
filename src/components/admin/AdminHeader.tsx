@@ -86,7 +86,7 @@ export const AdminHeader = ({
           <div className="flex items-center space-x-4">
             <ArrowSidebarToggle />
             <Link to="/">
-              <Button variant="outline" size="sm" className="bg-slate-700/50 text-slate-300 border-slate-600 hover:bg-white hover:text-slate-900 transition-colors">
+              <Button variant="outline" size="sm" className="bg-slate-700/50 text-slate-300 border-slate-600 hover:bg-card hover:text-slate-900 transition-colors">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Site
               </Button>
@@ -116,7 +116,7 @@ export const AdminHeader = ({
                   <Clock className="h-3 w-3 mr-1" />
                   {formatTimeRemaining(timeRemaining)}
                 </Badge>
-                <Button variant="outline" size="sm" onClick={handleTestingModeDeactivate} className="bg-red-900/20 text-red-400 border-red-600/50 hover:bg-red-600 hover:text-white transition-colors">
+                <Button variant="outline" size="sm" onClick={handleTestingModeDeactivate} className="bg-red-900/20 text-destructive border-red-600/50 hover:bg-red-600 hover:text-white transition-colors">
                   Deactivate Testing
                 </Button>
               </div> : <AlertDialog>

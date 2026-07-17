@@ -145,7 +145,7 @@ export const PricingIntegrityMonitor = () => {
             ) : (
               <>
                 <XCircle className="h-5 w-5 text-red-500" />
-                <span className="text-red-400 font-medium">
+                <span className="text-destructive font-medium">
                   {validationResult?.mismatches.length || 0} pricing mismatch(es) detected
                 </span>
               </>
@@ -161,7 +161,7 @@ export const PricingIntegrityMonitor = () => {
         {/* Mismatch Details */}
         {validationResult && !validationResult.isConsistent && (
           <Alert className="bg-red-900/20 border-red-500/30">
-            <AlertTriangle className="h-4 w-4 text-red-400" />
+            <AlertTriangle className="h-4 w-4 text-destructive" />
             <AlertDescription className="text-red-200">
               <div className="space-y-3 mt-2">
                 <p className="font-medium">Detected pricing inconsistencies:</p>
@@ -196,7 +196,7 @@ export const PricingIntegrityMonitor = () => {
             <Button
               onClick={handleAutoSync}
               disabled={syncing}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+              className="w-full bg-primary hover:opacity-90 text-primary-foreground text-white"
             >
               {syncing ? (
                 <>

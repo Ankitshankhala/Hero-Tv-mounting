@@ -69,11 +69,11 @@ export const DeleteBookingModal = ({ booking, isOpen, onClose, onBookingDeleted 
         </DialogHeader>
         
         <div className="space-y-4">
-          <p className="text-gray-600">
+          <p className="text-muted-foreground">
             Are you sure you want to delete booking #{booking.id.slice(0, 8)}? This action cannot be undone.
           </p>
           
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+          <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3">
             <p className="text-sm text-red-800">
               <strong>Warning:</strong> Deleting this booking will permanently remove all associated data.
             </p>

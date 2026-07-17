@@ -100,7 +100,7 @@ export const BlogPostModal = ({ isOpen, onClose, onSave, post }: Props) => {
                 onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
                 placeholder="url-friendly-slug"
               />
-              <p className="text-xs text-gray-500 mt-1">Leave unchanged to keep current slug; changing title regenerates it.</p>
+              <p className="text-xs text-muted-foreground mt-1">Leave unchanged to keep current slug; changing title regenerates it.</p>
             </div>
           )}
 
@@ -169,7 +169,7 @@ export const BlogPostModal = ({ isOpen, onClose, onSave, post }: Props) => {
               onChange={(e) => setFormData({ ...formData, video_id: e.target.value })}
               placeholder="e.g. dQw4w9WgXcQ"
             />
-            <p className="text-xs text-gray-500 mt-1">If provided, video is embedded instead of the cover image.</p>
+            <p className="text-xs text-muted-foreground mt-1">If provided, video is embedded instead of the cover image.</p>
           </div>
 
           <div>
@@ -199,7 +199,7 @@ export const BlogPostModal = ({ isOpen, onClose, onSave, post }: Props) => {
 
         <div className="flex justify-end space-x-2 mt-6">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700">
+          <Button onClick={handleSave} className="bg-primary hover:opacity-90 text-primary-foreground">
             {post ? 'Update' : 'Create'} Post
           </Button>
         </div>

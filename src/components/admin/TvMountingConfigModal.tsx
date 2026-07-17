@@ -104,18 +104,18 @@ export const TvMountingConfigModal: React.FC<TvMountingConfigModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
-      <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-gray-200 flex justify-between items-center sticky top-0 bg-white z-10">
+      <div className="bg-card rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6 border-b border-border flex justify-between items-center sticky top-0 bg-card z-10">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+            <h2 className="text-2xl font-bold text-foreground flex items-center">
               <Monitor className="mr-3 h-6 w-6 text-blue-500" />
               Mount TV Configuration
             </h2>
-            <p className="text-gray-600 mt-1">Configure Mount TV options for this booking</p>
+            <p className="text-muted-foreground mt-1">Configure Mount TV options for this booking</p>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-lg"
+            className="text-muted-foreground hover:text-muted-foreground transition-colors p-2 hover:bg-muted rounded-lg"
           >
             <X className="h-6 w-6" />
           </button>
@@ -123,8 +123,8 @@ export const TvMountingConfigModal: React.FC<TvMountingConfigModalProps> = ({
 
         <div className="p-6 space-y-6">
           {/* TV Quantity Selector */}
-          <div className="bg-gray-50 rounded-lg p-4">
-            <label className="block text-lg font-semibold text-gray-900 mb-3">
+          <div className="bg-muted rounded-lg p-4">
+            <label className="block text-lg font-semibold text-foreground mb-3">
               Number of TVs
             </label>
             <div className="flex items-center space-x-4">
@@ -133,28 +133,28 @@ export const TvMountingConfigModal: React.FC<TvMountingConfigModalProps> = ({
                 disabled={numberOfTvs <= 1}
                 className={`p-2 rounded-lg transition-colors ${
                   numberOfTvs <= 1
-                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                    : 'bg-muted text-foreground hover:bg-gray-300'
                 }`}
               >
                 -
               </button>
-              <div className="bg-white px-6 py-2 rounded-lg border">
-                <span className="text-xl font-semibold text-gray-900">{numberOfTvs}</span>
+              <div className="bg-card px-6 py-2 rounded-lg border">
+                <span className="text-xl font-semibold text-foreground">{numberOfTvs}</span>
               </div>
               <button
                 onClick={incrementTvs}
                 disabled={numberOfTvs >= 5}
                 className={`p-2 rounded-lg transition-colors ${
                   numberOfTvs >= 5
-                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                    : 'bg-muted text-foreground hover:bg-gray-300'
                 }`}
               >
                 +
               </button>
             </div>
-            <div className="mt-3 text-sm text-gray-600">
+            <div className="mt-3 text-sm text-muted-foreground">
               <div>Base Mount TV: ${calculateTvMountingPrice(numberOfTvs)}</div>
               {numberOfTvs > 1 && (
                 <div className="text-xs mt-1">
@@ -166,33 +166,33 @@ export const TvMountingConfigModal: React.FC<TvMountingConfigModalProps> = ({
 
           {/* Individual TV Configurations */}
           <div className="space-y-4">
-            <h3 className="text-xl font-semibold text-gray-900">Configure Each TV</h3>
+            <h3 className="text-xl font-semibold text-foreground">Configure Each TV</h3>
             {tvConfigurations.map((config, index) => (
-              <div key={config.id} className="bg-gray-50 rounded-lg p-4 border">
-                <h4 className="text-lg font-semibold text-gray-900 mb-4">
+              <div key={config.id} className="bg-muted rounded-lg p-4 border">
+                <h4 className="text-lg font-semibold text-foreground mb-4">
                   TV #{index + 1} Configuration
                 </h4>
                 
                 <div className="space-y-4">
                   {/* Over 65" TV Add-on */}
-                  <div className="bg-white rounded-lg p-3 border">
+                  <div className="bg-card rounded-lg p-3 border">
                     <label className="flex items-center space-x-3 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={config.over65}
                         onChange={(e) => updateTvConfiguration(config.id, { over65: e.target.checked })}
-                        className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500"
+                        className="w-4 h-4 text-primary bg-card border-border rounded focus:ring-blue-500"
                       />
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
-                          <span className="font-medium text-gray-900">Over 65" TV Add-on</span>
+                          <span className="font-medium text-foreground">Over 65" TV Add-on</span>
                           {config.over65 && (
                             <span className="text-green-600 font-semibold">
                               +${over65Service?.base_price || 25}
                             </span>
                           )}
                         </div>
-                        <p className="text-gray-600 text-xs">
+                        <p className="text-muted-foreground text-xs">
                           Additional charge for larger TVs (+${over65Service?.base_price || 25})
                         </p>
                       </div>
@@ -200,24 +200,24 @@ export const TvMountingConfigModal: React.FC<TvMountingConfigModalProps> = ({
                   </div>
 
                   {/* Frame Mount Add-on */}
-                  <div className="bg-white rounded-lg p-3 border">
+                  <div className="bg-card rounded-lg p-3 border">
                     <label className="flex items-center space-x-3 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={config.frameMount}
                         onChange={(e) => updateTvConfiguration(config.id, { frameMount: e.target.checked })}
-                        className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500"
+                        className="w-4 h-4 text-primary bg-card border-border rounded focus:ring-blue-500"
                       />
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
-                          <span className="font-medium text-gray-900">Frame Mount Add-on</span>
+                          <span className="font-medium text-foreground">Frame Mount Add-on</span>
                           {config.frameMount && (
                             <span className="text-green-600 font-semibold">
                               +${frameMountService?.base_price || 25}
                             </span>
                           )}
                         </div>
-                        <p className="text-gray-600 text-xs">
+                        <p className="text-muted-foreground text-xs">
                           Specialized frame mounting service (+${frameMountService?.base_price || 25})
                         </p>
                       </div>
@@ -225,24 +225,24 @@ export const TvMountingConfigModal: React.FC<TvMountingConfigModalProps> = ({
                   </div>
 
                   {/* Steel/Brick/Concrete Wall Add-on */}
-                  <div className="bg-white rounded-lg p-3 border">
+                  <div className="bg-card rounded-lg p-3 border">
                     <label className="flex items-center space-x-3 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={config.wallType !== 'standard'}
                         onChange={(e) => updateTvConfiguration(config.id, { wallType: e.target.checked ? 'steel' : 'standard' })}
-                        className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500"
+                        className="w-4 h-4 text-primary bg-card border-border rounded focus:ring-blue-500"
                       />
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
-                          <span className="font-medium text-gray-900">Steel/Brick/Concrete Wall</span>
+                          <span className="font-medium text-foreground">Steel/Brick/Concrete Wall</span>
                           {config.wallType !== 'standard' && (
                             <span className="text-green-600 font-semibold">
                               +${stoneWallService?.base_price || 40}
                             </span>
                           )}
                         </div>
-                        <p className="text-gray-600 text-xs">
+                        <p className="text-muted-foreground text-xs">
                           Additional charge for specialty wall surfaces (+${stoneWallService?.base_price || 40})
                         </p>
                       </div>
@@ -250,24 +250,24 @@ export const TvMountingConfigModal: React.FC<TvMountingConfigModalProps> = ({
                   </div>
 
                   {/* Mount Soundbar Add-on */}
-                  <div className="bg-white rounded-lg p-3 border">
+                  <div className="bg-card rounded-lg p-3 border">
                     <label className="flex items-center space-x-3 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={config.soundbar}
                         onChange={(e) => updateTvConfiguration(config.id, { soundbar: e.target.checked })}
-                        className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500"
+                        className="w-4 h-4 text-primary bg-card border-border rounded focus:ring-blue-500"
                       />
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
-                          <span className="font-medium text-gray-900">Mount Soundbar</span>
+                          <span className="font-medium text-foreground">Mount Soundbar</span>
                           {config.soundbar && (
                             <span className="text-green-600 font-semibold">
                               +$40
                             </span>
                           )}
                         </div>
-                        <p className="text-gray-600 text-xs">
+                        <p className="text-muted-foreground text-xs">
                           Professional soundbar mounting service (equipment not included) (+$40)
                         </p>
                       </div>
@@ -285,7 +285,7 @@ export const TvMountingConfigModal: React.FC<TvMountingConfigModalProps> = ({
               {buildServicesList().map((service, index) => (
                 <div key={index} className="flex justify-between items-center text-sm">
                   <span className="text-blue-800">{service.name}</span>
-                  <span className="text-blue-600 font-semibold">${service.price}</span>
+                  <span className="text-primary font-semibold">${service.price}</span>
                 </div>
               ))}
             </div>
@@ -293,11 +293,11 @@ export const TvMountingConfigModal: React.FC<TvMountingConfigModalProps> = ({
 
           {/* Price Summary */}
           <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4 border border-green-200">
-            <div className="flex justify-between items-center text-gray-900">
+            <div className="flex justify-between items-center text-foreground">
               <span className="text-lg font-semibold">Total Price:</span>
               <span className="text-2xl font-bold text-green-600">${totalPrice}</span>
             </div>
-            <div className="text-xs text-gray-600 mt-2">
+            <div className="text-xs text-muted-foreground mt-2">
               Price updates automatically based on your selections
             </div>
           </div>
@@ -314,7 +314,7 @@ export const TvMountingConfigModal: React.FC<TvMountingConfigModalProps> = ({
             <Button
               onClick={handleComplete}
               disabled={!isReady || servicesLoading}
-              className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 bg-primary hover:opacity-90 text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Check className="h-4 w-4 mr-2" />
               {servicesLoading ? 'Loading...' : 'Apply Configuration'}

@@ -141,7 +141,7 @@ export const AddWorkerModal = ({ onClose, onSuccess }: AddWorkerModalProps) => {
   return (
     <>
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6 w-full max-w-md">
+        <div className="bg-card rounded-lg p-6 w-full max-w-md">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-bold">Add New Technician</h2>
             <Button variant="ghost" size="sm" onClick={onClose}>
@@ -200,7 +200,7 @@ export const AddWorkerModal = ({ onClose, onSuccess }: AddWorkerModalProps) => {
             <div className="flex space-x-4 pt-4">
               <Button 
                 type="submit" 
-                className="flex-1 bg-blue-600 hover:bg-blue-700"
+                className="flex-1 bg-primary hover:opacity-90 text-primary-foreground"
                 disabled={loading}
               >
                 {loading ? 'Adding...' : 'Add Technician'}
@@ -229,13 +229,13 @@ export const AddWorkerModal = ({ onClose, onSuccess }: AddWorkerModalProps) => {
               </p>
               <div className="space-y-2">
                 <div>
-                  <label className="text-xs font-medium text-gray-600">Email:</label>
+                  <label className="text-xs font-medium text-muted-foreground">Email:</label>
                   <p className="font-medium">{workerCreationResult?.email}</p>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-600">Temporary Password:</label>
+                  <label className="text-xs font-medium text-muted-foreground">Temporary Password:</label>
                   <div className="flex items-center space-x-2 mt-1">
-                    <div className="flex-1 p-2 bg-gray-100 rounded border font-mono text-sm">
+                    <div className="flex-1 p-2 bg-muted rounded border font-mono text-sm">
                       {showPassword ? workerCreationResult?.temporaryPassword : '••••••••••••'}
                     </div>
                     <Button

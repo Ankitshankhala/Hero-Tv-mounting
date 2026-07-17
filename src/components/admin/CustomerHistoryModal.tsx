@@ -96,19 +96,19 @@ export const CustomerHistoryModal = ({ customer, isOpen, onClose }: CustomerHist
             <Card>
               <CardContent className="p-4">
                 <div className="text-2xl font-bold">{customer.totalBookings}</div>
-                <div className="text-sm text-gray-600">Total Bookings</div>
+                <div className="text-sm text-muted-foreground">Total Bookings</div>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4">
                 <div className="text-2xl font-bold">{customer.totalSpent}</div>
-                <div className="text-sm text-gray-600">Total Spent</div>
+                <div className="text-sm text-muted-foreground">Total Spent</div>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4">
                 <div className="text-2xl font-bold">{customer.lastBooking}</div>
-                <div className="text-sm text-gray-600">Last Booking</div>
+                <div className="text-sm text-muted-foreground">Last Booking</div>
               </CardContent>
             </Card>
           </div>
@@ -116,11 +116,11 @@ export const CustomerHistoryModal = ({ customer, isOpen, onClose }: CustomerHist
           {loading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-2 text-gray-600">Loading booking history...</p>
+              <p className="mt-2 text-muted-foreground">Loading booking history...</p>
             </div>
           ) : bookings.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-600">No bookings found for this customer</p>
+              <p className="text-muted-foreground">No bookings found for this customer</p>
             </div>
           ) : (
                   <div className="space-y-4">
@@ -136,7 +136,7 @@ export const CustomerHistoryModal = ({ customer, isOpen, onClose }: CustomerHist
                         <div className="flex justify-between items-start mb-3">
                           <div>
                             <h4 className="font-semibold">Booking #{booking.id.slice(0, 8)}</h4>
-                            <p className="text-sm text-gray-600">
+                            <p className="text-sm text-muted-foreground">
                               {booking.booking_services?.map((s: any) => s.service_name).join(', ') || 'Services'}
                             </p>
                           </div>

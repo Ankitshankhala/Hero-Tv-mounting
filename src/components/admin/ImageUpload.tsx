@@ -104,7 +104,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
           <img
             src={previewUrl}
             alt="Service preview"
-            className="w-32 h-32 object-cover rounded-lg border border-gray-200"
+            className="w-32 h-32 object-cover rounded-lg border border-border"
           />
           <Button
             type="button"
@@ -118,8 +118,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
           </Button>
         </div>
       ) : (
-        <div className="w-32 h-32 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center bg-gray-50">
-          <Image className="h-8 w-8 text-gray-400" />
+        <div className="w-32 h-32 border-2 border-dashed border-border rounded-lg flex items-center justify-center bg-muted">
+          <Image className="h-8 w-8 text-muted-foreground" />
         </div>
       )}
 
@@ -145,7 +145,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         </Button>
       </div>
       
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-muted-foreground">
         Supported formats: JPG, PNG, GIF. Max size: 5MB
       </p>
     </div>

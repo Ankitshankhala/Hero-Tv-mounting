@@ -216,9 +216,9 @@ const DayScheduleCard = ({ day, schedule, onChange }: DayScheduleCardProps) => {
       Thursday: 'bg-purple-50 border-purple-200',
       Friday: 'bg-pink-50 border-pink-200',
       Saturday: 'bg-orange-50 border-orange-200',
-      Sunday: 'bg-red-50 border-red-200',
+      Sunday: 'bg-destructive/10 border-destructive/30',
     };
-    return colors[day as keyof typeof colors] || 'bg-gray-50 border-gray-200';
+    return colors[day as keyof typeof colors] || 'bg-muted border-border';
   };
 
   return (

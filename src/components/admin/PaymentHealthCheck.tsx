@@ -144,7 +144,7 @@ export const PaymentHealthCheck = () => {
       case 'critical':
         return <XCircle className="h-5 w-5 text-red-600" />;
       default:
-        return <RefreshCw className="h-5 w-5 text-gray-400" />;
+        return <RefreshCw className="h-5 w-5 text-muted-foreground" />;
     }
   };
 
@@ -195,19 +195,19 @@ export const PaymentHealthCheck = () => {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center">
                 <div className="text-2xl font-bold">{healthData.totalBookingsWithPayments}</div>
-                <div className="text-sm text-gray-600">Bookings with Payments</div>
+                <div className="text-sm text-muted-foreground">Bookings with Payments</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold">{healthData.totalTransactions}</div>
-                <div className="text-sm text-gray-600">Total Transactions</div>
+                <div className="text-sm text-muted-foreground">Total Transactions</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-red-600">{healthData.bookingsWithoutTransactions}</div>
-                <div className="text-sm text-gray-600">Missing Transactions</div>
+                <div className="text-sm text-muted-foreground">Missing Transactions</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-yellow-600">{healthData.bookingsWithMismatchedStatus}</div>
-                <div className="text-sm text-gray-600">Status Mismatches</div>
+                <div className="text-sm text-muted-foreground">Status Mismatches</div>
               </div>
             </div>
 
@@ -236,10 +236,10 @@ export const PaymentHealthCheck = () => {
             {/* Advanced Repair Controls */}
             <div className="border-t pt-4">
               <div className="flex items-center justify-between mb-2">
-                <h4 className="text-sm font-medium text-gray-700">Advanced Payment Repair</h4>
+                <h4 className="text-sm font-medium text-foreground">Advanced Payment Repair</h4>
               </div>
               <div className="flex items-center justify-between">
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-muted-foreground">
                   Comprehensive repair for booking status promotion, payment intent backfilling, and status standardization
                 </p>
                 <PaymentRepairButton />
@@ -247,7 +247,7 @@ export const PaymentHealthCheck = () => {
             </div>
           </div>
         ) : (
-          <div className="text-center py-4 text-gray-500">
+          <div className="text-center py-4 text-muted-foreground">
             Click "Check" to run payment system health check
           </div>
         )}

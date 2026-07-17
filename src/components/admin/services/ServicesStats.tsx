@@ -31,21 +31,21 @@ export const ServicesStats: React.FC<ServicesStatsProps> = ({ services }) => {
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-          <div className="text-center p-4 bg-white rounded-lg shadow-sm">
-            <h4 className="font-bold text-2xl text-blue-600">{services.length}</h4>
-            <p className="text-gray-600">Total Services</p>
+          <div className="text-center p-4 bg-card rounded-lg shadow-sm">
+            <h4 className="font-bold text-2xl text-primary">{services.length}</h4>
+            <p className="text-muted-foreground">Total Services</p>
           </div>
-          <div className="text-center p-4 bg-white rounded-lg shadow-sm">
+          <div className="text-center p-4 bg-card rounded-lg shadow-sm">
             <h4 className="font-bold text-2xl text-green-600">
               {formatPrice(services.reduce((avg, service) => avg + service.base_price, 0) / services.length || 0)}
             </h4>
-            <p className="text-gray-600">Average Price</p>
+            <p className="text-muted-foreground">Average Price</p>
           </div>
-          <div className="text-center p-4 bg-white rounded-lg shadow-sm">
+          <div className="text-center p-4 bg-card rounded-lg shadow-sm">
             <h4 className="font-bold text-2xl text-purple-600">
               {formatDuration(services.reduce((avg, service) => avg + service.duration_minutes, 0) / services.length || 0)}
             </h4>
-            <p className="text-gray-600">Average Duration</p>
+            <p className="text-muted-foreground">Average Duration</p>
           </div>
         </div>
       </CardContent>

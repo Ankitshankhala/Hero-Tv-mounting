@@ -294,10 +294,10 @@ export const EmailHealthCheck = () => {
                     </div>
                   </div>
                   
-                  <p className="text-sm text-gray-600 mt-1">{result.message}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{result.message}</p>
                   
                   {result.details && (
-                    <p className="text-xs text-gray-500 mt-1 bg-gray-50 p-2 rounded">
+                    <p className="text-xs text-muted-foreground mt-1 bg-muted p-2 rounded">
                       {result.details}
                     </p>
                   )}
@@ -307,7 +307,7 @@ export const EmailHealthCheck = () => {
           )}
 
           {healthResults.length === 0 && !checking && (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-muted-foreground">
               Run a health check to see email system status
             </div>
           )}

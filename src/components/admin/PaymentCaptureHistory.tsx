@@ -123,7 +123,7 @@ export const PaymentCaptureHistory = () => {
         {loading ? (
           <div className="text-center py-4">Loading capture history...</div>
         ) : captureRecords.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-muted-foreground">
             <DollarSign className="h-12 w-12 mx-auto mb-4 text-gray-300" />
             <p>No payment captures found</p>
           </div>
@@ -157,7 +157,7 @@ export const PaymentCaptureHistory = () => {
                         Captured
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-sm text-gray-600">
+                    <TableCell className="text-sm text-muted-foreground">
                       <div className="flex items-center space-x-1">
                         <Clock className="h-3 w-3" />
                         <span>{formatDateTime(record.captured_at)}</span>

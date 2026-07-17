@@ -116,7 +116,7 @@ export const DeploymentPanel = () => {
               <div className="text-sm text-muted-foreground">Security Score</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">95</div>
+              <div className="text-2xl font-bold text-primary">95</div>
               <div className="text-sm text-muted-foreground">Performance Score</div>
             </div>
             <div className="text-center">

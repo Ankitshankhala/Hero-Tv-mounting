@@ -143,7 +143,7 @@ export const CreateReviewModal = ({ isOpen, onClose, onCreate }: Props) => {
 
           <div className="flex justify-end space-x-2 pt-2">
             <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" className="bg-blue-600 hover:bg-blue-700">Create Review</Button>
+            <Button type="submit" className="bg-primary hover:opacity-90 text-primary-foreground">Create Review</Button>
           </div>
         </form>
       </DialogContent>

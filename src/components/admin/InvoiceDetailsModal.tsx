@@ -85,12 +85,12 @@ export const InvoiceDetailsModal = ({ invoice, isOpen, onClose }: InvoiceDetails
           {/* Invoice Header */}
           <div className="flex justify-between items-start">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">Hero TV Mounting</h2>
-              <p className="text-gray-600">Professional TV Mounting & Installation Services</p>
+              <h2 className="text-2xl font-bold text-foreground">Hero TV Mounting</h2>
+              <p className="text-muted-foreground">Professional TV Mounting & Installation Services</p>
             </div>
             <div className="text-right">
               <h3 className="text-xl font-semibold">INVOICE</h3>
-              <p className="text-gray-600">{invoice.invoice_number}</p>
+              <p className="text-muted-foreground">{invoice.invoice_number}</p>
               {getStatusBadge(invoice.status)}
             </div>
           </div>
@@ -98,7 +98,7 @@ export const InvoiceDetailsModal = ({ invoice, isOpen, onClose }: InvoiceDetails
           {/* Invoice & Customer Details */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <h4 className="font-semibold text-gray-900">Invoice Details</h4>
+              <h4 className="font-semibold text-foreground">Invoice Details</h4>
               <div className="text-sm space-y-1">
                 <p><span className="font-medium">Invoice Date:</span> {new Date(invoice.invoice_date).toLocaleDateString()}</p>
                 <p><span className="font-medium">Service Date:</span> {invoice.booking?.scheduled_date ? new Date(invoice.booking.scheduled_date).toLocaleDateString() : 'N/A'}</p>
@@ -107,7 +107,7 @@ export const InvoiceDetailsModal = ({ invoice, isOpen, onClose }: InvoiceDetails
             </div>
 
             <div className="space-y-2">
-              <h4 className="font-semibold text-gray-900">Bill To</h4>
+              <h4 className="font-semibold text-foreground">Bill To</h4>
               <div className="text-sm space-y-1">
                 <p className="font-medium">{getCustomerName()}</p>
                 <p>{getCustomerEmail()}</p>
@@ -118,7 +118,7 @@ export const InvoiceDetailsModal = ({ invoice, isOpen, onClose }: InvoiceDetails
 
           {/* Service Details */}
           <div className="space-y-4">
-            <h4 className="font-semibold text-gray-900">Service Details</h4>
+            <h4 className="font-semibold text-foreground">Service Details</h4>
             <div className="border rounded-lg">
               <Table>
                 <TableHeader>
@@ -165,7 +165,7 @@ export const InvoiceDetailsModal = ({ invoice, isOpen, onClose }: InvoiceDetails
 
           {/* Email Status */}
           <div className="space-y-2">
-            <h4 className="font-semibold text-gray-900">Email Status</h4>
+            <h4 className="font-semibold text-foreground">Email Status</h4>
             <div className="flex items-center space-x-4">
               {invoice.email_sent ? (
                 <>
@@ -173,7 +173,7 @@ export const InvoiceDetailsModal = ({ invoice, isOpen, onClose }: InvoiceDetails
                     Email Sent
                   </Badge>
                   {invoice.email_sent_at && (
-                    <span className="text-sm text-gray-600">
+                    <span className="text-sm text-muted-foreground">
                       Sent on {new Date(invoice.email_sent_at).toLocaleString()}
                     </span>
                   )}
