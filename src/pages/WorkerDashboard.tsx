@@ -346,16 +346,16 @@ const WorkerDashboard = () => {
   const completedJobs = jobs.filter(job => job.status === 'completed');
   const todaysEarnings = todaysJobs.reduce((sum, job) => sum + job.total_price, 0);
   return <TourProvider>
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      <div className="dark min-h-screen bg-background text-foreground">
         <SEO title="Worker Dashboard | Hero TV Mounting" description="Manage your jobs, schedule, and live assignments." noindex />
         <WorkerDashboardHeader workerName={profile?.name || 'Worker'} />
 
         <div className="container mx-auto px-4 py-8">
           <div className="flex justify-between items-center mb-6">
             <div>
-              <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-              {isConnected && <p className="text-sm text-green-400">● Live updates enabled</p>}
-              <p className="text-sm text-gray-400">Loaded {jobs.length} jobs</p>
+              <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
+              {isConnected && <p className="text-sm text-[hsl(var(--status-completed))]">● Live updates enabled</p>}
+              <p className="text-sm text-muted-foreground">Loaded {jobs.length} jobs</p>
             </div>
           </div>
 
@@ -367,11 +367,11 @@ const WorkerDashboard = () => {
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 h-auto bg-slate-800 border border-slate-700 p-1 rounded-lg">
-              <TabsTrigger value="jobs" className="w-full justify-center text-white data-[state=active]:bg-slate-700" data-tour="worker-jobs">My Jobs</TabsTrigger>
-              <TabsTrigger value="calendar" className="w-full justify-center text-white data-[state=active]:bg-slate-700">Calendar</TabsTrigger>
-              <TabsTrigger value="schedule" className="w-full justify-center text-white data-[state=active]:bg-slate-700" data-tour="worker-schedule">Set Schedule</TabsTrigger>
-              <TabsTrigger value="service-area" className="w-full justify-center text-white data-[state=active]:bg-slate-700" data-tour="worker-profile">Service Area</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 h-auto bg-card border border-border p-1 rounded-lg">
+              <TabsTrigger value="jobs" className="w-full justify-center text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" data-tour="worker-jobs">My Jobs</TabsTrigger>
+              <TabsTrigger value="calendar" className="w-full justify-center text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Calendar</TabsTrigger>
+              <TabsTrigger value="schedule" className="w-full justify-center text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" data-tour="worker-schedule">Set Schedule</TabsTrigger>
+              <TabsTrigger value="service-area" className="w-full justify-center text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" data-tour="worker-profile">Service Area</TabsTrigger>
             </TabsList>
             
             <TabsContent value="jobs" className="mt-6">

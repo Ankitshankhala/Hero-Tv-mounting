@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { X } from 'lucide-react';
+import { X, CreditCard, CheckCircle2, Clock, DollarSign } from 'lucide-react';
 import { formatBookingTimeForContext } from '@/utils/timeUtils';
 import { getJobAddress, getJobInstructions } from '@/utils/jobAddress';
 
@@ -139,36 +139,36 @@ export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onCollaps
   // Get tip display information
   const getTipDisplay = (tipAmount: number | undefined, paymentStatus: string) => {
     if (!tipAmount || tipAmount <= 0) return null;
-    
+
     switch (paymentStatus?.toLowerCase()) {
       case 'authorized':
         return {
           text: `Tip: $${tipAmount.toFixed(2)} (Authorized)`,
-          color: 'bg-amber-500 text-white border-amber-500',
-          icon: '💳',
-          description: 'Will be charged when service is completed'
+          color: 'bg-action-warning text-white border-action-warning',
+          Icon: CreditCard,
+          description: 'Will be charged when service is completed',
         };
       case 'captured':
       case 'completed':
         return {
           text: `Tip: $${tipAmount.toFixed(2)} (Received)`,
-          color: 'bg-green-500 text-white border-green-500',
-          icon: '✓',
-          description: 'Tip has been processed'
+          color: 'bg-action-success text-white border-action-success',
+          Icon: CheckCircle2,
+          description: 'Tip has been processed',
         };
       case 'pending':
         return {
           text: `Tip: $${tipAmount.toFixed(2)} (Pending)`,
-          color: 'bg-blue-500 text-white border-blue-500',
-          icon: '⏳',
-          description: 'Processing tip payment'
+          color: 'bg-action-info text-white border-action-info',
+          Icon: Clock,
+          description: 'Processing tip payment',
         };
       default:
         return {
           text: `Tip: $${tipAmount.toFixed(2)}`,
-          color: 'bg-gray-500 text-white border-gray-500',
-          icon: '💵',
-          description: 'Tip amount'
+          color: 'bg-muted text-muted-foreground border-border',
+          Icon: DollarSign,
+          description: 'Tip amount',
         };
     }
   };
@@ -286,15 +286,15 @@ export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onCollaps
             {(() => {
               const tipDisplay = getTipDisplay(job.tip_amount, job.payment_status);
               return tipDisplay && (
-                <div className="mt-3 p-3 bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                <div className="mt-3 p-3 bg-muted/40 rounded-lg border border-border">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="text-2xl">{tipDisplay.icon}</span>
+                      <tipDisplay.Icon className="h-5 w-5 text-muted-foreground" />
                       <div>
-                        <div className="text-sm font-semibold text-amber-900 dark:text-amber-100">
+                        <div className="text-sm font-semibold text-foreground">
                           {tipDisplay.text}
                         </div>
-                        <div className="text-xs text-amber-700 dark:text-amber-300">
+                        <div className="text-xs text-muted-foreground">
                           {tipDisplay.description}
                         </div>
                       </div>
