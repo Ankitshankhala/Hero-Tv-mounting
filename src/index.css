@@ -12,34 +12,41 @@
     --safe-area-inset-bottom: env(safe-area-inset-bottom);
     --safe-area-inset-left: env(safe-area-inset-left);
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 222 20% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 222 20% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 222 20% 12%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Muted indigo accent for primary actions (Linear-like) */
+    --primary: 234 60% 52%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 222 20% 12%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 220 14% 96%;
+    --accent-foreground: 222 20% 12%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    /* Tightened neutral gray for borders/inputs */
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 234 60% 52%;
 
     --radius: 0.5rem;
+
+    /* Soft SaaS shadows */
+    --shadow-xs: 0 1px 2px 0 hsl(220 43% 11% / 0.04);
+    --shadow-sm: 0 1px 3px 0 hsl(220 43% 11% / 0.06), 0 1px 2px 0 hsl(220 43% 11% / 0.04);
+    --shadow-md: 0 4px 12px -2px hsl(220 43% 11% / 0.08), 0 2px 4px -2px hsl(220 43% 11% / 0.04);
 
     /* Modern Worker Job Colors */
     --worker-primary: 222.2 84% 4.9%;
@@ -49,28 +56,29 @@
     --worker-card-hover: 217.2 32.6% 20.5%;
     --worker-border: 217.2 32.6% 25%;
     --worker-muted: 215 20.2% 65.1%;
-    
-    /* Status Colors */
-    --status-pending: 43 96% 56%;
-    --status-confirmed: 217 91% 60%;
-    --status-progress: 25 95% 53%;
-    --status-completed: 142 76% 36%;
-    --status-cancelled: 0 84% 60%;
-    
-    /* Action Colors */
-    --action-success: 142 71% 45%;
-    --action-warning: 43 96% 56%;
-    --action-info: 217 91% 60%;
-    --action-danger: 0 84% 60%;
 
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
+    /* Status Colors (semantic) */
+    --status-pending: 38 92% 50%;
+    --status-confirmed: 217 91% 55%;
+    --status-progress: 25 95% 53%;
+    --status-completed: 142 71% 40%;
+    --status-cancelled: 0 72% 51%;
+
+    /* Action Colors */
+    --action-success: 142 71% 40%;
+    --action-warning: 38 92% 50%;
+    --action-info: 217 91% 55%;
+    --action-danger: 0 72% 51%;
+
+    /* Sidebar (light SaaS) */
+    --sidebar-background: 220 20% 98.5%;
+    --sidebar-foreground: 220 15% 30%;
+    --sidebar-primary: 234 60% 52%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 14% 93%;
+    --sidebar-accent-foreground: 222 20% 12%;
     --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: 234 60% 52%;
   }
 
   .dark {

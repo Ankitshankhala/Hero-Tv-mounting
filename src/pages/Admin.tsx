@@ -159,6 +159,8 @@ const Admin = () => {
         return <DashboardStats />;
       case 'bookings':
         return wrapWithSuspense(LazyBookingsManager);
+      case 'calendar':
+        return wrapWithSuspense(LazyAdminCalendarView);
       case 'customers':
         return wrapWithSuspense(LazyCustomersManager);
       case 'workers':

@@ -17,30 +17,31 @@ interface Props {
 }
 
 const groups = [
-  { label: 'Overview', items: [{ id: 'dashboard', label: 'Dashboard', icon: BarChart3 }] },
+  { label: 'Overview', items: [
+    { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
+  ]},
   { label: 'Operations', items: [
     { id: 'bookings', label: 'Bookings', icon: Calendar },
-    { id: 'services', label: 'Services', icon: Wrench },
-    { id: 'coverage', label: 'Service Areas', icon: MapPin },
-  ]},
-  { label: 'People', items: [
+    { id: 'calendar', label: 'Calendar', icon: Calendar },
     { id: 'customers', label: 'Customers', icon: Users },
     { id: 'workers', label: 'Workers', icon: Wrench },
-    { id: 'reviews', label: 'Reviews', icon: Star },
+    { id: 'coverage', label: 'Service Areas', icon: MapPin },
   ]},
-  { label: 'Financial', items: [
+  { label: 'Money', items: [
     { id: 'payments', label: 'Payments', icon: CreditCard },
     { id: 'invoices', label: 'Invoices', icon: FileText },
-    { id: 'coupons', label: 'Coupons', icon: Tag },
-    { id: 'tips', label: 'Tips', icon: DollarSign },
     { id: 'payroll', label: 'Payroll', icon: Wallet },
-  ]},
-  { label: 'Communications', items: [
-    { id: 'sms', label: 'SMS Logs', icon: MessageSquare },
-    { id: 'email', label: 'Email Logs', icon: Mail },
+    { id: 'tips', label: 'Tips', icon: DollarSign },
+    { id: 'coupons', label: 'Coupons', icon: Tag },
   ]},
   { label: 'Content', items: [
     { id: 'blog', label: 'Blog', icon: FileText },
+    { id: 'reviews', label: 'Reviews', icon: Star },
+    { id: 'services', label: 'Services', icon: Wrench },
+  ]},
+  { label: 'System', items: [
+    { id: 'sms', label: 'SMS Logs', icon: MessageSquare },
+    { id: 'email', label: 'Email Logs', icon: Mail },
     { id: 'settings', label: 'Settings', icon: Settings },
   ]},
 ];

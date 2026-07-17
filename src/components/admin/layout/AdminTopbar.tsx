@@ -16,6 +16,7 @@ import { StripeModeBadge } from '@/components/admin/StripeModeBadge';
 const TITLES: Record<string, string> = {
   dashboard: 'Dashboard',
   bookings: 'Bookings',
+  calendar: 'Calendar',
   customers: 'Customers',
   workers: 'Workers',
   services: 'Services',
