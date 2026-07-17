@@ -35,14 +35,19 @@ export const ExpandableJobCardContainer = ({
   };
 
   const handleDirections = () => {
-    let address = '';
-    if (job.guest_customer_info?.address) {
-      const { address: addr, city, state, zipcode } = job.guest_customer_info;
-      address = `${addr}, ${city}, ${state} ${zipcode}`;
-    } else if (job.customer_address) {
-      address = job.customer_address;
+    const base = getJobAddress(job, { singleLine: true });
+    const g = job.guest_customer_info || {};
+    // If we got the address from location_notes, it may not include city/zip.
+    const hasLocationNotes = !!job.location_notes;
+    let address = base || '';
+    if (hasLocationNotes) {
+      const suffix = [g.city, g.state, g.zipcode].filter(Boolean).join(', ');
+      if (suffix && address && !address.includes(g.zipcode || '___')) {
+        address = `${address}, ${suffix}`;
+      }
     }
-    
+    if (!address && job.customer_address) address = job.customer_address;
+
     if (address) {
       openDirections(address);
     }
