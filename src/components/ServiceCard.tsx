@@ -15,10 +15,10 @@ interface ServiceCardProps {
 export const ServiceCard: React.FC<ServiceCardProps> = ({ id, name, price, image, description, onAddToCart }) => {
   const [isClicked, setIsClicked] = useState(false);
   const { isTestingMode } = useTestingMode();
-  
+
   const effectivePrice = getEffectiveServicePrice(price, isTestingMode);
-  const cardBorderClass = isTestingMode 
-    ? 'border-orange-500 bg-orange-900/20' 
+  const cardBorderClass = isTestingMode
+    ? 'border-orange-500 bg-orange-900/20'
     : 'border-slate-700 hover:border-blue-500';
 
   const handleClick = () => {
@@ -27,47 +27,52 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ id, name, price, image
     setTimeout(() => setIsClicked(false), 1000);
   };
 
+  const priceLabel =
+    name === 'TV Mounting' || name === 'Mount TV'
+      ? isTestingMode
+        ? '$1'
+        : 'From $90'
+      : `$${effectivePrice}`;
+
   return (
-    <div 
-      className={`bg-slate-900/80 backdrop-blur-sm rounded-xl overflow-hidden border ${cardBorderClass} transition-all duration-300 cursor-pointer group hover:scale-105 hover:shadow-xl`}
+    <div
+      className={`bg-slate-900/80 backdrop-blur-sm rounded-xl overflow-hidden border ${cardBorderClass} transition-all duration-300 cursor-pointer group hover:shadow-xl md:hover:scale-[1.02] flex flex-col`}
       onClick={handleClick}
     >
       <div className="relative w-full overflow-hidden aspect-[4/3]">
-        <img 
-          src={image} 
+        <img
+          src={image}
           alt={name}
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+          className="w-full h-full object-cover md:group-hover:scale-105 transition-transform duration-300"
           width="400"
           height="300"
           loading="lazy"
           decoding="async"
           style={{ aspectRatio: '4/3' }}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent" />
+        {isTestingMode && (
+          <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-0.5 bg-orange-600 rounded text-[10px] text-white">
+            <TestTube className="h-3 w-3" />
+            <span>$1</span>
+          </div>
+        )}
       </div>
-      
-      <div className="p-6">
-        <div className="mb-4">
-          <div className="flex items-center gap-2 mb-2">
-            <h3 className="text-xl font-bold text-white">{name}</h3>
-            {isTestingMode && (
-              <div className="flex items-center gap-1 px-2 py-1 bg-orange-600 rounded text-xs text-white">
-                <TestTube className="h-3 w-3" />
-                <span>$1 Testing</span>
-              </div>
-            )}
+
+      {/* Mobile compact body */}
+      <div className="p-3 md:p-6 flex-1 flex flex-col">
+        <h3 className="text-sm md:text-xl font-semibold md:font-bold text-white line-clamp-2 min-h-[2.5rem] md:min-h-0">
+          {name}
+        </h3>
+        <p className="hidden md:block text-slate-300 text-sm mt-2">{description}</p>
+
+        <div className="mt-2 md:mt-4 flex items-center justify-between gap-2">
+          <div className="text-base md:text-2xl font-bold text-white truncate">
+            {priceLabel}
           </div>
-          <p className="text-slate-300 text-sm">{description}</p>
-        </div>
-        
-        <div className="flex items-center justify-between">
-          <div className="text-2xl font-bold text-white transition-all duration-300">
-            {name === 'TV Mounting' ? (isTestingMode ? '$1' : 'Starting at $90') : `$${effectivePrice}`}
-          </div>
-          <button 
-            className={`p-3 rounded-full transition-all duration-300 group-hover:scale-110 ${
-              isClicked 
-                ? 'bg-green-600 text-white animate-pulse' 
+          <button
+            className={`shrink-0 rounded-full transition-all duration-300 flex items-center justify-center h-11 w-11 md:h-12 md:w-12 ${
+              isClicked
+                ? 'bg-green-600 text-white animate-pulse'
                 : 'bg-blue-600 hover:bg-blue-700 text-white'
             }`}
             aria-label={isClicked ? `${name} added to cart` : `Add ${name} to cart`}
