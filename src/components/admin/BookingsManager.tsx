@@ -417,7 +417,6 @@ export const BookingsManager = () => {
             onBookingDeleted={fetchBookings}
           />
         )}
-      </div>
     </AuthGuard>
   );
 };
