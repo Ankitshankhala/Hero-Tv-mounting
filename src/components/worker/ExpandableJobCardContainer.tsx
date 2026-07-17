@@ -55,17 +55,16 @@ export const ExpandableJobCardContainer = ({
 
   return (
     <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
-      <CollapsibleTrigger asChild>
-        <div>
-          <CompactJobCard
-            job={job}
-            isExpanded={isExpanded}
-            onToggle={handleToggle}
-            onCall={handleCall}
-            onDirections={handleDirections}
-          />
-        </div>
-      </CollapsibleTrigger>
+      <div>
+        <CompactJobCard
+          job={job}
+          isExpanded={isExpanded}
+          onToggle={handleToggle}
+          onCall={handleCall}
+          onDirections={handleDirections}
+          onJobUpdated={onJobCancelled}
+        />
+      </div>
       
       <CollapsibleContent className="mt-4 animate-accordion-down">
         <ExpandedJobCard
