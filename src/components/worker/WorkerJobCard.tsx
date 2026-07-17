@@ -306,6 +306,7 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
                 const customerName = job.guest_customer_info?.name || job.customer?.name;
                 const customerEmail = job.guest_customer_info?.email || job.customer?.email;
                 const customerPhone = job.guest_customer_info?.phone || job.customer?.phone;
+                const customerAddressFromNotes = getAddressFromLocationNotes();
                 const customerAddress = job.guest_customer_info?.address;
                 const customerUnit = job.guest_customer_info?.unit;
                 const customerCity = job.guest_customer_info?.city;
@@ -317,11 +318,22 @@ export const WorkerJobCard = ({ job, onStatusUpdate, onJobCancelled }: WorkerJob
                     {customerName && (
                       <div><span className="font-medium">Name:</span> {customerName}</div>
                     )}
-                    {customerAddress && (
-                      <div><span className="font-medium">Address:</span> {customerAddress}</div>
-                    )}
-                    {customerUnit && (
-                      <div><span className="font-medium">Unit:</span> {customerUnit}</div>
+                    {customerAddressFromNotes ? (
+                      <div>
+                        <span className="font-medium">Address:</span>{' '}
+                        {customerAddressFromNotes.split(/\s*\|\s*/).map((line, i) => (
+                          <div key={i} className={i === 0 ? 'inline' : 'ml-16'}>{line}</div>
+                        ))}
+                      </div>
+                    ) : (
+                      <>
+                        {customerAddress && (
+                          <div><span className="font-medium">Address:</span> {customerAddress}</div>
+                        )}
+                        {customerUnit && (
+                          <div><span className="font-medium">Unit:</span> {customerUnit}</div>
+                        )}
+                      </>
                     )}
                     {(customerCity || customerState || customerZipcode) && (
                       <div>
