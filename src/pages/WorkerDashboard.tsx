@@ -256,7 +256,8 @@ const WorkerDashboard = () => {
         services: job.service ? [job.service] : [],
         // Ensure customer data is properly nested and accessible
         customer: job.customer || null
-      }));
+        };
+      });
       console.log('Transformed jobs with services:', transformedJobs);
       console.log('First job customer data:', transformedJobs[0]?.customer);
       console.log('First job booking services:', transformedJobs[0]?.booking_services);
