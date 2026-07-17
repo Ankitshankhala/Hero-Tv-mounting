@@ -339,12 +339,11 @@ export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onCollaps
             <h4 className="text-lg font-semibold text-foreground mb-3">Customer Information</h4>
             <div className="space-y-1 text-sm">
               {(() => {
-                const customerInfo = job.guest_customer_info || job.customer;
                 const customerName = job.guest_customer_info?.name || job.customer?.name;
                 const customerEmail = job.guest_customer_info?.email || job.customer?.email;
                 const customerPhone = job.guest_customer_info?.phone || job.customer?.phone;
-                const customerAddress = job.guest_customer_info?.address;
-                const customerUnit = job.guest_customer_info?.unit;
+                const jobAddress = getJobAddress(job);
+                const addressLines = jobAddress ? jobAddress.split(/\s*\|\s*/) : [];
                 const customerApartmentName = job.guest_customer_info?.apartment_name;
                 const customerCity = job.guest_customer_info?.city;
                 const customerState = job.guest_customer_info?.state;
@@ -355,13 +354,17 @@ export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onCollaps
                     {customerName && (
                       <div><span className="font-medium">Name:</span> <span className="text-muted-foreground">{customerName}</span></div>
                     )}
-                    {customerAddress && (
-                      <div><span className="font-medium">Address:</span> <span className="text-muted-foreground">{customerAddress}</span></div>
+                    {addressLines.length > 0 && (
+                      <div>
+                        <span className="font-medium">Address:</span>{' '}
+                        <span className="text-muted-foreground">
+                          {addressLines.map((line, i) => (
+                            <span key={i} className="block">{line}</span>
+                          ))}
+                        </span>
+                      </div>
                     )}
-                    {customerUnit && (
-                      <div><span className="font-medium">Unit:</span> <span className="text-muted-foreground">{customerUnit}</span></div>
-                    )}
-                    {customerApartmentName && (
+                    {customerApartmentName && !job.location_notes && (
                       <div><span className="font-medium">Apartment:</span> <span className="text-muted-foreground">{customerApartmentName}</span></div>
                     )}
                     {(customerCity || customerState || customerZipcode) && (
