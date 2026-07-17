@@ -228,4 +228,7 @@
     max-height: 100vh;
     max-height: 100dvh;
   }
+
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 }
