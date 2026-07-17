@@ -28,11 +28,12 @@ interface Props<T> {
   empty?: React.ReactNode;
   onRowClick?: (row: T) => void;
   zebra?: boolean;
+  hideFooter?: boolean;
 }
 
 export function DataTable<T>({
   data, columns, rowKey, pageSize = 10, density: densityProp,
-  onDensityChange, loading, empty, onRowClick, zebra = true,
+  onDensityChange, loading, empty, onRowClick, zebra = true, hideFooter,
 }: Props<T>) {
   const [sort, setSort] = React.useState<{ key: string; dir: 'asc' | 'desc' } | null>(null);
   const [page, setPage] = React.useState(0);
