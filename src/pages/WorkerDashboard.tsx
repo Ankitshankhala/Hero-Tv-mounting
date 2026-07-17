@@ -241,11 +241,17 @@ const WorkerDashboard = () => {
       console.log('Booking services data:', servicesByBooking);
 
       // Transform data to match expected format
-      const transformedJobs = (bookingsData || []).map(job => ({
+      const transformedJobs = (bookingsData || []).map(job => {
+        const bookingServices = servicesByBooking[job.id] || [];
+        const servicesTotal = bookingServices.reduce(
+          (sum: number, s: any) => sum + (Number(s.quantity) || 0) * (Number(s.base_price) || 0),
+          0
+        );
+        return {
         ...job,
-        booking_services: servicesByBooking[job.id] || [],
+        booking_services: bookingServices,
         scheduled_at: `${job.scheduled_date}T${job.scheduled_start}`,
-        total_price: job.service?.base_price || 0,
+        total_price: bookingServices.length > 0 ? servicesTotal : (job.service?.base_price || 0),
         total_duration_minutes: job.service?.duration_minutes || 60,
         services: job.service ? [job.service] : [],
         // Ensure customer data is properly nested and accessible
