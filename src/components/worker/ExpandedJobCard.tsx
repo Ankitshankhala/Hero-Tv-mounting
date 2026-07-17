@@ -134,28 +134,7 @@ export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onCollaps
     }
   };
 
-  // Extract special instructions from location_notes or special_instructions field
-  const getSpecialInstructions = () => {
-    // First check if there's a dedicated special_instructions field
-    if (job.special_instructions && job.special_instructions.trim()) {
-      return job.special_instructions.trim();
-    }
-
-    // Then check location_notes for special instructions
-    if (job.location_notes) {
-      const specialInstructionsIndex = job.location_notes.indexOf('Special Instructions:');
-      if (specialInstructionsIndex !== -1) {
-        const instructions = job.location_notes
-          .substring(specialInstructionsIndex + 'Special Instructions:'.length)
-          .trim();
-        return instructions || null;
-      }
-    }
-
-    return null;
-  };
-
-  const specialInstructions = getSpecialInstructions();
+  const specialInstructions = getJobInstructions(job);
 
   // Get tip display information
   const getTipDisplay = (tipAmount: number | undefined, paymentStatus: string) => {
