@@ -305,8 +305,8 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
       ${isExpanded ? 'shadow-lg ring-2 ring-primary/20' : 'shadow-sm hover:shadow-md'}
       bg-card border border-border
     `}>
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between gap-4">
+      <CardContent className="p-3 sm:p-4">
+        <div className="flex items-start sm:items-center justify-between gap-2 sm:gap-4">
           {/* Left: Status and Service */}
           <div className="flex-1 min-w-0 pr-4">
             {/* Mobile: Status and payment dots with name */}
