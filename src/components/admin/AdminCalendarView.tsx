@@ -277,6 +277,18 @@ export const AdminCalendarView = React.memo(() => {
               </SelectContent>
             </Select>
           </div>
+
+          <div className="flex items-center space-x-2">
+            <Archive className="h-4 w-4 text-muted-foreground" />
+            <Checkbox
+              id="calendar-include-archived"
+              checked={includeArchived}
+              onCheckedChange={(v) => setIncludeArchived(!!v)}
+            />
+            <Label htmlFor="calendar-include-archived" className="text-sm cursor-pointer">
+              Include archived
+            </Label>
+          </div>
         </div>
       </CardHeader>
 
