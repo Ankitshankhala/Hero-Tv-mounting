@@ -74,49 +74,34 @@ export const BookingsManager = () => {
     let filtered = bookings;
     
     // Archive and payment status filter
+    const notArchived = (b: any) => includeArchived || !b.is_archived;
     if (archiveFilter === 'active') {
       // All non-archived bookings (including new ones with pending payments)
-      filtered = filtered.filter(booking => !booking.is_archived);
+      filtered = filtered.filter(notArchived);
     } else if (archiveFilter === 'new_bookings') {
-      // Only bookings with payment authorized that are not archived
-      filtered = filtered.filter(booking => 
-        !booking.is_archived && 
+      // Only bookings with payment authorized
+      filtered = filtered.filter(booking =>
+        notArchived(booking) &&
         (booking.payment_status === 'authorized' || booking.status === 'payment_authorized')
       );
-      // Sort by newest first for new bookings
-      filtered = filtered.sort((a, b) => {
-        const aTime = new Date(a.created_at).getTime();
-        const bTime = new Date(b.created_at).getTime();
-        return bTime - aTime;
-      });
+      filtered = filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     } else if (archiveFilter === 'pending_payments') {
-      // Only bookings with pending/missing payment authorization
-      filtered = filtered.filter(booking => 
-        !booking.is_archived && 
+      filtered = filtered.filter(booking =>
+        notArchived(booking) &&
         (booking.payment_status === 'pending' || booking.payment_status === 'payment_pending' || !booking.payment_status || booking.payment_status === 'failed')
       );
-      // Sort by newest first for pending payments
-      filtered = filtered.sort((a, b) => {
-        const aTime = new Date(a.created_at).getTime();
-        const bTime = new Date(b.created_at).getTime();
-        return bTime - aTime;
-      });
+      filtered = filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     } else if (archiveFilter === 'authorized_unassigned') {
-      // Only bookings that are authorized but don't have a worker assigned
-      filtered = filtered.filter(booking => 
-        !booking.is_archived && 
+      filtered = filtered.filter(booking =>
+        notArchived(booking) &&
         (booking.payment_status === 'authorized' || booking.status === 'pending') &&
         !booking.worker_id
       );
-      // Sort by newest first for urgent assignment
-      filtered = filtered.sort((a, b) => {
-        const aTime = new Date(a.created_at).getTime();
-        const bTime = new Date(b.created_at).getTime();
-        return bTime - aTime;
-      });
+      filtered = filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     } else if (archiveFilter === 'archived') {
       filtered = filtered.filter(booking => booking.is_archived);
     }
+
     
     if (filterStatus !== 'all') {
       filtered = filtered.filter(booking => booking.status === filterStatus);
