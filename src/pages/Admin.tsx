@@ -90,17 +90,19 @@ const Admin = () => {
   if (profile && profile.role !== 'admin') {
     console.log('User is not admin:', profile.role);
     return (
-      <Card className="max-w-md mx-auto mt-8">
-        <CardContent className="pt-6">
-          <div className="text-center space-y-4">
-            <AlertTriangle className="h-12 w-12 text-red-400 mx-auto" />
-            <div>
-              <h3 className="text-lg font-medium text-gray-900">Access Denied</h3>
-              <p className="text-gray-600 mt-2">You are not authorized to view this page.</p>
+      <div className="dark min-h-screen bg-background text-foreground flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardContent className="pt-6">
+            <div className="text-center space-y-4">
+              <AlertTriangle className="h-12 w-12 text-destructive mx-auto" />
+              <div>
+                <h3 className="text-lg font-medium text-foreground">Access Denied</h3>
+                <p className="text-muted-foreground mt-2">You are not authorized to view this page.</p>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
@@ -108,25 +110,25 @@ const Admin = () => {
   if (user && !profile) {
     if (profileError) {
       return (
-        <div className="flex items-center justify-center min-h-screen p-4">
+        <div className="dark min-h-screen bg-background text-foreground flex items-center justify-center p-4">
           <Card className="max-w-md w-full">
             <CardContent className="pt-6">
               <div className="text-center space-y-4">
-                <AlertTriangle className="h-12 w-12 text-red-400 mx-auto" />
+                <AlertTriangle className="h-12 w-12 text-destructive mx-auto" />
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900">Couldn't load your profile</h3>
-                  <p className="text-gray-600 mt-2 text-sm break-words">{profileError}</p>
+                  <h3 className="text-lg font-medium text-foreground">Couldn't load your profile</h3>
+                  <p className="text-muted-foreground mt-2 text-sm break-words">{profileError}</p>
                 </div>
                 <div className="flex gap-2 justify-center">
                   <button
                     onClick={() => refetchProfile()}
-                    className="px-4 py-2 rounded-md bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
+                    className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90"
                   >
                     Retry
                   </button>
                   <button
                     onClick={() => signOut()}
-                    className="px-4 py-2 rounded-md border text-sm font-medium hover:bg-gray-50"
+                    className="px-4 py-2 rounded-md border border-border text-sm font-medium text-foreground hover:bg-muted"
                   >
                     Sign out
                   </button>
@@ -138,8 +140,8 @@ const Admin = () => {
       );
     }
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="dark flex items-center justify-center min-h-screen bg-background">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
