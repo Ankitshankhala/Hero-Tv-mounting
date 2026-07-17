@@ -195,84 +195,70 @@ const Index = () => {
         <DeferredSection minHeight={600}><BlogSection /></DeferredSection>
         
         {/* Service Areas Section */}
-        <section className="py-16 bg-slate-800">
+        <section className="py-10 md:py-16 bg-slate-800">
           <div className="container mx-auto px-4">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+            <div className="mb-6 md:mb-10 md:text-center">
+              <h2 className="text-2xl md:text-4xl font-bold text-white mb-2">
                 Service Areas in Texas
               </h2>
-              <p className="text-slate-300 text-lg max-w-2xl mx-auto">
-                We provide professional TV mounting services across major Texas cities with same-day availability.
+              <p className="text-slate-400 text-sm md:text-base md:max-w-2xl md:mx-auto">
+                Proudly serving the greater Austin area and beyond.
               </p>
             </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 max-w-6xl mx-auto">
-              <a 
+
+            <div className="max-w-3xl mx-auto grid grid-cols-2 md:grid-cols-3 gap-2.5 md:gap-3">
+              <a
                 href="/locations/austin"
-                className="bg-slate-700 hover:bg-slate-600 rounded-lg p-6 text-center transition-colors duration-200 group"
+                className="col-span-2 md:col-span-3 min-h-[56px] flex items-center justify-between px-4 py-3 rounded-lg bg-blue-600/15 border border-blue-500/40 hover:bg-blue-600/25 transition-colors"
               >
-                <h3 className="text-xl font-semibold text-white mb-2 group-hover:text-blue-300">Austin</h3>
-                <p className="text-slate-400 text-sm">Professional TV mounting in Austin, TX</p>
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-blue-400 font-semibold">Home market</div>
+                  <div className="text-white font-semibold">Austin, TX</div>
+                </div>
+                <span className="text-blue-400 text-sm">Explore →</span>
               </a>
-              
-              <a 
-                href="/locations/san-antonio"
-                className="bg-slate-700 hover:bg-slate-600 rounded-lg p-6 text-center transition-colors duration-200 group"
-              >
-                <h3 className="text-xl font-semibold text-white mb-2 group-hover:text-blue-300">San Antonio</h3>
-                <p className="text-slate-400 text-sm">Expert TV mounting in San Antonio, TX</p>
-              </a>
-              
-              <a 
-                href="/locations/fort-worth"
-                className="bg-slate-700 hover:bg-slate-600 rounded-lg p-6 text-center transition-colors duration-200 group"
-              >
-                <h3 className="text-xl font-semibold text-white mb-2 group-hover:text-blue-300">Fort Worth</h3>
-                <p className="text-slate-400 text-sm">Reliable TV mounting in Fort Worth, TX</p>
-              </a>
-              
-              <a 
-                href="/locations/dallas"
-                className="bg-slate-700 hover:bg-slate-600 rounded-lg p-6 text-center transition-colors duration-200 group"
-              >
-                <h3 className="text-xl font-semibold text-white mb-2 group-hover:text-blue-300">Dallas</h3>
-                <p className="text-slate-400 text-sm">Professional TV mounting in Dallas, TX</p>
-              </a>
-              
-              <a 
-                href="/locations/houston"
-                className="bg-slate-700 hover:bg-slate-600 rounded-lg p-6 text-center transition-colors duration-200 group"
-              >
-                <h3 className="text-xl font-semibold text-white mb-2 group-hover:text-blue-300">Houston</h3>
-                <p className="text-slate-400 text-sm">Top-rated TV mounting in Houston, TX</p>
-              </a>
+              {[
+                { slug: 'san-antonio', name: 'San Antonio' },
+                { slug: 'fort-worth', name: 'Fort Worth' },
+                { slug: 'dallas', name: 'Dallas' },
+                { slug: 'houston', name: 'Houston' },
+              ].map((c) => (
+                <a
+                  key={c.slug}
+                  href={`/locations/${c.slug}`}
+                  className="min-h-[44px] flex items-center justify-center px-3 py-2.5 rounded-lg bg-slate-700/70 hover:bg-slate-700 border border-slate-600 text-slate-100 text-sm font-medium transition-colors"
+                >
+                  {c.name}
+                </a>
+              ))}
             </div>
           </div>
         </section>
-        
+
         {/* Worker Recruitment Section */}
-        <section className="py-16 bg-gradient-to-r from-blue-900 to-purple-900">
-          <div className="container mx-auto px-4 text-center">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-              Join Our Professional Team
-            </h2>
-            <p className="text-blue-100 text-lg mb-8 max-w-2xl mx-auto">
-              Are you an experienced technician looking for flexible work opportunities? 
-              Join our team of professional TV mounting specialists and earn competitive pay.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a 
-                href="/worker-signup"
-                className="inline-flex items-center px-8 py-4 bg-white text-blue-900 font-semibold rounded-lg hover:bg-blue-50 transition-colors duration-200 shadow-lg"
-              >
-                Apply Now
-              </a>
-              <a 
-                href="/worker-login"
-                className="inline-flex items-center px-8 py-4 bg-transparent text-white font-semibold rounded-lg border-2 border-white hover:bg-white hover:text-blue-900 transition-colors duration-200"
-              >
-                Technician Login
-              </a>
+        <section className="py-10 md:py-16 bg-slate-900">
+          <div className="container mx-auto px-4">
+            <div className="max-w-3xl mx-auto rounded-2xl border border-slate-700 bg-slate-800/60 p-6 md:p-10 md:text-center">
+              <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
+                Join Our Professional Team
+              </h2>
+              <p className="text-slate-300 text-sm md:text-base mb-5 md:mb-6 md:max-w-xl md:mx-auto">
+                Experienced technician? Earn competitive pay with flexible work.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 md:justify-center">
+                <a
+                  href="/worker-signup"
+                  className="inline-flex items-center justify-center min-h-[44px] px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
+                >
+                  Apply Now
+                </a>
+                <a
+                  href="/worker-login"
+                  className="inline-flex items-center justify-center min-h-[44px] px-5 py-2.5 bg-transparent text-white font-semibold rounded-lg border border-slate-600 hover:border-blue-500 hover:text-blue-400 transition-colors"
+                >
+                  Technician Login
+                </a>
+              </div>
             </div>
           </div>
         </section>

@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { supabase } from '@/integrations/supabase/client';
 
 interface BlogPost {
@@ -55,22 +54,55 @@ export const BlogSection = () => {
       return <img src={post.cover_image_url} alt={post.title} className="w-full h-full object-cover" loading="lazy" decoding="async" width="800" height="600" />;
     }
     return (
-      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-600/20 to-purple-600/20">
-        <div className="text-white/60 text-center">
-          <div className="text-2xl font-bold mb-2">{post.category || 'Blog'}</div>
-        </div>
+      <div className="w-full h-full flex items-center justify-center bg-slate-800">
+        <div className="text-blue-400/70 text-sm font-semibold">{post.category || 'Blog'}</div>
       </div>
     );
   };
 
+  const renderThumb = (post: BlogPost) => {
+    if (post.cover_image_url) {
+      return <img src={post.cover_image_url} alt={post.title} className="w-full h-full object-cover" loading="lazy" decoding="async" />;
+    }
+    if (post.video_id) {
+      return <img src={`https://img.youtube.com/vi/${post.video_id}/mqdefault.jpg`} alt={post.title} className="w-full h-full object-cover" loading="lazy" decoding="async" />;
+    }
+    return <div className="w-full h-full bg-slate-800 flex items-center justify-center text-blue-400 text-xs">{post.category || 'Blog'}</div>;
+  };
+
   return (
-    <section className="py-16 bg-slate-900/30">
+    <section className="py-10 md:py-16 bg-slate-900/30">
       <div className="container mx-auto px-4">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Pro Tips</h2>
+        <div className="mb-6 md:mb-10 md:text-center">
+          <h2 className="text-2xl md:text-4xl font-bold text-white">Pro Tips</h2>
         </div>
 
-        {/* Desktop */}
+        {/* Mobile: horizontal snap carousel of compact cards */}
+        <div className="md:hidden -mx-4 px-4">
+          <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory no-scrollbar pb-2">
+            {posts.map((post) => (
+              <Link
+                key={post.id}
+                to={`/blog/${post.slug}`}
+                className="snap-start shrink-0 w-[80%] bg-slate-800/60 border border-slate-700 rounded-xl overflow-hidden active:opacity-80"
+              >
+                <div className="aspect-[16/9] bg-slate-900">{renderThumb(post)}</div>
+                <div className="p-3">
+                  {post.category && (
+                    <div className="text-[10px] uppercase tracking-wide text-blue-400 mb-1">{post.category}</div>
+                  )}
+                  <h3 className="text-sm font-semibold text-white line-clamp-2 mb-1">{post.title}</h3>
+                  {post.excerpt && (
+                    <p className="text-xs text-slate-400 line-clamp-1 mb-2">{post.excerpt}</p>
+                  )}
+                  <span className="text-xs font-medium text-blue-400">Read more →</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* Desktop: preserved */}
         <div className="hidden md:block">
           <ScrollArea className="h-[600px] w-full">
             <div className="space-y-6 pr-4">
@@ -95,35 +127,6 @@ export const BlogSection = () => {
               ))}
             </div>
           </ScrollArea>
-        </div>
-
-        {/* Mobile */}
-        <div className="md:hidden">
-          <Carousel className="w-full">
-            <CarouselContent>
-              {posts.map((post) => (
-                <CarouselItem key={post.id}>
-                  <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl overflow-hidden border border-slate-700">
-                    <div className="relative h-64 bg-slate-900">{renderMedia(post)}</div>
-                    <div className="p-6">
-                      {post.category && (
-                        <div className="text-xs uppercase tracking-wide text-blue-400 mb-2">{post.category}</div>
-                      )}
-                      <h3 className="text-xl font-bold text-white mb-4">{post.title}</h3>
-                      <ScrollArea className="h-32">
-                        <p className="text-base text-slate-300 leading-relaxed pr-4">{post.excerpt}</p>
-                      </ScrollArea>
-                      <Link to={`/blog/${post.slug}`} className="mt-4 inline-block text-blue-400 hover:text-blue-300 text-sm font-medium">
-                        Read more →
-                      </Link>
-                    </div>
-                  </div>
-                </CarouselItem>
-              ))}
-            </CarouselContent>
-            <CarouselPrevious className="left-2" />
-            <CarouselNext className="right-2" />
-          </Carousel>
         </div>
       </div>
     </section>
