@@ -13,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useCalendarSync } from '@/hooks/useCalendarSync';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
+import '@/styles/rbc-dark.css';
 
 const locales = { 'en-US': enUS };
 const SERVICE_TZ = 'America/Chicago';
