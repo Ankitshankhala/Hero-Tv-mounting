@@ -250,7 +250,8 @@ export const CompactJobCard = ({
               )}
             </div>
             <div className="mt-0.5 text-xs text-muted-foreground truncate">
-              {getServiceSummary()} · {getShortAddress()}
+              <span className="hidden sm:inline">{getServiceSummary()} · </span>
+              <span>{getShortAddress()}</span>
             </div>
           </div>
 
