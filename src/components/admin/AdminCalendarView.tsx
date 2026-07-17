@@ -1,7 +1,8 @@
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
-import { format, parse, startOfWeek, getDay } from 'date-fns';
+import { format, parse, startOfWeek, getDay, addMinutes, startOfMonth, endOfMonth, subDays, addDays } from 'date-fns';
+import { toZonedTime } from 'date-fns-tz';
 import { enUS } from 'date-fns/locale';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,9 +14,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useCalendarSync } from '@/hooks/useCalendarSync';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 
-const locales = {
-  'en-US': enUS,
-};
+const locales = { 'en-US': enUS };
+const SERVICE_TZ = 'America/Chicago';
 
 const localizer = dateFnsLocalizer({
   format,
@@ -35,37 +35,115 @@ interface CalendarEvent {
   status: BookingStatus;
   worker?: any;
   customer?: any;
+  customerName: string;
+  location: string;
   service?: any;
   resource?: any;
 }
 
 export const AdminCalendarView = React.memo(() => {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [workers, setWorkers] = useState([]);
+  const [workers, setWorkers] = useState<any[]>([]);
   const [selectedWorker, setSelectedWorker] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  const handleBookingUpdate = useCallback(() => {
-    fetchEvents();
-  }, []);
+  // Track the visible range so realtime refreshes stay scoped
+  const rangeRef = useRef<{ start: Date; end: Date }>({
+    start: subDays(startOfMonth(new Date()), 7),
+    end: addDays(endOfMonth(new Date()), 7),
+  });
+
+  const fetchEvents = useCallback(async () => {
+    try {
+      setLoading(true);
+      const { start, end } = rangeRef.current;
+
+      let query = supabase
+        .from('bookings')
+        .select(`
+          id,
+          status,
+          scheduled_date,
+          scheduled_start,
+          start_time_utc,
+          worker_id,
+          customer_id,
+          guest_customer_info,
+          service_id,
+          customer:users!customer_id(name, email, phone, city),
+          worker:users!worker_id(name, email, phone),
+          service:services!service_id(name, description, duration_minutes, base_price)
+        `)
+        .gte('start_time_utc', start.toISOString())
+        .lte('start_time_utc', end.toISOString())
+        .order('start_time_utc', { ascending: true });
+
+      if (selectedWorker !== 'all') {
+        query = query.eq('worker_id', selectedWorker);
+      }
+      if (selectedStatus !== 'all' && (['pending', 'confirmed', 'completed', 'cancelled'] as const).includes(selectedStatus as BookingStatus)) {
+        query = query.eq('status', selectedStatus as BookingStatus);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      const transformed: CalendarEvent[] = (data || [])
+        .filter((b: any) => !!b.start_time_utc)
+        .map((booking: any) => {
+          const startCT = toZonedTime(new Date(booking.start_time_utc), SERVICE_TZ);
+          const duration = booking.service?.duration_minutes || 60;
+          const endCT = addMinutes(startCT, duration);
+
+          const guest = booking.guest_customer_info || {};
+          const customerName = booking.customer?.name || guest.name || 'Guest';
+          const location = booking.customer?.city || guest.city || '';
+          const workerName = booking.worker?.name || 'Unassigned';
+          const serviceName = booking.service?.name || 'Service';
+
+          const validStatus: BookingStatus = (['pending', 'confirmed', 'completed', 'cancelled'] as const)
+            .includes(booking.status as BookingStatus)
+            ? (booking.status as BookingStatus)
+            : 'pending';
+
+          return {
+            id: booking.id,
+            title: `${serviceName} — ${customerName} (${workerName})`,
+            start: startCT,
+            end: endCT,
+            status: validStatus,
+            worker: booking.worker,
+            customer: booking.customer,
+            customerName,
+            location,
+            service: booking.service,
+            resource: booking,
+          };
+        });
+
+      setEvents(transformed);
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error fetching calendar events:', error);
+      }
+      toast({
+        title: 'Error',
+        description: 'Failed to load calendar events',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedWorker, selectedStatus, toast]);
 
   const { isConnected, isRefreshing, forceRefresh } = useCalendarSync({
     userRole: 'admin',
-    onBookingUpdate: handleBookingUpdate
+    onBookingUpdate: fetchEvents,
   });
 
-  useEffect(() => {
-    fetchWorkers();
-    fetchEvents();
-  }, []);
-
-  useEffect(() => {
-    fetchEvents();
-  }, [selectedWorker, selectedStatus]);
-
-  const fetchWorkers = async () => {
+  const fetchWorkers = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('users')
@@ -73,7 +151,6 @@ export const AdminCalendarView = React.memo(() => {
         .eq('role', 'worker')
         .eq('is_active', true)
         .order('name');
-
       if (error) throw error;
       setWorkers(data || []);
     } catch (error) {
@@ -81,130 +158,59 @@ export const AdminCalendarView = React.memo(() => {
         console.error('Error fetching workers:', error);
       }
     }
-  };
+  }, []);
 
-  const fetchEvents = async () => {
-    try {
-      setLoading(true);
-      
-      let query = supabase
-        .from('bookings')
-        .select(`
-          *,
-          customer:users!customer_id(name, email, phone, city),
-          worker:users!worker_id(name, email, phone),
-          service:services!service_id(name, description, duration_minutes, base_price)
-        `)
-        .order('scheduled_date', { ascending: true })
-        .order('scheduled_start', { ascending: true });
+  useEffect(() => {
+    fetchWorkers();
+  }, [fetchWorkers]);
 
-      // Apply worker filter
-      if (selectedWorker !== 'all') {
-        query = query.eq('worker_id', selectedWorker);
-      }
+  useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents]);
 
-      // Apply status filter - only filter if selectedStatus is a valid BookingStatus
-      if (selectedStatus !== 'all' && (['pending', 'confirmed', 'completed', 'cancelled'] as const).includes(selectedStatus as BookingStatus)) {
-        query = query.eq('status', selectedStatus as BookingStatus);
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      const transformedEvents: CalendarEvent[] = (data || []).map(booking => {
-        const startDateTime = new Date(`${booking.scheduled_date}T${booking.scheduled_start}`);
-        const durationMinutes = booking.service?.duration_minutes || 60;
-        const endDateTime = new Date(startDateTime.getTime() + durationMinutes * 60000);
-
-        const workerName = booking.worker?.name || 'Unassigned';
-        const customerName = booking.customer?.name || 'Unknown';
-        const serviceName = booking.service?.name || 'Service';
-
-        // Ensure status is one of the valid enum values
-        const validStatus: BookingStatus = (['pending', 'confirmed', 'completed', 'cancelled'] as const).includes(booking.status as BookingStatus) 
-          ? booking.status as BookingStatus 
-          : 'pending';
-
-        return {
-          id: booking.id,
-          title: `${serviceName} - ${customerName} (${workerName})`,
-          start: startDateTime,
-          end: endDateTime,
-          status: validStatus,
-          worker: booking.worker,
-          customer: booking.customer,
-          service: booking.service,
-          resource: booking
-        };
-      });
-
-      setEvents(transformedEvents);
-    } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Error fetching calendar events:', error);
-      }
-      toast({
-        title: "Error",
-        description: "Failed to load calendar events",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
+  const handleRangeChange = useCallback((range: any) => {
+    let start: Date;
+    let end: Date;
+    if (Array.isArray(range)) {
+      start = range[0];
+      end = range[range.length - 1];
+    } else if (range?.start && range?.end) {
+      start = range.start;
+      end = range.end;
+    } else {
+      return;
     }
-  };
+    // buffer +/- 1 day
+    rangeRef.current = { start: subDays(start, 1), end: addDays(end, 1) };
+    fetchEvents();
+  }, [fetchEvents]);
 
   const eventStyleGetter = useCallback((event: CalendarEvent) => {
-    let backgroundColor = '#3174ad';
-    
-    switch (event.status) {
-      case 'pending':
-        backgroundColor = '#f59e0b';
-        break;
-      case 'confirmed':
-        backgroundColor = '#10b981';
-        break;
-      case 'completed':
-        backgroundColor = '#6b7280';
-        break;
-      case 'cancelled':
-        backgroundColor = '#ef4444';
-        break;
-    }
-
+    const token = `hsl(var(--status-${event.status}))`;
     return {
       style: {
-        backgroundColor,
+        backgroundColor: token,
         borderRadius: '5px',
-        opacity: 0.8,
-        color: 'white',
+        opacity: 0.9,
+        color: 'hsl(var(--primary-foreground))',
         border: '0px',
-        display: 'block'
-      }
+        display: 'block',
+      },
     };
   }, []);
 
   const handleEventSelect = useCallback((event: CalendarEvent) => {
-    const statusColor = {
-      pending: 'yellow',
-      confirmed: 'green',
-      completed: 'gray',
-      cancelled: 'red'
-    }[event.status] || 'blue';
-
     toast({
       title: `${event.service?.name || 'Service'}`,
       description: (
         <div className="space-y-2">
           <div className="flex items-center space-x-2">
-            <Badge variant="outline" className={`text-${statusColor}-600`}>
-              {event.status}
-            </Badge>
+            <Badge variant="outline">{event.status}</Badge>
           </div>
-          <div><strong>Customer:</strong> {event.customer?.name}</div>
+          <div><strong>Customer:</strong> {event.customerName}</div>
           <div><strong>Worker:</strong> {event.worker?.name || 'Unassigned'}</div>
-          <div><strong>Location:</strong> {event.customer?.city}</div>
-          <div><strong>Time:</strong> {format(event.start, 'PPp')}</div>
+          <div><strong>Location:</strong> {event.location || '—'}</div>
+          <div><strong>Time (CT):</strong> {format(event.start, 'PPp')}</div>
         </div>
       ),
     });
@@ -218,21 +224,18 @@ export const AdminCalendarView = React.memo(() => {
             <CalendarIcon className="h-5 w-5" />
             <span>Admin Calendar View</span>
             {isConnected && (
-              <Badge variant="outline" className="text-green-600">
+              <Badge variant="outline" className="text-[hsl(var(--status-completed))]">
                 ● Live
               </Badge>
             )}
           </CardTitle>
-          <Button
-            onClick={forceRefresh}
-            disabled={isRefreshing}
-            size="sm"
-            variant="outline"
-          >
+          <Button onClick={forceRefresh} disabled={isRefreshing} size="sm" variant="outline">
             <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
           </Button>
         </div>
-        
+
+        <p className="text-sm text-muted-foreground">Times shown in Central Time (Austin, TX)</p>
+
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center space-x-2">
             <Users className="h-4 w-4" />
@@ -250,7 +253,7 @@ export const AdminCalendarView = React.memo(() => {
               </SelectContent>
             </Select>
           </div>
-          
+
           <div className="flex items-center space-x-2">
             <MapPin className="h-4 w-4" />
             <Select value={selectedStatus} onValueChange={setSelectedStatus}>
@@ -268,12 +271,12 @@ export const AdminCalendarView = React.memo(() => {
           </div>
         </div>
       </CardHeader>
-      
+
       <CardContent>
         {loading ? (
           <div className="flex items-center justify-center p-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-2">Loading calendar...</span>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <span className="ml-2 text-muted-foreground">Loading calendar...</span>
           </div>
         ) : (
           <div className="h-96">
@@ -285,18 +288,19 @@ export const AdminCalendarView = React.memo(() => {
               style={{ height: '100%' }}
               eventPropGetter={eventStyleGetter}
               onSelectEvent={handleEventSelect}
+              onRangeChange={handleRangeChange}
               views={['month', 'week', 'day']}
               defaultView="week"
               popup
             />
           </div>
         )}
-        
+
         <div className="mt-4 flex flex-wrap gap-2">
-          <Badge className="bg-yellow-500">Pending</Badge>
-          <Badge className="bg-green-500">Confirmed</Badge>
-          <Badge className="bg-gray-500">Completed</Badge>
-          <Badge className="bg-red-500">Cancelled</Badge>
+          <Badge style={{ backgroundColor: 'hsl(var(--status-pending))', color: 'hsl(var(--primary-foreground))' }}>Pending</Badge>
+          <Badge style={{ backgroundColor: 'hsl(var(--status-confirmed))', color: 'hsl(var(--primary-foreground))' }}>Confirmed</Badge>
+          <Badge style={{ backgroundColor: 'hsl(var(--status-completed))', color: 'hsl(var(--primary-foreground))' }}>Completed</Badge>
+          <Badge style={{ backgroundColor: 'hsl(var(--status-cancelled))', color: 'hsl(var(--primary-foreground))' }}>Cancelled</Badge>
         </div>
       </CardContent>
     </Card>
