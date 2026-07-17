@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { ChevronDown, Phone, MapPin, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatBookingTimeForContext, convertUTCToLocal } from '@/utils/timeUtils';
+import { getJobAddress } from '@/utils/jobAddress';
 
 
 interface CompactJobCardProps {
