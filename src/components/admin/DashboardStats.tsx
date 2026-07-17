@@ -16,6 +16,7 @@ const formatCurrency = (amount: number) =>
 interface DashboardStatsData {
   revenue_this_month: number;
   revenue_last_month: number;
+  revenue_all_time: number;
   revenue_delta_pct: number | null;
   jobs_completed_this_month: number;
   jobs_completed_last_month: number;
@@ -38,6 +39,8 @@ export const DashboardStats = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [revenueView, setRevenueView] = useState<'month' | 'all'>('month');
+
 
   useEffect(() => {
     let mounted = true;
@@ -128,12 +131,27 @@ export const DashboardStats = () => {
 
       {/* KPI grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <StatCard
-          label="Revenue this month"
-          value={<span className="tabular-nums">{formatCurrency(stats.revenue_this_month)}</span>}
-          icon={DollarSign}
-          {...deltaProps(stats.revenue_delta_pct)}
-        />
+        <div className="relative">
+          <StatCard
+            label={revenueView === 'month' ? 'Revenue this month' : 'Revenue all time'}
+            value={
+              <span className="tabular-nums">
+                {formatCurrency(revenueView === 'month' ? stats.revenue_this_month : (stats.revenue_all_time ?? 0))}
+              </span>
+            }
+            icon={DollarSign}
+            {...(revenueView === 'month' ? deltaProps(stats.revenue_delta_pct) : {})}
+          />
+          <button
+            type="button"
+            onClick={() => setRevenueView((v) => (v === 'month' ? 'all' : 'month'))}
+            className="absolute bottom-3 right-3 inline-flex items-center rounded-md border border-border bg-background/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring"
+            aria-label="Toggle revenue view"
+          >
+            {revenueView === 'month' ? 'All time' : 'This month'}
+          </button>
+        </div>
+
         <StatCard
           label="Jobs completed"
           value={<span className="tabular-nums">{stats.jobs_completed_this_month}</span>}
