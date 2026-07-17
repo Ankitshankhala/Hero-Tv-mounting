@@ -1,0 +1,101 @@
+/* React Big Calendar - Dark theme overrides scoped to .dark (admin) */
+
+.dark .rbc-toolbar {
+  color: hsl(var(--foreground));
+}
+
+.dark .rbc-toolbar button {
+  color: hsl(var(--foreground));
+  background: transparent;
+  border: 1px solid hsl(var(--border));
+}
+
+.dark .rbc-toolbar button:hover,
+.dark .rbc-toolbar button:focus {
+  background: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+  border-color: hsl(var(--border));
+}
+
+.dark .rbc-toolbar button.rbc-active,
+.dark .rbc-toolbar button.rbc-active:hover,
+.dark .rbc-toolbar button.rbc-active:focus {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border-color: hsl(var(--primary));
+  box-shadow: none;
+}
+
+.dark .rbc-toolbar-label {
+  color: hsl(var(--foreground));
+}
+
+.dark .rbc-header,
+.dark .rbc-time-header-content,
+.dark .rbc-label,
+.dark .rbc-time-gutter,
+.dark .rbc-button-link,
+.dark .rbc-date-cell,
+.dark .rbc-date-cell > a,
+.dark .rbc-row-bg {
+  color: hsl(var(--foreground));
+}
+
+.dark .rbc-time-view,
+.dark .rbc-time-content,
+.dark .rbc-time-header,
+.dark .rbc-time-header-content,
+.dark .rbc-timeslot-group,
+.dark .rbc-day-slot,
+.dark .rbc-header,
+.dark .rbc-month-view,
+.dark .rbc-month-row,
+.dark .rbc-day-bg,
+.dark .rbc-time-content > *,
+.dark .rbc-time-header-content > .rbc-row,
+.dark .rbc-agenda-view table.rbc-agenda-table,
+.dark .rbc-agenda-view table.rbc-agenda-table tbody > tr > td,
+.dark .rbc-agenda-view table.rbc-agenda-table thead > tr > th {
+  border-color: hsl(var(--border)) !important;
+}
+
+.dark .rbc-today {
+  background-color: hsl(var(--accent) / 0.25);
+}
+
+.dark .rbc-off-range-bg {
+  background-color: hsl(var(--muted) / 0.4);
+}
+
+.dark .rbc-off-range {
+  color: hsl(var(--muted-foreground));
+}
+
+.dark .rbc-current-time-indicator {
+  background-color: hsl(var(--primary));
+  height: 2px;
+}
+
+.dark .rbc-event {
+  color: #fff !important;
+  border: 1px solid hsl(var(--border));
+}
+
+.dark .rbc-event.rbc-selected {
+  filter: brightness(1.15);
+}
+
+.dark .rbc-show-more {
+  color: hsl(var(--primary));
+  background: transparent;
+}
+
+.dark .rbc-agenda-view table.rbc-agenda-table tbody > tr > td + td {
+  border-left-color: hsl(var(--border));
+}
+
+/* Legend badges below the calendar */
+.dark .rbc-legend-badge,
+.rbc-legend-badge {
+  color: #fff !important;
+}

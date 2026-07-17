@@ -598,27 +598,6 @@ export type Database = {
             referencedRelation: "v_active_workers_without_coverage"
             referencedColumns: ["worker_id"]
           },
-          {
-            foreignKeyName: "fk_bookings_worker_id"
-            columns: ["worker_id"]
-            isOneToOne: false
-            referencedRelation: "admin_worker_directory"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_bookings_worker_id"
-            columns: ["worker_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_bookings_worker_id"
-            columns: ["worker_id"]
-            isOneToOne: false
-            referencedRelation: "v_active_workers_without_coverage"
-            referencedColumns: ["worker_id"]
-          },
         ]
       }
       coupon_audit_log: {
@@ -3129,27 +3108,6 @@ export type Database = {
           },
           {
             foreignKeyName: "bookings_worker_id_fkey"
-            columns: ["worker_id"]
-            isOneToOne: false
-            referencedRelation: "v_active_workers_without_coverage"
-            referencedColumns: ["worker_id"]
-          },
-          {
-            foreignKeyName: "fk_bookings_worker_id"
-            columns: ["worker_id"]
-            isOneToOne: false
-            referencedRelation: "admin_worker_directory"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_bookings_worker_id"
-            columns: ["worker_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_bookings_worker_id"
             columns: ["worker_id"]
             isOneToOne: false
             referencedRelation: "v_active_workers_without_coverage"
