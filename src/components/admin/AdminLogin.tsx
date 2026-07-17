@@ -52,14 +52,16 @@ export const AdminLogin = ({ onLogin }: AdminLoginProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-muted/40 flex items-center justify-center p-4">
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="text-center">
-          <div className="mx-auto w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center mb-4">
-            <Lock className="h-6 w-6 text-white" />
-          </div>
-          <CardTitle className="text-2xl font-bold text-gray-900">Admin Access</CardTitle>
-          <p className="text-gray-600">Administrator accounts only</p>
+          <img
+            src="/assets/images/logo.png"
+            alt="Hero TV Mounting"
+            className="mx-auto h-14 w-14 object-contain mb-4"
+          />
+          <CardTitle className="text-2xl font-bold text-foreground">Admin Access</CardTitle>
+          <p className="text-muted-foreground">Administrator accounts only</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
