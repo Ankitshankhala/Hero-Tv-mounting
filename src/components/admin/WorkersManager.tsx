@@ -138,31 +138,21 @@ export const WorkersManager = () => {
     return matchesSearch && matchesActive;
   });
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6">
-      <Tabs defaultValue="workers" className="w-full">
-        <TabsList>
-          <TabsTrigger value="workers">Current Technicians</TabsTrigger>
-          <TabsTrigger value="applications">Applications</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="workers">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Wrench className="h-5 w-5" />
-                <span>Technicians Management</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+    <>
+      <PageHeader title="Workers" subtitle="Manage technicians and applications" />
+
+      {loading ? (
+        <TableSkeleton rows={6} cols={5} />
+      ) : (
+        <Tabs defaultValue="workers" className="w-full">
+          <TabsList>
+            <TabsTrigger value="workers">Current Technicians</TabsTrigger>
+            <TabsTrigger value="applications">Applications</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="workers">
+            <Card className="p-4 border-border shadow-sm">
               {!bannerDismissed && uncovered.length > 0 && (
                 <Alert variant="default" className="mb-4 border-amber-300 bg-amber-50 text-amber-900 [&>svg]:text-amber-600">
                   <AlertTriangle className="h-4 w-4" />
@@ -192,6 +182,7 @@ export const WorkersManager = () => {
                   </div>
                 </Alert>
               )}
+
               <WorkerFilters
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}
@@ -201,25 +192,25 @@ export const WorkersManager = () => {
                 inactiveCount={inactiveCount}
               />
 
-              <WorkerTable 
-                workers={filteredWorkers} 
+              <WorkerTable
+                workers={filteredWorkers}
                 onWorkerUpdate={fetchWorkers}
               />
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="applications">
-          <WorkerApplicationsManager />
-        </TabsContent>
-      </Tabs>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="applications">
+            <WorkerApplicationsManager />
+          </TabsContent>
+        </Tabs>
+      )}
 
       {showAddWorker && (
-        <AddWorkerModal 
-          onClose={() => setShowAddWorker(false)} 
+        <AddWorkerModal
+          onClose={() => setShowAddWorker(false)}
           onSuccess={fetchWorkers}
         />
       )}
-    </div>
+    </>
   );
 };
