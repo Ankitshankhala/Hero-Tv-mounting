@@ -267,153 +267,159 @@ export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onCollaps
     );
   };
 
+  const customerName = job.guest_customer_info?.name || job.customer?.name;
+  const customerEmail = job.guest_customer_info?.email || job.customer?.email;
+  const customerPhone = job.guest_customer_info?.phone || job.customer?.phone;
+  const jobAddress = getJobAddress(job);
+  const addressLines = jobAddress ? jobAddress.split(/\s*\|\s*/) : [];
+  const customerApartmentName = job.guest_customer_info?.apartment_name;
+  const customerCity = job.guest_customer_info?.city;
+  const customerState = job.guest_customer_info?.state;
+  const customerZipcode = job.guest_customer_info?.zipcode;
+  const cityLine = [customerCity, customerState].filter(Boolean).join(', ');
+
+  const tipDisplay = getTipDisplay(job.tip_amount, job.payment_status);
+
+  const statusLabel = (job.status || '').replace('_', ' ').toUpperCase();
+  const paymentLabel = (job.payment_status || '').replace('_', ' ').toUpperCase();
+
   return (
-    <Card className="bg-card border border-border shadow-lg">
-      <CardContent className="p-6">
-        {/* Header with collapse button */}
-        <div className="flex items-start justify-between mb-6">
-          <div className="flex-1">
-            <h3 className="text-xl font-bold text-primary mb-1">JOB DETAILS</h3>
-            <p className="text-sm text-muted-foreground mb-3">Hero TV Mounting</p>
-            <Badge 
-              variant="secondary" 
-              className="font-medium"
+    <Card className="bg-card border border-border shadow-md">
+      <CardContent className="p-4 space-y-4">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-medium text-foreground truncate">
+              {customerName || 'Customer'}
+            </div>
+            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+              <Badge variant="outline" className="text-[10px] font-medium">
+                {statusLabel}
+              </Badge>
+              {paymentLabel && (
+                <Badge variant="outline" className="text-[10px] font-medium">
+                  {paymentLabel}
+                </Badge>
+              )}
+              {tipDisplay && (
+                <Badge variant="outline" className={`text-[10px] font-medium ${tipDisplay.color}`}>
+                  Tip ${job.tip_amount.toFixed(2)}
+                </Badge>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-start gap-2 shrink-0">
+            <div className="text-right text-xs">
+              <div className="font-medium text-foreground whitespace-nowrap">
+                {getFormattedDate()}
+              </div>
+              <div className="text-muted-foreground whitespace-nowrap">
+                {getFormattedTime()}
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onCollapse}
+              className="h-8 w-8"
+              aria-label="Close"
             >
-              {job.status.replace('_', ' ').toUpperCase()}
-            </Badge>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
 
-            {/* Tip Amount Display */}
-            {(() => {
-              const tipDisplay = getTipDisplay(job.tip_amount, job.payment_status);
-              return tipDisplay && (
-                <div className="mt-3 p-3 bg-muted/40 rounded-lg border border-border">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <tipDisplay.Icon className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <div className="text-sm font-semibold text-foreground">
-                          {tipDisplay.text}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {tipDisplay.description}
-                        </div>
-                      </div>
-                    </div>
-                    <Badge className={tipDisplay.color}>
-                      ${job.tip_amount.toFixed(2)}
-                    </Badge>
-                  </div>
+        {/* Two-column facts */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Service */}
+          <div>
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">
+              Service
+            </div>
+            <div className="text-[13px] leading-snug">
+              {renderServiceDetails()}
+            </div>
+          </div>
+
+          {/* Customer */}
+          <div>
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">
+              Customer
+            </div>
+            <dl className="space-y-1 text-[13px]">
+              {customerName && (
+                <div className="flex gap-2">
+                  <dt className="text-[12px] text-muted-foreground w-14 shrink-0">Name</dt>
+                  <dd className="text-foreground min-w-0 break-words">{customerName}</dd>
                 </div>
-              );
-            })()}
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onCollapse}
-            className="h-8 w-8 p-0"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-
-        {/* Three Column Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          {/* Service Details - Left */}
-          <div>
-            <h4 className="text-lg font-semibold text-foreground mb-3">Service Details</h4>
-            {renderServiceDetails()}
-          </div>
-
-          {/* Date & Time - Middle */}
-          <div>
-            <h4 className="text-lg font-semibold text-foreground mb-3">Date & Time</h4>
-            <div className="text-sm">
-              <div className="font-medium text-foreground">{getFormattedDate()}</div>
-              <div className="text-muted-foreground">{getFormattedTime()}</div>
-            </div>
-          </div>
-
-          {/* Customer Information - Right */}
-          <div>
-            <h4 className="text-lg font-semibold text-foreground mb-3">Customer Information</h4>
-            <div className="space-y-1 text-sm">
-              {(() => {
-                const customerName = job.guest_customer_info?.name || job.customer?.name;
-                const customerEmail = job.guest_customer_info?.email || job.customer?.email;
-                const customerPhone = job.guest_customer_info?.phone || job.customer?.phone;
-                const jobAddress = getJobAddress(job);
-                const addressLines = jobAddress ? jobAddress.split(/\s*\|\s*/) : [];
-                const customerApartmentName = job.guest_customer_info?.apartment_name;
-                const customerCity = job.guest_customer_info?.city;
-                const customerState = job.guest_customer_info?.state;
-                const customerZipcode = job.guest_customer_info?.zipcode;
-
-                return (
-                  <>
-                    {customerName && (
-                      <div><span className="font-medium">Name:</span> <span className="text-muted-foreground">{customerName}</span></div>
-                    )}
-                    {addressLines.length > 0 && (
-                      <div>
-                        <span className="font-medium">Address:</span>{' '}
-                        <span className="text-muted-foreground">
-                          {addressLines.map((line, i) => (
-                            <span key={i} className="block">{line}</span>
-                          ))}
-                        </span>
-                      </div>
-                    )}
-                    {customerApartmentName && !job.location_notes && (
-                      <div><span className="font-medium">Apartment:</span> <span className="text-muted-foreground">{customerApartmentName}</span></div>
-                    )}
-                    {(customerCity || customerState) && (
-                      <div>
-                        <span className="font-medium">City:</span>{' '}
-                        <span className="text-muted-foreground">
-                          {[customerCity, customerState].filter(Boolean).join(', ')}
-                        </span>
-                      </div>
-                    )}
-                    {customerZipcode && (
-                      <div>
-                        <span className="font-medium">ZIP:</span>{' '}
-                        <span className="text-muted-foreground">{customerZipcode}</span>
-                      </div>
-                    )}
-                    {customerPhone && (
-                      <div><span className="font-medium">Phone:</span> <span className="text-muted-foreground">{customerPhone}</span></div>
-                    )}
-                    {customerEmail && (
-                      <div><span className="font-medium">Email:</span> <span className="text-muted-foreground">{customerEmail}</span></div>
-                    )}
-                  </>
-                );
-              })()}
-            </div>
+              )}
+              {addressLines.length > 0 && (
+                <div className="flex gap-2">
+                  <dt className="text-[12px] text-muted-foreground w-14 shrink-0">Address</dt>
+                  <dd className="text-foreground min-w-0 break-words">
+                    {addressLines.map((line, i) => (
+                      <span key={i} className="block">{line}</span>
+                    ))}
+                  </dd>
+                </div>
+              )}
+              {customerApartmentName && !job.location_notes && (
+                <div className="flex gap-2">
+                  <dt className="text-[12px] text-muted-foreground w-14 shrink-0">Apt</dt>
+                  <dd className="text-foreground min-w-0 break-words">{customerApartmentName}</dd>
+                </div>
+              )}
+              {cityLine && (
+                <div className="flex gap-2">
+                  <dt className="text-[12px] text-muted-foreground w-14 shrink-0">City</dt>
+                  <dd className="text-foreground min-w-0 break-words">{cityLine}</dd>
+                </div>
+              )}
+              {customerZipcode && (
+                <div className="flex gap-2">
+                  <dt className="text-[12px] text-muted-foreground w-14 shrink-0">ZIP</dt>
+                  <dd className="text-foreground min-w-0 break-words">{customerZipcode}</dd>
+                </div>
+              )}
+              {customerPhone && (
+                <div className="flex gap-2">
+                  <dt className="text-[12px] text-muted-foreground w-14 shrink-0">Phone</dt>
+                  <dd className="text-foreground min-w-0 break-words">{customerPhone}</dd>
+                </div>
+              )}
+              {customerEmail && (
+                <div className="flex gap-2">
+                  <dt className="text-[12px] text-muted-foreground w-14 shrink-0">Email</dt>
+                  <dd className="text-foreground min-w-0 break-all">{customerEmail}</dd>
+                </div>
+              )}
+            </dl>
           </div>
         </div>
 
-        {/* Earnings Breakdown */}
+        {/* Earnings (captured only) */}
         {job.booking_services && job.booking_services.length > 0 && job.payment_status === 'captured' && (
-          <div className="mb-6">
-            <JobEarningsCard 
-              services={job.booking_services}
-              tipAmount={job.tip_amount || 0}
-            />
+          <JobEarningsCard
+            services={job.booking_services}
+            tipAmount={job.tip_amount || 0}
+          />
+        )}
+
+        {/* Special instructions — only when present */}
+        {specialInstructions && (
+          <div>
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">
+              Special instructions
+            </div>
+            <div className="p-3 bg-muted/40 border border-border rounded-md text-[13px] text-foreground">
+              {specialInstructions}
+            </div>
           </div>
         )}
 
-        {/* Special Instructions */}
-        <div className="mb-6">
-          <h4 className="text-lg font-semibold text-foreground mb-3">Special Instructions</h4>
-          <div className="p-4 bg-muted/50 border border-border rounded-lg text-sm text-muted-foreground">
-            {specialInstructions || "No special instructions provided"}
-          </div>
-        </div>
-
         {/* Actions */}
-        <div className="pt-4 border-t border-border">
+        <div className="pt-3 border-t border-border">
           <JobActions
             job={job}
             onStatusUpdate={onStatusUpdate || (() => {})}
@@ -425,6 +431,7 @@ export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onCollaps
           />
         </div>
       </CardContent>
+
 
       {/* Modals */}
       {showModifyModal && (
