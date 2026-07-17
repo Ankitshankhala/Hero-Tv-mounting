@@ -1,142 +1,146 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Facebook, Instagram, Linkedin } from 'lucide-react';
+import { Facebook, Instagram, Linkedin, Phone, Mail } from 'lucide-react';
+
+const cities = [
+  { name: 'Austin, TX', href: '/locations/austin' },
+  { name: 'San Antonio, TX', href: '/locations/san-antonio' },
+  { name: 'Fort Worth, TX', href: '/locations/fort-worth' },
+  { name: 'Dallas, TX', href: '/locations/dallas' },
+  { name: 'Houston, TX', href: '/locations/houston' },
+];
+
+const linkCls =
+  'inline-flex items-center min-h-[44px] text-sm text-slate-400 hover:text-blue-400 transition-colors';
 
 export const Footer = () => {
   return (
-    <footer className="bg-slate-800 border-t border-slate-700 py-8">
-      <div className="container mx-auto px-4">
-        <div className="flex flex-col md:flex-row justify-between items-start space-y-6 md:space-y-0">
-          <div className="text-center md:text-left text-slate-400">
-            <p>&copy; 2026 Hero TV Mounting. All rights reserved.</p>
+    <footer className="bg-slate-800 border-t border-slate-700">
+      <div className="container mx-auto px-4 py-8 md:py-10">
+        {/* Brand block */}
+        <div className="md:flex md:items-start md:justify-between md:gap-10">
+          <div className="max-w-sm">
+            <div className="flex items-center gap-3">
+              <img
+                src="/assets/images/logo.png"
+                alt="Hero TV Mounting"
+                width={40}
+                height={40}
+                className="h-10 w-10 rounded"
+                loading="lazy"
+              />
+              <div className="text-white font-semibold text-base">Hero TV Mounting</div>
+            </div>
+            <p className="mt-2 text-sm text-slate-400">
+              Professional TV mounting in Austin, TX
+            </p>
+            <div className="mt-3 flex flex-col gap-1">
+              <a
+                href="tel:+17372729971"
+                className="inline-flex items-center gap-2 min-h-[44px] text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors"
+              >
+                <Phone className="h-4 w-4" />
+                737-272-9971
+              </a>
+              <a
+                href="mailto:support@herotvmounting.com"
+                className="inline-flex items-center gap-2 min-h-[44px] text-sm text-slate-300 hover:text-blue-400 transition-colors"
+              >
+                <Mail className="h-4 w-4" />
+                Contact us
+              </a>
+            </div>
+
+            {/* Social */}
+            <div className="mt-3 flex gap-3">
+              <a
+                href="https://facebook.com/herotvmounting"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Facebook"
+                className="inline-flex items-center justify-center w-11 h-11 rounded-md text-slate-400 hover:text-blue-400 hover:bg-slate-700/60 transition-colors"
+              >
+                <Facebook className="h-5 w-5" />
+              </a>
+              <a
+                href="https://instagram.com/herotvmounting"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Instagram"
+                className="inline-flex items-center justify-center w-11 h-11 rounded-md text-slate-400 hover:text-blue-400 hover:bg-slate-700/60 transition-colors"
+              >
+                <Instagram className="h-5 w-5" />
+              </a>
+              <a
+                href="https://linkedin.com/company/herotvmounting"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="LinkedIn"
+                className="inline-flex items-center justify-center w-11 h-11 rounded-md text-slate-400 hover:text-blue-400 hover:bg-slate-700/60 transition-colors"
+              >
+                <Linkedin className="h-5 w-5" />
+              </a>
+            </div>
           </div>
-          
-          <div className="flex flex-col md:flex-row gap-8">
-            <div className="text-center md:text-left">
-              <div className="text-slate-300 font-semibold mb-2">Service Areas</div>
-              <ul className="space-y-1 text-slate-400 text-sm">
-                <li><a href="/locations/austin" className="hover:text-slate-200 transition-colors duration-200">Austin, TX</a></li>
-                <li><a href="/locations/san-antonio" className="hover:text-slate-200 transition-colors duration-200">San Antonio, TX</a></li>
-                <li><a href="/locations/fort-worth" className="hover:text-slate-200 transition-colors duration-200">Fort Worth, TX</a></li>
-                <li><a href="/locations/dallas" className="hover:text-slate-200 transition-colors duration-200">Dallas, TX</a></li>
-                <li><a href="/locations/houston" className="hover:text-slate-200 transition-colors duration-200">Houston, TX</a></li>
+
+          {/* Link groups */}
+          <div className="mt-8 md:mt-0 grid grid-cols-2 gap-x-6 gap-y-6 md:flex md:gap-10">
+            <div>
+              <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">
+                Company
+              </h4>
+              <ul className="flex flex-col">
+                <li><a href="/worker-signup" className={linkCls}>Join Our Team</a></li>
+                <li><a href="/worker-login" className={linkCls}>Technician Portal</a></li>
+                <li><a href="tel:+17372729971" className={linkCls}>Contact Us</a></li>
               </ul>
             </div>
-            
-            <div className="flex flex-col space-y-2 text-center md:text-left">
-              <a 
-                href="/worker-signup" 
-                className="text-blue-400 hover:text-blue-300 transition-colors duration-200 font-medium"
-              >
-                Join Our Team
-              </a>
-              <a 
-                href="/worker-login" 
-                className="text-slate-400 hover:text-slate-300 transition-colors duration-200"
-              >
-                Technician Portal
-              </a>
-              <a 
-                href="tel:+15752088997" 
-                className="text-slate-400 hover:text-slate-300 transition-colors duration-200"
-              >
-                Contact Us
-              </a>
+
+            <div>
+              <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">
+                Legal
+              </h4>
+              <ul className="flex flex-col">
+                <li><Link to="/privacy-policy" className={linkCls}>Privacy Policy</Link></li>
+                <li><Link to="/terms-of-service" className={linkCls}>Terms of Service</Link></li>
+              </ul>
             </div>
-            
-            <div className="flex flex-col space-y-2 text-center md:text-left">
-              <div className="text-slate-300 font-semibold mb-1">Legal</div>
-              <Link 
-                to="/privacy-policy" 
-                className="text-slate-400 hover:text-slate-300 transition-colors duration-200"
-              >
-                Privacy Policy
-              </Link>
-              <Link 
-                to="/terms-of-service" 
-                className="text-slate-400 hover:text-slate-300 transition-colors duration-200"
-              >
-                Terms of Service
-              </Link>
-            </div>
-            
-            <div className="flex flex-col space-y-3 text-center md:text-left">
-              <div className="text-slate-300 font-semibold mb-1">Follow Us</div>
-              <div className="flex gap-4 justify-center md:justify-start">
-                <a 
-                  href="https://facebook.com/herotvmounting" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  aria-label="Visit our Facebook page"
-                  className="text-slate-400 hover:text-blue-500 transition-colors duration-200"
-                >
-                  <Facebook className="h-5 w-5" />
-                </a>
-                <a 
-                  href="https://instagram.com/herotvmounting" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  aria-label="Visit our Instagram page"
-                  className="text-slate-400 hover:text-pink-500 transition-colors duration-200"
-                >
-                  <Instagram className="h-5 w-5" />
-                </a>
-                <a 
-                  href="https://linkedin.com/company/herotvmounting" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  aria-label="Visit our LinkedIn page"
-                  className="text-slate-400 hover:text-blue-400 transition-colors duration-200"
-                >
-                  <Linkedin className="h-5 w-5" />
-                </a>
-              </div>
+
+            <div className="col-span-2 md:col-span-1">
+              <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">
+                Service Areas
+              </h4>
+              <ul className="grid grid-cols-2 gap-x-4">
+                {cities.map((c) => (
+                  <li key={c.href}>
+                    <a href={c.href} className={linkCls}>{c.name}</a>
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
         </div>
-        
-        {/* Developer Credit */}
-        <div className="mt-6 pt-4 border-t border-slate-700 text-center">
-          <p className="text-sm text-slate-300">
+
+        {/* Bottom bar */}
+        <div className="mt-8 pt-4 border-t border-slate-700 flex flex-col items-center gap-2">
+          <p className="text-xs text-slate-500 text-center">
+            © 2026 Hero TV Mounting. All rights reserved.
+          </p>
+          <p className="text-xs text-slate-500 text-center">
             Developed by{' '}
-            <a 
-              href="https://www.charusolutions.com/" 
-              target="_blank" 
+            <a
+              href="https://www.charusolutions.com/"
+              target="_blank"
               rel="noopener noreferrer"
-              className="transition-all duration-300 inline-block hover:scale-110 hover:transform-gpu"
+              className="hover:brightness-125 transition-all"
             >
-              <span 
-                style={{ color: '#5B9BF5' }}
-                className="hover:brightness-125 transition-all duration-200"
-              >
-                Cha
-              </span>
-              <span 
-                style={{ color: '#F56565' }}
-                className="hover:brightness-125 transition-all duration-200"
-              >
-                ru
-              </span>
-              <span className="text-slate-300"> </span>
-              <span 
-                style={{ color: '#FBBC05' }}
-                className="hover:brightness-125 transition-all duration-200"
-              >
-                Sol
-              </span>
-              <span 
-                style={{ color: '#48BB78' }}
-                className="hover:brightness-125 transition-all duration-200"
-              >
-                uti
-              </span>
-              <span 
-                style={{ color: '#5B9BF5' }}
-                className="hover:brightness-125 transition-all duration-200"
-              >
-                ons
-              </span>
+              <span style={{ color: '#5B9BF5' }}>Cha</span>
+              <span style={{ color: '#F56565' }}>ru</span>
+              <span className="text-slate-400"> </span>
+              <span style={{ color: '#FBBC05' }}>Sol</span>
+              <span style={{ color: '#48BB78' }}>uti</span>
+              <span style={{ color: '#5B9BF5' }}>ons</span>
             </a>
           </p>
         </div>
