@@ -29,12 +29,12 @@ export const MapAppSelector = ({ address, className }: MapAppSelectorProps) => {
   const PreferredIcon = mapAppConfig[preferredApp].icon;
 
   return (
-    <div className="flex job-button w-full">
+    <div className="flex w-full min-h-11">
       <Button
         onClick={handleDefaultDirections}
         size="sm"
         variant="outline"
-        className="flex-1 justify-center items-center rounded-r-none border-r-0"
+        className="flex-1 min-h-11 justify-center items-center rounded-r-none border-r-0"
       >
         <PreferredIcon className="h-4 w-4 mr-2" />
         <span>Directions</span>
@@ -45,7 +45,7 @@ export const MapAppSelector = ({ address, className }: MapAppSelectorProps) => {
           <Button
             size="sm"
             variant="outline"
-            className="rounded-l-none px-2"
+            className="rounded-l-none px-3 min-h-11"
           >
             <ChevronDown className="h-4 w-4" />
           </Button>
