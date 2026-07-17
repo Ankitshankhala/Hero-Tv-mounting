@@ -449,7 +449,7 @@ export const CompactJobCard = ({
                 stop(e);
                 onDirections();
               }}
-              className="h-11 w-11 shrink-0"
+              className="h-11 w-11 md:h-10 md:w-10 shrink-0"
               aria-label="Get directions"
             >
               <Navigation className="h-5 w-5" />
@@ -463,7 +463,7 @@ export const CompactJobCard = ({
                 onCall();
               }}
               disabled={!phone}
-              className="h-11 w-11 shrink-0"
+              className="h-11 w-11 md:h-10 md:w-10 shrink-0"
               aria-label="Call customer"
             >
               <Phone className="h-5 w-5" />
@@ -475,7 +475,7 @@ export const CompactJobCard = ({
                   variant="outline"
                   size="icon"
                   onClick={stop}
-                  className="h-11 w-11 shrink-0"
+                  className="h-11 w-11 md:h-10 md:w-10 shrink-0"
                   aria-label="More actions"
                 >
                   <MoreHorizontal className="h-5 w-5" />
@@ -525,7 +525,7 @@ export const CompactJobCard = ({
                 stop(e);
                 onToggle();
               }}
-              className="h-11 w-11 shrink-0"
+              className="h-11 w-11 md:h-10 md:w-10 shrink-0"
               aria-label={isExpanded ? 'Collapse' : 'Expand'}
             >
               <ChevronDown
