@@ -53,9 +53,11 @@ export const AdminSideNav = ({ activeTab, onTabChange }: Props) => {
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       <SidebarHeader className="h-14 px-4 flex flex-row items-center gap-2 border-b border-sidebar-border">
-        <div className="h-7 w-7 rounded-md bg-primary flex items-center justify-center shrink-0">
-          <span className="text-primary-foreground text-xs font-semibold">H</span>
-        </div>
+        <img
+          src="/assets/images/logo.png"
+          alt="Hero TV Mounting"
+          className="h-7 w-7 rounded-md object-contain shrink-0"
+        />
         {!collapsed && (
           <span className="text-sm font-semibold tracking-tight text-sidebar-foreground">
             Hero Admin
