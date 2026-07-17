@@ -144,7 +144,7 @@ export const AdminCalendarView = React.memo(() => {
     } finally {
       setLoading(false);
     }
-  }, [selectedWorker, selectedStatus, toast]);
+  }, [selectedWorker, selectedStatus, includeArchived, toast]);
 
   const { isConnected, isRefreshing, forceRefresh } = useCalendarSync({
     userRole: 'admin',
