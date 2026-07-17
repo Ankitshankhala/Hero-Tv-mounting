@@ -3,6 +3,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { CompactJobCard } from './CompactJobCard';
 import { ExpandedJobCard } from './ExpandedJobCard';
 import { openDirections } from '@/utils/maps';
+import { getJobAddress } from '@/utils/jobAddress';
 
 interface ExpandableJobCardContainerProps {
   job: any;
