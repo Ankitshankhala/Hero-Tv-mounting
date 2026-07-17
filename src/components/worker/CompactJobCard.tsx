@@ -125,12 +125,8 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
 
   // Get short address
   const getShortAddress = () => {
-    if (job.guest_customer_info?.address) {
-      const address = job.guest_customer_info.address;
-      const city = job.guest_customer_info.city;
-      return `${address}${city ? `, ${city}` : ''}`;
-    }
-    return job.customer_address || 'Address not available';
+    const addr = getJobAddress(job, { singleLine: true });
+    return addr || 'Address not available';
   };
 
   // Get status color using design system
