@@ -300,13 +300,16 @@ export const CompactJobCard = ({
   const phone = getCustomerPhone();
 
   // Determine primary action rendered on the dispatch card
+  const primaryBtnClass =
+    'w-full h-11 md:h-10 px-4 text-sm font-medium bg-primary hover:bg-primary/90 text-primary-foreground';
+
   const renderPrimaryAction = () => {
     if (canCompleteAndCapture) {
       return (
         <Button
           onClick={handleCompleteAndCapture}
           disabled={completing}
-          className="w-full min-h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+          className={primaryBtnClass}
         >
           {completing ? (
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -324,7 +327,7 @@ export const CompactJobCard = ({
             stop(e);
             setShowCharge(true);
           }}
-          className="w-full min-h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+          className={primaryBtnClass}
         >
           <CreditCard className="h-4 w-4 mr-2" />
           Collect payment
@@ -339,7 +342,7 @@ export const CompactJobCard = ({
           if (!isExpanded) onToggle();
         }}
         variant="outline"
-        className="w-full min-h-11 font-medium"
+        className="w-full h-11 md:h-10 px-4 text-sm font-medium"
       >
         <Eye className="h-4 w-4 mr-2" />
         View details
