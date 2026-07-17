@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { X } from 'lucide-react';
+import { X, CreditCard, CheckCircle2, Clock, DollarSign } from 'lucide-react';
 import { formatBookingTimeForContext } from '@/utils/timeUtils';
 import { getJobAddress, getJobInstructions } from '@/utils/jobAddress';
 
