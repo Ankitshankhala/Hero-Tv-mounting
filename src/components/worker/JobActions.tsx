@@ -141,8 +141,8 @@ const JobActions = ({
   };
 
   return (
-    <div className="pt-6 border-t border-worker-border mt-6 job-card">
-      <div className="flex flex-wrap gap-2 sm:gap-3 button-group">
+    <div className="pt-6 border-t border-worker-border mt-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
         <Button
           size="sm"
           variant="outline"
