@@ -305,36 +305,35 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
       ${isExpanded ? 'shadow-lg ring-2 ring-primary/20' : 'shadow-sm hover:shadow-md'}
       bg-card border border-border
     `}>
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between gap-4">
+      <CardContent className="p-3 sm:p-4">
+        <div className="flex items-start sm:items-center justify-between gap-2 sm:gap-4">
           {/* Left: Status and Service */}
-          <div className="flex-1 min-w-0 pr-4">
-            {/* Mobile: Status and payment dots with name */}
+          <div className="flex-1 min-w-0 pr-0 sm:pr-4">
+            {/* Mobile: Name + wrapping status/payment badges */}
             <div className="sm:hidden">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <div 
-                    className={`h-2.5 w-2.5 rounded-full ${getStatusDotClass(job.status, isArchived)}`}
-                    title={getDisplayStatus(job.status, isArchived)}
-                  >
-                    <span className="sr-only">{getDisplayStatus(job.status, isArchived)}</span>
-                  </div>
-                  <div 
-                    className={`h-2.5 w-2.5 rounded-full ${getPaymentDotClass(job.payment_status, job, isArchived)}`}
-                    title={paymentStatus.text}
-                  >
-                    <span className="sr-only">{paymentStatus.text}</span>
-                  </div>
-                </div>
-                <div className="text-sm font-medium text-foreground min-w-0 flex-1 truncate whitespace-nowrap">
-                  {getCustomerName()}
-                </div>
+              <div className="text-sm font-semibold text-foreground min-w-0 mb-2 break-words">
+                {getCustomerName()}
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                <Badge
+                  variant="outline"
+                  className={`text-[10px] font-medium ${getStatusColor(job.status, isArchived)}`}
+                >
+                  {getDisplayStatus(job.status, isArchived)}
+                </Badge>
+                <Badge
+                  variant="outline"
+                  className={`text-[10px] font-medium ${paymentStatus.color}`}
+                >
+                  {paymentStatus.text}
+                </Badge>
               </div>
             </div>
             
+            
             {/* Desktop: Horizontal layout */}
-            <div className="hidden sm:flex items-center gap-3 mb-1">
-              <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="hidden sm:flex flex-wrap items-center gap-3 mb-1">
+              <div className="flex flex-wrap items-center gap-2">
                 <Badge 
                   variant="outline" 
                   className={`text-xs font-medium ${getStatusColor(job.status, isArchived)}`}
@@ -403,40 +402,41 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
           </div>
 
           {/* Right: Quick Actions and Expand */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <div className="flex flex-col gap-1 sm:flex-row sm:gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onCall();
-                }}
-                className="h-8 w-8 p-0"
-              >
-                <Phone className="h-4 w-4" />
-              </Button>
-              
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDirections();
-                }}
-                className="h-8 w-8 p-0"
-              >
-                <MapPin className="h-4 w-4" />
-              </Button>
-            </div>
-            
+          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCall();
+              }}
+              className="h-11 w-11 p-0"
+              aria-label="Call customer"
+            >
+              <Phone className="h-5 w-5" />
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDirections();
+              }}
+              className="h-11 w-11 p-0"
+              aria-label="Get directions"
+            >
+              <MapPin className="h-5 w-5" />
+            </Button>
+
             <Button
               variant="ghost"
               size="sm"
               onClick={onToggle}
-              className="h-8 w-8 p-0"
+              className="h-11 w-11 p-0"
+              aria-label={isExpanded ? 'Collapse job' : 'Expand job'}
             >
-              <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${
+              <ChevronDown className={`h-5 w-5 transition-transform duration-200 ${
                 isExpanded ? 'rotate-180' : ''
               }`} />
             </Button>
@@ -468,10 +468,10 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
             })()}
           </div>
           <div className="border-t border-border pt-2">
-            <div className="text-sm text-muted-foreground">
+            <div className="text-sm font-medium text-foreground">
               {formatCompactDateTime(job)}
             </div>
-            <div className="text-sm text-muted-foreground truncate">
+            <div className="text-sm text-muted-foreground break-words">
               {getShortAddress()}
             </div>
             <div className="text-xs text-muted-foreground mt-1">

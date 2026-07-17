@@ -368,10 +368,10 @@ const WorkerDashboard = () => {
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 h-auto bg-card border border-border p-1 rounded-lg">
-              <TabsTrigger value="jobs" className="w-full justify-center text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" data-tour="worker-jobs">My Jobs</TabsTrigger>
-              <TabsTrigger value="calendar" className="w-full justify-center text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Calendar</TabsTrigger>
-              <TabsTrigger value="schedule" className="w-full justify-center text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" data-tour="worker-schedule">Set Schedule</TabsTrigger>
-              <TabsTrigger value="service-area" className="w-full justify-center text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" data-tour="worker-profile">Service Area</TabsTrigger>
+              <TabsTrigger value="jobs" className="w-full min-h-11 justify-center text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" data-tour="worker-jobs">My Jobs</TabsTrigger>
+              <TabsTrigger value="calendar" className="w-full min-h-11 justify-center text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Calendar</TabsTrigger>
+              <TabsTrigger value="schedule" className="w-full min-h-11 justify-center text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" data-tour="worker-schedule">Set Schedule</TabsTrigger>
+              <TabsTrigger value="service-area" className="w-full min-h-11 justify-center text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" data-tour="worker-profile">Service Area</TabsTrigger>
             </TabsList>
             
             <TabsContent value="jobs" className="mt-6">

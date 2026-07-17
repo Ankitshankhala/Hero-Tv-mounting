@@ -141,14 +141,14 @@ const JobActions = ({
   };
 
   return (
-    <div className="pt-6 border-t border-worker-border mt-6 job-card">
-      <div className="flex flex-wrap gap-2 sm:gap-3 button-group">
+    <div className="pt-6 border-t border-worker-border mt-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
         <Button
           size="sm"
           variant="outline"
           onClick={() => callCustomer(getCustomerPhone())}
           disabled={!getCustomerPhone()}
-          className="job-button border-input bg-background hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+          className="w-full min-h-11 justify-center border-input bg-background hover:bg-accent hover:text-accent-foreground transition-all duration-200"
         >
           <Phone className="h-4 w-4 mr-2" />
           Call Customer
@@ -163,7 +163,7 @@ const JobActions = ({
             variant="default"
             onClick={handleCompleteAndCapture}
             disabled={completing}
-            className="job-button bg-green-600 hover:bg-green-700 text-white transition-all duration-200"
+            className="w-full min-h-11 justify-center bg-green-600 hover:bg-green-700 text-white transition-all duration-200"
           >
             {completing ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -179,7 +179,7 @@ const JobActions = ({
             size="sm"
             variant="default"
             onClick={onChargeClick}
-            className="job-button bg-primary hover:bg-primary/90 text-primary-foreground transition-all duration-200"
+            className="w-full min-h-11 justify-center bg-primary hover:bg-primary/90 text-primary-foreground transition-all duration-200"
           >
             <CreditCard className="h-4 w-4 mr-2" />
             Collect Payment
@@ -200,7 +200,7 @@ const JobActions = ({
             size="sm"
             variant="outline"
             onClick={onAddServicesClick}
-            className="job-button border-action-warning text-action-warning hover:bg-action-warning hover:text-white transition-all duration-200"
+            className="w-full min-h-11 justify-center border-action-warning text-action-warning hover:bg-action-warning hover:text-white transition-all duration-200"
           >
             <Plus className="h-4 w-4 mr-2" />
             Add Services
@@ -212,7 +212,7 @@ const JobActions = ({
             size="sm"
             variant="outline"
             onClick={onModifyServicesClick}
-            className="job-button border-action-info text-action-info hover:bg-action-info hover:text-white transition-all duration-200"
+            className="w-full min-h-11 justify-center border-action-info text-action-info hover:bg-action-info hover:text-white transition-all duration-200"
           >
             <Trash2 className="h-4 w-4 mr-2" />
             Remove Services
@@ -225,7 +225,7 @@ const JobActions = ({
               size="sm"
               variant="outline"
               onClick={() => setShowReassignModal(true)}
-              className="job-button border-action-warning text-action-warning hover:bg-action-warning hover:text-white transition-all duration-200"
+              className="w-full min-h-11 justify-center border-action-warning text-action-warning hover:bg-action-warning hover:text-white transition-all duration-200"
             >
               <Users className="h-4 w-4 mr-2" />
               Reassign Job
@@ -235,7 +235,7 @@ const JobActions = ({
               size="sm"
               variant="outline"
               onClick={() => setShowRescheduleModal(true)}
-              className="job-button border-action-info text-action-info hover:bg-action-info hover:text-white transition-all duration-200"
+              className="w-full min-h-11 justify-center border-action-info text-action-info hover:bg-action-info hover:text-white transition-all duration-200"
             >
               <Clock className="h-4 w-4 mr-2" />
               Change Time
@@ -248,7 +248,7 @@ const JobActions = ({
             size="sm"
             variant="outline"
             onClick={handleArchiveJob}
-            className="job-button border-green-500 text-green-600 hover:bg-green-500 hover:text-white transition-all duration-200"
+            className="w-full min-h-11 justify-center border-green-500 text-green-600 hover:bg-green-500 hover:text-white transition-all duration-200"
           >
             <Archive className="h-4 w-4 mr-2" />
             Archive Job
