@@ -11,7 +11,11 @@ import { supabase } from '@/integrations/supabase/client';
  * the `payment_first_enabled` row's `value` to 'true' or 'false'.
  */
 export function usePaymentFirstFlag(): { enabled: boolean; loading: boolean } {
-  const [enabled, setEnabled] = useState(false);
+  // Optimistic default: payment-first (V2) is the standard. V1 is only used
+  // when an admin has EXPLICITLY set the flag to 'false' in the DB. Loading
+  // states and fetch errors must never drop a customer into V1 (which would
+  // create a booking row before payment authorization).
+  const [enabled, setEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -25,13 +29,16 @@ export function usePaymentFirstFlag(): { enabled: boolean; loading: boolean } {
           .maybeSingle();
         if (cancelled) return;
         if (error || !data) {
-          setEnabled(false);
+          // Fetch failed or row missing → stay on V2 (optimistic).
+          setEnabled(true);
         } else {
           const v = String(data.value ?? '').trim().toLowerCase();
-          setEnabled(v === 'true');
+          // Only explicit 'false' disables payment-first.
+          setEnabled(v !== 'false');
         }
       } catch {
-        if (!cancelled) setEnabled(false);
+        // Any error → stay on V2.
+        if (!cancelled) setEnabled(true);
       } finally {
         if (!cancelled) setLoading(false);
       }
