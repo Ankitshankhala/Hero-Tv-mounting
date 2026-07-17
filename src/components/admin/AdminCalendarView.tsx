@@ -91,6 +91,9 @@ export const AdminCalendarView = React.memo(() => {
       if (selectedStatus !== 'all' && (['pending', 'confirmed', 'completed', 'cancelled'] as const).includes(selectedStatus as BookingStatus)) {
         query = query.eq('status', selectedStatus as BookingStatus);
       }
+      if (!includeArchived) {
+        query = query.eq('is_archived', false);
+      }
 
       const { data, error } = await query;
       if (error) throw error;
