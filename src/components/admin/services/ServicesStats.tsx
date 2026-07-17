@@ -32,7 +32,7 @@ export const ServicesStats: React.FC<ServicesStatsProps> = ({ services }) => {
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
           <div className="text-center p-4 bg-card rounded-lg shadow-sm">
-            <h4 className="font-bold text-2xl text-blue-600">{services.length}</h4>
+            <h4 className="font-bold text-2xl text-primary">{services.length}</h4>
             <p className="text-muted-foreground">Total Services</p>
           </div>
           <div className="text-center p-4 bg-card rounded-lg shadow-sm">

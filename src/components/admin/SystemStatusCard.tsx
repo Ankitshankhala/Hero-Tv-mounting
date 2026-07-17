@@ -174,7 +174,7 @@ export const SystemStatusCard = ({ isConnected, isCalendarConnected }: SystemSta
             </div>
 
             <div className="flex items-center space-x-2">
-              <Calendar className={`h-5 w-5 ${isCalendarConnected ? 'text-blue-600' : 'text-muted-foreground'}`} />
+              <Calendar className={`h-5 w-5 ${isCalendarConnected ? 'text-primary' : 'text-muted-foreground'}`} />
               <span className="text-sm">
                 Calendar: {isCalendarConnected ? '✅ Synced' : '⭕ Not connected'}
               </span>

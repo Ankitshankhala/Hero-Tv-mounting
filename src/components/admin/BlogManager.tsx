@@ -167,7 +167,7 @@ export const BlogManager = () => {
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center space-x-2">
-              <FileText className="h-4 w-4 text-blue-600" />
+              <FileText className="h-4 w-4 text-primary" />
               <span className="text-sm text-muted-foreground">Total Posts</span>
             </div>
             <div className="text-2xl font-bold text-foreground mt-2">{posts.length}</div>
@@ -256,7 +256,7 @@ export const BlogManager = () => {
                     <TableCell className="text-xs text-muted-foreground max-w-[160px] truncate">{post.slug}</TableCell>
                     <TableCell>
                       {post.category && (
-                        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">{post.category}</span>
+                        <span className="text-xs bg-primary/15 text-primary px-2 py-1 rounded">{post.category}</span>
                       )}
                     </TableCell>
                     <TableCell>{post.author || '—'}</TableCell>

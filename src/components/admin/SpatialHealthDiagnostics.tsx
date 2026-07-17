@@ -166,7 +166,7 @@ export const SpatialHealthDiagnostics: React.FC = () => {
               </div>
               
               {healthData.sample_test_error && (
-                <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
+                <div className="text-sm text-red-600 bg-destructive/10 p-2 rounded">
                   ❌ Error: {healthData.sample_test_error}
                 </div>
               )}

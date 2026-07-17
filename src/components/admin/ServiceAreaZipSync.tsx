@@ -176,7 +176,7 @@ export const ServiceAreaZipSync: React.FC<ServiceAreaZipSyncProps> = ({
         {syncState.computedZips.length > 0 && (
           <div className="flex justify-between">
             <span>Computed ZIPs:</span>
-            <span className="text-blue-600">{syncState.computedZips.length}</span>
+            <span className="text-primary">{syncState.computedZips.length}</span>
           </div>
         )}
 
@@ -286,7 +286,7 @@ export const ServiceAreaZipSync: React.FC<ServiceAreaZipSyncProps> = ({
           <div className="text-muted-foreground">Current</div>
         </div>
         <div className="bg-blue-50 rounded p-2">
-          <div className="font-medium text-blue-600">{syncState.computedZips.length}</div>
+          <div className="font-medium text-primary">{syncState.computedZips.length}</div>
           <div className="text-muted-foreground">Computed</div>
         </div>
         <div className="bg-green-50 rounded p-2">

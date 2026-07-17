@@ -135,7 +135,7 @@ export function InvoiceEmailVerifier({ bookingIds, onVerificationComplete }: Inv
                   </CardContent>
                 </Card>
                 
-                <Card className="bg-red-50">
+                <Card className="bg-destructive/10">
                   <CardContent className="p-4">
                     <div className="text-2xl font-bold text-red-600">
                       {verifications.filter(v => !v.success).length}
@@ -146,10 +146,10 @@ export function InvoiceEmailVerifier({ bookingIds, onVerificationComplete }: Inv
                 
                 <Card className="bg-blue-50">
                   <CardContent className="p-4">
-                    <div className="text-2xl font-bold text-blue-600">
+                    <div className="text-2xl font-bold text-primary">
                       {verifications.length}
                     </div>
-                    <div className="text-sm text-blue-600">Total Bookings</div>
+                    <div className="text-sm text-primary">Total Bookings</div>
                   </CardContent>
                 </Card>
               </div>

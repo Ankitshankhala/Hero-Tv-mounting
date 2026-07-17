@@ -488,7 +488,7 @@ export const EmailTestSuite = () => {
                       {log.sent_at && ` | Sent: ${new Date(log.sent_at).toLocaleString()}`}
                     </div>
                     {log.error_message && (
-                      <div className="text-xs text-red-500 bg-red-50 p-2 rounded">
+                      <div className="text-xs text-red-500 bg-destructive/10 p-2 rounded">
                         Error: {log.error_message}
                       </div>
                     )}

@@ -244,7 +244,7 @@ export const StripeConfigTest = () => {
           <Button 
             onClick={runStripeConfigTest}
             disabled={testing}
-            className="bg-blue-600 hover:bg-blue-700"
+            className="bg-primary hover:opacity-90 text-primary-foreground"
           >
             {testing ? 'Testing...' : 'Run Stripe Tests'}
           </Button>
@@ -257,8 +257,8 @@ export const StripeConfigTest = () => {
             </div>
 
             {testResults.error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-                <div className="text-red-700 font-medium">Test Suite Error</div>
+              <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-md">
+                <div className="text-destructive font-medium">Test Suite Error</div>
                 <div className="text-red-600 text-sm">{testResults.error}</div>
               </div>
             )}

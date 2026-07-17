@@ -199,7 +199,7 @@ export const BlogPostModal = ({ isOpen, onClose, onSave, post }: Props) => {
 
         <div className="flex justify-end space-x-2 mt-6">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700">
+          <Button onClick={handleSave} className="bg-primary hover:opacity-90 text-primary-foreground">
             {post ? 'Update' : 'Create'} Post
           </Button>
         </div>

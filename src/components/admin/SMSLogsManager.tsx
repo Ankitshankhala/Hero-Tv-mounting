@@ -61,7 +61,7 @@ export const SMSLogsManager = () => {
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center space-x-2">
-              <Send className="h-4 w-4 text-blue-600" />
+              <Send className="h-4 w-4 text-primary" />
               <span className="text-sm text-muted-foreground">SMS Sent Today</span>
             </div>
             <div className="text-2xl font-bold text-foreground mt-2">

@@ -289,7 +289,7 @@ export const WorkerApplicationsManager = () => {
         {days.map((d) => (
           <span
             key={d}
-            className="inline-flex items-center justify-center px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-100 text-[11px] font-medium leading-none whitespace-nowrap"
+            className="inline-flex items-center justify-center px-2 py-0.5 rounded-md bg-blue-50 text-primary border border-blue-100 text-[11px] font-medium leading-none whitespace-nowrap"
             title={d.charAt(0).toUpperCase() + d.slice(1)}
           >
             {DAY_ABBR[d]}
@@ -436,7 +436,7 @@ export const WorkerApplicationsManager = () => {
                                 variant="outline"
                                 onClick={() => updateApplicationStatus(application.id, 'rejected')}
                                 disabled={processingId === application.id}
-                                className="text-red-600 hover:text-red-700"
+                                className="text-red-600 hover:text-destructive"
                               >
                                 <XCircle className="h-4 w-4" />
                               </Button>
@@ -452,7 +452,7 @@ export const WorkerApplicationsManager = () => {
                                  size="sm"
                                  variant="outline"
                                  onClick={() => openPasswordManager(application)}
-                                 className="text-blue-600 hover:text-blue-700"
+                                 className="text-primary hover:text-primary"
                                  title="Manage Password"
                                >
                                  <Settings className="h-4 w-4" />

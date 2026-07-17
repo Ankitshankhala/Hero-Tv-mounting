@@ -181,7 +181,7 @@ export const TvMountingConfigModal: React.FC<TvMountingConfigModalProps> = ({
                         type="checkbox"
                         checked={config.over65}
                         onChange={(e) => updateTvConfiguration(config.id, { over65: e.target.checked })}
-                        className="w-4 h-4 text-blue-600 bg-card border-border rounded focus:ring-blue-500"
+                        className="w-4 h-4 text-primary bg-card border-border rounded focus:ring-blue-500"
                       />
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
@@ -206,7 +206,7 @@ export const TvMountingConfigModal: React.FC<TvMountingConfigModalProps> = ({
                         type="checkbox"
                         checked={config.frameMount}
                         onChange={(e) => updateTvConfiguration(config.id, { frameMount: e.target.checked })}
-                        className="w-4 h-4 text-blue-600 bg-card border-border rounded focus:ring-blue-500"
+                        className="w-4 h-4 text-primary bg-card border-border rounded focus:ring-blue-500"
                       />
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
@@ -231,7 +231,7 @@ export const TvMountingConfigModal: React.FC<TvMountingConfigModalProps> = ({
                         type="checkbox"
                         checked={config.wallType !== 'standard'}
                         onChange={(e) => updateTvConfiguration(config.id, { wallType: e.target.checked ? 'steel' : 'standard' })}
-                        className="w-4 h-4 text-blue-600 bg-card border-border rounded focus:ring-blue-500"
+                        className="w-4 h-4 text-primary bg-card border-border rounded focus:ring-blue-500"
                       />
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
@@ -256,7 +256,7 @@ export const TvMountingConfigModal: React.FC<TvMountingConfigModalProps> = ({
                         type="checkbox"
                         checked={config.soundbar}
                         onChange={(e) => updateTvConfiguration(config.id, { soundbar: e.target.checked })}
-                        className="w-4 h-4 text-blue-600 bg-card border-border rounded focus:ring-blue-500"
+                        className="w-4 h-4 text-primary bg-card border-border rounded focus:ring-blue-500"
                       />
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
@@ -285,7 +285,7 @@ export const TvMountingConfigModal: React.FC<TvMountingConfigModalProps> = ({
               {buildServicesList().map((service, index) => (
                 <div key={index} className="flex justify-between items-center text-sm">
                   <span className="text-blue-800">{service.name}</span>
-                  <span className="text-blue-600 font-semibold">${service.price}</span>
+                  <span className="text-primary font-semibold">${service.price}</span>
                 </div>
               ))}
             </div>
@@ -314,7 +314,7 @@ export const TvMountingConfigModal: React.FC<TvMountingConfigModalProps> = ({
             <Button
               onClick={handleComplete}
               disabled={!isReady || servicesLoading}
-              className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 bg-primary hover:opacity-90 text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Check className="h-4 w-4 mr-2" />
               {servicesLoading ? 'Loading...' : 'Apply Configuration'}

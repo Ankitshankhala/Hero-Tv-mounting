@@ -72,7 +72,7 @@ export const PerformanceOptimizationSwitch: React.FC = () => {
     } else {
       return {
         status: 'standard',
-        color: 'text-blue-600',
+        color: 'text-primary',
         bgColor: 'bg-blue-50 border-blue-200',
         icon: Info,
         message: 'Using standard system - load comprehensive data for optimization'

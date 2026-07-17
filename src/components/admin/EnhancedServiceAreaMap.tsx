@@ -247,7 +247,7 @@ export const EnhancedServiceAreaMap: React.FC<EnhancedServiceAreaMapProps> = ({
             {/* ZIP codes count */}
             {selectedArea.zipcode_list?.length && (
               <div className="text-sm text-muted-foreground">
-                <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
+                <span className="bg-primary/15 text-primary px-2 py-1 rounded text-xs">
                   {selectedArea.zipcode_list.length} ZIP codes
                 </span>
               </div>

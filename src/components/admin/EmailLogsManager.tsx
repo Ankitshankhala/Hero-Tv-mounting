@@ -217,7 +217,7 @@ export const EmailLogsManager = () => {
                       {log.error_message && (
                         <div>
                           <span className="text-sm font-medium text-red-600">Error:</span>
-                          <p className="text-sm text-red-600 bg-red-50 p-2 rounded">
+                          <p className="text-sm text-red-600 bg-destructive/10 p-2 rounded">
                             {log.error_message}
                           </p>
                         </div>
@@ -233,7 +233,7 @@ export const EmailLogsManager = () => {
                       )}
 
                       <details className="text-sm">
-                        <summary className="cursor-pointer text-blue-600 hover:text-blue-800">
+                        <summary className="cursor-pointer text-primary hover:text-blue-800">
                           View Message Content
                         </summary>
                         <div className="mt-2 p-3 bg-muted rounded border max-h-40 overflow-y-auto">

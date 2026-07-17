@@ -200,7 +200,7 @@ export const AddWorkerModal = ({ onClose, onSuccess }: AddWorkerModalProps) => {
             <div className="flex space-x-4 pt-4">
               <Button 
                 type="submit" 
-                className="flex-1 bg-blue-600 hover:bg-blue-700"
+                className="flex-1 bg-primary hover:opacity-90 text-primary-foreground"
                 disabled={loading}
               >
                 {loading ? 'Adding...' : 'Add Technician'}

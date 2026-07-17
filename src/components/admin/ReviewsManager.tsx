@@ -151,7 +151,7 @@ export const ReviewsManager = () => {
           <div className="text-xs text-orange-600">{stats.pending > 0 ? 'Needs attention' : 'All clear'}</div>
         </CardContent></Card>
         <Card><CardContent className="p-6">
-          <div className="flex items-center space-x-2"><ImageIcon className="h-4 w-4 text-blue-600" /><span className="text-sm text-muted-foreground">With Images</span></div>
+          <div className="flex items-center space-x-2"><ImageIcon className="h-4 w-4 text-primary" /><span className="text-sm text-muted-foreground">With Images</span></div>
           <div className="text-2xl font-bold text-foreground mt-2">{stats.withImages}</div>
           <div className="text-xs text-muted-foreground">{stats.total ? `${Math.round((stats.withImages / stats.total) * 100)}% of reviews` : '—'}</div>
         </CardContent></Card>
@@ -161,7 +161,7 @@ export const ReviewsManager = () => {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center space-x-2"><Star className="h-5 w-5" /><span>Reviews Management</span></CardTitle>
-            <Button onClick={() => setShowCreateModal(true)} className="bg-blue-600 hover:bg-blue-700">
+            <Button onClick={() => setShowCreateModal(true)} className="bg-primary hover:opacity-90 text-primary-foreground">
               <Plus className="h-4 w-4 mr-2" />Add New Review
             </Button>
           </div>
@@ -208,7 +208,7 @@ export const ReviewsManager = () => {
                     <TableCell>{renderStars(r.rating)}</TableCell>
                     <TableCell className="font-medium">{r.title || '—'}</TableCell>
                     <TableCell className="max-w-xs"><p className="text-sm truncate">{r.comment}</p></TableCell>
-                    <TableCell>{r.image_url ? <ImageIcon className="h-4 w-4 text-blue-600" /> : <span className="text-sm text-muted-foreground">—</span>}</TableCell>
+                    <TableCell>{r.image_url ? <ImageIcon className="h-4 w-4 text-primary" /> : <span className="text-sm text-muted-foreground">—</span>}</TableCell>
                     <TableCell>{getStatusBadge(r.status)}</TableCell>
                     <TableCell className="whitespace-nowrap text-xs">{new Date(r.created_at).toLocaleDateString()}</TableCell>
                     <TableCell>

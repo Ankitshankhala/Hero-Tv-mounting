@@ -315,20 +315,20 @@ export const CreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingM
                     variant="outline"
                     size="sm"
                     onClick={() => setShowTvConfig(true)}
-                    className="text-blue-600 border-blue-300 hover:bg-blue-100"
+                    className="text-primary border-blue-300 hover:bg-blue-100"
                   >
                     <Settings className="h-4 w-4 mr-2" />
                     Configure
                   </Button>
                 </div>
                 {tvMountingConfig ? (
-                  <div className="text-sm text-blue-700">
+                  <div className="text-sm text-primary">
                     <p><strong>Service:</strong> {getServiceDisplayName()}</p>
                     <p><strong>Total Price:</strong> ${getServicePrice()}</p>
                     <p><strong>Configuration:</strong> {tvMountingConfig.services.map(s => s.name).join(', ')}</p>
                   </div>
                 ) : (
-                  <p className="text-sm text-blue-600">Click "Configure" to set up TV mounting options</p>
+                  <p className="text-sm text-primary">Click "Configure" to set up TV mounting options</p>
                 )}
               </div>
             )}
@@ -442,7 +442,7 @@ export const CreateBookingModal = ({ onClose, onBookingCreated }: CreateBookingM
             <div className="flex space-x-4 pt-4">
               <Button 
                 type="submit" 
-                className="flex-1 bg-blue-600 hover:bg-blue-700"
+                className="flex-1 bg-primary hover:opacity-90 text-primary-foreground"
                 disabled={loading || servicesLoading}
               >
                 {loading ? 'Creating...' : 'Create Booking'}

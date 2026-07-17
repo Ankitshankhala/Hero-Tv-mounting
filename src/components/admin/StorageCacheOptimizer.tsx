@@ -83,7 +83,7 @@ export const StorageCacheOptimizer = () => {
                 <div>Processed</div>
               </div>
               <div>
-                <span className={lastOptimization.errors > 0 ? "text-red-400" : "text-slate-400"}>
+                <span className={lastOptimization.errors > 0 ? "text-destructive" : "text-slate-400"}>
                   {lastOptimization.errors}
                 </span>
                 <div>Errors</div>

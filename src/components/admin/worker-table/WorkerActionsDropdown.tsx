@@ -129,7 +129,7 @@ export const WorkerActionsDropdown = ({
         <DropdownMenuItem
           onClick={handleSendTestSms}
           disabled={sendingSms || !worker.phone}
-          className="text-blue-600 hover:text-blue-700 focus:text-blue-700"
+          className="text-primary hover:text-primary focus:text-primary"
         >
           <MessageSquare className="h-4 w-4 mr-2" />
           {sendingSms ? 'Sending...' : 'Send Test SMS'}
@@ -141,7 +141,7 @@ export const WorkerActionsDropdown = ({
           <DropdownMenuItem 
             onClick={() => onRemoveWorker(worker.id)}
             disabled={removingWorkerId === worker.id}
-            className="text-red-600 hover:text-red-700 focus:text-red-700"
+            className="text-red-600 hover:text-destructive focus:text-destructive"
           >
             <UserX className="h-4 w-4 mr-2" />
             {removingWorkerId === worker.id ? 'Removing...' : 'Remove Worker'}
@@ -161,7 +161,7 @@ export const WorkerActionsDropdown = ({
             <DropdownMenuItem 
               onClick={() => onPermanentlyDeleteWorker(worker.id)}
               disabled={deletingWorkerId === worker.id}
-              className="text-red-600 hover:text-red-700 focus:text-red-700"
+              className="text-red-600 hover:text-destructive focus:text-destructive"
             >
               <Trash2 className="h-4 w-4 mr-2" />
               {deletingWorkerId === worker.id ? 'Deleting...' : 'Permanently Delete'}

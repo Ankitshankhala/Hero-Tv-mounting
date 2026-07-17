@@ -104,8 +104,8 @@ export const SortableServiceItem: React.FC<SortableServiceItemProps> = ({
       </TableCell>
       <TableCell>
         <div className="flex items-center space-x-1">
-          <Clock className="h-4 w-4 text-blue-600" />
-          <span className="text-blue-600 font-medium">
+          <Clock className="h-4 w-4 text-primary" />
+          <span className="text-primary font-medium">
             {formatDuration(service.duration_minutes)}
           </span>
         </div>
@@ -117,7 +117,7 @@ export const SortableServiceItem: React.FC<SortableServiceItemProps> = ({
             size="sm"
             onClick={() => onToggleVisibility(service.id)}
             className={`hover:bg-muted hover:border-border ${
-              !service.is_visible ? 'text-muted-foreground' : 'text-blue-600'
+              !service.is_visible ? 'text-muted-foreground' : 'text-primary'
             }`}
             title={service.is_visible ? 'Hide service' : 'Show service'}
           >

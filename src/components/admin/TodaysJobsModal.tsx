@@ -149,9 +149,9 @@ export const TodaysJobsModal = ({ onClose }: TodaysJobsModalProps) => {
                     <div>
                       <CardTitle className="text-lg">{job.customer?.name || 'Unknown Customer'}</CardTitle>
                       <div className="flex items-center space-x-2 mt-1">
-                        <Clock className="h-4 w-4 text-blue-600" />
-                        <span className="font-medium text-blue-600">{formatTime(job.scheduled_start)}</span>
-                        <span className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                        <Clock className="h-4 w-4 text-primary" />
+                        <span className="font-medium text-primary">{formatTime(job.scheduled_start)}</span>
+                        <span className="text-sm bg-primary/15 text-primary px-2 py-1 rounded">
                           {formatDuration(job.service?.duration_minutes)}
                         </span>
                       </div>

@@ -281,16 +281,16 @@ export function WorkerWeeklyPayments() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-blue-100 dark:bg-blue-800 rounded-lg">
-                <DollarSign className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                <DollarSign className="h-6 w-6 text-primary dark:text-blue-400" />
               </div>
               <div>
                 <p className="text-sm text-blue-800 dark:text-blue-200">Total Payroll This Week</p>
-                <p className="text-xs text-blue-700 dark:text-blue-300">
+                <p className="text-xs text-primary dark:text-blue-300">
                   {workerPayments.length} worker{workerPayments.length !== 1 ? 's' : ''} with earnings
                 </p>
               </div>
             </div>
-            <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+            <div className="text-3xl font-bold text-primary dark:text-blue-400">
               {formatCurrency(totalPayroll)}
             </div>
           </div>

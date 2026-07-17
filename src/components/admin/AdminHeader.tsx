@@ -116,7 +116,7 @@ export const AdminHeader = ({
                   <Clock className="h-3 w-3 mr-1" />
                   {formatTimeRemaining(timeRemaining)}
                 </Badge>
-                <Button variant="outline" size="sm" onClick={handleTestingModeDeactivate} className="bg-red-900/20 text-red-400 border-red-600/50 hover:bg-red-600 hover:text-white transition-colors">
+                <Button variant="outline" size="sm" onClick={handleTestingModeDeactivate} className="bg-red-900/20 text-destructive border-red-600/50 hover:bg-red-600 hover:text-white transition-colors">
                   Deactivate Testing
                 </Button>
               </div> : <AlertDialog>
