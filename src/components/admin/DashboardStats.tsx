@@ -39,6 +39,8 @@ export const DashboardStats = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [revenueView, setRevenueView] = useState<'month' | 'all'>('month');
+
 
   useEffect(() => {
     let mounted = true;
