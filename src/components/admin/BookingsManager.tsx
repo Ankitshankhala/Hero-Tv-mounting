@@ -37,6 +37,7 @@ export const BookingsManager = () => {
   // Default to 'new_bookings' tab
   const [archiveFilter, setArchiveFilter] = useState('new_bookings');
   const [searchTerm, setSearchTerm] = useState('');
+  const [includeArchived, setIncludeArchived] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
