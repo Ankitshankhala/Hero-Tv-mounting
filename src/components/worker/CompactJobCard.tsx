@@ -333,8 +333,8 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
             </div>
             
             {/* Desktop: Horizontal layout */}
-            <div className="hidden sm:flex items-center gap-3 mb-1">
-              <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="hidden sm:flex flex-wrap items-center gap-3 mb-1">
+              <div className="flex flex-wrap items-center gap-2">
                 <Badge 
                   variant="outline" 
                   className={`text-xs font-medium ${getStatusColor(job.status, isArchived)}`}
