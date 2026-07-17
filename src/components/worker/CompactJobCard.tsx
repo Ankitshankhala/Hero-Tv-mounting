@@ -468,10 +468,10 @@ export const CompactJobCard = ({ job, isExpanded, onToggle, onCall, onDirections
             })()}
           </div>
           <div className="border-t border-border pt-2">
-            <div className="text-sm text-muted-foreground">
+            <div className="text-sm font-medium text-foreground">
               {formatCompactDateTime(job)}
             </div>
-            <div className="text-sm text-muted-foreground truncate">
+            <div className="text-sm text-muted-foreground break-words">
               {getShortAddress()}
             </div>
             <div className="text-xs text-muted-foreground mt-1">
