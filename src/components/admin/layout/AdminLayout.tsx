@@ -18,7 +18,7 @@ export const AdminLayout = ({ activeTab, onTabChange, children }: Props) => {
         '--sidebar-width-icon': '3.25rem',
       } as React.CSSProperties}
     >
-      <div className="min-h-screen flex w-full bg-muted/30">
+      <div className="dark min-h-screen flex w-full bg-background text-foreground">
         <AdminSideNav activeTab={activeTab} onTabChange={onTabChange} />
         <div className="flex-1 flex flex-col min-w-0">
           <AdminTopbar activeTab={activeTab} />
