@@ -241,11 +241,12 @@ const JobActions = ({
         )}
       </div>
 
-      {(job.payment_status === 'failed' ||
-        job.payment_status === 'cancelled') && (
+      {canCollectPayment && (
         <div className="mt-3 p-2 bg-destructive/10 border border-destructive/20 rounded-md">
           <p className="text-sm text-destructive font-medium">
-            Payment required before job completion
+            {Number(job.pending_payment_amount || 0) > 0
+              ? `Collect $${Number(job.pending_payment_amount).toFixed(2)} before completing this job.`
+              : 'Payment required before job completion'}
           </p>
         </div>
       )}
