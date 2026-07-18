@@ -62,7 +62,10 @@ const JobActions = ({
     !job.pending_payment_amount; // H6: do not allow capture while a re-auth is pending
 
   const canCollectPayment =
-    job.payment_status === 'failed' || job.payment_status === 'cancelled';
+    job.payment_status === 'failed' ||
+    job.payment_status === 'cancelled' ||
+    job.requires_manual_payment === true ||
+    Number(job.pending_payment_amount || 0) > 0;
   const canAddServices =
     job.status === 'confirmed' ||
     job.status === 'in_progress' ||
@@ -176,7 +179,9 @@ const JobActions = ({
             className="h-11 md:h-10 px-4 text-sm font-medium bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             <CreditCard className="h-4 w-4 mr-2" />
-            Collect payment
+            {Number(job.pending_payment_amount || 0) > 0
+              ? `Collect payment ($${Number(job.pending_payment_amount).toFixed(2)})`
+              : 'Collect payment'}
           </Button>
         )}
 
@@ -236,11 +241,12 @@ const JobActions = ({
         )}
       </div>
 
-      {(job.payment_status === 'failed' ||
-        job.payment_status === 'cancelled') && (
+      {canCollectPayment && (
         <div className="mt-3 p-2 bg-destructive/10 border border-destructive/20 rounded-md">
           <p className="text-sm text-destructive font-medium">
-            Payment required before job completion
+            {Number(job.pending_payment_amount || 0) > 0
+              ? `Collect $${Number(job.pending_payment_amount).toFixed(2)} before completing this job.`
+              : 'Payment required before job completion'}
           </p>
         </div>
       )}
