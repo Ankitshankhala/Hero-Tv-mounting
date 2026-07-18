@@ -179,7 +179,9 @@ const JobActions = ({
             className="h-11 md:h-10 px-4 text-sm font-medium bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             <CreditCard className="h-4 w-4 mr-2" />
-            Collect payment
+            {Number(job.pending_payment_amount || 0) > 0
+              ? `Collect payment ($${Number(job.pending_payment_amount).toFixed(2)})`
+              : 'Collect payment'}
           </Button>
         )}
 
