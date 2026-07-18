@@ -62,7 +62,10 @@ const JobActions = ({
     !job.pending_payment_amount; // H6: do not allow capture while a re-auth is pending
 
   const canCollectPayment =
-    job.payment_status === 'failed' || job.payment_status === 'cancelled';
+    job.payment_status === 'failed' ||
+    job.payment_status === 'cancelled' ||
+    job.requires_manual_payment === true ||
+    Number(job.pending_payment_amount || 0) > 0;
   const canAddServices =
     job.status === 'confirmed' ||
     job.status === 'in_progress' ||
