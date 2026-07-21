@@ -79,6 +79,7 @@ export const ReassignJobModal = ({ isOpen, onClose, bookingId, onSuccess }: Reas
 
       if (data?.success) {
         setWorkers(data.workers);
+        setCustomerZip(data.customerZip || '');
       } else {
         throw new Error(data?.error || 'Failed to fetch workers');
       }
