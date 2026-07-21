@@ -172,11 +172,21 @@ export const AssignWorkerModal = ({ onClose, onAssignmentComplete, isOpen, selec
     setAssigning(true);
     try {
       console.log('Assigning worker:', selectedWorker, 'to booking:', selectedBooking);
-      
+
       // Fetch worker email
       const worker = availableWorkers.find(w => w.id === selectedWorker);
       if (!worker) {
         throw new Error('Worker not found');
+      }
+
+      // Confirm out-of-area assignment
+      if (worker.covers_zip === false) {
+        const bookingRow = unassignedBookings.find(b => b.id === selectedBooking);
+        const zip = bookingRow?.customer?.zip_code || (bookingRow?.guest_customer_info as any)?.zipcode || 'this area';
+        const ok = window.confirm(
+          `Assign outside service area?\n\nThis worker doesn't normally cover ZIP ${zip}. They may have to travel further. Assign anyway?`
+        );
+        if (!ok) { setAssigning(false); return; }
       }
 
       // Fetch booking details for validation and customer email
