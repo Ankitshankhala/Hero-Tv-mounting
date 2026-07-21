@@ -19,6 +19,7 @@ interface Worker {
   id: string;
   name: string;
   email: string;
+  covers_zip?: boolean;
 }
 
 export const ReassignJobModal = ({ isOpen, onClose, bookingId, onSuccess }: ReassignJobModalProps) => {
@@ -28,6 +29,7 @@ export const ReassignJobModal = ({ isOpen, onClose, bookingId, onSuccess }: Reas
   const [loading, setLoading] = useState(false);
   const [fetchingWorkers, setFetchingWorkers] = useState(false);
   const [paymentWarning, setPaymentWarning] = useState(false);
+  const [customerZip, setCustomerZip] = useState('');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -78,6 +80,7 @@ export const ReassignJobModal = ({ isOpen, onClose, bookingId, onSuccess }: Reas
 
       if (data?.success) {
         setWorkers(data.workers);
+        setCustomerZip(data.customerZip || '');
       } else {
         throw new Error(data?.error || 'Failed to fetch workers');
       }
@@ -101,6 +104,14 @@ export const ReassignJobModal = ({ isOpen, onClose, bookingId, onSuccess }: Reas
         variant: "destructive",
       });
       return;
+    }
+
+    const chosen = workers.find(w => w.id === selectedWorkerId);
+    if (chosen && chosen.covers_zip === false) {
+      const ok = window.confirm(
+        `Assign outside service area?\n\nThis worker doesn't normally cover ZIP ${customerZip || 'this area'}. They may have to travel further. Assign anyway?`
+      );
+      if (!ok) return;
     }
 
     setLoading(true);
@@ -193,7 +204,18 @@ export const ReassignJobModal = ({ isOpen, onClose, bookingId, onSuccess }: Reas
                 ) : (
                   workers.map((worker) => (
                     <SelectItem key={worker.id} value={worker.id}>
-                      {worker.name} ({worker.email})
+                      <span className="flex items-center gap-2">
+                        <span>{worker.name} ({worker.email})</span>
+                        {worker.covers_zip === false ? (
+                          <span className="text-[10px] uppercase tracking-wide rounded px-1.5 py-0.5 bg-amber-500/15 text-amber-500 border border-amber-500/30">
+                            Outside area
+                          </span>
+                        ) : (
+                          <span className="text-[10px] uppercase tracking-wide rounded px-1.5 py-0.5 bg-muted text-muted-foreground">
+                            In area
+                          </span>
+                        )}
+                      </span>
                     </SelectItem>
                   ))
                 )}

@@ -3447,6 +3447,23 @@ export type Database = {
           worker_phone: string
         }[]
       }
+      find_available_workers_any_zip: {
+        Args: {
+          p_date: string
+          p_duration_minutes?: number
+          p_time: string
+          p_zipcode: string
+        }
+        Returns: {
+          covers_zip: boolean
+          has_conflict: boolean
+          is_available: boolean
+          worker_email: string
+          worker_id: string
+          worker_name: string
+          worker_phone: string
+        }[]
+      }
       find_available_workers_by_zip: {
         Args: {
           p_date: string

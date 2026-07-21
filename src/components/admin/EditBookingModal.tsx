@@ -25,6 +25,7 @@ interface WorkerOption {
   email: string;
   phone: string | null;
   city: string | null;
+  covers_zip?: boolean;
 }
 
 export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }: EditBookingModalProps) => {
@@ -77,32 +78,64 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
     }
   }, [booking, isOpen]);
 
-  // Load active workers + current worker details when opened
+  // Load worker candidates via the any-zip RPC (in-area first, out-of-area allowed)
   useEffect(() => {
     if (!isOpen || !booking) return;
     let cancelled = false;
     (async () => {
-      const { data, error } = await supabase
-        .from('users')
-        .select('id, name, email, phone, city')
-        .eq('role', 'worker')
-        .eq('is_active', true)
-        .order('name');
-      if (cancelled) return;
-      if (error) {
-        console.error('Failed to load workers', error);
-        return;
+      const zip = booking.guest_customer_info?.zipcode || booking.customer?.zip_code;
+      const date = formData.scheduled_date || booking.scheduled_date;
+      const time = formData.scheduled_start || booking.scheduled_start;
+
+      let list: WorkerOption[] = [];
+      if (zip && date && time) {
+        const { data, error } = await supabase.rpc('find_available_workers_any_zip', {
+          p_zipcode: zip,
+          p_date: date,
+          p_time: time,
+          p_duration_minutes: 60,
+        });
+        if (!error && data) {
+          // Preserve RPC order (in-area first).
+          list = (data as any[]).map((w) => ({
+            id: w.worker_id,
+            name: w.worker_name || null,
+            email: w.worker_email || '',
+            phone: w.worker_phone || null,
+            city: null,
+            covers_zip: !!w.covers_zip,
+          }));
+        } else if (error) {
+          console.error('any-zip worker lookup failed', error);
+        }
       }
-      setWorkers((data || []) as WorkerOption[]);
+
+      // Fallback: no zip/slot info — show all active workers so the picker isn't empty.
+      if (list.length === 0) {
+        const { data, error } = await supabase
+          .from('users')
+          .select('id, name, email, phone, city')
+          .eq('role', 'worker')
+          .eq('is_active', true)
+          .order('name');
+        if (error) {
+          console.error('Failed to load workers', error);
+          return;
+        }
+        list = (data || []) as WorkerOption[];
+      }
+
+      if (cancelled) return;
+      setWorkers(list);
       if (booking.worker_id) {
-        const w = (data || []).find((x: any) => x.id === booking.worker_id) as WorkerOption | undefined;
+        const w = list.find(x => x.id === booking.worker_id);
         setCurrentWorker(w || null);
       } else {
         setCurrentWorker(null);
       }
     })();
     return () => { cancelled = true; };
-  }, [isOpen, booking]);
+  }, [isOpen, booking, formData.scheduled_date, formData.scheduled_start]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -122,6 +155,15 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
 
       // If reassigning, validate worker availability first against the (possibly updated) slot
       if (isReassigning) {
+        // Confirm out-of-area assignments before validating
+        const chosen = workers.find(w => w.id === newWorkerId);
+        if (chosen && chosen.covers_zip === false) {
+          const zip = booking.guest_customer_info?.zipcode || booking.customer?.zip_code || 'this area';
+          const ok = window.confirm(
+            `Assign outside service area?\n\nThis worker doesn't normally cover ZIP ${zip}. They may have to travel further. Assign anyway?`
+          );
+          if (!ok) { setLoading(false); return; }
+        }
         setValidating(true);
         const { data: validationResult, error: validationError } = await supabase.rpc(
           'validate_worker_booking_assignment',
@@ -406,7 +448,18 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
                           .filter(w => w.id !== booking.worker_id)
                           .map(w => (
                             <SelectItem key={w.id} value={w.id}>
-                              {w.name || w.email}{w.city ? ` — ${w.city}` : ''}
+                              <span className="flex items-center gap-2">
+                                <span>{w.name || w.email}{w.city ? ` — ${w.city}` : ''}</span>
+                                {w.covers_zip === false ? (
+                                  <span className="text-[10px] uppercase tracking-wide rounded px-1.5 py-0.5 bg-amber-500/15 text-amber-700 border border-amber-500/40">
+                                    Outside area
+                                  </span>
+                                ) : w.covers_zip === true ? (
+                                  <span className="text-[10px] uppercase tracking-wide rounded px-1.5 py-0.5 bg-muted text-muted-foreground">
+                                    In area
+                                  </span>
+                                ) : null}
+                              </span>
                             </SelectItem>
                           ))}
                       </SelectContent>

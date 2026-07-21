@@ -26,12 +26,12 @@ serve(async (req) => {
     switch (operation) {
       case 'eligible-workers': {
         const bookingId = url.searchParams.get('bookingId');
-        
+
         if (!bookingId) {
           throw new Error('bookingId is required');
         }
 
-        // Get booking details to find location
+        // Get booking details to find location + slot
         const { data: booking, error: bookingError } = await supabase
           .from('bookings')
           .select(`
@@ -46,39 +46,41 @@ serve(async (req) => {
           throw new Error(`Booking not found: ${bookingError?.message}`);
         }
 
-        // Get customer ZIP code
-        const customerZip = booking.customer?.zip_code || 
-                           booking.guest_customer_info?.zipcode;
+        const customerZip = booking.customer?.zip_code ||
+                           (booking.guest_customer_info as any)?.zipcode;
 
         if (!customerZip) {
           throw new Error('Customer ZIP code not found');
         }
 
-        // Find workers covering this ZIP
-        const { data: coveringWorkers, error: coverageError } = await supabase
-          .from('worker_service_zipcodes')
-          .select(`
-            worker_id,
-            worker:users!worker_service_zipcodes_worker_id_fkey(
-              id, name, email, is_active
-            )
-          `)
-          .eq('zipcode', customerZip);
+        // Use the ANY-ZIP RPC so admins/workers can reassign out-of-area.
+        // In-area candidates come first (RPC-ordered). Automatic assignment
+        // paths continue to use find_available_workers_by_zip (strict).
+        const { data: candidates, error: rpcError } = await supabase.rpc(
+          'find_available_workers_any_zip',
+          {
+            p_zipcode: customerZip,
+            p_date: booking.scheduled_date,
+            p_time: booking.scheduled_start,
+            p_duration_minutes: 60,
+          }
+        );
 
-        if (coverageError) {
-          throw new Error(`Coverage query failed: ${coverageError.message}`);
+        if (rpcError) {
+          throw new Error(`Worker lookup failed: ${rpcError.message}`);
         }
 
-        // Filter to active workers, excluding current assigned worker
-        const eligibleWorkers = (coveringWorkers || [])
-          .filter(w => w.worker?.is_active && w.worker_id !== booking.worker_id)
-          .map(w => ({
+        const eligibleWorkers = (candidates || [])
+          .filter((w: any) => w.worker_id !== booking.worker_id)
+          .map((w: any) => ({
             id: w.worker_id,
-            name: w.worker?.name || 'Unknown',
-            email: w.worker?.email || ''
+            name: w.worker_name || 'Unknown',
+            email: w.worker_email || '',
+            phone: w.worker_phone || null,
+            covers_zip: !!w.covers_zip,
           }));
 
-        console.log(`[WORKER-OPERATIONS] Found ${eligibleWorkers.length} eligible workers for ZIP: ${customerZip}`);
+        console.log(`[WORKER-OPERATIONS] Found ${eligibleWorkers.length} eligible workers (any-zip) for ZIP: ${customerZip}`);
 
         return new Response(JSON.stringify({
           success: true,
