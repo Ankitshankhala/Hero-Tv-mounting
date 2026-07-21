@@ -106,6 +106,14 @@ export const ReassignJobModal = ({ isOpen, onClose, bookingId, onSuccess }: Reas
       return;
     }
 
+    const chosen = workers.find(w => w.id === selectedWorkerId);
+    if (chosen && chosen.covers_zip === false) {
+      const ok = window.confirm(
+        `Assign outside service area?\n\nThis worker doesn't normally cover ZIP ${customerZip || 'this area'}. They may have to travel further. Assign anyway?`
+      );
+      if (!ok) return;
+    }
+
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('worker-reassign-booking', {
