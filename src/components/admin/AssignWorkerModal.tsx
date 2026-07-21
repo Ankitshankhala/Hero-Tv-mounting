@@ -19,6 +19,7 @@ interface UnassignedBooking {
   customer: {
     name: string;
     city?: string;
+    zip_code?: string;
   } | null;
   service: {
     name: string;
@@ -36,6 +37,7 @@ interface AvailableWorker {
   email: string;
   isAvailable?: boolean;
   unavailabilityReason?: string;
+  covers_zip?: boolean;
 }
 
 export const AssignWorkerModal = ({ onClose, onAssignmentComplete, isOpen, selectedBookingId }: AssignWorkerModalProps) => {
