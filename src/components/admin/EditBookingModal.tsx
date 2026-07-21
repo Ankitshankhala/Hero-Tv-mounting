@@ -25,6 +25,7 @@ interface WorkerOption {
   email: string;
   phone: string | null;
   city: string | null;
+  covers_zip?: boolean;
 }
 
 export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }: EditBookingModalProps) => {
