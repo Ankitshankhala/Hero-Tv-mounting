@@ -248,8 +248,6 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
       }
 
       // Authorization-only flow: NEVER capture, complete, or archive from this modal.
-      // Capture happens exclusively via worker-complete-and-capture when the worker
-      // clicks "Complete Job & Accept Payment".
       const newAuthorized = typeof data.new_amount === 'number' ? data.new_amount : null;
       toast({
         title: "✓ Services Added",
@@ -295,36 +293,49 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
 
   if (!isOpen) return null;
 
+  const totalPrice = getTotalPrice();
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-slate-800 border-slate-700 [&>button]:text-white [&>button]:opacity-100 [&>button]:hover:text-slate-300 [&>button]:hover:opacity-80">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-white flex items-center space-x-2">
-              <span>{`Add Services to Job #${job.id.slice(0, 8)}`}</span>
+        <DialogContent
+          className="
+            bg-slate-800 border-slate-700 p-0 gap-0
+            [&>button]:text-white [&>button]:opacity-100 [&>button]:hover:text-slate-300 [&>button]:hover:opacity-80
+            max-w-none w-screen h-[100dvh] max-h-[100dvh] rounded-none
+            top-0 left-0 translate-x-0 translate-y-0
+            flex flex-col
+            sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2
+            sm:w-full sm:max-w-6xl sm:h-auto sm:max-h-[90vh] sm:rounded-lg
+          "
+        >
+          {/* Sticky Header */}
+          <DialogHeader className="shrink-0 px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-700">
+            <DialogTitle className="text-base sm:text-xl font-bold text-white flex items-center gap-2 flex-wrap pr-8">
+              <span className="truncate">{`Add Services to Job #${job.id.slice(0, 8)}`}</span>
               {isTestingMode && (
-                <Badge variant="secondary" className="bg-yellow-600 text-yellow-100">
-                  TEST MODE: $1 pricing active
+                <Badge variant="secondary" className="bg-yellow-600 text-yellow-100 text-xs">
+                  TEST MODE: $1 pricing
                 </Badge>
               )}
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-6">
-            <>
-              {/* Current Job Info */}
-              <Card className="bg-slate-700 border-slate-600">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-white text-sm">Current Job</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-sm text-slate-300 space-y-1">
-                    <div>Customer: {job.customer?.name}</div>
-                    <div>Date: {job.scheduled_date} at {job.scheduled_start}</div>
-                    <div>Original Service: {job.service?.name}</div>
-                  </div>
-                </CardContent>
-              </Card>
+          {/* Scrollable Body */}
+          <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4 sm:space-y-6 min-w-0">
+            {/* Current Job Info */}
+            <Card className="bg-slate-700 border-slate-600">
+              <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-6 pt-3 sm:pt-6">
+                <CardTitle className="text-white text-sm">Current Job</CardTitle>
+              </CardHeader>
+              <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
+                <div className="text-xs sm:text-sm text-slate-300 space-y-0.5 sm:space-y-1">
+                  <div className="truncate"><span className="text-slate-400">Customer:</span> {job.customer?.name}</div>
+                  <div className="truncate"><span className="text-slate-400">Date:</span> {job.scheduled_date} at {job.scheduled_start}</div>
+                  <div className="truncate"><span className="text-slate-400">Service:</span> {job.service?.name}</div>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Services Grid */}
             {loading ? (
@@ -332,7 +343,7 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
                 <p className="text-white">Loading services...</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 {services.map((service) => (
                   <ServiceCard
                     key={service.id}
@@ -350,80 +361,85 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
             {/* Cart Section */}
             {cart.length > 0 && (
               <Card className="bg-slate-700 border-slate-600">
-                <CardHeader>
-                  <CardTitle className="text-white flex items-center space-x-2">
+                <CardHeader className="px-3 sm:px-6 pt-3 sm:pt-6 pb-2 sm:pb-3">
+                  <CardTitle className="text-white flex items-center gap-2 text-base sm:text-lg">
                     <ShoppingCart className="h-5 w-5" />
                     <span>Selected Services</span>
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-3 px-3 sm:px-6 pb-3 sm:pb-6">
                   {cart.map((item) => (
-                    <div key={item.id} className="flex items-center justify-between p-3 bg-slate-600 rounded-lg">
-                      <div className="flex-1">
-                        <span className="text-white font-medium">{item.name}</span>
-                        <div className="flex items-center space-x-2 mt-1">
+                    <div key={item.id} className="flex items-center justify-between gap-3 p-3 bg-slate-600 rounded-lg">
+                      <div className="flex-1 min-w-0">
+                        <span className="text-white font-medium block truncate">{item.name}</span>
+                        <div className="flex items-center gap-2 mt-2">
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                            className="h-6 w-6 p-0"
+                            className="h-10 w-10 p-0 shrink-0"
+                            aria-label="Decrease quantity"
                           >
                             -
                           </Button>
-                          <span className="text-blue-300 text-sm">Qty: {item.quantity}</span>
+                          <span className="text-blue-300 text-sm min-w-[3rem] text-center">Qty: {item.quantity}</span>
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                            className="h-6 w-6 p-0"
+                            className="h-10 w-10 p-0 shrink-0"
+                            aria-label="Increase quantity"
                           >
                             +
                           </Button>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex flex-col items-end gap-2 shrink-0">
                         <span className="text-emerald-400 font-bold">${getCartLineTotal(item).toFixed(2)}</span>
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => removeFromCart(item.id)}
-                          className="h-6 w-6 p-0 text-red-400 hover:text-red-300"
+                          className="h-10 w-10 p-0 text-red-400 hover:text-red-300"
+                          aria-label="Remove"
                         >
-                          <X className="h-3 w-3" />
+                          <X className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
                   ))}
-
-                  <div className="border-t border-slate-500 pt-4">
-                    <div className="flex justify-between items-center text-lg font-bold">
-                      <span className="text-white">Total:</span>
-                      <span className="text-emerald-400">${getTotalPrice().toFixed(2)}</span>
-                    </div>
-                  </div>
-
-                  <Button
-                    onClick={handleAddServicesAndCharge}
-                    disabled={processing}
-                    className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold py-3"
-                  >
-                    <Plus className="h-5 w-5 mr-2" />
-                    {processing ? 'Processing...' : `Add Services to Job (+$${getTotalPrice().toFixed(2)})`}
-                  </Button>
                 </CardContent>
               </Card>
             )}
 
             {/* Empty State */}
-            {cart.length === 0 && (
-              <div className="text-center py-8">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-700/50 rounded-full mb-4">
-                  <Plus className="h-8 w-8 text-slate-400" />
+            {cart.length === 0 && !loading && (
+              <div className="text-center py-6 sm:py-8">
+                <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 bg-slate-700/50 rounded-full mb-3 sm:mb-4">
+                  <Plus className="h-7 w-7 sm:h-8 sm:w-8 text-slate-400" />
                 </div>
-                <p className="text-slate-400 text-lg">Select services to add to this job</p>
+                <p className="text-slate-400 text-base sm:text-lg">Select services to add to this job</p>
               </div>
             )}
-            </>
+          </div>
+
+          {/* Sticky Footer */}
+          <div
+            className="shrink-0 border-t border-slate-700 bg-slate-800 px-4 sm:px-6 pt-3 sm:pt-4 pb-3 sm:pb-4"
+            style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+          >
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-white font-semibold text-base sm:text-lg">Total</span>
+              <span className="text-emerald-400 font-bold text-lg sm:text-xl">${totalPrice.toFixed(2)}</span>
+            </div>
+            <Button
+              onClick={handleAddServicesAndCharge}
+              disabled={processing || cart.length === 0}
+              className="w-full min-h-12 text-base bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 text-white font-semibold"
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              {processing ? 'Processing...' : `Add Services to Job (+$${totalPrice.toFixed(2)})`}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
