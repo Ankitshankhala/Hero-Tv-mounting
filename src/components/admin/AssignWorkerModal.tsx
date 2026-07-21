@@ -63,7 +63,7 @@ export const AssignWorkerModal = ({ onClose, onAssignmentComplete, isOpen, selec
   const fetchData = async () => {
     try {
       setLoading(true);
-      
+
       // Fetch unassigned bookings (including pending and payment_authorized)
       const { data: bookingsData, error: bookingsError } = await supabase
         .from('bookings')
@@ -71,7 +71,7 @@ export const AssignWorkerModal = ({ onClose, onAssignmentComplete, isOpen, selec
           id,
           scheduled_date,
           scheduled_start,
-          customer:users!customer_id(name, city),
+          customer:users!customer_id(name, city, zip_code),
           service:services(name),
           guest_customer_info
         `)
@@ -84,7 +84,19 @@ export const AssignWorkerModal = ({ onClose, onAssignmentComplete, isOpen, selec
         throw bookingsError;
       }
 
-      // Fetch available workers
+      setUnassignedBookings(bookingsData || []);
+
+      // If we have a selected booking, populate via the any-zip RPC.
+      if (selectedBookingId) {
+        const booking = bookingsData?.find(b => b.id === selectedBookingId);
+        if (booking) {
+          await loadWorkersForBooking(booking);
+          return;
+        }
+      }
+
+      // Fallback: list all active workers (no availability info) so the picker
+      // isn't empty before a booking is selected.
       const { data: workersData, error: workersError } = await supabase
         .from('users')
         .select('id, name, city, phone, email')
@@ -96,44 +108,7 @@ export const AssignWorkerModal = ({ onClose, onAssignmentComplete, isOpen, selec
         console.error('Error fetching workers:', workersError);
         throw workersError;
       }
-
-      setUnassignedBookings(bookingsData || []);
-      
-      // Check availability for each worker if a booking is selected
-      if (selectedBookingId) {
-        const booking = bookingsData?.find(b => b.id === selectedBookingId);
-        if (booking) {
-          const workersWithAvailability = await Promise.all(
-            (workersData || []).map(async (worker) => {
-              try {
-                const { data: validation } = await supabase.rpc(
-                  'validate_worker_booking_assignment',
-                  {
-                    p_worker_id: worker.id,
-                    p_booking_date: booking.scheduled_date,
-                    p_booking_time: booking.scheduled_start,
-                    p_duration_minutes: 60
-                  }
-                );
-                
-                return {
-                  ...worker,
-                  isAvailable: validation?.[0]?.is_valid ?? true,
-                  unavailabilityReason: validation?.[0]?.error_message
-                };
-              } catch (error) {
-                console.error('Error checking worker availability:', error);
-                return { ...worker, isAvailable: true };
-              }
-            })
-          );
-          setAvailableWorkers(workersWithAvailability);
-        } else {
-          setAvailableWorkers(workersData || []);
-        }
-      } else {
-        setAvailableWorkers(workersData || []);
-      }
+      setAvailableWorkers(workersData || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({
@@ -145,6 +120,51 @@ export const AssignWorkerModal = ({ onClose, onAssignmentComplete, isOpen, selec
       setLoading(false);
     }
   };
+
+  const loadWorkersForBooking = async (booking: UnassignedBooking) => {
+    const zip = booking.customer?.zip_code || (booking.guest_customer_info as any)?.zipcode;
+    if (!zip) {
+      // No ZIP on booking — fall back to full active worker list.
+      const { data: workersData } = await supabase
+        .from('users')
+        .select('id, name, city, phone, email')
+        .eq('role', 'worker')
+        .eq('is_active', true)
+        .order('name');
+      setAvailableWorkers(workersData || []);
+      return;
+    }
+    const { data, error } = await supabase.rpc('find_available_workers_any_zip', {
+      p_zipcode: zip,
+      p_date: booking.scheduled_date,
+      p_time: booking.scheduled_start,
+      p_duration_minutes: 60,
+    });
+    if (error) {
+      console.error('Error loading workers via any-zip RPC:', error);
+      setAvailableWorkers([]);
+      return;
+    }
+    // Preserve RPC ordering (in-area first).
+    setAvailableWorkers(
+      (data || []).map((w: any) => ({
+        id: w.worker_id,
+        name: w.worker_name || 'Worker',
+        email: w.worker_email || '',
+        phone: w.worker_phone || undefined,
+        covers_zip: !!w.covers_zip,
+        isAvailable: w.is_available !== false && w.has_conflict !== true,
+      }))
+    );
+  };
+
+  // Reload worker candidates when the admin selects a different booking.
+  useEffect(() => {
+    if (!isOpen || !selectedBooking) return;
+    const booking = unassignedBookings.find(b => b.id === selectedBooking);
+    if (booking) loadWorkersForBooking(booking);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedBooking, isOpen]);
 
   const handleAssign = async () => {
     if (!selectedBooking || !selectedWorker) return;
