@@ -440,6 +440,15 @@ export const AssignWorkerModal = ({ onClose, onAssignmentComplete, isOpen, selec
                           <div className="flex items-center space-x-2">
                             <User className="h-4 w-4" />
                             <p className="font-medium">{worker.name}</p>
+                            {worker.covers_zip === false ? (
+                              <span className="text-[10px] uppercase tracking-wide rounded px-1.5 py-0.5 bg-amber-500/15 text-amber-700 border border-amber-500/40">
+                                Outside area
+                              </span>
+                            ) : worker.covers_zip === true ? (
+                              <span className="text-[10px] uppercase tracking-wide rounded px-1.5 py-0.5 bg-muted text-muted-foreground">
+                                In area
+                              </span>
+                            ) : null}
                           </div>
                           <p className="text-sm text-muted-foreground mt-1">{worker.email}</p>
                           {worker.city && (
