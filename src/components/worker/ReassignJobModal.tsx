@@ -19,6 +19,7 @@ interface Worker {
   id: string;
   name: string;
   email: string;
+  covers_zip?: boolean;
 }
 
 export const ReassignJobModal = ({ isOpen, onClose, bookingId, onSuccess }: ReassignJobModalProps) => {
