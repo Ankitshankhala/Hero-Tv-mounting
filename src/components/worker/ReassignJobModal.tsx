@@ -204,7 +204,18 @@ export const ReassignJobModal = ({ isOpen, onClose, bookingId, onSuccess }: Reas
                 ) : (
                   workers.map((worker) => (
                     <SelectItem key={worker.id} value={worker.id}>
-                      {worker.name} ({worker.email})
+                      <span className="flex items-center gap-2">
+                        <span>{worker.name} ({worker.email})</span>
+                        {worker.covers_zip === false ? (
+                          <span className="text-[10px] uppercase tracking-wide rounded px-1.5 py-0.5 bg-amber-500/15 text-amber-500 border border-amber-500/30">
+                            Outside area
+                          </span>
+                        ) : (
+                          <span className="text-[10px] uppercase tracking-wide rounded px-1.5 py-0.5 bg-muted text-muted-foreground">
+                            In area
+                          </span>
+                        )}
+                      </span>
                     </SelectItem>
                   ))
                 )}
