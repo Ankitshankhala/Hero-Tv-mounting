@@ -155,6 +155,15 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
 
       // If reassigning, validate worker availability first against the (possibly updated) slot
       if (isReassigning) {
+        // Confirm out-of-area assignments before validating
+        const chosen = workers.find(w => w.id === newWorkerId);
+        if (chosen && chosen.covers_zip === false) {
+          const zip = booking.guest_customer_info?.zipcode || booking.customer?.zip_code || 'this area';
+          const ok = window.confirm(
+            `Assign outside service area?\n\nThis worker doesn't normally cover ZIP ${zip}. They may have to travel further. Assign anyway?`
+          );
+          if (!ok) { setLoading(false); return; }
+        }
         setValidating(true);
         const { data: validationResult, error: validationError } = await supabase.rpc(
           'validate_worker_booking_assignment',
