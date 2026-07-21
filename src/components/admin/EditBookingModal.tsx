@@ -448,7 +448,18 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
                           .filter(w => w.id !== booking.worker_id)
                           .map(w => (
                             <SelectItem key={w.id} value={w.id}>
-                              {w.name || w.email}{w.city ? ` — ${w.city}` : ''}
+                              <span className="flex items-center gap-2">
+                                <span>{w.name || w.email}{w.city ? ` — ${w.city}` : ''}</span>
+                                {w.covers_zip === false ? (
+                                  <span className="text-[10px] uppercase tracking-wide rounded px-1.5 py-0.5 bg-amber-500/15 text-amber-700 border border-amber-500/40">
+                                    Outside area
+                                  </span>
+                                ) : w.covers_zip === true ? (
+                                  <span className="text-[10px] uppercase tracking-wide rounded px-1.5 py-0.5 bg-muted text-muted-foreground">
+                                    In area
+                                  </span>
+                                ) : null}
+                              </span>
                             </SelectItem>
                           ))}
                       </SelectContent>
