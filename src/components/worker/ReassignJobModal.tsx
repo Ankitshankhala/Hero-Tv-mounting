@@ -29,6 +29,7 @@ export const ReassignJobModal = ({ isOpen, onClose, bookingId, onSuccess }: Reas
   const [loading, setLoading] = useState(false);
   const [fetchingWorkers, setFetchingWorkers] = useState(false);
   const [paymentWarning, setPaymentWarning] = useState(false);
+  const [customerZip, setCustomerZip] = useState('');
   const { toast } = useToast();
 
   useEffect(() => {
