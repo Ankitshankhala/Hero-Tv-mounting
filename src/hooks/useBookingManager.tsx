@@ -587,12 +587,24 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
     }
   };
 
+  const loadMoreArchived = async () => {
+    if (!hasMore) return;
+    await fetchBookings({
+      view: 'archived',
+      append: true,
+      offset: archivedOffset,
+      bypassCache: true,
+    });
+  };
+
   return {
     bookings,
     loading,
     enriching,
+    hasMore,
     handleBookingUpdate,
     fetchBookings,
-    handleArchiveJob
+    handleArchiveJob,
+    loadMoreArchived,
   };
 };
