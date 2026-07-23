@@ -85,19 +85,6 @@ export const BookingsManager = () => {
         (booking.payment_status === 'authorized' || booking.status === 'payment_authorized')
       );
       filtered = filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    } else if (archiveFilter === 'pending_payments') {
-      filtered = filtered.filter(booking =>
-        notArchived(booking) &&
-        (booking.payment_status === 'pending' || booking.payment_status === 'payment_pending' || !booking.payment_status || booking.payment_status === 'failed')
-      );
-      filtered = filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    } else if (archiveFilter === 'authorized_unassigned') {
-      filtered = filtered.filter(booking =>
-        notArchived(booking) &&
-        (booking.payment_status === 'authorized' || booking.status === 'pending') &&
-        !booking.worker_id
-      );
-      filtered = filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     } else if (archiveFilter === 'archived') {
       filtered = filtered.filter(booking => booking.is_archived);
     }
@@ -285,34 +272,6 @@ export const BookingsManager = () => {
                 Archive ({selectedBookingIds.length})
               </Button>
             )}
-            {archiveFilter === 'pending_payments' && paymentPendingCount > 0 && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive" size="sm" disabled={deletingPending}>
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete All ({paymentPendingCount})
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete All Payment Pending Bookings?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will permanently delete <strong>{paymentPendingCount}</strong> bookings with payment_pending status.
-                      Associated Stripe PaymentIntents will be canceled. This action cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleBulkDeletePaymentPending}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      Delete All
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
             <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading}>
               <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               Refresh
@@ -346,7 +305,7 @@ export const BookingsManager = () => {
               onAssignWorker={handleAssignWorker}
               loading={loading}
               enriching={enriching}
-              showPendingPaymentActions={archiveFilter === 'pending_payments'}
+              showPendingPaymentActions={false}
               onSendReminder={handleSendReminder}
               onCancelBooking={handleCancelBooking}
               selectedBookingIds={selectedBookingIds}
