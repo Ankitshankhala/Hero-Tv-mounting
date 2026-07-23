@@ -384,71 +384,72 @@ export const BookingTable = ({
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1 justify-end">
-                        {showPendingPaymentActions ? (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => onSendReminder?.(booking)}
-                              title="Send Payment Reminder"
-                            >
-                              <Send className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => onCancelBooking?.(booking)}
-                              title="Cancel Booking"
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => onViewBooking(booking)}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => onViewBooking(booking)}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => onEditBooking(booking)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            {booking.status === 'completed' && (booking.payment_status === 'captured' || booking.payment_status === 'completed') && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleArchiveJob(booking)}
-                                title="Archive completed job"
-                              >
-                                <Archive className="h-4 w-4" />
-                              </Button>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => onDeleteBooking(booking)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </TableCell>
+                     <TableCell className="sticky right-0 z-10 bg-card min-w-[160px] border-l shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)]">
+                       <div className="flex gap-1.5 justify-end items-center flex-nowrap">
+                         {showPendingPaymentActions ? (
+                           <>
+                             <Button
+                               variant="ghost"
+                               size="sm"
+                               onClick={() => onSendReminder?.(booking)}
+                               title="Send Payment Reminder"
+                             >
+                               <Send className="h-4 w-4" />
+                             </Button>
+                             <Button
+                               variant="ghost"
+                               size="sm"
+                               onClick={() => onCancelBooking?.(booking)}
+                               title="Cancel Booking"
+                             >
+                               <X className="h-4 w-4" />
+                             </Button>
+                             <Button
+                               variant="ghost"
+                               size="sm"
+                               onClick={() => onViewBooking(booking)}
+                             >
+                               <Eye className="h-4 w-4" />
+                             </Button>
+                           </>
+                         ) : (
+                           <>
+                             <Button
+                               variant="ghost"
+                               size="sm"
+                               onClick={() => onViewBooking(booking)}
+                             >
+                               <Eye className="h-4 w-4" />
+                             </Button>
+                             <Button
+                               variant="ghost"
+                               size="sm"
+                               onClick={() => onEditBooking(booking)}
+                             >
+                               <Edit className="h-4 w-4" />
+                             </Button>
+                             {booking.status === 'completed' && (booking.payment_status === 'captured' || booking.payment_status === 'completed') && (
+                               <Button
+                                 variant="ghost"
+                                 size="sm"
+                                 onClick={() => handleArchiveJob(booking)}
+                                 title="Archive completed job"
+                               >
+                                 <Archive className="h-4 w-4" />
+                               </Button>
+                             )}
+                             <Button
+                               variant="ghost"
+                               size="sm"
+                               onClick={() => onDeleteBooking(booking)}
+                             >
+                               <Trash2 className="h-4 w-4" />
+                             </Button>
+                           </>
+                         )}
+                       </div>
+                     </TableCell>
+
                   </TableRow>
                   
                   {/* Expanded row for email status */}
