@@ -263,7 +263,29 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
 
   if (!booking) return null;
 
-  const selectedService = services.find(s => s.id === formData.service_id);
+  const bookingServices: Array<{ service_name: string; quantity: number; base_price: number }> =
+    (booking.booking_services && booking.booking_services.length > 0)
+      ? booking.booking_services.map((s: any) => ({
+          service_name: s.service_name || 'Service',
+          quantity: Number(s.quantity) || 1,
+          base_price: Number(s.base_price) || 0,
+        }))
+      : (booking.service?.name
+          ? [{ service_name: booking.service.name, quantity: 1, base_price: Number(booking.service.base_price) || 0 }]
+          : []);
+  const servicesTotal = bookingServices.reduce((sum, s) => sum + s.quantity * s.base_price, 0);
+
+  const handleStatusChange = (value: string) => {
+    if (value === 'cancelled') {
+      toast({
+        title: 'Use the Cancel action',
+        description: 'To cancel, use the booking\'s Cancel action so the payment authorization is voided.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    handleInputChange('status', value as BookingStatus);
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
