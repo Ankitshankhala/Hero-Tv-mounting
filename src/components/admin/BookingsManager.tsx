@@ -316,6 +316,26 @@ export const BookingsManager = () => {
               onSelectAll={handleSelectAll}
               showBulkActions={archiveFilter === 'new_bookings'}
             />
+
+            {archiveFilter === 'archived' && hasMore && (
+              <div className="flex justify-center pt-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={loadingMore || enriching}
+                  onClick={async () => {
+                    setLoadingMore(true);
+                    try {
+                      await loadMoreArchived();
+                    } finally {
+                      setLoadingMore(false);
+                    }
+                  }}
+                >
+                  {loadingMore ? 'Loading…' : 'Load more archived'}
+                </Button>
+              </div>
+            )}
           </>
         )}
       </Card>
