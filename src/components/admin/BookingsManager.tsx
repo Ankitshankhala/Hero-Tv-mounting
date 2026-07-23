@@ -49,13 +49,27 @@ export const BookingsManager = () => {
   const { user } = useAuth();
 
   // Use our enhanced booking manager hook
-  const { 
-    bookings, 
-    loading, 
+  const {
+    bookings,
+    loading,
     enriching,
-    handleBookingUpdate, 
-    fetchBookings 
+    hasMore,
+    handleBookingUpdate,
+    fetchBookings,
+    loadMoreArchived,
   } = useBookingManager();
+
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  // Re-fetch when tab or includeArchived changes
+  useEffect(() => {
+    fetchBookings({
+      view: archiveFilter as any,
+      includeArchived,
+      bypassCache: true,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [archiveFilter, includeArchived]);
 
   // Set up real-time subscriptions for admin with enhanced callback
   const handleRealtimeUpdate = React.useCallback((updatedBooking: any) => {
@@ -72,24 +86,13 @@ export const BookingsManager = () => {
   useEffect(() => {
     // Apply filters
     let filtered = bookings;
-    
-    // Archive and payment status filter
-    const notArchived = (b: any) => includeArchived || !b.is_archived;
-    if (archiveFilter === 'active') {
-      // All non-archived bookings (including new ones with pending payments)
-      filtered = filtered.filter(notArchived);
-    } else if (archiveFilter === 'new_bookings') {
-      // Only bookings with payment authorized
-      filtered = filtered.filter(booking =>
-        notArchived(booking) &&
-        (booking.payment_status === 'authorized' || booking.status === 'payment_authorized')
-      );
-      filtered = filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    } else if (archiveFilter === 'archived') {
-      filtered = filtered.filter(booking => booking.is_archived);
-    }
 
-    
+    // Server-side already filtered by is_archived + payment_status per tab.
+    // Only apply lightweight client-side refinements below.
+
+
+
+
     if (filterStatus !== 'all') {
       filtered = filtered.filter(booking => booking.status === filterStatus);
     }
@@ -97,35 +100,40 @@ export const BookingsManager = () => {
       filtered = filtered.filter(booking => booking.customer?.region?.toLowerCase() === filterRegion.toLowerCase());
     }
     if (searchTerm) {
-      filtered = filtered.filter(booking => 
-        booking.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        booking.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        booking.services?.some(service => service.name?.toLowerCase().includes(searchTerm.toLowerCase())) || 
+      filtered = filtered.filter(booking =>
+        booking.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        booking.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        booking.services?.some(service => service.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
         booking.worker?.name?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
     setFilteredBookings(filtered);
   }, [bookings, filterStatus, filterRegion, archiveFilter, searchTerm, includeArchived]);
 
+  const refetchCurrentView = (bypassCache = true) =>
+    fetchBookings({
+      view: archiveFilter as any,
+      includeArchived,
+      bypassCache,
+    });
+
   const handleBookingCreated = () => {
     console.log('Booking created, refreshing list');
-    fetchBookings(true); // Bypass cache to get fresh data
-    
-    // Also refresh after a short delay to ensure database consistency
+    refetchCurrentView(true);
     setTimeout(() => {
       console.log('Secondary refresh after booking creation');
-      fetchBookings(true);
+      refetchCurrentView(true);
     }, 1000);
   };
 
   const handleRefresh = () => {
     console.log('Manual refresh triggered');
-    fetchBookings(true); // Bypass cache for manual refresh
+    refetchCurrentView(true);
   };
 
   const handleBookingUpdated = () => {
     console.log('Booking updated from BookingTable, refreshing list');
-    fetchBookings();
+    refetchCurrentView(false);
   };
 
   const handleEditBooking = (booking: any) => {
@@ -313,6 +321,26 @@ export const BookingsManager = () => {
               onSelectAll={handleSelectAll}
               showBulkActions={archiveFilter === 'new_bookings'}
             />
+
+            {archiveFilter === 'archived' && hasMore && (
+              <div className="flex justify-center pt-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={loadingMore || enriching}
+                  onClick={async () => {
+                    setLoadingMore(true);
+                    try {
+                      await loadMoreArchived();
+                    } finally {
+                      setLoadingMore(false);
+                    }
+                  }}
+                >
+                  {loadingMore ? 'Loading…' : 'Load more archived'}
+                </Button>
+              </div>
+            )}
           </>
         )}
       </Card>

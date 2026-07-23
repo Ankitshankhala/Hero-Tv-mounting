@@ -34,10 +34,25 @@ interface BookingData {
   stripe_tx_created_at?: string;
 }
 
+export type BookingsView = 'active' | 'new_bookings' | 'archived';
+
+export interface FetchBookingsOptions {
+  bypassCache?: boolean;
+  view?: BookingsView;
+  includeArchived?: boolean;
+  append?: boolean;
+  offset?: number;
+}
+
+const ARCHIVED_PAGE_SIZE = 100;
+const DEFAULT_LIMIT = 200;
+
 export const useBookingManager = (isCalendarConnected: boolean = false) => {
   const [bookings, setBookings] = useState<BookingData[]>([]);
   const [loading, setLoading] = useState(true);
   const [enriching, setEnriching] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [archivedOffset, setArchivedOffset] = useState(0);
   const { toast } = useToast();
 
   const enrichSingleBooking = async (booking: any): Promise<BookingData> => {
@@ -112,34 +127,68 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
     };
   };
 
-  const fetchBookings = async (bypassCache: boolean = false) => {
-    try {
-      setLoading(true);
-      console.log('Fetching bookings with two-phase strategy...');
+  const fetchBookings = async (options: boolean | FetchBookingsOptions = {}) => {
+    // Back-compat: fetchBookings(true) => bypassCache
+    const opts: FetchBookingsOptions =
+      typeof options === 'boolean' ? { bypassCache: options } : options;
+    const {
+      bypassCache = false,
+      view = 'active',
+      includeArchived = false,
+      append = false,
+      offset = 0,
+    } = opts;
 
-      // PHASE 1: Fast-first paint - essential fields only, limited results
+    try {
+      if (!append) setLoading(true);
+      console.log('Fetching bookings', { view, includeArchived, append, offset });
+
+      const isArchivedView = view === 'archived';
+      const pageSize = isArchivedView ? ARCHIVED_PAGE_SIZE : DEFAULT_LIMIT;
+      const from = offset;
+      const to = offset + pageSize - 1;
+
+      const cacheKey = `bookings-${view}-${includeArchived ? 'inc' : 'exc'}-${from}-${to}`;
+
+      // PHASE 1: Fast-first paint - essential fields only, filtered server-side by archive state
       const { data: bookingsData, error: bookingsError } = await measureApiCall(
         'bookings-phase1',
         async () => {
           const result = await optimizedSupabaseCall(
-            'bookings-recent-100',
+            cacheKey,
             async () => {
-              const response = await supabase
+              let query = supabase
                 .from('bookings')
                 .select(`
                   id, customer_id, worker_id, service_id,
                   scheduled_date, scheduled_start, status,
                   start_time_utc, local_service_date, local_service_time, service_tz,
                   payment_status, payment_intent_id, created_at,
-                  guest_customer_info, location_notes, is_archived
-                `)
-                .order('created_at', { ascending: false })
-                .order('start_time_utc', { ascending: false, nullsFirst: false })
-                .limit(200);
+                  guest_customer_info, location_notes, is_archived, archived_at
+                `);
+
+              if (isArchivedView) {
+                query = query
+                  .eq('is_archived', true)
+                  .order('archived_at', { ascending: false, nullsFirst: false })
+                  .order('created_at', { ascending: false });
+              } else {
+                if (view === 'new_bookings') {
+                  query = query.eq('payment_status', 'authorized');
+                }
+                if (!includeArchived) {
+                  query = query.eq('is_archived', false);
+                }
+                query = query
+                  .order('created_at', { ascending: false })
+                  .order('start_time_utc', { ascending: false, nullsFirst: false });
+              }
+
+              const response = await query.range(from, to);
               return response;
             },
             !bypassCache,
-            bypassCache ? 0 : 10000 // Use cache unless bypassed
+            bypassCache ? 0 : 10000
           );
           return result;
         }
@@ -152,9 +201,12 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
 
       console.log('Phase 1 complete - basic bookings:', bookingsData?.length || 0);
 
+      const pageCount = bookingsData?.length || 0;
+      setHasMore(isArchivedView && pageCount === pageSize);
+      if (isArchivedView) setArchivedOffset(from + pageCount);
+
       if (!bookingsData || bookingsData.length === 0) {
-        console.log('No bookings found');
-        setBookings([]);
+        if (!append) setBookings([]);
         setLoading(false);
         return;
       }
@@ -178,7 +230,15 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
         service_tz: booking.service_tz || DEFAULT_SERVICE_TIMEZONE
       }));
 
-      setBookings(minimalBookings);
+      if (append) {
+        setBookings(prev => {
+          const existingIds = new Set(prev.map(b => b.id));
+          const additions = minimalBookings.filter(b => !existingIds.has(b.id));
+          return [...prev, ...additions];
+        });
+      } else {
+        setBookings(minimalBookings);
+      }
       setLoading(false); // Table appears immediately
 
       // PHASE 2: Parallel enrichment without blocking UI
@@ -357,7 +417,25 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
       });
 
       console.log('Phase 2 complete - fully enriched bookings:', enrichedBookings.length);
-      setBookings(enrichedBookings);
+      if (append) {
+        setBookings(prev => {
+          const byId = new Map(prev.map(b => [b.id, b]));
+          for (const b of enrichedBookings) byId.set(b.id, b);
+          // Preserve original order: existing first, new appended
+          const seen = new Set<string>();
+          const ordered: any[] = [];
+          for (const b of prev) {
+            const merged = byId.get(b.id);
+            if (merged && !seen.has(b.id)) { ordered.push(merged); seen.add(b.id); }
+          }
+          for (const b of enrichedBookings) {
+            if (!seen.has(b.id)) { ordered.push(b); seen.add(b.id); }
+          }
+          return ordered;
+        });
+      } else {
+        setBookings(enrichedBookings);
+      }
       setEnriching(false);
       
     } catch (error) {
@@ -509,12 +587,24 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
     }
   };
 
+  const loadMoreArchived = async () => {
+    if (!hasMore) return;
+    await fetchBookings({
+      view: 'archived',
+      append: true,
+      offset: archivedOffset,
+      bypassCache: true,
+    });
+  };
+
   return {
     bookings,
     loading,
     enriching,
+    hasMore,
     handleBookingUpdate,
     fetchBookings,
-    handleArchiveJob
+    handleArchiveJob,
+    loadMoreArchived,
   };
 };
