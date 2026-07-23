@@ -220,7 +220,7 @@ export const BookingTable = ({
       </div>
 
       <div className="rounded-md border">
-        <div className="overflow-x-auto">
+        <div className="w-full overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -240,9 +240,10 @@ export const BookingTable = ({
                 <TableHead>Amount</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Payment</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="sticky right-0 z-10 bg-muted min-w-[160px] text-right border-l shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)]">Actions</TableHead>
               </TableRow>
             </TableHeader>
+
             <TableBody>
               {bookings.filter((booking) => booking && booking.id).map((booking) => {
                 const services = formatServices(booking);
