@@ -86,21 +86,11 @@ export const BookingsManager = () => {
   useEffect(() => {
     // Apply filters
     let filtered = bookings;
-    
-    // Archive and payment status filter
-    const notArchived = (b: any) => includeArchived || !b.is_archived;
-    if (archiveFilter === 'active') {
-      // All non-archived bookings (including new ones with pending payments)
-      filtered = filtered.filter(notArchived);
-    } else if (archiveFilter === 'new_bookings') {
-      // Only bookings with payment authorized
-      filtered = filtered.filter(booking =>
-        notArchived(booking) &&
-        (booking.payment_status === 'authorized' || booking.status === 'payment_authorized')
-      );
-      filtered = filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
     // Server-side already filtered by is_archived + payment_status per tab.
     // Only apply lightweight client-side refinements below.
+
+
 
 
     if (filterStatus !== 'all') {
