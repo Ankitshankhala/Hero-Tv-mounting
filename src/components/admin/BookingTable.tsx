@@ -49,7 +49,28 @@ interface Booking {
   services?: any[];
   booking_services?: any[];
   is_archived?: boolean;
+  guest_customer_info?: any;
+  location_notes?: string;
 }
+
+const formatLocation = (booking: Booking): string => {
+  const info = booking.guest_customer_info || {};
+  const city = info.city || info.customerCity;
+  const zip = info.zipcode || info.zipCode || info.zip || info.postalCode;
+  if (city && zip) return `${city} · ${zip}`;
+  if (city) return city;
+  // Try parsing from location_notes
+  if (booking.location_notes) {
+    const parts = booking.location_notes.split(',').map((p) => p.trim()).filter(Boolean);
+    const zipMatch = booking.location_notes.match(/\b\d{5}(?:-\d{4})?\b/);
+    const short = parts.length > 0 ? parts[parts.length - 1] : booking.location_notes;
+    if (zipMatch && short && !short.includes(zipMatch[0])) return `${short} · ${zipMatch[0]}`;
+    return short || '—';
+  }
+  if (zip) return String(zip);
+  return '—';
+}
+
 
 const getStatusVariant = (status: string) => {
   switch (status) {
@@ -236,11 +257,13 @@ export const BookingTable = ({
                 <TableHead>Customer</TableHead>
                 <TableHead>Services</TableHead>
                 <TableHead>Worker</TableHead>
+                <TableHead>Location</TableHead>
                 <TableHead>Date & Time</TableHead>
                 <TableHead>Amount</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Payment</TableHead>
                 <TableHead className="sticky right-0 z-10 bg-muted min-w-[160px] text-right border-l shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)]">Actions</TableHead>
+
               </TableRow>
             </TableHeader>
 
@@ -351,6 +374,11 @@ export const BookingTable = ({
                           </div>
                         )}
                      </TableCell>
+                    <TableCell className="max-w-[160px]">
+                      <div className="text-sm truncate" title={formatLocation(booking)}>
+                        {formatLocation(booking)}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <div className="space-y-1">
                         <div className="font-medium">{formattedDateTime}</div>
@@ -360,12 +388,23 @@ export const BookingTable = ({
                       </div>
                     </TableCell>
                      <TableCell>
-                       <div className="font-medium">
-                         ${Number(booking.stripe_authorized_amount || booking.total_price || 0).toFixed(2)}
-                         {enriching && !booking.stripe_authorized_amount && (
-                           <div className="text-xs text-muted-foreground">Updating...</div>
-                         )}
-                       </div>
+                       {(() => {
+                         const paid = booking.payment_status === 'captured' || booking.payment_status === 'completed';
+                         const amount = Number(booking.stripe_authorized_amount || booking.total_price || 0).toFixed(2);
+                         return (
+                           <div className="space-y-1">
+                             <div className={`font-medium ${paid ? 'text-[hsl(var(--action-success))]' : ''}`}>
+                               ${amount}
+                             </div>
+                             <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 uppercase tracking-wide">
+                               {paid ? 'paid' : 'auth'}
+                             </Badge>
+                             {enriching && !booking.stripe_authorized_amount && (
+                               <div className="text-xs text-muted-foreground">Updating...</div>
+                             )}
+                           </div>
+                         );
+                       })()}
                      </TableCell>
                     <TableCell>
                       <Badge variant={getStatusVariant(booking.status)}>
@@ -373,17 +412,11 @@ export const BookingTable = ({
                       </Badge>
                     </TableCell>
                      <TableCell>
-                      <div className="space-y-1">
-                        <Badge variant={getPaymentStatusVariant(booking.payment_status || booking.stripe_payment_status)}>
-                          {booking.payment_status || booking.stripe_payment_status || 'unknown'}
-                        </Badge>
-                        {booking.payment_intent_id && (
-                          <div className="text-xs text-muted-foreground font-mono">
-                            {booking.payment_intent_id?.slice(-8)}
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
+                       <Badge variant={getPaymentStatusVariant(booking.payment_status || booking.stripe_payment_status)}>
+                         {booking.payment_status || booking.stripe_payment_status || 'unknown'}
+                       </Badge>
+                     </TableCell>
+
                      <TableCell className="sticky right-0 z-10 bg-card min-w-[160px] border-l shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)]">
                        <div className="flex gap-1.5 justify-end items-center flex-nowrap">
                          {showPendingPaymentActions ? (
