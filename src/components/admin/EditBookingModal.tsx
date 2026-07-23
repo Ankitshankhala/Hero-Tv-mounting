@@ -326,7 +326,7 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
             </div>
             <div>
               <Label htmlFor="status">Status</Label>
-              <Select onValueChange={(value) => handleInputChange('status', value as BookingStatus)} value={formData.status}>
+              <Select onValueChange={handleStatusChange} value={formData.status}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
@@ -334,29 +334,17 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
                   <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="confirmed">Confirmed</SelectItem>
                   <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                  <SelectItem value="cancelled" disabled>Cancelled</SelectItem>
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                To cancel, use the booking's Cancel action (voids the payment authorization).
+              </p>
             </div>
           </div>
 
-          {/* Service and Scheduling */}
+          {/* Scheduling */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="service_id">Service</Label>
-              <Select onValueChange={(value) => handleInputChange('service_id', value)} value={formData.service_id}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select service" />
-                </SelectTrigger>
-                <SelectContent>
-                  {services.map((service) => (
-                    <SelectItem key={service.id} value={service.id}>
-                      {service.name} - ${service.base_price}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
             <div>
               <Label htmlFor="scheduled_date">Scheduled Date</Label>
               <Input
@@ -377,17 +365,37 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
                 required
               />
             </div>
-            {selectedService && (
-              <div className="flex flex-col justify-end">
-                <div className="text-sm text-muted-foreground">
-                  <span className="font-medium">Duration:</span> {selectedService.duration_minutes} minutes
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  <span className="font-medium">Price:</span> ${selectedService.base_price}
+          </div>
+
+          {/* Services summary (read-only) */}
+          <div className="rounded-lg border p-3 bg-muted/30">
+            <div className="text-sm font-medium mb-2">Services on this booking</div>
+            {bookingServices.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No services recorded.</p>
+            ) : (
+              <div className="space-y-1 text-sm">
+                {bookingServices.map((s, i) => (
+                  <div key={i} className="flex justify-between">
+                    <span className="text-foreground">
+                      {s.service_name}
+                      {s.quantity > 1 ? ` × ${s.quantity}` : ''}
+                    </span>
+                    <span className="text-muted-foreground">
+                      ${(s.quantity * s.base_price).toFixed(2)}
+                    </span>
+                  </div>
+                ))}
+                <div className="flex justify-between border-t pt-1 mt-1 font-medium">
+                  <span>Total</span>
+                  <span>${servicesTotal.toFixed(2)}</span>
                 </div>
               </div>
             )}
+            <p className="text-xs text-muted-foreground mt-2">
+              Services are managed through the worker's Add/Remove Services actions.
+            </p>
           </div>
+
 
           {/* Location Notes */}
           <div>
