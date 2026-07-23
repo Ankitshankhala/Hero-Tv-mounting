@@ -32,7 +32,6 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
     status: '' as BookingStatus,
     scheduled_date: '',
     scheduled_start: '',
-    service_id: '',
     location_notes: '',
     customer_name: '',
     customer_email: '',
@@ -40,14 +39,12 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
   });
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  const { services } = usePublicServicesData();
 
   // Reassign worker state
   const [workers, setWorkers] = useState<WorkerOption[]>([]);
   const [currentWorker, setCurrentWorker] = useState<WorkerOption | null>(null);
   const [isChangingWorker, setIsChangingWorker] = useState(false);
   const [newWorkerId, setNewWorkerId] = useState<string>('');
-  const [reassignReason, setReassignReason] = useState('');
   const [reassignError, setReassignError] = useState<string | null>(null);
   const [validating, setValidating] = useState(false);
 
