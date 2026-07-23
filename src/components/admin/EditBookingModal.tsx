@@ -7,7 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { usePublicServicesData } from '@/hooks/usePublicServicesData';
 import { BookingRetryAssignment } from './BookingRetryAssignment';
 
 interface EditBookingModalProps {
@@ -33,7 +32,6 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
     status: '' as BookingStatus,
     scheduled_date: '',
     scheduled_start: '',
-    service_id: '',
     location_notes: '',
     customer_name: '',
     customer_email: '',
@@ -41,14 +39,12 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
   });
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  const { services } = usePublicServicesData();
 
   // Reassign worker state
   const [workers, setWorkers] = useState<WorkerOption[]>([]);
   const [currentWorker, setCurrentWorker] = useState<WorkerOption | null>(null);
   const [isChangingWorker, setIsChangingWorker] = useState(false);
   const [newWorkerId, setNewWorkerId] = useState<string>('');
-  const [reassignReason, setReassignReason] = useState('');
   const [reassignError, setReassignError] = useState<string | null>(null);
   const [validating, setValidating] = useState(false);
 
@@ -65,7 +61,6 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
         status: validateBookingStatus(booking.status || 'pending'),
         scheduled_date: booking.scheduled_date || '',
         scheduled_start: booking.scheduled_start || '',
-        service_id: booking.service_id || booking.service?.id || '',
         location_notes: booking.location_notes || '',
         customer_name: booking.guest_customer_info?.name || booking.customer?.name || '',
         customer_email: booking.guest_customer_info?.email || booking.customer?.email || '',
@@ -73,7 +68,6 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
       });
       setIsChangingWorker(false);
       setNewWorkerId('');
-      setReassignReason('');
       setReassignError(null);
     }
   }, [booking, isOpen]);
@@ -190,7 +184,6 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
         status: formData.status,
         scheduled_date: formData.scheduled_date,
         scheduled_start: formData.scheduled_start,
-        service_id: formData.service_id,
         location_notes: formData.location_notes,
         guest_customer_info: updatedGuestInfo,
       };
@@ -270,7 +263,29 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
 
   if (!booking) return null;
 
-  const selectedService = services.find(s => s.id === formData.service_id);
+  const bookingServices: Array<{ service_name: string; quantity: number; base_price: number }> =
+    (booking.booking_services && booking.booking_services.length > 0)
+      ? booking.booking_services.map((s: any) => ({
+          service_name: s.service_name || 'Service',
+          quantity: Number(s.quantity) || 1,
+          base_price: Number(s.base_price) || 0,
+        }))
+      : (booking.service?.name
+          ? [{ service_name: booking.service.name, quantity: 1, base_price: Number(booking.service.base_price) || 0 }]
+          : []);
+  const servicesTotal = bookingServices.reduce((sum, s) => sum + s.quantity * s.base_price, 0);
+
+  const handleStatusChange = (value: string) => {
+    if (value === 'cancelled') {
+      toast({
+        title: 'Use the Cancel action',
+        description: 'To cancel, use the booking\'s Cancel action so the payment authorization is voided.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    handleInputChange('status', value as BookingStatus);
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -311,7 +326,7 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
             </div>
             <div>
               <Label htmlFor="status">Status</Label>
-              <Select onValueChange={(value) => handleInputChange('status', value as BookingStatus)} value={formData.status}>
+              <Select onValueChange={handleStatusChange} value={formData.status}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
@@ -319,29 +334,17 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
                   <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="confirmed">Confirmed</SelectItem>
                   <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                  <SelectItem value="cancelled" disabled>Cancelled</SelectItem>
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                To cancel, use the booking's Cancel action (voids the payment authorization).
+              </p>
             </div>
           </div>
 
-          {/* Service and Scheduling */}
+          {/* Scheduling */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="service_id">Service</Label>
-              <Select onValueChange={(value) => handleInputChange('service_id', value)} value={formData.service_id}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select service" />
-                </SelectTrigger>
-                <SelectContent>
-                  {services.map((service) => (
-                    <SelectItem key={service.id} value={service.id}>
-                      {service.name} - ${service.base_price}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
             <div>
               <Label htmlFor="scheduled_date">Scheduled Date</Label>
               <Input
@@ -362,17 +365,37 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
                 required
               />
             </div>
-            {selectedService && (
-              <div className="flex flex-col justify-end">
-                <div className="text-sm text-muted-foreground">
-                  <span className="font-medium">Duration:</span> {selectedService.duration_minutes} minutes
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  <span className="font-medium">Price:</span> ${selectedService.base_price}
+          </div>
+
+          {/* Services summary (read-only) */}
+          <div className="rounded-lg border p-3 bg-muted/30">
+            <div className="text-sm font-medium mb-2">Services on this booking</div>
+            {bookingServices.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No services recorded.</p>
+            ) : (
+              <div className="space-y-1 text-sm">
+                {bookingServices.map((s, i) => (
+                  <div key={i} className="flex justify-between">
+                    <span className="text-foreground">
+                      {s.service_name}
+                      {s.quantity > 1 ? ` × ${s.quantity}` : ''}
+                    </span>
+                    <span className="text-muted-foreground">
+                      ${(s.quantity * s.base_price).toFixed(2)}
+                    </span>
+                  </div>
+                ))}
+                <div className="flex justify-between border-t pt-1 mt-1 font-medium">
+                  <span>Total</span>
+                  <span>${servicesTotal.toFixed(2)}</span>
                 </div>
               </div>
             )}
+            <p className="text-xs text-muted-foreground mt-2">
+              Services are managed through the worker's Add/Remove Services actions.
+            </p>
           </div>
+
 
           {/* Location Notes */}
           <div>
@@ -467,16 +490,6 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
                     <p className="text-xs text-muted-foreground mt-1">
                       Availability is validated against the scheduled date and time above.
                     </p>
-                  </div>
-                  <div>
-                    <Label htmlFor="reassign_reason">Reason (optional)</Label>
-                    <Textarea
-                      id="reassign_reason"
-                      rows={2}
-                      value={reassignReason}
-                      onChange={(e) => setReassignReason(e.target.value)}
-                      placeholder="e.g. Original worker unavailable"
-                    />
                   </div>
                   {reassignError && (
                     <p className="text-sm text-destructive">{reassignError}</p>

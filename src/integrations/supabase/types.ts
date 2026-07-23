@@ -66,6 +66,13 @@ export type Database = {
             foreignKeyName: "admin_alerts_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: false
+            referencedRelation: "v_booking_auth_mismatch"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "admin_alerts_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
             referencedRelation: "v_booking_payment_status_monitor"
             referencedColumns: ["id"]
           },
@@ -353,6 +360,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_booking_services_booking"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_booking_auth_mismatch"
+            referencedColumns: ["booking_id"]
           },
           {
             foreignKeyName: "fk_booking_services_booking"
@@ -715,6 +729,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupon_usage_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_booking_auth_mismatch"
+            referencedColumns: ["booking_id"]
           },
           {
             foreignKeyName: "coupon_usage_booking_id_fkey"
@@ -1170,6 +1191,13 @@ export type Database = {
             foreignKeyName: "fk_invoices_booking"
             columns: ["booking_id"]
             isOneToOne: false
+            referencedRelation: "v_booking_auth_mismatch"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "fk_invoices_booking"
+            columns: ["booking_id"]
+            isOneToOne: false
             referencedRelation: "v_booking_payment_status_monitor"
             referencedColumns: ["id"]
           },
@@ -1200,6 +1228,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_booking_auth_mismatch"
+            referencedColumns: ["booking_id"]
           },
           {
             foreignKeyName: "invoices_booking_id_fkey"
@@ -1377,6 +1412,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_booking_auth_mismatch"
+            referencedColumns: ["booking_id"]
           },
           {
             foreignKeyName: "reviews_booking_id_fkey"
@@ -1589,6 +1631,13 @@ export type Database = {
             foreignKeyName: "service_operation_logs_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: false
+            referencedRelation: "v_booking_auth_mismatch"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "service_operation_logs_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
             referencedRelation: "v_booking_payment_status_monitor"
             referencedColumns: ["id"]
           },
@@ -1725,6 +1774,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sms_logs_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_booking_auth_mismatch"
+            referencedColumns: ["booking_id"]
           },
           {
             foreignKeyName: "sms_logs_booking_id_fkey"
@@ -1877,6 +1933,13 @@ export type Database = {
             foreignKeyName: "tip_sync_log_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: false
+            referencedRelation: "v_booking_auth_mismatch"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "tip_sync_log_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
             referencedRelation: "v_booking_payment_status_monitor"
             referencedColumns: ["id"]
           },
@@ -1984,6 +2047,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_booking_auth_mismatch"
+            referencedColumns: ["booking_id"]
           },
           {
             foreignKeyName: "transactions_booking_id_fkey"
@@ -2302,6 +2372,13 @@ export type Database = {
             foreignKeyName: "worker_bookings_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: false
+            referencedRelation: "v_booking_auth_mismatch"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "worker_bookings_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
             referencedRelation: "v_booking_payment_status_monitor"
             referencedColumns: ["id"]
           },
@@ -2390,6 +2467,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "worker_coverage_notifications_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_booking_auth_mismatch"
+            referencedColumns: ["booking_id"]
           },
           {
             foreignKeyName: "worker_coverage_notifications_booking_id_fkey"
@@ -2854,6 +2938,19 @@ export type Database = {
         }
         Relationships: []
       }
+      v_booking_auth_mismatch: {
+        Row: {
+          auth_transaction_amount: number | null
+          booking_authorized_amount: number | null
+          booking_id: string | null
+          card_linked: boolean | null
+          created_at: string | null
+          customer: string | null
+          payment_intent_id: string | null
+          services_total: number | null
+        }
+        Relationships: []
+      }
       v_booking_payment_status_monitor: {
         Row: {
           booking_status: Database["public"]["Enums"]["booking_status"] | null
@@ -2966,6 +3063,13 @@ export type Database = {
             foreignKeyName: "fk_invoices_booking"
             columns: ["booking_id"]
             isOneToOne: false
+            referencedRelation: "v_booking_auth_mismatch"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "fk_invoices_booking"
+            columns: ["booking_id"]
+            isOneToOne: false
             referencedRelation: "v_booking_payment_status_monitor"
             referencedColumns: ["id"]
           },
@@ -2996,6 +3100,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_booking_auth_mismatch"
+            referencedColumns: ["booking_id"]
           },
           {
             foreignKeyName: "invoices_booking_id_fkey"
@@ -3990,6 +4101,7 @@ export type Database = {
         }[]
       }
       gettransactionid: { Args: never; Returns: unknown }
+      heal_auth_transaction_amounts: { Args: never; Returns: number }
       import_application_availability: {
         Args: { worker_uuid: string }
         Returns: string
