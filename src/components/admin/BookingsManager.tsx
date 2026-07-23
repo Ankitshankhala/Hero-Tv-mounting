@@ -110,25 +110,30 @@ export const BookingsManager = () => {
     setFilteredBookings(filtered);
   }, [bookings, filterStatus, filterRegion, archiveFilter, searchTerm, includeArchived]);
 
+  const refetchCurrentView = (bypassCache = true) =>
+    fetchBookings({
+      view: archiveFilter as any,
+      includeArchived,
+      bypassCache,
+    });
+
   const handleBookingCreated = () => {
     console.log('Booking created, refreshing list');
-    fetchBookings(true); // Bypass cache to get fresh data
-    
-    // Also refresh after a short delay to ensure database consistency
+    refetchCurrentView(true);
     setTimeout(() => {
       console.log('Secondary refresh after booking creation');
-      fetchBookings(true);
+      refetchCurrentView(true);
     }, 1000);
   };
 
   const handleRefresh = () => {
     console.log('Manual refresh triggered');
-    fetchBookings(true); // Bypass cache for manual refresh
+    refetchCurrentView(true);
   };
 
   const handleBookingUpdated = () => {
     console.log('Booking updated from BookingTable, refreshing list');
-    fetchBookings();
+    refetchCurrentView(false);
   };
 
   const handleEditBooking = (booking: any) => {
