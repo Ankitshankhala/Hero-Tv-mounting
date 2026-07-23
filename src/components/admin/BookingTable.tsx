@@ -49,7 +49,28 @@ interface Booking {
   services?: any[];
   booking_services?: any[];
   is_archived?: boolean;
+  guest_customer_info?: any;
+  location_notes?: string;
 }
+
+const formatLocation = (booking: Booking): string => {
+  const info = booking.guest_customer_info || {};
+  const city = info.city || info.customerCity;
+  const zip = info.zipcode || info.zipCode || info.zip || info.postalCode;
+  if (city && zip) return `${city} · ${zip}`;
+  if (city) return city;
+  // Try parsing from location_notes
+  if (booking.location_notes) {
+    const parts = booking.location_notes.split(',').map((p) => p.trim()).filter(Boolean);
+    const zipMatch = booking.location_notes.match(/\b\d{5}(?:-\d{4})?\b/);
+    const short = parts.length > 0 ? parts[parts.length - 1] : booking.location_notes;
+    if (zipMatch && short && !short.includes(zipMatch[0])) return `${short} · ${zipMatch[0]}`;
+    return short || '—';
+  }
+  if (zip) return String(zip);
+  return '—';
+}
+
 
 const getStatusVariant = (status: string) => {
   switch (status) {
