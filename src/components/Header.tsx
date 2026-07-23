@@ -49,9 +49,6 @@ export const Header = () => {
         </div>
 
         <div className="text-center max-w-3xl mx-auto space-y-3 md:space-y-5">
-          <p className="hidden md:block text-slate-300 text-base md:text-lg">
-            Same-day availability. Licensed &amp; insured technicians. Clean cable concealment and rock-solid installs.
-          </p>
 
           <div className="pt-1">
             <a href="tel:+17372729971" className="text-2xl md:text-3xl text-white hover:text-blue-300 transition-colors duration-200 font-semibold">
