@@ -99,11 +99,10 @@ export const BookingsManager = () => {
         (booking.payment_status === 'authorized' || booking.status === 'payment_authorized')
       );
       filtered = filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    } else if (archiveFilter === 'archived') {
-      filtered = filtered.filter(booking => booking.is_archived);
-    }
+    // Server-side already filtered by is_archived + payment_status per tab.
+    // Only apply lightweight client-side refinements below.
 
-    
+
     if (filterStatus !== 'all') {
       filtered = filtered.filter(booking => booking.status === filterStatus);
     }
@@ -111,10 +110,10 @@ export const BookingsManager = () => {
       filtered = filtered.filter(booking => booking.customer?.region?.toLowerCase() === filterRegion.toLowerCase());
     }
     if (searchTerm) {
-      filtered = filtered.filter(booking => 
-        booking.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        booking.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        booking.services?.some(service => service.name?.toLowerCase().includes(searchTerm.toLowerCase())) || 
+      filtered = filtered.filter(booking =>
+        booking.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        booking.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        booking.services?.some(service => service.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
         booking.worker?.name?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
