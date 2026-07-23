@@ -30,8 +30,6 @@ export const BookingFilters = ({
         <TabsList className="h-auto w-full justify-start overflow-x-auto overflow-y-hidden whitespace-nowrap p-1">
           <TabsTrigger value="active" className="shrink-0 whitespace-nowrap">All Bookings</TabsTrigger>
           <TabsTrigger value="new_bookings" className="shrink-0 whitespace-nowrap">New Bookings</TabsTrigger>
-          <TabsTrigger value="pending_payments" className="shrink-0 whitespace-nowrap">Pending Payments</TabsTrigger>
-          <TabsTrigger value="authorized_unassigned" className="shrink-0 whitespace-nowrap">Authorized — Unassigned</TabsTrigger>
           <TabsTrigger value="archived" className="shrink-0 whitespace-nowrap">Archived</TabsTrigger>
         </TabsList>
       </Tabs>
