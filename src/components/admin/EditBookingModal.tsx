@@ -61,7 +61,6 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
         status: validateBookingStatus(booking.status || 'pending'),
         scheduled_date: booking.scheduled_date || '',
         scheduled_start: booking.scheduled_start || '',
-        service_id: booking.service_id || booking.service?.id || '',
         location_notes: booking.location_notes || '',
         customer_name: booking.guest_customer_info?.name || booking.customer?.name || '',
         customer_email: booking.guest_customer_info?.email || booking.customer?.email || '',
@@ -69,7 +68,6 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
       });
       setIsChangingWorker(false);
       setNewWorkerId('');
-      setReassignReason('');
       setReassignError(null);
     }
   }, [booking, isOpen]);
