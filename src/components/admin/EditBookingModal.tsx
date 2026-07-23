@@ -491,16 +491,6 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
                       Availability is validated against the scheduled date and time above.
                     </p>
                   </div>
-                  <div>
-                    <Label htmlFor="reassign_reason">Reason (optional)</Label>
-                    <Textarea
-                      id="reassign_reason"
-                      rows={2}
-                      value={reassignReason}
-                      onChange={(e) => setReassignReason(e.target.value)}
-                      placeholder="e.g. Original worker unavailable"
-                    />
-                  </div>
                   {reassignError && (
                     <p className="text-sm text-destructive">{reassignError}</p>
                   )}
