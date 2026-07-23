@@ -230,7 +230,15 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
         service_tz: booking.service_tz || DEFAULT_SERVICE_TIMEZONE
       }));
 
-      setBookings(minimalBookings);
+      if (append) {
+        setBookings(prev => {
+          const existingIds = new Set(prev.map(b => b.id));
+          const additions = minimalBookings.filter(b => !existingIds.has(b.id));
+          return [...prev, ...additions];
+        });
+      } else {
+        setBookings(minimalBookings);
+      }
       setLoading(false); // Table appears immediately
 
       // PHASE 2: Parallel enrichment without blocking UI
