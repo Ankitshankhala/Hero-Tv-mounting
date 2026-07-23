@@ -49,13 +49,27 @@ export const BookingsManager = () => {
   const { user } = useAuth();
 
   // Use our enhanced booking manager hook
-  const { 
-    bookings, 
-    loading, 
+  const {
+    bookings,
+    loading,
     enriching,
-    handleBookingUpdate, 
-    fetchBookings 
+    hasMore,
+    handleBookingUpdate,
+    fetchBookings,
+    loadMoreArchived,
   } = useBookingManager();
+
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  // Re-fetch when tab or includeArchived changes
+  useEffect(() => {
+    fetchBookings({
+      view: archiveFilter as any,
+      includeArchived,
+      bypassCache: true,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [archiveFilter, includeArchived]);
 
   // Set up real-time subscriptions for admin with enhanced callback
   const handleRealtimeUpdate = React.useCallback((updatedBooking: any) => {
