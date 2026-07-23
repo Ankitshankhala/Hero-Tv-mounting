@@ -374,6 +374,11 @@ export const BookingTable = ({
                           </div>
                         )}
                      </TableCell>
+                    <TableCell className="max-w-[160px]">
+                      <div className="text-sm truncate" title={formatLocation(booking)}>
+                        {formatLocation(booking)}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <div className="space-y-1">
                         <div className="font-medium">{formattedDateTime}</div>
@@ -383,12 +388,23 @@ export const BookingTable = ({
                       </div>
                     </TableCell>
                      <TableCell>
-                       <div className="font-medium">
-                         ${Number(booking.stripe_authorized_amount || booking.total_price || 0).toFixed(2)}
-                         {enriching && !booking.stripe_authorized_amount && (
-                           <div className="text-xs text-muted-foreground">Updating...</div>
-                         )}
-                       </div>
+                       {(() => {
+                         const paid = booking.payment_status === 'captured' || booking.payment_status === 'completed';
+                         const amount = Number(booking.stripe_authorized_amount || booking.total_price || 0).toFixed(2);
+                         return (
+                           <div className="space-y-1">
+                             <div className={`font-medium ${paid ? 'text-[hsl(var(--action-success))]' : ''}`}>
+                               ${amount}
+                             </div>
+                             <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 uppercase tracking-wide">
+                               {paid ? 'paid' : 'auth'}
+                             </Badge>
+                             {enriching && !booking.stripe_authorized_amount && (
+                               <div className="text-xs text-muted-foreground">Updating...</div>
+                             )}
+                           </div>
+                         );
+                       })()}
                      </TableCell>
                     <TableCell>
                       <Badge variant={getStatusVariant(booking.status)}>
@@ -396,17 +412,11 @@ export const BookingTable = ({
                       </Badge>
                     </TableCell>
                      <TableCell>
-                      <div className="space-y-1">
-                        <Badge variant={getPaymentStatusVariant(booking.payment_status || booking.stripe_payment_status)}>
-                          {booking.payment_status || booking.stripe_payment_status || 'unknown'}
-                        </Badge>
-                        {booking.payment_intent_id && (
-                          <div className="text-xs text-muted-foreground font-mono">
-                            {booking.payment_intent_id?.slice(-8)}
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
+                       <Badge variant={getPaymentStatusVariant(booking.payment_status || booking.stripe_payment_status)}>
+                         {booking.payment_status || booking.stripe_payment_status || 'unknown'}
+                       </Badge>
+                     </TableCell>
+
                      <TableCell className="sticky right-0 z-10 bg-card min-w-[160px] border-l shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)]">
                        <div className="flex gap-1.5 justify-end items-center flex-nowrap">
                          {showPendingPaymentActions ? (
