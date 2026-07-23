@@ -417,7 +417,25 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
       });
 
       console.log('Phase 2 complete - fully enriched bookings:', enrichedBookings.length);
-      setBookings(enrichedBookings);
+      if (append) {
+        setBookings(prev => {
+          const byId = new Map(prev.map(b => [b.id, b]));
+          for (const b of enrichedBookings) byId.set(b.id, b);
+          // Preserve original order: existing first, new appended
+          const seen = new Set<string>();
+          const ordered: any[] = [];
+          for (const b of prev) {
+            const merged = byId.get(b.id);
+            if (merged && !seen.has(b.id)) { ordered.push(merged); seen.add(b.id); }
+          }
+          for (const b of enrichedBookings) {
+            if (!seen.has(b.id)) { ordered.push(b); seen.add(b.id); }
+          }
+          return ordered;
+        });
+      } else {
+        setBookings(enrichedBookings);
+      }
       setEnriching(false);
       
     } catch (error) {
