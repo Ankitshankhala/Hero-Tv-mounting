@@ -257,11 +257,13 @@ export const BookingTable = ({
                 <TableHead>Customer</TableHead>
                 <TableHead>Services</TableHead>
                 <TableHead>Worker</TableHead>
+                <TableHead>Location</TableHead>
                 <TableHead>Date & Time</TableHead>
                 <TableHead>Amount</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Payment</TableHead>
                 <TableHead className="sticky right-0 z-10 bg-muted min-w-[160px] text-right border-l shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)]">Actions</TableHead>
+
               </TableRow>
             </TableHeader>
 
