@@ -49,24 +49,9 @@ export const Header = () => {
         </div>
 
         <div className="text-center max-w-3xl mx-auto space-y-3 md:space-y-5">
-          <p className="text-lg md:text-2xl text-white font-semibold">
-            Professional TV mounting in Austin, TX
-          </p>
           <p className="hidden md:block text-slate-300 text-base md:text-lg">
             Same-day availability. Licensed &amp; insured technicians. Clean cable concealment and rock-solid installs.
           </p>
-
-          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm md:text-base text-slate-200">
-            <span className="inline-flex items-center gap-1">
-              <span className="text-yellow-400">★</span>
-              <span className="font-semibold">5.0</span>
-              <span className="text-slate-400">rating</span>
-            </span>
-            <span className="text-slate-600">·</span>
-            <span>Licensed &amp; insured</span>
-            <span className="text-slate-600">·</span>
-            <span>1,500+ jobs completed</span>
-          </div>
 
           <div className="pt-1">
             <a href="tel:+17372729971" className="text-2xl md:text-3xl text-white hover:text-blue-300 transition-colors duration-200 font-semibold">
