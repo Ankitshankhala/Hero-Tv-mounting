@@ -184,7 +184,6 @@ export const EditBookingModal = ({ booking, isOpen, onClose, onBookingUpdated }:
         status: formData.status,
         scheduled_date: formData.scheduled_date,
         scheduled_start: formData.scheduled_start,
-        service_id: formData.service_id,
         location_notes: formData.location_notes,
         guest_customer_info: updatedGuestInfo,
       };
