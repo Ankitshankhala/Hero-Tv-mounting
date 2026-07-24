@@ -41,6 +41,7 @@ export interface TvConfiguration {
   frameMount: boolean;
   wallType: string;
   soundbar: boolean;
+  wireHiding?: boolean;
 }
 
 export class PricingEngine {
