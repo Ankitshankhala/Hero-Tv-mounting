@@ -149,6 +149,13 @@ export const TvMountingModal = ({ open, onClose, onAddToCart, services }: TvMoun
                           title: 'Mount Soundbar',
                           desc: 'Additional soundbar mounting (+$40)',
                         },
+                        {
+                          key: 'wireHiding',
+                          checked: (config as any).wireHiding,
+                          onChange: (v: boolean) => updateTvConfiguration(config.id, { wireHiding: v } as any),
+                          title: 'Wire Hiding',
+                          desc: 'Conceal wires for a clean look (+$60)',
+                        },
                       ].map((opt) => (
                         <label
                           key={opt.key}
