@@ -16,7 +16,7 @@ const mountTv: PricingConfig = {
   base_price: 90,
 };
 
-const prices: ResolvedAddOnPrices = { over65: 25, frameMount: 40, soundbar: 40, specialWall: 40 };
+const prices: ResolvedAddOnPrices = { over65: 25, frameMount: 40, soundbar: 40, specialWall: 40, wireHiding: 60 };
 
 describe('pricing contract (frozen)', () => {
   it('tierPriceForNth matches live Mount TV schedule for nth 1..6', () => {
