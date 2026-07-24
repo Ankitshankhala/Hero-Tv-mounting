@@ -6,6 +6,7 @@ export const SERVICE_IDS = {
   frameMount:  '1b47852d-4cbf-439a-89dc-41bac8bcc20e',
   soundbar:    '41ec18d4-516b-4af6-9b05-e38b534923dd',
   specialWall: 'b86fda8c-a667-4dee-b180-3c83d6329c3f',
+  wireHiding:  'f27ea077-df02-406f-a68e-6d2d67c7ce5b',
 } as const;
 
 export type ServiceKey = keyof typeof SERVICE_IDS;

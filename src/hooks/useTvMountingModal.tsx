@@ -13,6 +13,7 @@ interface TvConfiguration {
   frameMount: boolean;
   wallType: string;
   soundbar: boolean;
+  wireHiding: boolean;
 }
 
 // Union type that works with all service sources
@@ -25,7 +26,7 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
   
   const [numberOfTvs, setNumberOfTvs] = useState(1);
   const [tvConfigurations, setTvConfigurations] = useState<TvConfiguration[]>([
-    { id: '1', over65: false, frameMount: false, wallType: 'standard', soundbar: false }
+    { id: '1', over65: false, frameMount: false, wallType: 'standard', soundbar: false, wireHiding: false }
   ]);
 
   // Merge services: cached > passed props > fallback (priority order)
@@ -40,6 +41,7 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
   const over65Service: ServiceType = effectiveServices.find(s => s.id === SERVICE_IDS.over65) || TV_MOUNTING_FALLBACK_SERVICES.over65;
   const frameMountService: ServiceType = effectiveServices.find(s => s.id === SERVICE_IDS.frameMount) || TV_MOUNTING_FALLBACK_SERVICES.frameMount;
   const stoneWallService: ServiceType = effectiveServices.find(s => s.id === SERVICE_IDS.specialWall) || TV_MOUNTING_FALLBACK_SERVICES.specialWall;
+  const wireHidingService: ServiceType = effectiveServices.find(s => s.id === SERVICE_IDS.wireHiding) || TV_MOUNTING_FALLBACK_SERVICES.wireHiding;
 
   // True when ANY of the resolved services is the hardcoded fallback (DB unreachable)
   const usingFallback = [tvMountingService, over65Service, frameMountService, stoneWallService]
@@ -86,7 +88,8 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
         over65: false,
         frameMount: false,
         wallType: 'standard',
-        soundbar: false
+        soundbar: false,
+        wireHiding: false
       });
     }
     
@@ -110,7 +113,7 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
     if (isTestingMode) {
       // In test mode, calculate total based on number of selected configurations
       const selectedConfigs = tvConfigurations.filter(config => 
-        config.over65 || config.frameMount || config.wallType !== 'standard' || config.soundbar
+        config.over65 || config.frameMount || config.wallType !== 'standard' || config.soundbar || config.wireHiding
       );
       const totalItems = 1 + selectedConfigs.length; // Base service + addons
       console.log(`TV Mounting - Testing mode active, ${totalItems} items, returning $${totalItems} total`);
@@ -127,12 +130,13 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
         over65: over65Service,
         frameMount: frameMountService,
         soundbar: soundbarService,
-        specialWall: stoneWallService
+        specialWall: stoneWallService,
+        wireHiding: wireHidingService
       }
     );
 
     return breakdown.total;
-  }, [numberOfTvs, tvConfigurations, tvMountingService, over65Service, frameMountService, stoneWallService, effectiveServices, isTestingMode]);
+  }, [numberOfTvs, tvConfigurations, tvMountingService, over65Service, frameMountService, stoneWallService, wireHidingService, effectiveServices, isTestingMode]);
 
   const buildServicesList = () => {
     const selectedServices = [];
@@ -225,6 +229,22 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
       }
     }
 
+    const wireHidingCount = tvConfigurations.filter(config => config.wireHiding).length;
+    if (wireHidingCount > 0) {
+      if (wireHidingService?.id) {
+        const price = isTestingMode ? (serviceIndex + 1) : ((wireHidingService.base_price || 60) * wireHidingCount);
+        selectedServices.push({
+          id: wireHidingService.id,
+          name: `Wire Hiding${wireHidingCount > 1 ? ` (${wireHidingCount} TVs)` : ''}`,
+          price: price,
+          quantity: 1
+        });
+        serviceIndex++;
+      } else {
+        console.warn('Wire Hiding service not found in database, skipping');
+      }
+    }
+
     return selectedServices;
   };
 
@@ -236,11 +256,13 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
     const frameMountCount = tvConfigurations.filter(config => config.frameMount).length;
     const specialWallCount = tvConfigurations.filter(config => config.wallType !== 'standard').length;
     const soundbarCount = tvConfigurations.filter(config => config.soundbar).length;
+    const wireHidingCount = tvConfigurations.filter(config => config.wireHiding).length;
     
     if (over65Count > 0) addOns.push(`Over 65" TV (${over65Count})`);
     if (frameMountCount > 0) addOns.push(`Frame Mount (${frameMountCount})`);
     if (specialWallCount > 0) addOns.push(`Special Wall (${specialWallCount})`);
     if (soundbarCount > 0) addOns.push(`Soundbar Mount (${soundbarCount})`);
+    if (wireHidingCount > 0) addOns.push(`Wire Hiding (${wireHidingCount})`);
     
     if (addOns.length > 0) {
       name += ` + ${addOns.join(' + ')}`;

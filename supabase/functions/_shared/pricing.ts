@@ -29,8 +29,8 @@ export function getServiceLineTotal(config: PricingConfig, existingQty: number, 
 // Canonical special-wall set — matches the customer WallTypeSelector options.
 export const SPECIAL_WALL_TYPES = ['steel', 'brick', 'concrete'] as const;
 
-export interface ResolvedAddOnPrices { over65: number; frameMount: number; soundbar: number; specialWall: number }
-export interface TvConfig { over65?: boolean; frameMount?: boolean; soundbar?: boolean; wallType?: string }
+export interface ResolvedAddOnPrices { over65: number; frameMount: number; soundbar: number; specialWall: number; wireHiding: number }
+export interface TvConfig { over65?: boolean; frameMount?: boolean; soundbar?: boolean; wallType?: string; wireHiding?: boolean }
 
 // Given already-resolved add-on prices, sum the surcharges for one TV config.
 export function tvAddOnTotal(cfg: TvConfig, prices: ResolvedAddOnPrices): number {
@@ -39,5 +39,6 @@ export function tvAddOnTotal(cfg: TvConfig, prices: ResolvedAddOnPrices): number
   if (cfg.frameMount) t += prices.frameMount;
   if (cfg.soundbar) t += prices.soundbar;
   if (cfg.wallType && (SPECIAL_WALL_TYPES as readonly string[]).includes(cfg.wallType)) t += prices.specialWall;
+  if (cfg.wireHiding) t += prices.wireHiding;
   return t;
 }

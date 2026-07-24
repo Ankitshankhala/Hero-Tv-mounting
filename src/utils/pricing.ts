@@ -36,6 +36,7 @@ export function resolveAddOnPrices(services: PriceableService[] = []) {
     frameMount:  get('frameMount',  SERVICE_IDS.frameMount),
     soundbar:    get('soundbar',    SERVICE_IDS.soundbar),
     specialWall: get('specialWall', SERVICE_IDS.specialWall),
+    wireHiding:  get('wireHiding',  SERVICE_IDS.wireHiding),
   };
 }
 
@@ -61,6 +62,7 @@ export function calculateServiceLinePrice(
       price += addOns.specialWall;
     }
     if (config.soundbar)    price += addOns.soundbar;
+    if (config.wireHiding)  price += addOns.wireHiding;
   }
 
   return price;

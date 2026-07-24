@@ -41,6 +41,7 @@ export interface TvConfiguration {
   frameMount: boolean;
   wallType: string;
   soundbar: boolean;
+  wireHiding?: boolean;
 }
 
 export class PricingEngine {
@@ -116,6 +117,7 @@ export class PricingEngine {
       frameMount?: ServiceLike;
       soundbar?: ServiceLike;
       specialWall?: ServiceLike;
+      wireHiding?: ServiceLike;
     }
   ): PriceBreakdown {
     const addOns: Array<{ name: string; price: number; quantity: number }> = [];
@@ -189,6 +191,21 @@ export class PricingEngine {
           });
         }
       }
+
+      if (config.wireHiding) {
+        const { price } = this.getAddOnPrice(
+          tvMountingService,
+          'wireHiding',
+          addOnServices.wireHiding
+        );
+        if (price > 0) {
+          addOns.push({
+            name: `Wire Hiding (TV ${tvNumber})`,
+            price,
+            quantity: 1
+          });
+        }
+      }
     });
 
     const addOnsTotal = addOns.reduce((sum, addOn) => sum + addOn.price * addOn.quantity, 0);
@@ -251,7 +268,8 @@ export class PricingEngine {
       { key: 'over65', serviceName: 'Over 65" TV Add-on' },
       { key: 'frameMount', serviceName: 'Frame Mount Add-on' },
       { key: 'soundbar', serviceName: 'Mount Soundbar' },
-      { key: 'specialWall', serviceName: 'Brick/Steel/Concrete' }
+      { key: 'specialWall', serviceName: 'Brick/Steel/Concrete' },
+      { key: 'wireHiding', serviceName: 'Wire Hiding' }
     ];
 
     for (const { key, serviceName } of addOnsToCheck) {

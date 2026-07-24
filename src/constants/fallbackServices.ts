@@ -43,7 +43,8 @@ export const TV_MOUNTING_FALLBACK_SERVICES: Record<string, FallbackService> = {
         over65: 25,
         frameMount: 40,
         soundbar: 40,
-        specialWall: 40
+        specialWall: 40,
+        wireHiding: 60
       }
     },
     sort_order: 0,
@@ -97,6 +98,20 @@ export const TV_MOUNTING_FALLBACK_SERVICES: Record<string, FallbackService> = {
     _isFallback: true,
     name: 'Brick/Steel/Concrete',
     base_price: 40,
+    description: null,
+    duration_minutes: null,
+    is_active: true,
+    is_visible: false,
+    pricing_config: null,
+    sort_order: 0,
+    image_url: null,
+    created_at: null
+  },
+  wireHiding: {
+    id: 'f27ea077-df02-406f-a68e-6d2d67c7ce5b',
+    _isFallback: true,
+    name: 'Wire Hiding',
+    base_price: 60,
     description: null,
     duration_minutes: null,
     is_active: true,
