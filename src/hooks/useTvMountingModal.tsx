@@ -26,7 +26,7 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
   
   const [numberOfTvs, setNumberOfTvs] = useState(1);
   const [tvConfigurations, setTvConfigurations] = useState<TvConfiguration[]>([
-    { id: '1', over65: false, frameMount: false, wallType: 'standard', soundbar: false }
+    { id: '1', over65: false, frameMount: false, wallType: 'standard', soundbar: false, wireHiding: false }
   ]);
 
   // Merge services: cached > passed props > fallback (priority order)
