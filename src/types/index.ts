@@ -5,6 +5,7 @@ interface TvConfiguration {
   frameMount: boolean;
   wallType: string;
   soundbar: boolean;
+  wireHiding?: boolean;
 }
 
 export interface CartItem {
@@ -18,6 +19,7 @@ export interface CartItem {
     numberOfTvs?: number;
     wallType?: string;
     soundbar?: boolean;
+    wireHiding?: boolean;
     tvConfigurations?: TvConfiguration[];
     services?: Array<{
       id: string;
