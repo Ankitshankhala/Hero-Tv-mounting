@@ -43,7 +43,8 @@ export const TV_MOUNTING_FALLBACK_SERVICES: Record<string, FallbackService> = {
         over65: 25,
         frameMount: 40,
         soundbar: 40,
-        specialWall: 40
+        specialWall: 40,
+        wireHiding: 60
       }
     },
     sort_order: 0,
