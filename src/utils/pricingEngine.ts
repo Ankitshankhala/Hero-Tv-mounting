@@ -191,6 +191,21 @@ export class PricingEngine {
           });
         }
       }
+
+      if (config.wireHiding) {
+        const { price } = this.getAddOnPrice(
+          tvMountingService,
+          'wireHiding',
+          addOnServices.wireHiding
+        );
+        if (price > 0) {
+          addOns.push({
+            name: `Wire Hiding (TV ${tvNumber})`,
+            price,
+            quantity: 1
+          });
+        }
+      }
     });
 
     const addOnsTotal = addOns.reduce((sum, addOn) => sum + addOn.price * addOn.quantity, 0);
