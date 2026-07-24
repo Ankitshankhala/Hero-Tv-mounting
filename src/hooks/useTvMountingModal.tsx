@@ -87,7 +87,8 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
         over65: false,
         frameMount: false,
         wallType: 'standard',
-        soundbar: false
+        soundbar: false,
+        wireHiding: false
       });
     }
     
