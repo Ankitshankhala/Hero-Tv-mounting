@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,11 +7,12 @@ import { ServiceCard } from '@/components/ServiceCard';
 import { TvMountingModal } from '@/components/TvMountingModal';
 import { ReauthorizePaymentDialog } from './payment/ReauthorizePaymentDialog';
 import { CartItem } from '@/types';
-import { usePublicServicesData } from '@/hooks/usePublicServicesData';
+import { usePublicServicesData, PublicService } from '@/hooks/usePublicServicesData';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useTestingMode } from '@/contexts/TestingModeContext';
 import { getEffectiveServicePrice, getServiceLineTotal } from '@/lib/pricing/getEffectiveServicePrice';
+import { SERVICE_IDS } from '@/constants/serviceIds';
 import { ShoppingCart, Plus, X } from 'lucide-react';
 
 interface AddServicesModalProps {
