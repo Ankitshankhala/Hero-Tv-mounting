@@ -50,9 +50,32 @@ export const AddServicesModal = ({ isOpen, onClose, job, onServicesAdded }: AddS
     old_payment_intent: string;
     new_payment_intent: string;
   } | null>(null);
-  const { services, loading } = usePublicServicesData();
+  const { services: publicServices, loading } = usePublicServicesData();
+  const [extraServices, setExtraServices] = useState<PublicService[]>([]);
   const { toast } = useToast();
   const { isTestingMode } = useTestingMode();
+
+  // Fetch worker-selectable but hidden services (e.g. Wire Hiding is is_visible=false).
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('services')
+        .select('id, name, description, base_price, duration_minutes, image_url, sort_order, pricing_config')
+        .in('id', [SERVICE_IDS.wireHiding])
+        .eq('is_active', true);
+      if (!cancelled && data) setExtraServices(data as PublicService[]);
+    })();
+    return () => { cancelled = true; };
+  }, [isOpen]);
+
+  const services = useMemo(() => {
+    const map = new Map<string, PublicService>();
+    for (const s of publicServices) map.set(s.id, s);
+    for (const s of extraServices) if (!map.has(s.id)) map.set(s.id, s);
+    return Array.from(map.values()).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  }, [publicServices, extraServices]);
 
   // Existing qty for a service already on the booking (drives tier offset).
   const getExistingBookingQty = (serviceId: string): number => {
