@@ -106,6 +106,20 @@ export const TV_MOUNTING_FALLBACK_SERVICES: Record<string, FallbackService> = {
     sort_order: 0,
     image_url: null,
     created_at: null
+  },
+  wireHiding: {
+    id: 'f27ea077-df02-406f-a68e-6d2d67c7ce5b',
+    _isFallback: true,
+    name: 'Wire Hiding',
+    base_price: 60,
+    description: null,
+    duration_minutes: null,
+    is_active: true,
+    is_visible: false,
+    pricing_config: null,
+    sort_order: 0,
+    image_url: null,
+    created_at: null
   }
 };
 
