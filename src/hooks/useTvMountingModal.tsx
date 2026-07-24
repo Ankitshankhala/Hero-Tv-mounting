@@ -229,6 +229,22 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
       }
     }
 
+    const wireHidingCount = tvConfigurations.filter(config => config.wireHiding).length;
+    if (wireHidingCount > 0) {
+      if (wireHidingService?.id) {
+        const price = isTestingMode ? (serviceIndex + 1) : ((wireHidingService.base_price || 60) * wireHidingCount);
+        selectedServices.push({
+          id: wireHidingService.id,
+          name: `Wire Hiding${wireHidingCount > 1 ? ` (${wireHidingCount} TVs)` : ''}`,
+          price: price,
+          quantity: 1
+        });
+        serviceIndex++;
+      } else {
+        console.warn('Wire Hiding service not found in database, skipping');
+      }
+    }
+
     return selectedServices;
   };
 
@@ -240,11 +256,13 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
     const frameMountCount = tvConfigurations.filter(config => config.frameMount).length;
     const specialWallCount = tvConfigurations.filter(config => config.wallType !== 'standard').length;
     const soundbarCount = tvConfigurations.filter(config => config.soundbar).length;
+    const wireHidingCount = tvConfigurations.filter(config => config.wireHiding).length;
     
     if (over65Count > 0) addOns.push(`Over 65" TV (${over65Count})`);
     if (frameMountCount > 0) addOns.push(`Frame Mount (${frameMountCount})`);
     if (specialWallCount > 0) addOns.push(`Special Wall (${specialWallCount})`);
     if (soundbarCount > 0) addOns.push(`Soundbar Mount (${soundbarCount})`);
+    if (wireHidingCount > 0) addOns.push(`Wire Hiding (${wireHidingCount})`);
     
     if (addOns.length > 0) {
       name += ` + ${addOns.join(' + ')}`;
