@@ -268,7 +268,8 @@ export class PricingEngine {
       { key: 'over65', serviceName: 'Over 65" TV Add-on' },
       { key: 'frameMount', serviceName: 'Frame Mount Add-on' },
       { key: 'soundbar', serviceName: 'Mount Soundbar' },
-      { key: 'specialWall', serviceName: 'Brick/Steel/Concrete' }
+      { key: 'specialWall', serviceName: 'Brick/Steel/Concrete' },
+      { key: 'wireHiding', serviceName: 'Wire Hiding' }
     ];
 
     for (const { key, serviceName } of addOnsToCheck) {
