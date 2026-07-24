@@ -132,7 +132,7 @@ export const TvMountingModal = ({ open, onClose, onAddToCart, services }: TvMoun
                           checked: config.frameMount,
                           onChange: (v: boolean) => updateTvConfiguration(config.id, { frameMount: v }),
                           title: 'Frame Mount Add-on',
-                          desc: `Specialized frame mounting (+$${frameMountService?.base_price || 25})`,
+                          desc: `Specialized frame mounting (+$${frameMountService?.base_price || 40})`,
                         },
                         {
                           key: 'wallType',
