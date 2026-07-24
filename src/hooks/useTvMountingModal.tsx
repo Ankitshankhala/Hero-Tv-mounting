@@ -113,7 +113,7 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
     if (isTestingMode) {
       // In test mode, calculate total based on number of selected configurations
       const selectedConfigs = tvConfigurations.filter(config => 
-        config.over65 || config.frameMount || config.wallType !== 'standard' || config.soundbar
+        config.over65 || config.frameMount || config.wallType !== 'standard' || config.soundbar || config.wireHiding
       );
       const totalItems = 1 + selectedConfigs.length; // Base service + addons
       console.log(`TV Mounting - Testing mode active, ${totalItems} items, returning $${totalItems} total`);
@@ -130,12 +130,13 @@ export const useTvMountingModal = (publicServices: PublicService[]) => {
         over65: over65Service,
         frameMount: frameMountService,
         soundbar: soundbarService,
-        specialWall: stoneWallService
+        specialWall: stoneWallService,
+        wireHiding: wireHidingService
       }
     );
 
     return breakdown.total;
-  }, [numberOfTvs, tvConfigurations, tvMountingService, over65Service, frameMountService, stoneWallService, effectiveServices, isTestingMode]);
+  }, [numberOfTvs, tvConfigurations, tvMountingService, over65Service, frameMountService, stoneWallService, wireHidingService, effectiveServices, isTestingMode]);
 
   const buildServicesList = () => {
     const selectedServices = [];
