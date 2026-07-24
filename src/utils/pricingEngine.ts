@@ -117,6 +117,7 @@ export class PricingEngine {
       frameMount?: ServiceLike;
       soundbar?: ServiceLike;
       specialWall?: ServiceLike;
+      wireHiding?: ServiceLike;
     }
   ): PriceBreakdown {
     const addOns: Array<{ name: string; price: number; quantity: number }> = [];
