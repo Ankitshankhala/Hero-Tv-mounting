@@ -438,6 +438,13 @@ export const BookingTable = ({
                          {booking.payment_status || booking.stripe_payment_status || 'unknown'}
                        </Badge>
                      </TableCell>
+                     {showCapturedColumn && (
+                       <TableCell>
+                         <div className="text-sm whitespace-nowrap text-muted-foreground">
+                           {formatCapturedAt(booking.payment_captured_at)}
+                         </div>
+                       </TableCell>
+                     )}
 
                      <TableCell className="sticky right-0 z-10 bg-card min-w-[160px] border-l shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)]">
                        <div className="flex gap-1.5 justify-end items-center flex-nowrap">
