@@ -35,6 +35,7 @@ interface BookingData {
 }
 
 export type BookingsView = 'active' | 'new_bookings' | 'archived';
+export type ArchivedSort = 'captured_desc' | 'captured_asc' | 'created_desc';
 
 export interface FetchBookingsOptions {
   bypassCache?: boolean;
@@ -42,6 +43,7 @@ export interface FetchBookingsOptions {
   includeArchived?: boolean;
   append?: boolean;
   offset?: number;
+  archivedSort?: ArchivedSort;
 }
 
 const ARCHIVED_PAGE_SIZE = 100;
