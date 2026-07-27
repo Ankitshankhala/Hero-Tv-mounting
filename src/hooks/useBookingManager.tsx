@@ -17,6 +17,7 @@ interface BookingData {
   payment_intent_id?: string;
   is_archived?: boolean;
   archived_at?: string;
+  payment_captured_at?: string | null;
   location_notes?: string;
   created_at: string;
   customer?: any;
