@@ -72,6 +72,24 @@ const formatLocation = (booking: Booking): string => {
   return '—';
 }
 
+const CAPTURE_TZ = 'America/Chicago';
+const formatCapturedAt = (iso?: string | null): string => {
+  if (!iso) return '—';
+  try {
+    return new Intl.DateTimeFormat('en-US', {
+      timeZone: CAPTURE_TZ,
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    }).format(new Date(iso));
+  } catch {
+    return '—';
+  }
+}
+
 
 const getStatusVariant = (status: string) => {
   switch (status) {
