@@ -139,6 +139,15 @@ async function createBookingFromCart(
   tipAmount: number,
   serviceInserts: any[],
 ) {
+  let stripeCustomerId: string | null = null;
+  let stripePmId: string | null = cart.payment_method_id || null;
+  try {
+    const stripe = createStripeClient();
+    const pi: any = await stripe.paymentIntents.retrieve(paymentIntentId);
+    stripeCustomerId = (typeof pi.customer === 'string' ? pi.customer : pi.customer?.id) || null;
+    stripePmId = (typeof pi.payment_method === 'string' ? pi.payment_method : pi.payment_method?.id) || stripePmId;
+  } catch (e) { console.error('[create-authorized-booking] PI customer/PM retrieve failed:', e); }
+
   const { data: booking, error: bookErr } = await supabase
     .from('bookings')
     .insert({
@@ -160,6 +169,8 @@ async function createBookingFromCart(
       subtotal_before_discount: cart.subtotal_before_discount || null,
       payment_intent_id: paymentIntentId,
       authorized_amount: authorizedAmount,
+      stripe_customer_id: stripeCustomerId,
+      stripe_payment_method_id: stripePmId,
     })
     .select('id')
     .single();
