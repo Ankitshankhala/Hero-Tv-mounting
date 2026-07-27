@@ -612,6 +612,7 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
       append: true,
       offset: archivedOffset,
       bypassCache: true,
+      archivedSort: currentArchivedSort,
     });
   };
 
