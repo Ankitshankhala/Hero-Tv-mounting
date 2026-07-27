@@ -153,7 +153,8 @@ export const BookingTable = ({
   selectedBookingIds = [],
   onSelectBooking,
   onSelectAll,
-  showBulkActions = false
+  showBulkActions = false,
+  showCapturedColumn = false
 }: BookingTableProps) => {
   const [displayTimezone, setDisplayTimezone] = useState(DEFAULT_SERVICE_TIMEZONE);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
