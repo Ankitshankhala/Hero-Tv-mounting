@@ -218,7 +218,10 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
 
       const pageCount = bookingsData?.length || 0;
       setHasMore(isArchivedView && pageCount === pageSize);
-      if (isArchivedView) setArchivedOffset(from + pageCount);
+      if (isArchivedView) {
+        setArchivedOffset(from + pageCount);
+        setCurrentArchivedSort(archivedSort);
+      }
 
       if (!bookingsData || bookingsData.length === 0) {
         if (!append) setBookings([]);
