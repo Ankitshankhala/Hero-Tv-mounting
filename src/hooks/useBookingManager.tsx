@@ -139,18 +139,19 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
       includeArchived = false,
       append = false,
       offset = 0,
+      archivedSort = 'captured_desc',
     } = opts;
 
     try {
       if (!append) setLoading(true);
-      console.log('Fetching bookings', { view, includeArchived, append, offset });
+      console.log('Fetching bookings', { view, includeArchived, append, offset, archivedSort });
 
       const isArchivedView = view === 'archived';
       const pageSize = isArchivedView ? ARCHIVED_PAGE_SIZE : DEFAULT_LIMIT;
       const from = offset;
       const to = offset + pageSize - 1;
 
-      const cacheKey = `bookings-${view}-${includeArchived ? 'inc' : 'exc'}-${from}-${to}`;
+      const cacheKey = `bookings-${view}-${includeArchived ? 'inc' : 'exc'}-${from}-${to}-${isArchivedView ? archivedSort : 'default'}`;
 
       // PHASE 1: Fast-first paint - essential fields only, filtered server-side by archive state
       const { data: bookingsData, error: bookingsError } = await measureApiCall(
@@ -165,15 +166,25 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
                   id, customer_id, worker_id, service_id,
                   scheduled_date, scheduled_start, status,
                   start_time_utc, local_service_date, local_service_time, service_tz,
-                  payment_status, payment_intent_id, created_at,
+                  payment_status, payment_intent_id, created_at, payment_captured_at,
                   guest_customer_info, location_notes, is_archived, archived_at
                 `);
 
               if (isArchivedView) {
-                query = query
-                  .eq('is_archived', true)
-                  .order('archived_at', { ascending: false, nullsFirst: false })
-                  .order('created_at', { ascending: false });
+                query = query.eq('is_archived', true);
+                if (archivedSort === 'captured_desc') {
+                  query = query
+                    .order('payment_captured_at', { ascending: false, nullsFirst: false })
+                    .order('archived_at', { ascending: false, nullsFirst: false });
+                } else if (archivedSort === 'captured_asc') {
+                  query = query
+                    .order('payment_captured_at', { ascending: true, nullsFirst: false })
+                    .order('archived_at', { ascending: false, nullsFirst: false });
+                } else {
+                  query = query
+                    .order('created_at', { ascending: false })
+                    .order('archived_at', { ascending: false, nullsFirst: false });
+                }
               } else {
                 if (view === 'new_bookings') {
                   query = query.eq('payment_status', 'authorized');
