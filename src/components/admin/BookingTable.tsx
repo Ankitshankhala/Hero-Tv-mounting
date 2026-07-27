@@ -134,6 +134,7 @@ interface BookingTableProps {
   onSelectBooking?: (bookingId: string, checked: boolean) => void;
   onSelectAll?: (checked: boolean) => void;
   showBulkActions?: boolean;
+  showCapturedColumn?: boolean;
 }
 
 export const BookingTable = ({ 
