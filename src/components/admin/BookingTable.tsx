@@ -517,7 +517,7 @@ export const BookingTable = ({
                   {/* Expanded row for email status */}
                   {isExpanded && (
                     <TableRow className="border-b bg-muted/10">
-                      <TableCell colSpan={showBulkActions ? 10 : 9} className="p-4">
+                      <TableCell colSpan={(showBulkActions ? 10 : 9) + (showCapturedColumn ? 1 : 0)} className="p-4">
                         <BookingEmailStatus 
                           bookingId={booking.id} 
                           workerId={booking.worker_id || undefined}
