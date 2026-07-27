@@ -17,6 +17,7 @@ interface BookingData {
   payment_intent_id?: string;
   is_archived?: boolean;
   archived_at?: string;
+  payment_captured_at?: string | null;
   location_notes?: string;
   created_at: string;
   customer?: any;
@@ -35,6 +36,7 @@ interface BookingData {
 }
 
 export type BookingsView = 'active' | 'new_bookings' | 'archived';
+export type ArchivedSort = 'captured_desc' | 'captured_asc' | 'created_desc';
 
 export interface FetchBookingsOptions {
   bypassCache?: boolean;
@@ -42,6 +44,7 @@ export interface FetchBookingsOptions {
   includeArchived?: boolean;
   append?: boolean;
   offset?: number;
+  archivedSort?: ArchivedSort;
 }
 
 const ARCHIVED_PAGE_SIZE = 100;
@@ -53,6 +56,7 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
   const [enriching, setEnriching] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [archivedOffset, setArchivedOffset] = useState(0);
+  const [currentArchivedSort, setCurrentArchivedSort] = useState<ArchivedSort>('captured_desc');
   const { toast } = useToast();
 
   const enrichSingleBooking = async (booking: any): Promise<BookingData> => {
@@ -137,18 +141,19 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
       includeArchived = false,
       append = false,
       offset = 0,
+      archivedSort = 'captured_desc',
     } = opts;
 
     try {
       if (!append) setLoading(true);
-      console.log('Fetching bookings', { view, includeArchived, append, offset });
+      console.log('Fetching bookings', { view, includeArchived, append, offset, archivedSort });
 
       const isArchivedView = view === 'archived';
       const pageSize = isArchivedView ? ARCHIVED_PAGE_SIZE : DEFAULT_LIMIT;
       const from = offset;
       const to = offset + pageSize - 1;
 
-      const cacheKey = `bookings-${view}-${includeArchived ? 'inc' : 'exc'}-${from}-${to}`;
+      const cacheKey = `bookings-${view}-${includeArchived ? 'inc' : 'exc'}-${from}-${to}-${isArchivedView ? archivedSort : 'default'}`;
 
       // PHASE 1: Fast-first paint - essential fields only, filtered server-side by archive state
       const { data: bookingsData, error: bookingsError } = await measureApiCall(
@@ -163,15 +168,25 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
                   id, customer_id, worker_id, service_id,
                   scheduled_date, scheduled_start, status,
                   start_time_utc, local_service_date, local_service_time, service_tz,
-                  payment_status, payment_intent_id, created_at,
+                  payment_status, payment_intent_id, created_at, payment_captured_at,
                   guest_customer_info, location_notes, is_archived, archived_at
                 `);
 
               if (isArchivedView) {
-                query = query
-                  .eq('is_archived', true)
-                  .order('archived_at', { ascending: false, nullsFirst: false })
-                  .order('created_at', { ascending: false });
+                query = query.eq('is_archived', true);
+                if (archivedSort === 'captured_desc') {
+                  query = query
+                    .order('payment_captured_at', { ascending: false, nullsFirst: false })
+                    .order('archived_at', { ascending: false, nullsFirst: false });
+                } else if (archivedSort === 'captured_asc') {
+                  query = query
+                    .order('payment_captured_at', { ascending: true, nullsFirst: false })
+                    .order('archived_at', { ascending: false, nullsFirst: false });
+                } else {
+                  query = query
+                    .order('created_at', { ascending: false })
+                    .order('archived_at', { ascending: false, nullsFirst: false });
+                }
               } else {
                 if (view === 'new_bookings') {
                   query = query.eq('payment_status', 'authorized');
@@ -203,7 +218,10 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
 
       const pageCount = bookingsData?.length || 0;
       setHasMore(isArchivedView && pageCount === pageSize);
-      if (isArchivedView) setArchivedOffset(from + pageCount);
+      if (isArchivedView) {
+        setArchivedOffset(from + pageCount);
+        setCurrentArchivedSort(archivedSort);
+      }
 
       if (!bookingsData || bookingsData.length === 0) {
         if (!append) setBookings([]);
@@ -594,6 +612,7 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
       append: true,
       offset: archivedOffset,
       bypassCache: true,
+      archivedSort: currentArchivedSort,
     });
   };
 

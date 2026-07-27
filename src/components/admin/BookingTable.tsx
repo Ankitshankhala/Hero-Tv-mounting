@@ -51,6 +51,7 @@ interface Booking {
   is_archived?: boolean;
   guest_customer_info?: any;
   location_notes?: string;
+  payment_captured_at?: string | null;
 }
 
 const formatLocation = (booking: Booking): string => {
@@ -69,6 +70,24 @@ const formatLocation = (booking: Booking): string => {
   }
   if (zip) return String(zip);
   return '—';
+}
+
+const CAPTURE_TZ = 'America/Chicago';
+const formatCapturedAt = (iso?: string | null): string => {
+  if (!iso) return '—';
+  try {
+    return new Intl.DateTimeFormat('en-US', {
+      timeZone: CAPTURE_TZ,
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    }).format(new Date(iso));
+  } catch {
+    return '—';
+  }
 }
 
 
@@ -133,6 +152,7 @@ interface BookingTableProps {
   onSelectBooking?: (bookingId: string, checked: boolean) => void;
   onSelectAll?: (checked: boolean) => void;
   showBulkActions?: boolean;
+  showCapturedColumn?: boolean;
 }
 
 export const BookingTable = ({ 
@@ -151,7 +171,8 @@ export const BookingTable = ({
   selectedBookingIds = [],
   onSelectBooking,
   onSelectAll,
-  showBulkActions = false
+  showBulkActions = false,
+  showCapturedColumn = false
 }: BookingTableProps) => {
   const [displayTimezone, setDisplayTimezone] = useState(DEFAULT_SERVICE_TIMEZONE);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -262,6 +283,7 @@ export const BookingTable = ({
                 <TableHead>Amount</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Payment</TableHead>
+                {showCapturedColumn && <TableHead>Captured (CT)</TableHead>}
                 <TableHead className="sticky right-0 z-10 bg-muted min-w-[160px] text-right border-l shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)]">Actions</TableHead>
 
               </TableRow>
@@ -416,6 +438,13 @@ export const BookingTable = ({
                          {booking.payment_status || booking.stripe_payment_status || 'unknown'}
                        </Badge>
                      </TableCell>
+                     {showCapturedColumn && (
+                       <TableCell>
+                         <div className="text-sm whitespace-nowrap text-muted-foreground">
+                           {formatCapturedAt(booking.payment_captured_at)}
+                         </div>
+                       </TableCell>
+                     )}
 
                      <TableCell className="sticky right-0 z-10 bg-card min-w-[160px] border-l shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)]">
                        <div className="flex gap-1.5 justify-end items-center flex-nowrap">
@@ -488,7 +517,7 @@ export const BookingTable = ({
                   {/* Expanded row for email status */}
                   {isExpanded && (
                     <TableRow className="border-b bg-muted/10">
-                      <TableCell colSpan={showBulkActions ? 10 : 9} className="p-4">
+                      <TableCell colSpan={(showBulkActions ? 10 : 9) + (showCapturedColumn ? 1 : 0)} className="p-4">
                         <BookingEmailStatus 
                           bookingId={booking.id} 
                           workerId={booking.worker_id || undefined}

@@ -421,6 +421,7 @@ export type Database = {
           local_service_date: string | null
           local_service_time: string | null
           location_notes: string | null
+          payment_captured_at: string | null
           payment_intent_id: string | null
           payment_status: string | null
           payment_version: number
@@ -466,6 +467,7 @@ export type Database = {
           local_service_date?: string | null
           local_service_time?: string | null
           location_notes?: string | null
+          payment_captured_at?: string | null
           payment_intent_id?: string | null
           payment_status?: string | null
           payment_version?: number
@@ -511,6 +513,7 @@ export type Database = {
           local_service_date?: string | null
           local_service_time?: string | null
           location_notes?: string | null
+          payment_captured_at?: string | null
           payment_intent_id?: string | null
           payment_status?: string | null
           payment_version?: number

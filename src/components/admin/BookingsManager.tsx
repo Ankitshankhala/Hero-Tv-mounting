@@ -12,6 +12,7 @@ import { EditBookingModal } from './EditBookingModal';
 import { BookingDetailsModal } from './BookingDetailsModal';
 import { DeleteBookingModal } from './DeleteBookingModal';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RefreshCw, Archive, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
@@ -36,6 +37,7 @@ export const BookingsManager = () => {
   const [filterRegion, setFilterRegion] = useState('all');
   // Default to 'new_bookings' tab
   const [archiveFilter, setArchiveFilter] = useState('new_bookings');
+  const [archivedSort, setArchivedSort] = useState<'captured_desc' | 'captured_asc' | 'created_desc'>('captured_desc');
   const [searchTerm, setSearchTerm] = useState('');
   const [includeArchived, setIncludeArchived] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -61,15 +63,16 @@ export const BookingsManager = () => {
 
   const [loadingMore, setLoadingMore] = useState(false);
 
-  // Re-fetch when tab or includeArchived changes
+  // Re-fetch when tab, includeArchived, or archived sort changes
   useEffect(() => {
     fetchBookings({
       view: archiveFilter as any,
       includeArchived,
       bypassCache: true,
+      archivedSort,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [archiveFilter, includeArchived]);
+  }, [archiveFilter, includeArchived, archivedSort]);
 
   // Set up real-time subscriptions for admin with enhanced callback
   const handleRealtimeUpdate = React.useCallback((updatedBooking: any) => {
@@ -115,6 +118,7 @@ export const BookingsManager = () => {
       view: archiveFilter as any,
       includeArchived,
       bypassCache,
+      archivedSort,
     });
 
   const handleBookingCreated = () => {
@@ -274,6 +278,21 @@ export const BookingsManager = () => {
                 Include archived
               </label>
             )}
+            {archiveFilter === 'archived' && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Sort by:</span>
+                <Select value={archivedSort} onValueChange={(v) => setArchivedSort(v as any)}>
+                  <SelectTrigger className="h-9 w-[240px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="captured_desc">Capture date — newest first</SelectItem>
+                    <SelectItem value="captured_asc">Capture date — oldest first</SelectItem>
+                    <SelectItem value="created_desc">Created — newest first</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             {selectedBookingIds.length > 0 && (
               <Button variant="default" size="sm" onClick={handleBulkArchive}>
                 <Archive className="h-4 w-4 mr-2" />
@@ -320,7 +339,9 @@ export const BookingsManager = () => {
               onSelectBooking={handleSelectBooking}
               onSelectAll={handleSelectAll}
               showBulkActions={archiveFilter === 'new_bookings'}
+              showCapturedColumn={archiveFilter === 'archived'}
             />
+
 
             {archiveFilter === 'archived' && hasMore && (
               <div className="flex justify-center pt-4">
