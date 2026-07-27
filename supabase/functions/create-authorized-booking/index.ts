@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { getSupabaseClient } from '../_shared/supabaseClient.ts';
-import { corsHeaders, refreshStripeMode } from '../_shared/stripe.ts';
+import { corsHeaders, refreshStripeMode, createStripeClient } from '../_shared/stripe.ts';
 import { getServiceLineTotal } from '../_shared/pricing.ts';
 
 /**
