@@ -36,6 +36,7 @@ export const BookingsManager = () => {
   const [filterRegion, setFilterRegion] = useState('all');
   // Default to 'new_bookings' tab
   const [archiveFilter, setArchiveFilter] = useState('new_bookings');
+  const [archivedSort, setArchivedSort] = useState<'captured_desc' | 'captured_asc' | 'created_desc'>('captured_desc');
   const [searchTerm, setSearchTerm] = useState('');
   const [includeArchived, setIncludeArchived] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -61,15 +62,16 @@ export const BookingsManager = () => {
 
   const [loadingMore, setLoadingMore] = useState(false);
 
-  // Re-fetch when tab or includeArchived changes
+  // Re-fetch when tab, includeArchived, or archived sort changes
   useEffect(() => {
     fetchBookings({
       view: archiveFilter as any,
       includeArchived,
       bypassCache: true,
+      archivedSort,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [archiveFilter, includeArchived]);
+  }, [archiveFilter, includeArchived, archivedSort]);
 
   // Set up real-time subscriptions for admin with enhanced callback
   const handleRealtimeUpdate = React.useCallback((updatedBooking: any) => {
