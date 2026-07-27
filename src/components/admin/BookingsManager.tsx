@@ -339,7 +339,9 @@ export const BookingsManager = () => {
               onSelectBooking={handleSelectBooking}
               onSelectAll={handleSelectAll}
               showBulkActions={archiveFilter === 'new_bookings'}
+              showCapturedColumn={archiveFilter === 'archived'}
             />
+
 
             {archiveFilter === 'archived' && hasMore && (
               <div className="flex justify-center pt-4">
