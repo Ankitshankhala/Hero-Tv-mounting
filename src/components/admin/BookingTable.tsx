@@ -51,6 +51,7 @@ interface Booking {
   is_archived?: boolean;
   guest_customer_info?: any;
   location_notes?: string;
+  payment_captured_at?: string | null;
 }
 
 const formatLocation = (booking: Booking): string => {
