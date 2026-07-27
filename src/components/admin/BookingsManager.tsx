@@ -278,6 +278,21 @@ export const BookingsManager = () => {
                 Include archived
               </label>
             )}
+            {archiveFilter === 'archived' && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Sort by:</span>
+                <Select value={archivedSort} onValueChange={(v) => setArchivedSort(v as any)}>
+                  <SelectTrigger className="h-9 w-[240px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="captured_desc">Capture date — newest first</SelectItem>
+                    <SelectItem value="captured_asc">Capture date — oldest first</SelectItem>
+                    <SelectItem value="created_desc">Created — newest first</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             {selectedBookingIds.length > 0 && (
               <Button variant="default" size="sm" onClick={handleBulkArchive}>
                 <Archive className="h-4 w-4 mr-2" />
