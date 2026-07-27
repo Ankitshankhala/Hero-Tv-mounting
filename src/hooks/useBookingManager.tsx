@@ -56,6 +56,7 @@ export const useBookingManager = (isCalendarConnected: boolean = false) => {
   const [enriching, setEnriching] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [archivedOffset, setArchivedOffset] = useState(0);
+  const [currentArchivedSort, setCurrentArchivedSort] = useState<ArchivedSort>('captured_desc');
   const { toast } = useToast();
 
   const enrichSingleBooking = async (booking: any): Promise<BookingData> => {
