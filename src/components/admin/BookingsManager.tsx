@@ -117,6 +117,7 @@ export const BookingsManager = () => {
       view: archiveFilter as any,
       includeArchived,
       bypassCache,
+      archivedSort,
     });
 
   const handleBookingCreated = () => {
