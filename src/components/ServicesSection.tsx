@@ -112,7 +112,7 @@ export const ServicesSection = ({ onAddToCart }: ServicesSectionProps) => {
         <div className="text-center mb-4 md:mb-10">
           <h2 className="text-2xl md:text-4xl font-bold text-white">Our Services</h2>
           <p className="hidden md:block text-slate-400 mt-2">
-            Professional installation services in Austin, TX
+            Professional installation services
           </p>
         </div>
 
