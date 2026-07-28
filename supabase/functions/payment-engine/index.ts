@@ -1599,6 +1599,19 @@ Deno.serve(async (req) => {
             continue;
           }
 
+          // Only renew when THIS authorization is nearing its 7-day expiry.
+          // Gating on booking.created_at alone would re-authorize every day.
+          const piAgeSeconds = Math.floor(Date.now() / 1000) - oldPi.created;
+          if (piAgeSeconds < 5 * 24 * 60 * 60) {
+            details.push({
+              booking_id: b.id,
+              skipped: true,
+              reason: 'pi_still_fresh',
+              pi_age_days: +(piAgeSeconds / 86400).toFixed(2),
+            });
+            continue;
+          }
+
           const amount = oldPi.amount_capturable || oldPi.amount;
           if (!amount) {
             details.push({ booking_id: b.id, skipped: true, reason: 'no_amount' });
