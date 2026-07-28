@@ -1,6 +1,13 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { Edit, Trash2, Eye, UserPlus, Calendar, DollarSign, CreditCard, Send, X, ChevronDown, ChevronUp, Archive } from 'lucide-react';
+import { Edit, Trash2, Eye, UserPlus, Calendar, DollarSign, CreditCard, Send, X, ChevronDown, ChevronUp, Archive, MoreVertical, Pencil } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
