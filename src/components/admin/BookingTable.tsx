@@ -453,8 +453,8 @@ export const BookingTable = ({
                        </TableCell>
                      )}
 
-                     <TableCell className="sticky right-0 z-10 bg-card min-w-[160px] border-l shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)]">
-                       <div className="flex gap-1.5 justify-end items-center flex-nowrap">
+                     <TableCell className="sticky right-0 z-10 bg-card w-[60px] border-l shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)]">
+                       <div className="flex justify-end items-center">
                          {showPendingPaymentActions ? (
                            <>
                              <Button
@@ -482,39 +482,43 @@ export const BookingTable = ({
                              </Button>
                            </>
                          ) : (
-                           <>
-                             <Button
-                               variant="ghost"
-                               size="sm"
-                               onClick={() => onViewBooking(booking)}
-                             >
-                               <Eye className="h-4 w-4" />
-                             </Button>
-                             <Button
-                               variant="ghost"
-                               size="sm"
-                               onClick={() => onEditBooking(booking)}
-                             >
-                               <Edit className="h-4 w-4" />
-                             </Button>
-                             {booking.status === 'completed' && (booking.payment_status === 'captured' || booking.payment_status === 'completed') && (
+                           <DropdownMenu>
+                             <DropdownMenuTrigger asChild>
                                <Button
                                  variant="ghost"
                                  size="sm"
-                                 onClick={() => handleArchiveJob(booking)}
-                                 title="Archive completed job"
+                                 aria-label="Booking actions"
+                                 onClick={(e) => e.stopPropagation()}
+                                 className="h-8 w-8 p-0"
                                >
-                                 <Archive className="h-4 w-4" />
+                                 <MoreVertical className="h-4 w-4" />
                                </Button>
-                             )}
-                             <Button
-                               variant="ghost"
-                               size="sm"
-                               onClick={() => onDeleteBooking(booking)}
-                             >
-                               <Trash2 className="h-4 w-4" />
-                             </Button>
-                           </>
+                             </DropdownMenuTrigger>
+                             <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                               <DropdownMenuItem onClick={() => onViewBooking(booking)}>
+                                 <Eye className="h-4 w-4 mr-2" />
+                                 View details
+                               </DropdownMenuItem>
+                               <DropdownMenuItem onClick={() => onEditBooking(booking)}>
+                                 <Pencil className="h-4 w-4 mr-2" />
+                                 Edit booking
+                               </DropdownMenuItem>
+                               {booking.status === 'completed' && (booking.payment_status === 'captured' || booking.payment_status === 'completed') && (
+                                 <DropdownMenuItem onClick={() => handleArchiveJob(booking)}>
+                                   <Archive className="h-4 w-4 mr-2" />
+                                   Archive
+                                 </DropdownMenuItem>
+                               )}
+                               <DropdownMenuSeparator />
+                               <DropdownMenuItem
+                                 onClick={() => onDeleteBooking(booking)}
+                                 className="text-destructive focus:text-destructive"
+                               >
+                                 <Trash2 className="h-4 w-4 mr-2" />
+                                 Delete
+                               </DropdownMenuItem>
+                             </DropdownMenuContent>
+                           </DropdownMenu>
                          )}
                        </div>
                      </TableCell>
