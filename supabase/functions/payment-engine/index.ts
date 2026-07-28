@@ -945,7 +945,7 @@ Deno.serve(async (req) => {
       // Fetch them now (still inside the FOR UPDATE transaction window).
       const { data: extra, error: extraErr } = await supabase
         .from('bookings')
-        .select('status, requires_manual_payment, worker_id')
+        .select('status, requires_manual_payment, worker_id, stripe_customer_id, stripe_payment_method_id')
         .eq('id', bookingId)
         .single();
       if (extraErr || !extra) throw new Error('Booking not found');
