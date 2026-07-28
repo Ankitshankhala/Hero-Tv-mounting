@@ -169,17 +169,21 @@ serve(async (req) => {
     // Update booking status
     const isFullRefund = !refund_amount || refund_amount >= (paymentIntent.amount / 100);
     
-    const { error: updateError } = await supabaseClient
+    const { data: updatedRows, error: updateError } = await supabaseService
       .from('bookings')
       .update({
         payment_status: isFullRefund ? 'refunded' : 'partial_refund',
         status: isFullRefund ? 'cancelled' : booking.status,
         updated_at: new Date().toISOString()
       })
-      .eq('id', booking_id);
+      .eq('id', booking_id)
+      .select('id');
 
     if (updateError) {
-      console.error('[ADMIN-REFUND] Failed to update booking:', updateError);
+      throw new Error(`Refund succeeded at Stripe but booking update FAILED: ${updateError.message}. Booking ${booking_id} is now out of sync — resolve manually.`);
+    }
+    if (!updatedRows || updatedRows.length === 0) {
+      throw new Error(`Refund succeeded at Stripe but booking ${booking_id} was not updated (0 rows). Booking is now out of sync — resolve manually.`);
     }
 
     // Send customer notification if requested
