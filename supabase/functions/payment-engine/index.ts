@@ -1042,6 +1042,49 @@ Deno.serve(async (req) => {
           throw new Error(`Capture failed: ${captured.status}`);
         }
         capturedAmount = captured.amount_received / 100;
+      } else if (pi.status === 'canceled') {
+        // Off-session recovery: authorization expired or was voided. If we have
+        // a saved customer + payment method on the booking, charge the card
+        // directly with a new PaymentIntent (automatic capture).
+        if (!booking.stripe_customer_id || !booking.stripe_payment_method_id) {
+          throw new Error(`Payment cannot be captured. Stripe status is ${pi.status}`);
+        }
+
+        let newPi: any;
+        try {
+          newPi = await stripe.paymentIntents.create({
+            amount: expectedCents,
+            currency: 'usd',
+            customer: booking.stripe_customer_id,
+            payment_method: booking.stripe_payment_method_id,
+            off_session: true,
+            confirm: true,
+            capture_method: 'automatic',
+            metadata: {
+              booking_id: bookingId,
+              reason: 'auth_expired_recovery',
+              original_payment_intent: booking.payment_intent_id,
+            },
+          }, { idempotencyKey: `expiry_recovery_${bookingId}` });
+        } catch (e: any) {
+          const declineMsg =
+            e?.raw?.message || e?.message ||
+            e?.decline_code || e?.code || 'off-session charge failed';
+          throw new Error(`Authorization expired and recovery charge failed: ${declineMsg}`);
+        }
+
+        if (newPi.status !== 'succeeded') {
+          throw new Error(`Authorization expired and recovery charge did not succeed (status: ${newPi.status})`);
+        }
+
+        capturedAmount = (newPi.amount_received || newPi.amount || expectedCents) / 100;
+        recovered = true;
+
+        // Point the booking at the new PI so downstream writes reference it.
+        await supabase.from('bookings')
+          .update({ last_payment_intent_id: newPi.id })
+          .eq('id', bookingId);
+        booking.payment_intent_id = newPi.id;
       } else {
         throw new Error(`Payment cannot be captured. Stripe status is ${pi.status}`);
       }
