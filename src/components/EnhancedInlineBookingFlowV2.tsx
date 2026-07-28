@@ -13,6 +13,7 @@ import { ScheduleStep } from '@/components/booking/ScheduleStep';
 import { StepCelebration } from '@/components/booking/StepCelebration';
 import { HeroMascot } from '@/components/booking/HeroMascot';
 import { CouponSection } from '@/components/checkout/CouponSection';
+import { SHOW_COUPON_INPUT } from '@/config/features';
 import { useToast } from '@/hooks/use-toast';
 import { disableBodyScroll, enableBodyScroll } from '@/utils/bodyScrollLock';
 
@@ -364,7 +365,7 @@ export const EnhancedInlineBookingFlowV2 = ({
                     setFormData={setFormData}
                     handleZipcodeChange={handleZipcodeChange}
                   />
-                  {formData.customerEmail && formData.zipcode && (
+                  {SHOW_COUPON_INPUT && formData.customerEmail && formData.zipcode && (
                     <div className="animate-fade-in">
                       <CouponSection
                         cartTotal={subtotalBeforeDiscount}

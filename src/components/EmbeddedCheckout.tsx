@@ -15,6 +15,7 @@ import { SpecialInstructionsSection } from './checkout/SpecialInstructionsSectio
 import { CheckoutActions } from './checkout/CheckoutActions';
 import { CouponSection } from './checkout/CouponSection';
 import { CheckoutPromoReminder } from './promo/CheckoutPromoReminder';
+import { SHOW_COUPON_INPUT } from '@/config/features';
 
 interface EmbeddedCheckoutProps {
   cart: CartItem[];
@@ -295,26 +296,30 @@ export const EmbeddedCheckout = ({ cart, total, onClose, onSuccess }: EmbeddedCh
           <form onSubmit={handleSubmit} className="p-8 space-y-8">
             <ServiceSummary cart={cart} total={total} />
 
-            <CheckoutPromoReminder
-              cartTotal={total}
-              customerEmail={formData.email}
-              zipcode={formData.zipcode}
-              city={cityState}
-              serviceIds={cart.map(item => item.id)}
-              isApplied={!!appliedCoupon}
-              onCouponApplied={(code, discount, id) => setAppliedCoupon({ code, discountAmount: discount, couponId: id })}
-            />
+            {SHOW_COUPON_INPUT && (
+              <>
+                <CheckoutPromoReminder
+                  cartTotal={total}
+                  customerEmail={formData.email}
+                  zipcode={formData.zipcode}
+                  city={cityState}
+                  serviceIds={cart.map(item => item.id)}
+                  isApplied={!!appliedCoupon}
+                  onCouponApplied={(code, discount, id) => setAppliedCoupon({ code, discountAmount: discount, couponId: id })}
+                />
 
-            <CouponSection
-              cartTotal={total}
-              customerEmail={formData.email}
-              zipcode={formData.zipcode}
-              city={cityState}
-              serviceIds={cart.map(item => item.id)}
-              onCouponApplied={(code, discount, id) => setAppliedCoupon({ code, discountAmount: discount, couponId: id })}
-              onCouponRemoved={() => setAppliedCoupon(null)}
-              appliedCoupon={appliedCoupon}
-            />
+                <CouponSection
+                  cartTotal={total}
+                  customerEmail={formData.email}
+                  zipcode={formData.zipcode}
+                  city={cityState}
+                  serviceIds={cart.map(item => item.id)}
+                  onCouponApplied={(code, discount, id) => setAppliedCoupon({ code, discountAmount: discount, couponId: id })}
+                  onCouponRemoved={() => setAppliedCoupon(null)}
+                  appliedCoupon={appliedCoupon}
+                />
+              </>
+            )}
 
             <ContactInfoSection
               formData={formData}
