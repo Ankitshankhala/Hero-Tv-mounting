@@ -130,7 +130,9 @@ serve(async (req) => {
 
     } else if (paymentIntent.status === 'requires_capture') {
       // Payment was only authorized - cancel authorization
-      await stripe.paymentIntents.cancel(booking.payment_intent_id);
+      await stripe.paymentIntents.cancel(booking.payment_intent_id, {
+        cancellation_reason: 'abandoned',
+      });
       actualRefundAmount = paymentIntent.amount / 100;
       cancellationType = 'authorization_cancelled';
       
