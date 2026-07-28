@@ -214,7 +214,7 @@ serve(async (req) => {
     }
 
     // Log the refund action
-    await supabaseClient.from('sms_logs').insert({
+    await supabaseService.from('sms_logs').insert({
       booking_id: booking_id,
       recipient_number: 'system',
       message: `Admin refund processed: $${actualRefundAmount} - ${reason}`,
