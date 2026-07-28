@@ -1447,6 +1447,7 @@ Deno.serve(async (req) => {
           currency,
           customer: stripeCustomerId,
           capture_method: 'manual',
+          setup_future_usage: 'off_session',
           payment_method: payment_method_id,
           confirm: true,
           return_url: `${Deno.env.get('FRONTEND_URL') || 'https://hero-tv-mounting.lovable.app'}/booking/payment-complete`,
