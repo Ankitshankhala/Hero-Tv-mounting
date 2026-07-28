@@ -27,6 +27,7 @@ import { StepCelebration } from '@/components/booking/StepCelebration';
 import { HeroMascot } from '@/components/booking/HeroMascot';
 import { disableBodyScroll, enableBodyScroll } from '@/utils/bodyScrollLock';
 import { CouponSection } from '@/components/checkout/CouponSection';
+import { SHOW_COUPON_INPUT } from '@/config/features';
 
 interface ServiceItem {
   id: string;
@@ -472,7 +473,7 @@ export const EnhancedInlineBookingFlow = ({
                   />
                   
                   {/* Coupon Section - Show after email and zipcode are entered */}
-                  {formData.customerEmail && formData.zipcode && (
+                  {SHOW_COUPON_INPUT && formData.customerEmail && formData.zipcode && (
                     <div className="animate-fade-in">
                       <CouponSection
                         cartTotal={subtotalBeforeDiscount}
