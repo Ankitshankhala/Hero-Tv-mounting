@@ -66,6 +66,13 @@ export type Database = {
             foreignKeyName: "admin_alerts_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: false
+            referencedRelation: "v_auth_expiry_risk"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "admin_alerts_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
             referencedRelation: "v_booking_auth_mismatch"
             referencedColumns: ["booking_id"]
           },
@@ -204,6 +211,681 @@ export type Database = {
           key?: string
           new_value?: string
           old_value?: string | null
+        }
+        Relationships: []
+      }
+      auth_expiry_alerts: {
+        Row: {
+          amount: number | null
+          booking_id: string
+          can_recharge: boolean | null
+          customer_email: string | null
+          customer_name: string | null
+          detected_at: string
+          hold_age_days: number | null
+          id: string
+          resolved: boolean
+          risk_level: string | null
+          scheduled_date: string | null
+        }
+        Insert: {
+          amount?: number | null
+          booking_id: string
+          can_recharge?: boolean | null
+          customer_email?: string | null
+          customer_name?: string | null
+          detected_at?: string
+          hold_age_days?: number | null
+          id?: string
+          resolved?: boolean
+          risk_level?: string | null
+          scheduled_date?: string | null
+        }
+        Update: {
+          amount?: number | null
+          booking_id?: string
+          can_recharge?: boolean | null
+          customer_email?: string | null
+          customer_name?: string | null
+          detected_at?: string
+          hold_age_days?: number | null
+          id?: string
+          resolved?: boolean
+          risk_level?: string | null
+          scheduled_date?: string | null
+        }
+        Relationships: []
+      }
+      backup_bookings_20260728: {
+        Row: {
+          archived_at: string | null
+          authorized_amount: number | null
+          cancellation_deadline: string | null
+          captured_amount: number | null
+          confirmation_email_sent: boolean | null
+          coupon_code: string | null
+          coupon_discount: number | null
+          coupon_id: string | null
+          created_at: string | null
+          customer_id: string | null
+          customer_sms_sent: boolean | null
+          guest_customer_info: Json | null
+          has_modifications: boolean | null
+          id: string | null
+          is_archived: boolean | null
+          last_payment_intent_id: string | null
+          late_fee_amount: number | null
+          late_fee_charged: boolean | null
+          local_service_date: string | null
+          local_service_time: string | null
+          location_notes: string | null
+          payment_captured_at: string | null
+          payment_intent_id: string | null
+          payment_status: string | null
+          payment_version: number | null
+          pending_payment_amount: number | null
+          preferred_worker_id: string | null
+          requires_manual_payment: boolean | null
+          reservation_expires_at: string | null
+          reserved_worker_id: string | null
+          scheduled_date: string | null
+          scheduled_start: string | null
+          service_id: string | null
+          service_tz: string | null
+          start_time_utc: string | null
+          status: Database["public"]["Enums"]["booking_status"] | null
+          stripe_customer_id: string | null
+          stripe_payment_method_id: string | null
+          subtotal_before_discount: number | null
+          tip_amount: number | null
+          updated_at: string | null
+          worker_assignment_email_sent: boolean | null
+          worker_id: string | null
+          worker_sms_sent: boolean | null
+        }
+        Insert: {
+          archived_at?: string | null
+          authorized_amount?: number | null
+          cancellation_deadline?: string | null
+          captured_amount?: number | null
+          confirmation_email_sent?: boolean | null
+          coupon_code?: string | null
+          coupon_discount?: number | null
+          coupon_id?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          customer_sms_sent?: boolean | null
+          guest_customer_info?: Json | null
+          has_modifications?: boolean | null
+          id?: string | null
+          is_archived?: boolean | null
+          last_payment_intent_id?: string | null
+          late_fee_amount?: number | null
+          late_fee_charged?: boolean | null
+          local_service_date?: string | null
+          local_service_time?: string | null
+          location_notes?: string | null
+          payment_captured_at?: string | null
+          payment_intent_id?: string | null
+          payment_status?: string | null
+          payment_version?: number | null
+          pending_payment_amount?: number | null
+          preferred_worker_id?: string | null
+          requires_manual_payment?: boolean | null
+          reservation_expires_at?: string | null
+          reserved_worker_id?: string | null
+          scheduled_date?: string | null
+          scheduled_start?: string | null
+          service_id?: string | null
+          service_tz?: string | null
+          start_time_utc?: string | null
+          status?: Database["public"]["Enums"]["booking_status"] | null
+          stripe_customer_id?: string | null
+          stripe_payment_method_id?: string | null
+          subtotal_before_discount?: number | null
+          tip_amount?: number | null
+          updated_at?: string | null
+          worker_assignment_email_sent?: boolean | null
+          worker_id?: string | null
+          worker_sms_sent?: boolean | null
+        }
+        Update: {
+          archived_at?: string | null
+          authorized_amount?: number | null
+          cancellation_deadline?: string | null
+          captured_amount?: number | null
+          confirmation_email_sent?: boolean | null
+          coupon_code?: string | null
+          coupon_discount?: number | null
+          coupon_id?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          customer_sms_sent?: boolean | null
+          guest_customer_info?: Json | null
+          has_modifications?: boolean | null
+          id?: string | null
+          is_archived?: boolean | null
+          last_payment_intent_id?: string | null
+          late_fee_amount?: number | null
+          late_fee_charged?: boolean | null
+          local_service_date?: string | null
+          local_service_time?: string | null
+          location_notes?: string | null
+          payment_captured_at?: string | null
+          payment_intent_id?: string | null
+          payment_status?: string | null
+          payment_version?: number | null
+          pending_payment_amount?: number | null
+          preferred_worker_id?: string | null
+          requires_manual_payment?: boolean | null
+          reservation_expires_at?: string | null
+          reserved_worker_id?: string | null
+          scheduled_date?: string | null
+          scheduled_start?: string | null
+          service_id?: string | null
+          service_tz?: string | null
+          start_time_utc?: string | null
+          status?: Database["public"]["Enums"]["booking_status"] | null
+          stripe_customer_id?: string | null
+          stripe_payment_method_id?: string | null
+          subtotal_before_discount?: number | null
+          tip_amount?: number | null
+          updated_at?: string | null
+          worker_assignment_email_sent?: boolean | null
+          worker_id?: string | null
+          worker_sms_sent?: boolean | null
+        }
+        Relationships: []
+      }
+      backup_completed_null_capture_20260728: {
+        Row: {
+          archived_at: string | null
+          authorized_amount: number | null
+          cancellation_deadline: string | null
+          captured_amount: number | null
+          confirmation_email_sent: boolean | null
+          coupon_code: string | null
+          coupon_discount: number | null
+          coupon_id: string | null
+          created_at: string | null
+          customer_id: string | null
+          customer_sms_sent: boolean | null
+          guest_customer_info: Json | null
+          has_modifications: boolean | null
+          id: string | null
+          is_archived: boolean | null
+          last_payment_intent_id: string | null
+          late_fee_amount: number | null
+          late_fee_charged: boolean | null
+          local_service_date: string | null
+          local_service_time: string | null
+          location_notes: string | null
+          payment_captured_at: string | null
+          payment_intent_id: string | null
+          payment_status: string | null
+          payment_version: number | null
+          pending_payment_amount: number | null
+          preferred_worker_id: string | null
+          requires_manual_payment: boolean | null
+          reservation_expires_at: string | null
+          reserved_worker_id: string | null
+          scheduled_date: string | null
+          scheduled_start: string | null
+          service_id: string | null
+          service_tz: string | null
+          start_time_utc: string | null
+          status: Database["public"]["Enums"]["booking_status"] | null
+          stripe_customer_id: string | null
+          stripe_payment_method_id: string | null
+          subtotal_before_discount: number | null
+          tip_amount: number | null
+          updated_at: string | null
+          worker_assignment_email_sent: boolean | null
+          worker_id: string | null
+          worker_sms_sent: boolean | null
+        }
+        Insert: {
+          archived_at?: string | null
+          authorized_amount?: number | null
+          cancellation_deadline?: string | null
+          captured_amount?: number | null
+          confirmation_email_sent?: boolean | null
+          coupon_code?: string | null
+          coupon_discount?: number | null
+          coupon_id?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          customer_sms_sent?: boolean | null
+          guest_customer_info?: Json | null
+          has_modifications?: boolean | null
+          id?: string | null
+          is_archived?: boolean | null
+          last_payment_intent_id?: string | null
+          late_fee_amount?: number | null
+          late_fee_charged?: boolean | null
+          local_service_date?: string | null
+          local_service_time?: string | null
+          location_notes?: string | null
+          payment_captured_at?: string | null
+          payment_intent_id?: string | null
+          payment_status?: string | null
+          payment_version?: number | null
+          pending_payment_amount?: number | null
+          preferred_worker_id?: string | null
+          requires_manual_payment?: boolean | null
+          reservation_expires_at?: string | null
+          reserved_worker_id?: string | null
+          scheduled_date?: string | null
+          scheduled_start?: string | null
+          service_id?: string | null
+          service_tz?: string | null
+          start_time_utc?: string | null
+          status?: Database["public"]["Enums"]["booking_status"] | null
+          stripe_customer_id?: string | null
+          stripe_payment_method_id?: string | null
+          subtotal_before_discount?: number | null
+          tip_amount?: number | null
+          updated_at?: string | null
+          worker_assignment_email_sent?: boolean | null
+          worker_id?: string | null
+          worker_sms_sent?: boolean | null
+        }
+        Update: {
+          archived_at?: string | null
+          authorized_amount?: number | null
+          cancellation_deadline?: string | null
+          captured_amount?: number | null
+          confirmation_email_sent?: boolean | null
+          coupon_code?: string | null
+          coupon_discount?: number | null
+          coupon_id?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          customer_sms_sent?: boolean | null
+          guest_customer_info?: Json | null
+          has_modifications?: boolean | null
+          id?: string | null
+          is_archived?: boolean | null
+          last_payment_intent_id?: string | null
+          late_fee_amount?: number | null
+          late_fee_charged?: boolean | null
+          local_service_date?: string | null
+          local_service_time?: string | null
+          location_notes?: string | null
+          payment_captured_at?: string | null
+          payment_intent_id?: string | null
+          payment_status?: string | null
+          payment_version?: number | null
+          pending_payment_amount?: number | null
+          preferred_worker_id?: string | null
+          requires_manual_payment?: boolean | null
+          reservation_expires_at?: string | null
+          reserved_worker_id?: string | null
+          scheduled_date?: string | null
+          scheduled_start?: string | null
+          service_id?: string | null
+          service_tz?: string | null
+          start_time_utc?: string | null
+          status?: Database["public"]["Enums"]["booking_status"] | null
+          stripe_customer_id?: string | null
+          stripe_payment_method_id?: string | null
+          subtotal_before_discount?: number | null
+          tip_amount?: number | null
+          updated_at?: string | null
+          worker_assignment_email_sent?: boolean | null
+          worker_id?: string | null
+          worker_sms_sent?: boolean | null
+        }
+        Relationships: []
+      }
+      backup_corey_20260728: {
+        Row: {
+          archived_at: string | null
+          authorized_amount: number | null
+          cancellation_deadline: string | null
+          captured_amount: number | null
+          confirmation_email_sent: boolean | null
+          coupon_code: string | null
+          coupon_discount: number | null
+          coupon_id: string | null
+          created_at: string | null
+          customer_id: string | null
+          customer_sms_sent: boolean | null
+          guest_customer_info: Json | null
+          has_modifications: boolean | null
+          id: string | null
+          is_archived: boolean | null
+          last_payment_intent_id: string | null
+          late_fee_amount: number | null
+          late_fee_charged: boolean | null
+          local_service_date: string | null
+          local_service_time: string | null
+          location_notes: string | null
+          payment_captured_at: string | null
+          payment_intent_id: string | null
+          payment_status: string | null
+          payment_version: number | null
+          pending_payment_amount: number | null
+          preferred_worker_id: string | null
+          requires_manual_payment: boolean | null
+          reservation_expires_at: string | null
+          reserved_worker_id: string | null
+          scheduled_date: string | null
+          scheduled_start: string | null
+          service_id: string | null
+          service_tz: string | null
+          start_time_utc: string | null
+          status: Database["public"]["Enums"]["booking_status"] | null
+          stripe_customer_id: string | null
+          stripe_payment_method_id: string | null
+          subtotal_before_discount: number | null
+          tip_amount: number | null
+          updated_at: string | null
+          worker_assignment_email_sent: boolean | null
+          worker_id: string | null
+          worker_sms_sent: boolean | null
+        }
+        Insert: {
+          archived_at?: string | null
+          authorized_amount?: number | null
+          cancellation_deadline?: string | null
+          captured_amount?: number | null
+          confirmation_email_sent?: boolean | null
+          coupon_code?: string | null
+          coupon_discount?: number | null
+          coupon_id?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          customer_sms_sent?: boolean | null
+          guest_customer_info?: Json | null
+          has_modifications?: boolean | null
+          id?: string | null
+          is_archived?: boolean | null
+          last_payment_intent_id?: string | null
+          late_fee_amount?: number | null
+          late_fee_charged?: boolean | null
+          local_service_date?: string | null
+          local_service_time?: string | null
+          location_notes?: string | null
+          payment_captured_at?: string | null
+          payment_intent_id?: string | null
+          payment_status?: string | null
+          payment_version?: number | null
+          pending_payment_amount?: number | null
+          preferred_worker_id?: string | null
+          requires_manual_payment?: boolean | null
+          reservation_expires_at?: string | null
+          reserved_worker_id?: string | null
+          scheduled_date?: string | null
+          scheduled_start?: string | null
+          service_id?: string | null
+          service_tz?: string | null
+          start_time_utc?: string | null
+          status?: Database["public"]["Enums"]["booking_status"] | null
+          stripe_customer_id?: string | null
+          stripe_payment_method_id?: string | null
+          subtotal_before_discount?: number | null
+          tip_amount?: number | null
+          updated_at?: string | null
+          worker_assignment_email_sent?: boolean | null
+          worker_id?: string | null
+          worker_sms_sent?: boolean | null
+        }
+        Update: {
+          archived_at?: string | null
+          authorized_amount?: number | null
+          cancellation_deadline?: string | null
+          captured_amount?: number | null
+          confirmation_email_sent?: boolean | null
+          coupon_code?: string | null
+          coupon_discount?: number | null
+          coupon_id?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          customer_sms_sent?: boolean | null
+          guest_customer_info?: Json | null
+          has_modifications?: boolean | null
+          id?: string | null
+          is_archived?: boolean | null
+          last_payment_intent_id?: string | null
+          late_fee_amount?: number | null
+          late_fee_charged?: boolean | null
+          local_service_date?: string | null
+          local_service_time?: string | null
+          location_notes?: string | null
+          payment_captured_at?: string | null
+          payment_intent_id?: string | null
+          payment_status?: string | null
+          payment_version?: number | null
+          pending_payment_amount?: number | null
+          preferred_worker_id?: string | null
+          requires_manual_payment?: boolean | null
+          reservation_expires_at?: string | null
+          reserved_worker_id?: string | null
+          scheduled_date?: string | null
+          scheduled_start?: string | null
+          service_id?: string | null
+          service_tz?: string | null
+          start_time_utc?: string | null
+          status?: Database["public"]["Enums"]["booking_status"] | null
+          stripe_customer_id?: string | null
+          stripe_payment_method_id?: string | null
+          subtotal_before_discount?: number | null
+          tip_amount?: number | null
+          updated_at?: string | null
+          worker_assignment_email_sent?: boolean | null
+          worker_id?: string | null
+          worker_sms_sent?: boolean | null
+        }
+        Relationships: []
+      }
+      backup_reconcile2_20260728: {
+        Row: {
+          archived_at: string | null
+          authorized_amount: number | null
+          cancellation_deadline: string | null
+          captured_amount: number | null
+          confirmation_email_sent: boolean | null
+          coupon_code: string | null
+          coupon_discount: number | null
+          coupon_id: string | null
+          created_at: string | null
+          customer_id: string | null
+          customer_sms_sent: boolean | null
+          guest_customer_info: Json | null
+          has_modifications: boolean | null
+          id: string | null
+          is_archived: boolean | null
+          last_payment_intent_id: string | null
+          late_fee_amount: number | null
+          late_fee_charged: boolean | null
+          local_service_date: string | null
+          local_service_time: string | null
+          location_notes: string | null
+          payment_captured_at: string | null
+          payment_intent_id: string | null
+          payment_status: string | null
+          payment_version: number | null
+          pending_payment_amount: number | null
+          preferred_worker_id: string | null
+          requires_manual_payment: boolean | null
+          reservation_expires_at: string | null
+          reserved_worker_id: string | null
+          scheduled_date: string | null
+          scheduled_start: string | null
+          service_id: string | null
+          service_tz: string | null
+          start_time_utc: string | null
+          status: Database["public"]["Enums"]["booking_status"] | null
+          stripe_customer_id: string | null
+          stripe_payment_method_id: string | null
+          subtotal_before_discount: number | null
+          tip_amount: number | null
+          updated_at: string | null
+          worker_assignment_email_sent: boolean | null
+          worker_id: string | null
+          worker_sms_sent: boolean | null
+        }
+        Insert: {
+          archived_at?: string | null
+          authorized_amount?: number | null
+          cancellation_deadline?: string | null
+          captured_amount?: number | null
+          confirmation_email_sent?: boolean | null
+          coupon_code?: string | null
+          coupon_discount?: number | null
+          coupon_id?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          customer_sms_sent?: boolean | null
+          guest_customer_info?: Json | null
+          has_modifications?: boolean | null
+          id?: string | null
+          is_archived?: boolean | null
+          last_payment_intent_id?: string | null
+          late_fee_amount?: number | null
+          late_fee_charged?: boolean | null
+          local_service_date?: string | null
+          local_service_time?: string | null
+          location_notes?: string | null
+          payment_captured_at?: string | null
+          payment_intent_id?: string | null
+          payment_status?: string | null
+          payment_version?: number | null
+          pending_payment_amount?: number | null
+          preferred_worker_id?: string | null
+          requires_manual_payment?: boolean | null
+          reservation_expires_at?: string | null
+          reserved_worker_id?: string | null
+          scheduled_date?: string | null
+          scheduled_start?: string | null
+          service_id?: string | null
+          service_tz?: string | null
+          start_time_utc?: string | null
+          status?: Database["public"]["Enums"]["booking_status"] | null
+          stripe_customer_id?: string | null
+          stripe_payment_method_id?: string | null
+          subtotal_before_discount?: number | null
+          tip_amount?: number | null
+          updated_at?: string | null
+          worker_assignment_email_sent?: boolean | null
+          worker_id?: string | null
+          worker_sms_sent?: boolean | null
+        }
+        Update: {
+          archived_at?: string | null
+          authorized_amount?: number | null
+          cancellation_deadline?: string | null
+          captured_amount?: number | null
+          confirmation_email_sent?: boolean | null
+          coupon_code?: string | null
+          coupon_discount?: number | null
+          coupon_id?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          customer_sms_sent?: boolean | null
+          guest_customer_info?: Json | null
+          has_modifications?: boolean | null
+          id?: string | null
+          is_archived?: boolean | null
+          last_payment_intent_id?: string | null
+          late_fee_amount?: number | null
+          late_fee_charged?: boolean | null
+          local_service_date?: string | null
+          local_service_time?: string | null
+          location_notes?: string | null
+          payment_captured_at?: string | null
+          payment_intent_id?: string | null
+          payment_status?: string | null
+          payment_version?: number | null
+          pending_payment_amount?: number | null
+          preferred_worker_id?: string | null
+          requires_manual_payment?: boolean | null
+          reservation_expires_at?: string | null
+          reserved_worker_id?: string | null
+          scheduled_date?: string | null
+          scheduled_start?: string | null
+          service_id?: string | null
+          service_tz?: string | null
+          start_time_utc?: string | null
+          status?: Database["public"]["Enums"]["booking_status"] | null
+          stripe_customer_id?: string | null
+          stripe_payment_method_id?: string | null
+          subtotal_before_discount?: number | null
+          tip_amount?: number | null
+          updated_at?: string | null
+          worker_assignment_email_sent?: boolean | null
+          worker_id?: string | null
+          worker_sms_sent?: boolean | null
+        }
+        Relationships: []
+      }
+      backup_transactions_20260728: {
+        Row: {
+          amount: number | null
+          base_amount: number | null
+          booking_id: string | null
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          captured_at: string | null
+          captured_by: string | null
+          created_at: string | null
+          currency: string | null
+          guest_customer_email: string | null
+          id: string | null
+          idempotency_key: string | null
+          payment_intent_id: string | null
+          payment_method: string | null
+          refund_amount: number | null
+          status: Database["public"]["Enums"]["payment_status"] | null
+          stripe_refund_id: string | null
+          tip_amount: number | null
+          transaction_type: string | null
+        }
+        Insert: {
+          amount?: number | null
+          base_amount?: number | null
+          booking_id?: string | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          captured_at?: string | null
+          captured_by?: string | null
+          created_at?: string | null
+          currency?: string | null
+          guest_customer_email?: string | null
+          id?: string | null
+          idempotency_key?: string | null
+          payment_intent_id?: string | null
+          payment_method?: string | null
+          refund_amount?: number | null
+          status?: Database["public"]["Enums"]["payment_status"] | null
+          stripe_refund_id?: string | null
+          tip_amount?: number | null
+          transaction_type?: string | null
+        }
+        Update: {
+          amount?: number | null
+          base_amount?: number | null
+          booking_id?: string | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          captured_at?: string | null
+          captured_by?: string | null
+          created_at?: string | null
+          currency?: string | null
+          guest_customer_email?: string | null
+          id?: string | null
+          idempotency_key?: string | null
+          payment_intent_id?: string | null
+          payment_method?: string | null
+          refund_amount?: number | null
+          status?: Database["public"]["Enums"]["payment_status"] | null
+          stripe_refund_id?: string | null
+          tip_amount?: number | null
+          transaction_type?: string | null
         }
         Relationships: []
       }
@@ -360,6 +1042,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_booking_services_booking"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_auth_expiry_risk"
+            referencedColumns: ["booking_id"]
           },
           {
             foreignKeyName: "fk_booking_services_booking"
@@ -732,6 +1421,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupon_usage_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_auth_expiry_risk"
+            referencedColumns: ["booking_id"]
           },
           {
             foreignKeyName: "coupon_usage_booking_id_fkey"
@@ -1194,6 +1890,13 @@ export type Database = {
             foreignKeyName: "fk_invoices_booking"
             columns: ["booking_id"]
             isOneToOne: false
+            referencedRelation: "v_auth_expiry_risk"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "fk_invoices_booking"
+            columns: ["booking_id"]
+            isOneToOne: false
             referencedRelation: "v_booking_auth_mismatch"
             referencedColumns: ["booking_id"]
           },
@@ -1231,6 +1934,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_auth_expiry_risk"
+            referencedColumns: ["booking_id"]
           },
           {
             foreignKeyName: "invoices_booking_id_fkey"
@@ -1415,6 +2125,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_auth_expiry_risk"
+            referencedColumns: ["booking_id"]
           },
           {
             foreignKeyName: "reviews_booking_id_fkey"
@@ -1634,6 +2351,13 @@ export type Database = {
             foreignKeyName: "service_operation_logs_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: false
+            referencedRelation: "v_auth_expiry_risk"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "service_operation_logs_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
             referencedRelation: "v_booking_auth_mismatch"
             referencedColumns: ["booking_id"]
           },
@@ -1777,6 +2501,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sms_logs_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_auth_expiry_risk"
+            referencedColumns: ["booking_id"]
           },
           {
             foreignKeyName: "sms_logs_booking_id_fkey"
@@ -1936,6 +2667,13 @@ export type Database = {
             foreignKeyName: "tip_sync_log_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: false
+            referencedRelation: "v_auth_expiry_risk"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "tip_sync_log_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
             referencedRelation: "v_booking_auth_mismatch"
             referencedColumns: ["booking_id"]
           },
@@ -2050,6 +2788,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_auth_expiry_risk"
+            referencedColumns: ["booking_id"]
           },
           {
             foreignKeyName: "transactions_booking_id_fkey"
@@ -2375,6 +3120,13 @@ export type Database = {
             foreignKeyName: "worker_bookings_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: false
+            referencedRelation: "v_auth_expiry_risk"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "worker_bookings_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
             referencedRelation: "v_booking_auth_mismatch"
             referencedColumns: ["booking_id"]
           },
@@ -2470,6 +3222,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "worker_coverage_notifications_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_auth_expiry_risk"
+            referencedColumns: ["booking_id"]
           },
           {
             foreignKeyName: "worker_coverage_notifications_booking_id_fkey"
@@ -2941,6 +3700,54 @@ export type Database = {
         }
         Relationships: []
       }
+      v_auth_expiry_risk: {
+        Row: {
+          authorized_amount: number | null
+          authorized_on: string | null
+          booking_id: string | null
+          can_recharge: boolean | null
+          customer_email: string | null
+          customer_name: string | null
+          days_until_expiry: number | null
+          hold_age_days: number | null
+          payment_intent_id: string | null
+          risk_level: string | null
+          scheduled_date: string | null
+          stripe_customer_id: string | null
+          stripe_payment_method_id: string | null
+        }
+        Insert: {
+          authorized_amount?: number | null
+          authorized_on?: never
+          booking_id?: string | null
+          can_recharge?: never
+          customer_email?: never
+          customer_name?: never
+          days_until_expiry?: never
+          hold_age_days?: never
+          payment_intent_id?: string | null
+          risk_level?: never
+          scheduled_date?: string | null
+          stripe_customer_id?: string | null
+          stripe_payment_method_id?: string | null
+        }
+        Update: {
+          authorized_amount?: number | null
+          authorized_on?: never
+          booking_id?: string | null
+          can_recharge?: never
+          customer_email?: never
+          customer_name?: never
+          days_until_expiry?: never
+          hold_age_days?: never
+          payment_intent_id?: string | null
+          risk_level?: never
+          scheduled_date?: string | null
+          stripe_customer_id?: string | null
+          stripe_payment_method_id?: string | null
+        }
+        Relationships: []
+      }
       v_booking_auth_mismatch: {
         Row: {
           auth_transaction_amount: number | null
@@ -3066,6 +3873,13 @@ export type Database = {
             foreignKeyName: "fk_invoices_booking"
             columns: ["booking_id"]
             isOneToOne: false
+            referencedRelation: "v_auth_expiry_risk"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "fk_invoices_booking"
+            columns: ["booking_id"]
+            isOneToOne: false
             referencedRelation: "v_booking_auth_mismatch"
             referencedColumns: ["booking_id"]
           },
@@ -3103,6 +3917,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "v_auth_expiry_risk"
+            referencedColumns: ["booking_id"]
           },
           {
             foreignKeyName: "invoices_booking_id_fkey"
@@ -4248,6 +5069,7 @@ export type Database = {
         Args: { p_batch_limit?: number; p_lookback_minutes?: number }
         Returns: Json
       }
+      scan_auth_expiry_risk: { Args: never; Returns: Json }
       select_best_available_worker: {
         Args: {
           p_date: string

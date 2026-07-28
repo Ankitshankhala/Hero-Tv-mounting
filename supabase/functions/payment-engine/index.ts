@@ -945,7 +945,7 @@ Deno.serve(async (req) => {
       // Fetch them now (still inside the FOR UPDATE transaction window).
       const { data: extra, error: extraErr } = await supabase
         .from('bookings')
-        .select('status, requires_manual_payment, worker_id')
+        .select('status, requires_manual_payment, worker_id, stripe_customer_id, stripe_payment_method_id')
         .eq('id', bookingId)
         .single();
       if (extraErr || !extra) throw new Error('Booking not found');
@@ -1042,6 +1042,49 @@ Deno.serve(async (req) => {
           throw new Error(`Capture failed: ${captured.status}`);
         }
         capturedAmount = captured.amount_received / 100;
+      } else if (pi.status === 'canceled') {
+        // Off-session recovery: authorization expired or was voided. If we have
+        // a saved customer + payment method on the booking, charge the card
+        // directly with a new PaymentIntent (automatic capture).
+        if (!booking.stripe_customer_id || !booking.stripe_payment_method_id) {
+          throw new Error(`Payment cannot be captured. Stripe status is ${pi.status}`);
+        }
+
+        let newPi: any;
+        try {
+          newPi = await stripe.paymentIntents.create({
+            amount: expectedCents,
+            currency: 'usd',
+            customer: booking.stripe_customer_id,
+            payment_method: booking.stripe_payment_method_id,
+            off_session: true,
+            confirm: true,
+            capture_method: 'automatic',
+            metadata: {
+              booking_id: bookingId,
+              reason: 'auth_expired_recovery',
+              original_payment_intent: booking.payment_intent_id,
+            },
+          }, { idempotencyKey: `expiry_recovery_${bookingId}` });
+        } catch (e: any) {
+          const declineMsg =
+            e?.raw?.message || e?.message ||
+            e?.decline_code || e?.code || 'off-session charge failed';
+          throw new Error(`Authorization expired and recovery charge failed: ${declineMsg}`);
+        }
+
+        if (newPi.status !== 'succeeded') {
+          throw new Error(`Authorization expired and recovery charge did not succeed (status: ${newPi.status})`);
+        }
+
+        capturedAmount = (newPi.amount_received || newPi.amount || expectedCents) / 100;
+        recovered = true;
+
+        // Point the booking at the new PI so downstream writes reference it.
+        await supabase.from('bookings')
+          .update({ last_payment_intent_id: newPi.id })
+          .eq('id', bookingId);
+        booking.payment_intent_id = newPi.id;
       } else {
         throw new Error(`Payment cannot be captured. Stripe status is ${pi.status}`);
       }
@@ -1447,6 +1490,7 @@ Deno.serve(async (req) => {
           currency,
           customer: stripeCustomerId,
           capture_method: 'manual',
+          setup_future_usage: 'off_session',
           payment_method: payment_method_id,
           confirm: true,
           return_url: `${Deno.env.get('FRONTEND_URL') || 'https://hero-tv-mounting.lovable.app'}/booking/payment-complete`,
@@ -1523,6 +1567,113 @@ Deno.serve(async (req) => {
       if (finErr) throw new Error(finErr.message || 'finalize failed');
       return new Response(JSON.stringify(fin), {
         status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // ========== ACTION: RENEW-EXPIRING-AUTHORIZATIONS ==========
+    // Cron-only: re-authorize saved cards for bookings whose Stripe hold is
+    // approaching the 7-day expiry, so capture keeps working on job day.
+    if (action === 'renew-expiring-authorizations') {
+      const cutoffIso = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
+
+      const { data: candidates, error: candErr } = await supabase
+        .from('bookings')
+        .select('id, payment_intent_id, stripe_customer_id, stripe_payment_method_id, authorized_amount, created_at')
+        .eq('payment_status', 'authorized')
+        .eq('is_archived', false)
+        .not('payment_intent_id', 'is', null)
+        .not('stripe_payment_method_id', 'is', null)
+        .lte('created_at', cutoffIso);
+
+      if (candErr) throw new Error(`Renewal query failed: ${candErr.message}`);
+
+      const details: any[] = [];
+      let renewed = 0;
+      let failed = 0;
+
+      for (const b of candidates || []) {
+        try {
+          const oldPi = await stripe.paymentIntents.retrieve(b.payment_intent_id);
+          if (oldPi.status !== 'requires_capture') {
+            details.push({ booking_id: b.id, skipped: true, reason: `pi_status_${oldPi.status}` });
+            continue;
+          }
+
+          const amount = oldPi.amount_capturable || oldPi.amount;
+          if (!amount) {
+            details.push({ booking_id: b.id, skipped: true, reason: 'no_amount' });
+            continue;
+          }
+
+          const newPi = await stripe.paymentIntents.create({
+            amount,
+            currency: oldPi.currency || 'usd',
+            customer: b.stripe_customer_id,
+            payment_method: b.stripe_payment_method_id,
+            capture_method: 'manual',
+            off_session: true,
+            confirm: true,
+            setup_future_usage: 'off_session',
+            metadata: {
+              booking_id: b.id,
+              reason: 'auth_renewal',
+              original_payment_intent: b.payment_intent_id,
+            },
+          }, { idempotencyKey: `auth_renewal_${b.id}_${b.payment_intent_id}` });
+
+          if (newPi.status !== 'requires_capture' && newPi.status !== 'succeeded') {
+            failed++;
+            details.push({ booking_id: b.id, success: false, reason: `new_pi_status_${newPi.status}` });
+            continue;
+          }
+
+          // Cancel the old hold; ignore errors (may already be canceled).
+          try {
+            await stripe.paymentIntents.cancel(b.payment_intent_id);
+          } catch (e: any) {
+            console.warn('[PAYMENT-ENGINE] renewal: cancel old PI failed:', e?.message);
+          }
+
+          await supabase.from('bookings')
+            .update({ payment_intent_id: newPi.id, last_payment_intent_id: newPi.id })
+            .eq('id', b.id);
+
+          await supabase.from('transactions')
+            .update({ payment_intent_id: newPi.id })
+            .eq('booking_id', b.id)
+            .eq('payment_intent_id', b.payment_intent_id)
+            .eq('status', 'authorized');
+
+          await supabase.from('booking_audit_log').insert({
+            booking_id: b.id,
+            operation: 'auth_renewed',
+            status: 'success',
+            payment_intent_id: newPi.id,
+            details: {
+              old_payment_intent: b.payment_intent_id,
+              new_payment_intent: newPi.id,
+              amount_cents: amount,
+            },
+          });
+
+          renewed++;
+          details.push({ booking_id: b.id, success: true, old_pi: b.payment_intent_id, new_pi: newPi.id });
+        } catch (e: any) {
+          failed++;
+          const msg = e?.raw?.message || e?.message || 'renewal error';
+          details.push({ booking_id: b.id, success: false, error: msg });
+          await supabase.from('booking_audit_log').insert({
+            booking_id: b.id,
+            operation: 'auth_renewed',
+            status: 'failed',
+            payment_intent_id: b.payment_intent_id,
+            error_message: msg,
+          }).then(() => {}, () => {});
+        }
+      }
+
+      return new Response(JSON.stringify({ success: true, renewed, failed, details }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
