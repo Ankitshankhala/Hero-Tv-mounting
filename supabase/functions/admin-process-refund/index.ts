@@ -130,7 +130,9 @@ serve(async (req) => {
 
     } else if (paymentIntent.status === 'requires_capture') {
       // Payment was only authorized - cancel authorization
-      await stripe.paymentIntents.cancel(booking.payment_intent_id);
+      await stripe.paymentIntents.cancel(booking.payment_intent_id, {
+        cancellation_reason: 'abandoned',
+      });
       actualRefundAmount = paymentIntent.amount / 100;
       cancellationType = 'authorization_cancelled';
       
@@ -167,17 +169,21 @@ serve(async (req) => {
     // Update booking status
     const isFullRefund = !refund_amount || refund_amount >= (paymentIntent.amount / 100);
     
-    const { error: updateError } = await supabaseClient
+    const { data: updatedRows, error: updateError } = await supabaseService
       .from('bookings')
       .update({
         payment_status: isFullRefund ? 'refunded' : 'partial_refund',
         status: isFullRefund ? 'cancelled' : booking.status,
         updated_at: new Date().toISOString()
       })
-      .eq('id', booking_id);
+      .eq('id', booking_id)
+      .select('id');
 
     if (updateError) {
-      console.error('[ADMIN-REFUND] Failed to update booking:', updateError);
+      throw new Error(`Refund succeeded at Stripe but booking update FAILED: ${updateError.message}. Booking ${booking_id} is now out of sync — resolve manually.`);
+    }
+    if (!updatedRows || updatedRows.length === 0) {
+      throw new Error(`Refund succeeded at Stripe but booking ${booking_id} was not updated (0 rows). Booking is now out of sync — resolve manually.`);
     }
 
     // Send customer notification if requested
@@ -208,7 +214,7 @@ serve(async (req) => {
     }
 
     // Log the refund action
-    await supabaseClient.from('sms_logs').insert({
+    await supabaseService.from('sms_logs').insert({
       booking_id: booking_id,
       recipient_number: 'system',
       message: `Admin refund processed: $${actualRefundAmount} - ${reason}`,
