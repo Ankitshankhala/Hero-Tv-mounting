@@ -3,12 +3,15 @@ import { Link } from 'react-router-dom';
 import { Shield, LogOut, Briefcase, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
+import { HeroAnnouncement } from '@/components/HeroAnnouncement';
+import { useHeroAnnouncement } from '@/hooks/useHeroAnnouncement';
 export const Header = () => {
   const {
     user,
     signOut,
     profile
   } = useAuth();
+  const { settings: heroSettings, loading: heroLoading } = useHeroAnnouncement();
   const handleLogout = async () => {
     await signOut();
   };
@@ -55,12 +58,12 @@ export const Header = () => {
               737-272-9971
             </a>
           </div>
-          <div className="flex justify-center">
-            <span className="inline-flex items-center gap-2 bg-blue-600 text-white font-extrabold uppercase tracking-wide px-4 py-2 rounded-full shadow-lg text-sm">
-              <span className="bg-white text-blue-700 rounded-full px-2.5 py-0.5 text-sm">20% OFF</span>
-              <span>Already applied</span>
-            </span>
-          </div>
+          <HeroAnnouncement
+            text={heroSettings.text}
+            announcementEnabled={heroSettings.announcementEnabled}
+            promoBadgeEnabled={heroSettings.promoBadgeEnabled}
+            loading={heroLoading}
+          />
         </div>
       </div>
     </header>;

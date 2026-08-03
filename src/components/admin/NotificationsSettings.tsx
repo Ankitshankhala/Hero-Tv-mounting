@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Bell } from 'lucide-react';
+import { HomepageAnnouncementSettings } from '@/components/admin/HomepageAnnouncementSettings';
 
 export const NotificationsSettings: React.FC = () => {
   const { toast } = useToast();
@@ -63,6 +64,7 @@ export const NotificationsSettings: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <HomepageAnnouncementSettings />
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
