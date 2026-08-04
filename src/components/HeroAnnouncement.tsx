@@ -34,7 +34,13 @@ export const HeroAnnouncement: React.FC<Props> = ({
         </span>
       )}
       {showAnnouncement && (
-        <span className="inline-block max-w-[min(100%,26rem)] bg-slate-700/80 border border-slate-500/60 text-white font-semibold px-4 py-2 rounded-full shadow-lg text-sm text-center break-words">
+        <span
+          className={
+            message.length <= 80
+              ? 'inline-block max-w-[min(100%,26rem)] bg-slate-700/80 border border-slate-500/60 text-white font-semibold px-4 py-2 rounded-full shadow-lg text-sm text-center break-words'
+              : 'inline-block w-full max-w-2xl bg-slate-700/80 border border-slate-500/60 text-white px-4 py-4 rounded-2xl shadow-lg text-sm text-left leading-relaxed whitespace-pre-wrap break-words'
+          }
+        >
           {message}
         </span>
       )}

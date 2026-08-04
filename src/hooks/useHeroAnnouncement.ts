@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
-export const HERO_ANNOUNCEMENT_MAX_LENGTH = 120;
+export const HERO_ANNOUNCEMENT_MAX_LENGTH = 500;
 
 export const HERO_SETTING_KEYS = [
   'hero_announcement_text',

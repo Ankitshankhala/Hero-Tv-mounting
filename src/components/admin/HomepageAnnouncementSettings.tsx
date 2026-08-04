@@ -96,7 +96,7 @@ export const HomepageAnnouncementSettings: React.FC = () => {
                 id="hero-announcement-text"
                 value={text}
                 maxLength={HERO_ANNOUNCEMENT_MAX_LENGTH}
-                rows={3}
+                rows={6}
                 placeholder="e.g. Holiday hours: closed Dec 25"
                 onChange={(e) => setText(e.target.value.slice(0, HERO_ANNOUNCEMENT_MAX_LENGTH))}
               />
