@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Facebook, Instagram, Linkedin, Phone, Mail, ShieldCheck } from 'lucide-react';
+import { Facebook, Instagram, Linkedin, Phone, Mail } from 'lucide-react';
 
 const cities = [
   { name: 'Austin, TX', href: '/locations/austin' },
@@ -35,10 +35,6 @@ export const Footer = () => {
             </div>
             <p className="mt-2 text-sm text-slate-400">
               Professional TV mounting across Texas
-            </p>
-            <p className="mt-1 inline-flex items-center gap-1.5 text-xs text-slate-500">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              Licensed & insured
             </p>
             <div className="mt-3 flex flex-col gap-1">
               <a
