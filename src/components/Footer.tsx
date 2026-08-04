@@ -36,10 +36,6 @@ export const Footer = () => {
             <p className="mt-2 text-sm text-slate-400">
               Professional TV mounting across Texas
             </p>
-            <p className="mt-1 inline-flex items-center gap-1.5 text-xs text-slate-500">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              Licensed & insured
-            </p>
             <div className="mt-3 flex flex-col gap-1">
               <a
                 href="tel:+17372729971"
