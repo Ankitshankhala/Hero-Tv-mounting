@@ -1,6 +1,8 @@
 
 import React, { useState, lazy, Suspense, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { Header } from '@/components/Header';
+
 import { useTestingMode, getEffectiveMinimumAmount } from '@/contexts/TestingModeContext';
 import { Footer } from '@/components/Footer';
 import { ServicesSection } from '@/components/ServicesSection';
@@ -214,13 +216,14 @@ const Index = () => {
                 { slug: 'dallas', name: 'Dallas' },
                 { slug: 'houston', name: 'Houston' },
               ].map((c) => (
-                <a
+                <Link
                   key={c.slug}
-                  href={`/locations/${c.slug}`}
+                  to={`/locations/${c.slug}`}
                   className="min-h-[44px] flex items-center justify-center px-3 py-2.5 rounded-lg bg-slate-700/70 hover:bg-slate-700 border border-slate-600 text-slate-100 text-sm font-medium transition-colors"
                 >
                   {c.name}
-                </a>
+                </Link>
+
               ))}
             </div>
           </div>
