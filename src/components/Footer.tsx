@@ -34,7 +34,7 @@ export const Footer = () => {
               <div className="text-white font-semibold text-base">Hero TV Mounting</div>
             </div>
             <p className="mt-2 text-sm text-slate-400">
-              Professional TV mounting in Austin, TX
+              Professional TV mounting across Texas
             </p>
             <p className="mt-1 inline-flex items-center gap-1.5 text-xs text-slate-500">
               <ShieldCheck className="h-3.5 w-3.5" />
