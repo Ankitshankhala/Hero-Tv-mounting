@@ -147,7 +147,7 @@ const WorkerCalendar = ({ workerId }: WorkerCalendarProps) => {
       <CardHeader>
         <CardTitle>{workerId ? 'Worker Calendar' : 'Your Calendar'}</CardTitle>
         <p className="text-xs text-muted-foreground mt-1">
-          Times shown in Central Time (Austin, TX)
+          Times shown in Central Time (CT)
         </p>
       </CardHeader>
       <CardContent>

@@ -202,22 +202,13 @@ const Index = () => {
                 Service Areas in Texas
               </h2>
               <p className="text-slate-400 text-sm md:text-base md:max-w-2xl md:mx-auto">
-                Proudly serving the greater Austin area and beyond.
+                Proudly serving communities across Texas.
               </p>
             </div>
 
             <div className="max-w-3xl mx-auto grid grid-cols-2 md:grid-cols-3 gap-2.5 md:gap-3">
-              <a
-                href="/locations/austin"
-                className="col-span-2 md:col-span-3 min-h-[56px] flex items-center justify-between px-4 py-3 rounded-lg bg-blue-600/15 border border-blue-500/40 hover:bg-blue-600/25 transition-colors"
-              >
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-blue-400 font-semibold">Home market</div>
-                  <div className="text-white font-semibold">Austin, TX</div>
-                </div>
-                <span className="text-blue-400 text-sm">Explore →</span>
-              </a>
               {[
+                { slug: 'austin', name: 'Austin' },
                 { slug: 'san-antonio', name: 'San Antonio' },
                 { slug: 'fort-worth', name: 'Fort Worth' },
                 { slug: 'dallas', name: 'Dallas' },

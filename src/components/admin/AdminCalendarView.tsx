@@ -242,7 +242,7 @@ export const AdminCalendarView = React.memo(() => {
           </Button>
         </div>
 
-        <p className="text-sm text-muted-foreground">Times shown in Central Time (Austin, TX)</p>
+        <p className="text-sm text-muted-foreground">Times shown in Central Time (CT)</p>
 
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center space-x-2">

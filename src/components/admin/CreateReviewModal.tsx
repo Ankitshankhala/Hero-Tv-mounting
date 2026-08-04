@@ -76,7 +76,7 @@ export const CreateReviewModal = ({ isOpen, onClose, onCreate }: Props) => {
                 id="city"
                 value={form.city}
                 onChange={(e) => setForm({ ...form, city: e.target.value })}
-                placeholder="Austin, TX"
+                placeholder="City, TX"
               />
             </div>
           </div>
