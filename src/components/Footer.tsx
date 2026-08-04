@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Facebook, Instagram, Linkedin, Phone, Mail, ShieldCheck } from 'lucide-react';
+import { Facebook, Instagram, Linkedin, Phone, Mail } from 'lucide-react';
 
 const cities = [
   { name: 'Austin, TX', href: '/locations/austin' },
