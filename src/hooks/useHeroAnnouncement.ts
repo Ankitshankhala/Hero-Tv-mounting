@@ -21,6 +21,7 @@ const DEFAULTS: HeroAnnouncementSettings = {
   text: '',
   announcementEnabled: false,
   promoBadgeEnabled: true,
+  phoneEnabled: true,
 };
 
 const isTrue = (v: unknown) => String(v ?? '').trim().toLowerCase() === 'true';
