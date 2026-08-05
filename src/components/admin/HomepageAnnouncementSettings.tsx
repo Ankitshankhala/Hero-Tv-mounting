@@ -42,6 +42,7 @@ export const HomepageAnnouncementSettings: React.FC = () => {
         { key: 'hero_announcement_text', value: text.slice(0, HERO_ANNOUNCEMENT_MAX_LENGTH) },
         { key: 'hero_announcement_enabled', value: announcementEnabled ? 'true' : 'false' },
         { key: 'hero_promo_badge_enabled', value: promoBadgeEnabled ? 'true' : 'false' },
+        { key: 'hero_phone_enabled', value: phoneEnabled ? 'true' : 'false' },
       ];
 
       for (const row of rows) {
