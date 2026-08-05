@@ -51,6 +51,9 @@ export const useHeroAnnouncement = () => {
         promoBadgeEnabled: map.has('hero_promo_badge_enabled')
           ? isTrue(map.get('hero_promo_badge_enabled'))
           : DEFAULTS.promoBadgeEnabled,
+        phoneEnabled: map.has('hero_phone_enabled')
+          ? isTrue(map.get('hero_phone_enabled'))
+          : DEFAULTS.phoneEnabled,
       });
     } catch {
       setSettings(DEFAULTS);
