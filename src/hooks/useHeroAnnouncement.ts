@@ -7,12 +7,14 @@ export const HERO_SETTING_KEYS = [
   'hero_announcement_text',
   'hero_announcement_enabled',
   'hero_promo_badge_enabled',
+  'hero_phone_enabled',
 ] as const;
 
 export interface HeroAnnouncementSettings {
   text: string;
   announcementEnabled: boolean;
   promoBadgeEnabled: boolean;
+  phoneEnabled: boolean;
 }
 
 const DEFAULTS: HeroAnnouncementSettings = {
