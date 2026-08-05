@@ -21,12 +21,14 @@ export const HomepageAnnouncementSettings: React.FC = () => {
   const [text, setText] = useState('');
   const [announcementEnabled, setAnnouncementEnabled] = useState(false);
   const [promoBadgeEnabled, setPromoBadgeEnabled] = useState(true);
+  const [phoneEnabled, setPhoneEnabled] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setText(settings.text);
     setAnnouncementEnabled(settings.announcementEnabled);
     setPromoBadgeEnabled(settings.promoBadgeEnabled);
+    setPhoneEnabled(settings.phoneEnabled);
   }, [settings]);
 
   const handleSave = async () => {
