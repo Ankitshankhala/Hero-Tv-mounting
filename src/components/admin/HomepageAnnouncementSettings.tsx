@@ -21,12 +21,14 @@ export const HomepageAnnouncementSettings: React.FC = () => {
   const [text, setText] = useState('');
   const [announcementEnabled, setAnnouncementEnabled] = useState(false);
   const [promoBadgeEnabled, setPromoBadgeEnabled] = useState(true);
+  const [phoneEnabled, setPhoneEnabled] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setText(settings.text);
     setAnnouncementEnabled(settings.announcementEnabled);
     setPromoBadgeEnabled(settings.promoBadgeEnabled);
+    setPhoneEnabled(settings.phoneEnabled);
   }, [settings]);
 
   const handleSave = async () => {
@@ -40,6 +42,7 @@ export const HomepageAnnouncementSettings: React.FC = () => {
         { key: 'hero_announcement_text', value: text.slice(0, HERO_ANNOUNCEMENT_MAX_LENGTH) },
         { key: 'hero_announcement_enabled', value: announcementEnabled ? 'true' : 'false' },
         { key: 'hero_promo_badge_enabled', value: promoBadgeEnabled ? 'true' : 'false' },
+        { key: 'hero_phone_enabled', value: phoneEnabled ? 'true' : 'false' },
       ];
 
       for (const row of rows) {
@@ -131,19 +134,36 @@ export const HomepageAnnouncementSettings: React.FC = () => {
               />
             </div>
 
+            <div className="flex items-center justify-between gap-4 py-2 border-t border-border pt-4">
+              <div>
+                <Label htmlFor="hero-phone-enabled" className="text-base">Show phone number</Label>
+                <p className="text-sm text-muted-foreground">The 737-272-9971 link in the homepage hero.</p>
+              </div>
+              <Switch
+                id="hero-phone-enabled"
+                checked={phoneEnabled}
+                onCheckedChange={setPhoneEnabled}
+                disabled={saving}
+              />
+            </div>
+
             <div className="space-y-2">
               <Label>Live preview</Label>
-              <div className="rounded-lg bg-gradient-to-r from-slate-900 to-slate-800 p-6 flex justify-center">
+              <div className="rounded-lg bg-gradient-to-r from-slate-900 to-slate-800 p-6 flex flex-col items-center gap-3">
+                {phoneEnabled && (
+                  <span className="text-2xl text-white font-semibold">737-272-9971</span>
+                )}
                 <HeroAnnouncement
                   text={text}
                   announcementEnabled={announcementEnabled}
                   promoBadgeEnabled={promoBadgeEnabled}
                 />
               </div>
-              {!promoBadgeEnabled && !(announcementEnabled && text.trim()) && (
+              {!phoneEnabled && !promoBadgeEnabled && !(announcementEnabled && text.trim()) && (
                 <p className="text-xs text-muted-foreground">Nothing will be shown on the hero.</p>
               )}
             </div>
+
 
             <div className="flex justify-end">
               <Button onClick={handleSave} disabled={saving}>

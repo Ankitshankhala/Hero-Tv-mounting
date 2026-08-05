@@ -53,11 +53,11 @@ export const Header = () => {
 
         <div className="text-center max-w-3xl mx-auto space-y-3 md:space-y-5">
 
-          <div className="pt-1">
+          {(heroLoading || heroSettings.phoneEnabled) && <div className="pt-1">
             <a href="tel:+17372729971" className="text-2xl md:text-3xl text-white hover:text-blue-300 transition-colors duration-200 font-semibold">
               737-272-9971
             </a>
-          </div>
+          </div>}
           <HeroAnnouncement
             text={heroSettings.text}
             announcementEnabled={heroSettings.announcementEnabled}

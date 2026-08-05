@@ -7,18 +7,21 @@ export const HERO_SETTING_KEYS = [
   'hero_announcement_text',
   'hero_announcement_enabled',
   'hero_promo_badge_enabled',
+  'hero_phone_enabled',
 ] as const;
 
 export interface HeroAnnouncementSettings {
   text: string;
   announcementEnabled: boolean;
   promoBadgeEnabled: boolean;
+  phoneEnabled: boolean;
 }
 
 const DEFAULTS: HeroAnnouncementSettings = {
   text: '',
   announcementEnabled: false,
   promoBadgeEnabled: true,
+  phoneEnabled: true,
 };
 
 const isTrue = (v: unknown) => String(v ?? '').trim().toLowerCase() === 'true';
@@ -48,6 +51,9 @@ export const useHeroAnnouncement = () => {
         promoBadgeEnabled: map.has('hero_promo_badge_enabled')
           ? isTrue(map.get('hero_promo_badge_enabled'))
           : DEFAULTS.promoBadgeEnabled,
+        phoneEnabled: map.has('hero_phone_enabled')
+          ? isTrue(map.get('hero_phone_enabled'))
+          : DEFAULTS.phoneEnabled,
       });
     } catch {
       setSettings(DEFAULTS);
