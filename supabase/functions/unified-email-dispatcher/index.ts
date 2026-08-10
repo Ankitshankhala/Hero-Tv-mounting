@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2.50.0';
 import { Resend } from 'npm:resend@2.0.0';
+// redeploy: npm: supabase-js import fix (esm.sh ws incompatibility)
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
