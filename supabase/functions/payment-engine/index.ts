@@ -1690,6 +1690,304 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ========== ACTION: SETUP-CARD ==========
+    // New payment architecture (setup_then_authorize): save the customer's card
+    // with a $0 SetupIntent at booking time. NOTHING is charged and NO
+    // PaymentIntent is created here. The authorization happens later via
+    // `authorize-saved-card`.
+    if (action === 'setup-card') {
+      const {
+        customer,
+        payment_method_id,
+        metadata = {},
+      } = payload as {
+        customer: { email: string; name?: string; phone?: string };
+        payment_method_id: string;
+        metadata?: Record<string, string>;
+      };
+
+      if (!customer?.email) throw new Error('customer.email is required');
+      if (!payment_method_id) throw new Error('payment_method_id is required');
+
+      // 1) Find an existing Stripe customer by email, else create one.
+      let stripeCustomerId = '';
+      const existing = await stripe.customers.list({ email: customer.email, limit: 1 });
+      if (existing.data.length > 0) {
+        stripeCustomerId = existing.data[0].id;
+      } else {
+        const created = await stripe.customers.create({
+          email: customer.email,
+          name: customer.name || 'Guest Customer',
+          phone: customer.phone || undefined,
+        });
+        stripeCustomerId = created.id;
+      }
+
+      // 2) Attach the payment method (tolerate already-attached).
+      try {
+        await stripe.paymentMethods.attach(payment_method_id, { customer: stripeCustomerId });
+      } catch (e: any) {
+        const msg = e?.message || '';
+        if (!msg.includes('already been attached')) {
+          if (e?.type === 'StripeCardError' || e?.raw?.type === 'card_error') {
+            return new Response(JSON.stringify({
+              success: false,
+              error: e.message || 'Card error',
+              stripe_error: {
+                type: e.type || 'StripeCardError',
+                code: e.code || e.raw?.code,
+                decline_code: e.decline_code || e.raw?.decline_code,
+                message: e.message,
+              },
+            }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          }
+          console.warn('[PAYMENT-ENGINE] setup-card attach warning:', msg);
+        }
+      }
+
+      // 3) Make it the customer's default payment method.
+      await stripe.customers.update(stripeCustomerId, {
+        invoice_settings: { default_payment_method: payment_method_id },
+      });
+
+      // 4) Create + confirm the SetupIntent ($0, establishes the off-session mandate).
+      let setupIntent: any;
+      try {
+        setupIntent = await stripe.setupIntents.create({
+          customer: stripeCustomerId,
+          payment_method: payment_method_id,
+          confirm: true,
+          usage: 'off_session',
+          automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
+          metadata: {
+            flow: 'setup_then_authorize',
+            customer_email: customer.email,
+            ...metadata,
+          },
+        });
+      } catch (e: any) {
+        if (e?.type === 'StripeCardError' || e?.raw?.type === 'card_error') {
+          const stripeError = {
+            type: e.type || 'StripeCardError',
+            code: e.code || e.raw?.code,
+            decline_code: e.decline_code || e.raw?.decline_code,
+            message: e.message,
+          };
+          console.warn('[PAYMENT-ENGINE] Stripe card error during setup-card:', stripeError);
+          return new Response(JSON.stringify({
+            success: false,
+            error: e.message || 'Card error',
+            stripe_error: stripeError,
+          }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        throw e;
+      }
+
+      // 5) 3DS handoff — not an error.
+      if (setupIntent.status === 'requires_action' || setupIntent.status === 'requires_source_action') {
+        return new Response(JSON.stringify({
+          success: false,
+          requires_action: true,
+          client_secret: setupIntent.client_secret,
+          setup_intent_id: setupIntent.id,
+          status: setupIntent.status,
+          stripe_customer_id: stripeCustomerId,
+          stripe_payment_method_id: payment_method_id,
+        }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      if (setupIntent.status !== 'succeeded') {
+        return new Response(JSON.stringify({
+          success: false,
+          error: `Card setup failed: ${setupIntent.status}`,
+          stripe_error: {
+            type: 'setup_intent_status',
+            code: setupIntent.status,
+            message: setupIntent.last_setup_error?.message || `Card setup failed: ${setupIntent.status}`,
+          },
+          setup_intent_id: setupIntent.id,
+        }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      // 6) Success.
+      return new Response(JSON.stringify({
+        success: true,
+        setup_intent_id: setupIntent.id,
+        stripe_customer_id: stripeCustomerId,
+        stripe_payment_method_id: payment_method_id,
+        status: setupIntent.status,
+      }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // ========== ACTION: AUTHORIZE-SAVED-CARD ==========
+    // New payment architecture (setup_then_authorize): create the deferred
+    // authorization (~3 days before service) off-session against the card
+    // saved by `setup-card`. Idempotent and legacy-safe.
+    // NOTE: do NOT add `setup_future_usage` here — Stripe rejects it together
+    // with `off_session: true`. The mandate already exists from the SetupIntent.
+    if (action === 'authorize-saved-card') {
+      const { bookingId } = payload as { bookingId: string };
+      if (!bookingId) throw new Error('bookingId required');
+
+      const { data: booking, error: bookingErr } = await supabase
+        .from('bookings')
+        .select('id, payment_flow, payment_status, payment_intent_id, payment_version, tip_amount, stripe_customer_id, stripe_payment_method_id, guest_customer_info')
+        .eq('id', bookingId)
+        .maybeSingle();
+
+      if (bookingErr) throw new Error('Failed to load booking: ' + bookingErr.message);
+      if (!booking) throw new Error('Booking not found');
+
+      // 1) Hard guard — never touch a legacy booking.
+      if (booking.payment_flow !== 'setup_then_authorize') {
+        throw new Error(`authorize-saved-card refused: booking payment_flow is "${booking.payment_flow}", expected "setup_then_authorize"`);
+      }
+      if (booking.payment_status !== 'card_saved') {
+        throw new Error(`authorize-saved-card refused: booking payment_status is "${booking.payment_status}", expected "card_saved"`);
+      }
+
+      // 2) Saved card required.
+      if (!booking.stripe_customer_id || !booking.stripe_payment_method_id) {
+        throw new Error('Booking has no saved Stripe customer / payment method');
+      }
+
+      // 3) Idempotent — already authorized.
+      if (booking.payment_intent_id) {
+        return new Response(JSON.stringify({
+          success: true,
+          action: 'already_authorized',
+          payment_intent_id: booking.payment_intent_id,
+        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      // 4) Server-side amount — same helpers as `recalculate`.
+      await validateMountTvAddOns(bookingId);
+      const servicesTotal = await getServicesTotal(bookingId);
+      const tipAmount = Number(booking.tip_amount) || 0;
+      const totalAmount = servicesTotal + tipAmount;
+      const amountCents = Math.round(totalAmount * 100);
+      if (amountCents < 50) throw new Error(`Computed amount too small to authorize: ${amountCents} cents`);
+
+      const idempotencyKey = `deferred_auth_${bookingId}_${booking.payment_version ?? 1}`;
+
+      // 5) Create the off-session authorization.
+      let pi: any = null;
+      let stripeError: any = null;
+      try {
+        pi = await stripe.paymentIntents.create({
+          amount: amountCents,
+          currency: 'usd',
+          customer: booking.stripe_customer_id,
+          payment_method: booking.stripe_payment_method_id,
+          capture_method: 'manual',
+          off_session: true,
+          confirm: true,
+          metadata: { booking_id: bookingId, reason: 'deferred_authorization' },
+        }, { idempotencyKey });
+      } catch (e: any) {
+        stripeError = {
+          type: e.type || e?.raw?.type || 'StripeError',
+          code: e.code || e?.raw?.code,
+          decline_code: e.decline_code || e?.raw?.decline_code,
+          message: e?.raw?.message || e?.message || 'Deferred authorization failed',
+        };
+        pi = e?.payment_intent || null;
+      }
+
+      // 6) Failure path — keep payment_status as 'card_saved', alert admins.
+      if (!pi || pi.status !== 'requires_capture') {
+        const failMessage = stripeError?.message
+          || pi?.last_payment_error?.message
+          || `Deferred authorization failed: ${pi?.status ?? 'no_payment_intent'}`;
+
+        await supabase.from('booking_audit_log').insert({
+          booking_id: bookingId,
+          operation: 'deferred_auth',
+          status: 'failed',
+          payment_intent_id: pi?.id || null,
+          error_message: failMessage,
+          details: {
+            amount: totalAmount,
+            services_total: servicesTotal,
+            tip_amount: tipAmount,
+            stripe_status: pi?.status || null,
+            stripe_error: stripeError,
+          },
+        }).then(() => {}, () => {});
+
+        await supabase.from('admin_alerts').insert({
+          alert_type: 'deferred_auth_failed',
+          severity: 'high',
+          message: `Deferred authorization failed for booking ${bookingId} ($${totalAmount.toFixed(2)}): ${failMessage}`,
+          details: {
+            booking_id: bookingId,
+            amount: totalAmount,
+            payment_intent_id: pi?.id || null,
+            stripe_status: pi?.status || null,
+            stripe_error: stripeError,
+          },
+        }).then(() => {}, () => {});
+
+        return new Response(JSON.stringify({
+          success: false,
+          error: failMessage,
+          stripe_error: stripeError,
+        }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      // 7) Success — write and VERIFY the write landed.
+      const { data: updatedRows, error: updateErr } = await supabase
+        .from('bookings')
+        .update({
+          payment_intent_id: pi.id,
+          authorized_amount: totalAmount,
+          payment_status: 'authorized',
+        })
+        .eq('id', bookingId)
+        .select('id');
+
+      if (updateErr) {
+        throw new Error(`Authorization succeeded at Stripe (${pi.id}) but booking update failed: ${updateErr.message}`);
+      }
+      if (!updatedRows || updatedRows.length === 0) {
+        throw new Error(`Authorization succeeded at Stripe (${pi.id}) but booking update matched ZERO rows for booking ${bookingId} — booking is now desynced from Stripe`);
+      }
+
+      // 8) Transaction + audit rows.
+      const guestEmail = (booking.guest_customer_info as any)?.email || null;
+      await supabase.from('transactions').insert({
+        booking_id: bookingId,
+        payment_intent_id: pi.id,
+        amount: totalAmount,
+        base_amount: servicesTotal,
+        tip_amount: tipAmount,
+        status: 'authorized',
+        transaction_type: 'authorization',
+        currency: 'usd',
+        payment_method: 'card',
+        guest_customer_email: guestEmail,
+      }).then(() => {}, (e: any) => console.error('[PAYMENT-ENGINE] transactions insert failed:', e));
+
+      await supabase.from('booking_audit_log').insert({
+        booking_id: bookingId,
+        operation: 'deferred_auth',
+        status: 'success',
+        payment_intent_id: pi.id,
+        details: {
+          amount: totalAmount,
+          services_total: servicesTotal,
+          tip_amount: tipAmount,
+        },
+      }).then(() => {}, () => {});
+
+      // 9) Done.
+      return new Response(JSON.stringify({
+        success: true,
+        payment_intent_id: pi.id,
+        amount: totalAmount,
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     throw new Error(`Unknown action: ${action}`);
 
   } catch (error: any) {
