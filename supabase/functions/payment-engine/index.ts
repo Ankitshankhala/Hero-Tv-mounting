@@ -142,7 +142,7 @@ Deno.serve(async (req) => {
       if (!authHeader?.startsWith('Bearer ')) {
         throw new Error('Authorization required');
       }
-      const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.50.0");
+      const { createClient } = await import("npm:@supabase/supabase-js@2.50.0");
       const anonClient = createClient(
         Deno.env.get('SUPABASE_URL')!,
         Deno.env.get('SUPABASE_ANON_KEY')!,
