@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { getSupabaseClient } from '../_shared/supabaseClient.ts';
 import { corsHeaders, refreshStripeMode, createStripeClient } from '../_shared/stripe.ts';
 import { getServiceLineTotal } from '../_shared/pricing.ts';
+// redeploy: npm: supabase-js import fix (esm.sh ws incompatibility)
 
 /**
  * create-authorized-booking (verify_jwt=false)

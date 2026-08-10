@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.50.0";
 import { getStripeSecretKey, getStripeMode, refreshStripeMode } from "../_shared/stripe.ts";
+// redeploy: npm: supabase-js import fix (esm.sh ws incompatibility)
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',

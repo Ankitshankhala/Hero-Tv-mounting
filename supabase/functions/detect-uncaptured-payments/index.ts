@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getSupabaseClient } from '../_shared/supabaseClient.ts';
 import { corsHeaders, refreshStripeMode } from '../_shared/stripe.ts';
+// redeploy: npm: supabase-js import fix (esm.sh ws incompatibility)
 
 /**
  * Detect Uncaptured Payments — Daily monitoring function.
