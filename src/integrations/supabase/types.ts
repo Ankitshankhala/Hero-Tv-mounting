@@ -1090,6 +1090,7 @@ export type Database = {
       bookings: {
         Row: {
           archived_at: string | null
+          authorize_after: string | null
           authorized_amount: number | null
           cancellation_deadline: string | null
           captured_amount: number | null
@@ -1111,6 +1112,7 @@ export type Database = {
           local_service_time: string | null
           location_notes: string | null
           payment_captured_at: string | null
+          payment_flow: string
           payment_intent_id: string | null
           payment_status: string | null
           payment_version: number
@@ -1123,6 +1125,7 @@ export type Database = {
           scheduled_start: string
           service_id: string
           service_tz: string | null
+          setup_intent_id: string | null
           start_time_utc: string | null
           status: Database["public"]["Enums"]["booking_status"] | null
           stripe_customer_id: string | null
@@ -1136,6 +1139,7 @@ export type Database = {
         }
         Insert: {
           archived_at?: string | null
+          authorize_after?: string | null
           authorized_amount?: number | null
           cancellation_deadline?: string | null
           captured_amount?: number | null
@@ -1157,6 +1161,7 @@ export type Database = {
           local_service_time?: string | null
           location_notes?: string | null
           payment_captured_at?: string | null
+          payment_flow?: string
           payment_intent_id?: string | null
           payment_status?: string | null
           payment_version?: number
@@ -1169,6 +1174,7 @@ export type Database = {
           scheduled_start: string
           service_id: string
           service_tz?: string | null
+          setup_intent_id?: string | null
           start_time_utc?: string | null
           status?: Database["public"]["Enums"]["booking_status"] | null
           stripe_customer_id?: string | null
@@ -1182,6 +1188,7 @@ export type Database = {
         }
         Update: {
           archived_at?: string | null
+          authorize_after?: string | null
           authorized_amount?: number | null
           cancellation_deadline?: string | null
           captured_amount?: number | null
@@ -1203,6 +1210,7 @@ export type Database = {
           local_service_time?: string | null
           location_notes?: string | null
           payment_captured_at?: string | null
+          payment_flow?: string
           payment_intent_id?: string | null
           payment_status?: string | null
           payment_version?: number
@@ -1215,6 +1223,7 @@ export type Database = {
           scheduled_start?: string
           service_id?: string
           service_tz?: string | null
+          setup_intent_id?: string | null
           start_time_utc?: string | null
           status?: Database["public"]["Enums"]["booking_status"] | null
           stripe_customer_id?: string | null
@@ -3710,41 +3719,12 @@ export type Database = {
           customer_name: string | null
           days_until_expiry: number | null
           hold_age_days: number | null
+          payment_flow: string | null
           payment_intent_id: string | null
           risk_level: string | null
           scheduled_date: string | null
           stripe_customer_id: string | null
           stripe_payment_method_id: string | null
-        }
-        Insert: {
-          authorized_amount?: number | null
-          authorized_on?: never
-          booking_id?: string | null
-          can_recharge?: never
-          customer_email?: never
-          customer_name?: never
-          days_until_expiry?: never
-          hold_age_days?: never
-          payment_intent_id?: string | null
-          risk_level?: never
-          scheduled_date?: string | null
-          stripe_customer_id?: string | null
-          stripe_payment_method_id?: string | null
-        }
-        Update: {
-          authorized_amount?: number | null
-          authorized_on?: never
-          booking_id?: string | null
-          can_recharge?: never
-          customer_email?: never
-          customer_name?: never
-          days_until_expiry?: never
-          hold_age_days?: never
-          payment_intent_id?: string | null
-          risk_level?: never
-          scheduled_date?: string | null
-          stripe_customer_id?: string | null
-          stripe_payment_method_id?: string | null
         }
         Relationships: []
       }
