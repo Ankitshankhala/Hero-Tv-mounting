@@ -1917,6 +1917,7 @@ Deno.serve(async (req) => {
 
         await supabase.from('admin_alerts').insert({
           alert_type: 'deferred_auth_failed',
+          booking_id: bookingId,
           severity: 'high',
           message: `Deferred authorization failed for booking ${bookingId} ($${totalAmount.toFixed(2)}): ${failMessage}`,
           details: {
