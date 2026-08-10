@@ -29,6 +29,7 @@ serve(async (req) => {
         guest_customer_info
       `)
       .eq('payment_status', 'authorized')
+      .eq('payment_flow', 'authorize_at_booking')
       .in('status', ['completed', 'confirmed'])
       .is('captured_amount', null)
       .lt('scheduled_date', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]);

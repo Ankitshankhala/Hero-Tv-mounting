@@ -1580,6 +1580,7 @@ Deno.serve(async (req) => {
         .from('bookings')
         .select('id, payment_intent_id, stripe_customer_id, stripe_payment_method_id, authorized_amount, created_at')
         .eq('payment_status', 'authorized')
+        .eq('payment_flow', 'authorize_at_booking')
         .eq('is_archived', false)
         .not('payment_intent_id', 'is', null)
         .not('stripe_payment_method_id', 'is', null)
