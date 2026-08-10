@@ -1626,7 +1626,6 @@ Deno.serve(async (req) => {
             capture_method: 'manual',
             off_session: true,
             confirm: true,
-            setup_future_usage: 'off_session',
             metadata: {
               booking_id: b.id,
               reason: 'auth_renewal',
