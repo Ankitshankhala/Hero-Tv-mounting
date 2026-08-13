@@ -15,6 +15,17 @@ import { useTestingMode, getEffectiveMinimumAmount } from '@/contexts/TestingMod
 import { usePaymentFirstFlag } from '@/hooks/usePaymentFirstFlag';
 import { MapPin, Clock, Shield, Wrench } from 'lucide-react';
 
+// Lazy load booking flows to keep initial city-page bundle light.
+// V2 (payment-first) is gated behind `app_settings.payment_first_enabled`.
+const EnhancedInlineBookingFlow = lazy(() => import('@/components/EnhancedInlineBookingFlow'));
+const EnhancedInlineBookingFlowV2 = lazy(() => import('@/components/EnhancedInlineBookingFlowV2'));
+
+const LazyLoader = () => (
+  <div className="flex items-center justify-center p-8">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+  </div>
+);
+
 const CityPage = () => {
   const { slug } = useParams<{ slug: string }>();
   const { isTestingMode } = useTestingMode();
