@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
     async function validateMountTvAddOns(bookingId: string) {
       const { data: lineItems, error: liErr } = await supabase
         .from('booking_services')
-        .select('service_id, base_price, quantity, configuration')
+        .select('service_id, service_name, base_price, quantity, configuration')
         .eq('booking_id', bookingId)
         .eq('service_id', MOUNT_TV_ID);
       if (liErr) throw new Error('Failed to fetch Mount TV line items: ' + liErr.message);
@@ -110,8 +110,16 @@ Deno.serve(async (req) => {
           }
         }
 
-        // Server-side base (tiered when configured)
-        const numTvs = Number(cfg.numberOfTvs) || tvConfigs.length || Number(li.quantity) || 1;
+        // Multi-TV bookings store the TV count only in the service name
+        // (e.g. "Mount TV (2 TVs)") with quantity = 1 and base_price = the tier
+        // total. Mirror the regex create-authorized-booking uses to build it.
+        const nameMatch = String((li as any).service_name || '').match(/\((\d+)\s*TVs?\)/i);
+        const numTvs =
+          Number(cfg.numberOfTvs) ||
+          tvConfigs.length ||
+          (nameMatch ? parseInt(nameMatch[1], 10) : 0) ||
+          Number(li.quantity) ||
+          1;
         let serverBase = 0;
         if (Array.isArray(tiers) && tiers.length > 0) {
           serverBase = getServiceLineTotal(
