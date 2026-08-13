@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { ServicesSection } from '@/components/ServicesSection';
 import { ReviewsSection } from '@/components/ReviewsSection';
 import { Cart } from '@/components/Cart';
-import { EnhancedInlineBookingFlow } from '@/components/EnhancedInlineBookingFlow';
 import { TestingModeIndicator } from '@/components/TestingModeIndicator';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { SEO } from '@/components/SEO';
@@ -13,6 +12,7 @@ import { getCityBySlug } from '@/data/cities';
 import { CartItem } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { useTestingMode, getEffectiveMinimumAmount } from '@/contexts/TestingModeContext';
+import { usePaymentFirstFlag } from '@/hooks/usePaymentFirstFlag';
 import { MapPin, Clock, Shield, Wrench } from 'lucide-react';
 
 const CityPage = () => {
