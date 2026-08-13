@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { ServicesSection } from '@/components/ServicesSection';
 import { ReviewsSection } from '@/components/ReviewsSection';
 import { Cart } from '@/components/Cart';
-import { EnhancedInlineBookingFlow } from '@/components/EnhancedInlineBookingFlow';
 import { TestingModeIndicator } from '@/components/TestingModeIndicator';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { SEO } from '@/components/SEO';
@@ -13,11 +12,24 @@ import { getCityBySlug } from '@/data/cities';
 import { CartItem } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { useTestingMode, getEffectiveMinimumAmount } from '@/contexts/TestingModeContext';
+import { usePaymentFirstFlag } from '@/hooks/usePaymentFirstFlag';
 import { MapPin, Clock, Shield, Wrench } from 'lucide-react';
+
+// Lazy load booking flows to keep initial city-page bundle light.
+// V2 (payment-first) is gated behind `app_settings.payment_first_enabled`.
+const EnhancedInlineBookingFlow = lazy(() => import('@/components/EnhancedInlineBookingFlow'));
+const EnhancedInlineBookingFlowV2 = lazy(() => import('@/components/EnhancedInlineBookingFlowV2'));
+
+const LazyLoader = () => (
+  <div className="flex items-center justify-center p-8">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+  </div>
+);
 
 const CityPage = () => {
   const { slug } = useParams<{ slug: string }>();
   const { isTestingMode } = useTestingMode();
+  const { enabled: paymentFirstEnabled } = usePaymentFirstFlag();
   const MINIMUM_BOOKING_AMOUNT = getEffectiveMinimumAmount(isTestingMode);
   const { toast } = useToast();
   
@@ -300,14 +312,25 @@ const CityPage = () => {
         />
       )}
 
-      {/* Booking Flow */}
+      {/* Booking Flow - Lazy loaded. Flag OFF (default) → V1 unchanged. */}
       {showBookingFlow && (
-        <EnhancedInlineBookingFlow
-          isOpen={showBookingFlow}
-          onClose={() => setShowBookingFlow(false)}
-          onSubmit={handleBookingComplete}
-          selectedServices={selectedServices}
-        />
+        <Suspense fallback={<LazyLoader />}>
+          {paymentFirstEnabled ? (
+            <EnhancedInlineBookingFlowV2
+              isOpen={showBookingFlow}
+              onClose={() => setShowBookingFlow(false)}
+              onSubmit={handleBookingComplete}
+              selectedServices={selectedServices}
+            />
+          ) : (
+            <EnhancedInlineBookingFlow
+              isOpen={showBookingFlow}
+              onClose={() => setShowBookingFlow(false)}
+              onSubmit={handleBookingComplete}
+              selectedServices={selectedServices}
+            />
+          )}
+        </Suspense>
       )}
     </div>
   );
