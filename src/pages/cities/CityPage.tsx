@@ -29,6 +29,7 @@ const LazyLoader = () => (
 const CityPage = () => {
   const { slug } = useParams<{ slug: string }>();
   const { isTestingMode } = useTestingMode();
+  const { enabled: paymentFirstEnabled } = usePaymentFirstFlag();
   const MINIMUM_BOOKING_AMOUNT = getEffectiveMinimumAmount(isTestingMode);
   const { toast } = useToast();
   
