@@ -312,14 +312,25 @@ const CityPage = () => {
         />
       )}
 
-      {/* Booking Flow */}
+      {/* Booking Flow - Lazy loaded. Flag OFF (default) → V1 unchanged. */}
       {showBookingFlow && (
-        <EnhancedInlineBookingFlow
-          isOpen={showBookingFlow}
-          onClose={() => setShowBookingFlow(false)}
-          onSubmit={handleBookingComplete}
-          selectedServices={selectedServices}
-        />
+        <Suspense fallback={<LazyLoader />}>
+          {paymentFirstEnabled ? (
+            <EnhancedInlineBookingFlowV2
+              isOpen={showBookingFlow}
+              onClose={() => setShowBookingFlow(false)}
+              onSubmit={handleBookingComplete}
+              selectedServices={selectedServices}
+            />
+          ) : (
+            <EnhancedInlineBookingFlow
+              isOpen={showBookingFlow}
+              onClose={() => setShowBookingFlow(false)}
+              onSubmit={handleBookingComplete}
+              selectedServices={selectedServices}
+            />
+          )}
+        </Suspense>
       )}
     </div>
   );
