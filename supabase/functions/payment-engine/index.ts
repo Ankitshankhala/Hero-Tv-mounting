@@ -1621,9 +1621,22 @@ Deno.serve(async (req) => {
             continue;
           }
 
-          const amount = oldPi.amount_capturable || oldPi.amount;
-          if (!amount) {
-            details.push({ booking_id: b.id, skipped: true, reason: 'no_amount' });
+          // Recompute the authorization amount from the database so renewals
+          // reflect services/tip changes (e.g. worker removed services) instead of
+          // perpetuating the old PaymentIntent's stale hold.
+          const servicesTotal = await getServicesTotal(b.id);
+          const tip = Number(b.tip_amount) || 0;
+          const total = servicesTotal + tip;
+          const amount = Math.round(total * 100);
+
+          if (amount < 50) {
+            details.push({
+              booking_id: b.id,
+              skipped: true,
+              reason: 'amount_below_minimum',
+              recomputed_amount: amount,
+              previous_pi_amount: oldPi.amount / 100,
+            });
             continue;
           }
 
