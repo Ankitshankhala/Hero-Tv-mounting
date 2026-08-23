@@ -1586,7 +1586,7 @@ Deno.serve(async (req) => {
 
       const { data: candidates, error: candErr } = await supabase
         .from('bookings')
-        .select('id, payment_intent_id, stripe_customer_id, stripe_payment_method_id, authorized_amount, created_at')
+        .select('id, payment_intent_id, stripe_customer_id, stripe_payment_method_id, authorized_amount, tip_amount, created_at')
         .eq('payment_status', 'authorized')
         .eq('payment_flow', 'authorize_at_booking')
         .eq('is_archived', false)
@@ -1621,9 +1621,22 @@ Deno.serve(async (req) => {
             continue;
           }
 
-          const amount = oldPi.amount_capturable || oldPi.amount;
-          if (!amount) {
-            details.push({ booking_id: b.id, skipped: true, reason: 'no_amount' });
+          // Recompute the authorization amount from the database so renewals
+          // reflect services/tip changes (e.g. worker removed services) instead of
+          // perpetuating the old PaymentIntent's stale hold.
+          const servicesTotal = await getServicesTotal(b.id);
+          const tip = Number(b.tip_amount) || 0;
+          const total = servicesTotal + tip;
+          const amount = Math.round(total * 100);
+
+          if (amount < 50) {
+            details.push({
+              booking_id: b.id,
+              skipped: true,
+              reason: 'amount_below_minimum',
+              recomputed_amount: amount,
+              previous_pi_amount: oldPi.amount / 100,
+            });
             continue;
           }
 
@@ -1674,11 +1687,20 @@ Deno.serve(async (req) => {
               old_payment_intent: b.payment_intent_id,
               new_payment_intent: newPi.id,
               amount_cents: amount,
+              recomputed_amount: amount,
+              previous_pi_amount: oldPi.amount / 100,
             },
           });
 
           renewed++;
-          details.push({ booking_id: b.id, success: true, old_pi: b.payment_intent_id, new_pi: newPi.id });
+          details.push({
+            booking_id: b.id,
+            success: true,
+            old_pi: b.payment_intent_id,
+            new_pi: newPi.id,
+            recomputed_amount: amount,
+            previous_pi_amount: oldPi.amount / 100,
+          });
         } catch (e: any) {
           failed++;
           const msg = e?.raw?.message || e?.message || 'renewal error';
