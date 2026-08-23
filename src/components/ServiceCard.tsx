@@ -63,7 +63,11 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ id, name, price, image
         <h3 className="text-sm md:text-xl font-semibold md:font-bold text-white line-clamp-2 min-h-[2.5rem] md:min-h-0">
           {name}
         </h3>
-        <p className="hidden md:block text-slate-300 text-sm mt-2">{description}</p>
+        {description?.trim() && (
+          <p className="text-slate-300 text-xs md:text-sm mt-1 md:mt-2 line-clamp-2 md:line-clamp-none">
+            {description}
+          </p>
+        )}
 
         <div className="mt-2 md:mt-4 flex items-center justify-between gap-2">
           <div className="text-base md:text-2xl font-bold text-white truncate">
