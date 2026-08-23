@@ -1623,19 +1623,43 @@ Deno.serve(async (req) => {
 
           // Recompute the authorization amount from the database so renewals
           // reflect services/tip changes (e.g. worker removed services) instead of
-          // perpetuating the old PaymentIntent's stale hold.
+          // perpetuating the old PaymentIntent's stale hold. Cap the renewal at the
+          // previous authorization amount — renewal is a background job with no
+          // customer present, so it must never silently increase the hold.
           const servicesTotal = await getServicesTotal(b.id);
           const tip = Number(b.tip_amount) || 0;
           const total = servicesTotal + tip;
-          const amount = Math.round(total * 100);
+          const recomputedCents = Math.round(total * 100);
+          const previousCents = oldPi.amount;
+          const amount = Math.min(recomputedCents, previousCents);
+          const capped = recomputedCents > previousCents;
+
+          if (capped) {
+            const difference = (recomputedCents - previousCents) / 100;
+            EdgeRuntime.waitUntil(
+              supabase.from('admin_alerts').insert({
+                alert_type: 'renewal_amount_drift',
+                severity: 'high',
+                booking_id: b.id,
+                message: `Booking ${b.id} has drifted upward: services+tip = $${(recomputedCents / 100).toFixed(2)} but authorization is $${(previousCents / 100).toFixed(2)}. Renewed at $${(amount / 100).toFixed(2)} (capped). Needs re-authorization for the difference.`,
+                details: {
+                  booking_id: b.id,
+                  recomputed_amount: recomputedCents / 100,
+                  previous_pi_amount: previousCents / 100,
+                  difference,
+                },
+              })
+            );
+          }
 
           if (amount < 50) {
             details.push({
               booking_id: b.id,
               skipped: true,
               reason: 'amount_below_minimum',
-              recomputed_amount: amount,
-              previous_pi_amount: oldPi.amount / 100,
+              recomputed_amount: recomputedCents / 100,
+              previous_pi_amount: previousCents / 100,
+              capped,
             });
             continue;
           }
