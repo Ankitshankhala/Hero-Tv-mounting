@@ -1687,11 +1687,20 @@ Deno.serve(async (req) => {
               old_payment_intent: b.payment_intent_id,
               new_payment_intent: newPi.id,
               amount_cents: amount,
+              recomputed_amount: amount,
+              previous_pi_amount: oldPi.amount / 100,
             },
           });
 
           renewed++;
-          details.push({ booking_id: b.id, success: true, old_pi: b.payment_intent_id, new_pi: newPi.id });
+          details.push({
+            booking_id: b.id,
+            success: true,
+            old_pi: b.payment_intent_id,
+            new_pi: newPi.id,
+            recomputed_amount: amount,
+            previous_pi_amount: oldPi.amount / 100,
+          });
         } catch (e: any) {
           failed++;
           const msg = e?.raw?.message || e?.message || 'renewal error';
