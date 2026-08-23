@@ -1586,7 +1586,7 @@ Deno.serve(async (req) => {
 
       const { data: candidates, error: candErr } = await supabase
         .from('bookings')
-        .select('id, payment_intent_id, stripe_customer_id, stripe_payment_method_id, authorized_amount, created_at')
+        .select('id, payment_intent_id, stripe_customer_id, stripe_payment_method_id, authorized_amount, tip_amount, created_at')
         .eq('payment_status', 'authorized')
         .eq('payment_flow', 'authorize_at_booking')
         .eq('is_archived', false)
