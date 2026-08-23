@@ -1711,8 +1711,9 @@ Deno.serve(async (req) => {
               old_payment_intent: b.payment_intent_id,
               new_payment_intent: newPi.id,
               amount_cents: amount,
-              recomputed_amount: amount,
-              previous_pi_amount: oldPi.amount / 100,
+              recomputed_amount: recomputedCents / 100,
+              previous_pi_amount: previousCents / 100,
+              capped,
             },
           });
 
@@ -1722,8 +1723,9 @@ Deno.serve(async (req) => {
             success: true,
             old_pi: b.payment_intent_id,
             new_pi: newPi.id,
-            recomputed_amount: amount,
-            previous_pi_amount: oldPi.amount / 100,
+            recomputed_amount: recomputedCents / 100,
+            previous_pi_amount: previousCents / 100,
+            capped,
           });
         } catch (e: any) {
           failed++;
