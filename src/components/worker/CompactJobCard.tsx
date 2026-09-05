@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { formatBookingTimeForContext, convertUTCToLocal } from '@/utils/timeUtils';
 import { getJobAddress } from '@/utils/jobAddress';
+import { calculateWorkerEarnings, formatCurrency } from '@/utils/workerEarningsCalculator';
 
 interface CompactJobCardProps {
   job: any;
@@ -212,6 +213,11 @@ export const CompactJobCard = ({
   const tipBadge = getTipBadge();
   const phone = getCustomerPhone();
 
+  const earnings =
+    job.booking_services && job.booking_services.length > 0
+      ? calculateWorkerEarnings(job.booking_services, job.tip_amount || 0)
+      : null;
+
   return (
     <Card
       onClick={onToggle}
@@ -257,6 +263,14 @@ export const CompactJobCard = ({
                   className={`text-[11px] leading-none py-0.5 px-1.5 font-medium ${tipBadge.color}`}
                 >
                   {tipBadge.text}
+                </Badge>
+              )}
+              {earnings && (
+                <Badge
+                  variant="outline"
+                  className="text-[11px] leading-none py-0.5 px-1.5 font-medium bg-action-success text-white border-action-success"
+                >
+                  Earn {formatCurrency(earnings.totalEarnings)}
                 </Badge>
               )}
             </div>

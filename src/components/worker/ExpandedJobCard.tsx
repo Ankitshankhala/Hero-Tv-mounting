@@ -398,8 +398,8 @@ export const ExpandedJobCard = ({ job, onStatusUpdate, onJobCancelled, onCollaps
           </div>
         </div>
 
-        {/* Earnings (captured only) */}
-        {job.booking_services && job.booking_services.length > 0 && job.payment_status === 'captured' && (
+        {/* Earnings */}
+        {job.booking_services && job.booking_services.length > 0 && (
           <JobEarningsCard
             services={job.booking_services}
             tipAmount={job.tip_amount || 0}
