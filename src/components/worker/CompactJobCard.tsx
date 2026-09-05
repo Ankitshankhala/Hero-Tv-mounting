@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { formatBookingTimeForContext, convertUTCToLocal } from '@/utils/timeUtils';
 import { getJobAddress } from '@/utils/jobAddress';
+import { calculateWorkerEarnings, formatCurrency } from '@/utils/workerEarningsCalculator';
 
 interface CompactJobCardProps {
   job: any;
