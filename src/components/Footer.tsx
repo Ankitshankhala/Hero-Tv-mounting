@@ -2,14 +2,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Facebook, Instagram, Linkedin, Phone, Mail } from 'lucide-react';
+import { getAllCities } from '@/data/cities';
 
-const cities = [
-  { name: 'Austin, TX', href: '/locations/austin' },
-  { name: 'San Antonio, TX', href: '/locations/san-antonio' },
-  { name: 'Fort Worth, TX', href: '/locations/fort-worth' },
-  { name: 'Dallas, TX', href: '/locations/dallas' },
-  { name: 'Houston, TX', href: '/locations/houston' },
-];
+const cities = getAllCities().map((c) => ({ name: c.fullName, href: c.path }));
 
 const linkCls =
   'inline-flex items-center min-h-[44px] text-sm text-slate-400 hover:text-blue-400 transition-colors';
@@ -34,7 +29,7 @@ export const Footer = () => {
               <div className="text-white font-semibold text-base">Hero TV Mounting</div>
             </div>
             <p className="mt-2 text-sm text-slate-400">
-              Professional TV mounting across Texas
+              Professional TV mounting across Texas, Florida & Georgia
             </p>
             <div className="mt-3 flex flex-col gap-1">
               <a
