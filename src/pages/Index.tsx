@@ -13,6 +13,7 @@ import { useInView } from '@/hooks/useInView';
 import { CartItem } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { SEO } from '@/components/SEO';
+import { getAllCities } from '@/data/cities';
 
 
 // Lazy load heavy components that are not needed for initial render
@@ -201,30 +202,26 @@ const Index = () => {
           <div className="container mx-auto px-4">
             <div className="mb-6 md:mb-10 md:text-center">
               <h2 className="text-2xl md:text-4xl font-bold text-white mb-2">
-                Service Areas in Texas
+                Service Areas
               </h2>
               <p className="text-slate-400 text-sm md:text-base md:max-w-2xl md:mx-auto">
-                Proudly serving communities across Texas.
+                Proudly serving the Austin, Dallas, and Houston Metro Areas in Texas, plus Tampa, St. Petersburg, Orlando, Ft. Lauderdale, Miami Metro in Florida, and Atlanta Metro in Georgia.
               </p>
             </div>
 
             <div className="max-w-3xl mx-auto grid grid-cols-2 md:grid-cols-3 gap-2.5 md:gap-3">
-              {[
-                { slug: 'austin', name: 'Austin' },
-                { slug: 'san-antonio', name: 'San Antonio' },
-                { slug: 'fort-worth', name: 'Fort Worth' },
-                { slug: 'dallas', name: 'Dallas' },
-                { slug: 'houston', name: 'Houston' },
-              ].map((c) => (
-                <Link
-                  key={c.slug}
-                  to={`/locations/${c.slug}`}
-                  className="min-h-[44px] flex items-center justify-center px-3 py-2.5 rounded-lg bg-slate-700/70 hover:bg-slate-700 border border-slate-600 text-slate-100 text-sm font-medium transition-colors"
-                >
-                  {c.name}
-                </Link>
-
-              ))}
+              {getAllCities().map((c) => {
+                const displayName = c.fullName.replace(/,\s*[A-Z]{2}$/, '');
+                return (
+                  <Link
+                    key={c.slug}
+                    to={c.path}
+                    className="min-h-[44px] flex items-center justify-center px-3 py-2.5 rounded-lg bg-slate-700/70 hover:bg-slate-700 border border-slate-600 text-slate-100 text-sm font-medium transition-colors"
+                  >
+                    {displayName}
+                  </Link>
+                );
+              })}
             </div>
           </div>
         </section>
