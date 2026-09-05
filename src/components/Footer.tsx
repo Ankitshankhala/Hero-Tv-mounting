@@ -81,8 +81,8 @@ export const Footer = () => {
           </div>
 
           {/* Link groups */}
-          <div className="mt-8 md:mt-0 md:col-span-7 grid grid-cols-2 gap-x-6 gap-y-6 md:grid-cols-3 md:gap-8">
-            <div>
+          <div className="mt-8 md:mt-0 md:col-span-7 grid grid-cols-2 gap-x-6 gap-y-6 md:grid-cols-12 md:gap-8">
+            <div className="md:col-span-3">
               <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">
                 Company
               </h4>
@@ -93,7 +93,7 @@ export const Footer = () => {
               </ul>
             </div>
 
-            <div>
+            <div className="md:col-span-3">
               <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">
                 Legal
               </h4>
@@ -103,14 +103,14 @@ export const Footer = () => {
               </ul>
             </div>
 
-            <div className="col-span-2 md:col-span-1">
+            <div className="col-span-2 md:col-span-6">
               <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">
                 Service Areas
               </h4>
-              <ul className="grid grid-cols-2 gap-x-4">
+              <ul className="grid grid-cols-2 gap-x-6 gap-y-2.5">
                 {cities.map((c) => (
                   <li key={c.href}>
-                    <a href={c.href} className={linkCls}>{c.name}</a>
+                    <a href={c.href} className={linkCls + ' whitespace-nowrap'}>{c.name}</a>
                   </li>
                 ))}
               </ul>
